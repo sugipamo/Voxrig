@@ -4,7 +4,7 @@
 1回の`tick`が、clientの自分のplayerの1 tickを再現する。版の違いは`VersionTable`の
 `PhysicsConstants`と`PhysicsRules`だけで表す。通信や接続状態には触れない。
 
-共通APIでは[継続操作](common-control.md)（P7）が使う。有限入力の移動（`start_predicted_path`）は従来の乾いた地形のモデルのまま。
+共通APIではSurvival／Adventure／Creativeの地上[継続操作](common-control.md)（P7）が使う。有限入力の移動（`start_predicted_path`）は従来の乾いた地形のモデルのまま。
 
 ## 対応範囲
 

@@ -83,6 +83,8 @@ fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> 
         );
     }
     env.movement_speed_base = exact(&initial["movement_speed_base"]);
+    env.may_fly = initial["may_fly"].as_bool().unwrap_or(false);
+    env.food_level = initial["food"].as_i64().unwrap() as i32;
     env.movement_speed_modifiers = initial["movement_speed_modifiers"]
         .as_array()
         .unwrap()
@@ -347,4 +349,40 @@ fn received_equipment_inputs_match_original_native_player_movement() {
         }
     }
     assert_eq!(runs, 11);
+}
+
+#[test]
+fn ground_modes_match_original_native_physics() {
+    let oracle: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/ground_mode_oracle.json.gz")[..],
+    ))
+    .unwrap();
+    let mut runs = 0;
+    for (version, name) in [
+        (MinecraftVersion::Java1_16_1, "1.16.1"),
+        (MinecraftVersion::Java1_21_11, "1.21.11"),
+    ] {
+        for result in oracle["results"][name].as_array().unwrap() {
+            let scenario = oracle["scenarios"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == result["name"])
+                .unwrap();
+            assert_eq!(result["initial"]["game_mode"], scenario["game_mode"]);
+            assert_eq!(result["initial"]["flying"], false);
+            assert_eq!(
+                result["initial"]["may_fly"].as_bool().unwrap(),
+                scenario["game_mode"] == "creative"
+            );
+            assert_eq!(
+                compare(version, scenario, result).unwrap(),
+                None,
+                "{}",
+                result["name"]
+            );
+            runs += 1;
+        }
+    }
+    assert_eq!(runs, 16);
 }

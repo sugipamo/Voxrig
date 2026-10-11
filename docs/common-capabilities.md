@@ -42,7 +42,7 @@
 | `DisplayObservation` | received titles, tab header/footer and world border fields | [common-ui-display.md](common-ui-display.md) | received title/subtitle/action-bar/timing/clear/reset, atomic tab header/footer, world-bound border center/size/transition/limits/warnings; per-field original ordinals and JSON/NBT; no invented defaults, render expiration, current interpolation or collision/damage inference |
 | `BlockQueries` | name search and collision-shape raycasts up to 64 blocks; unloaded cells reported | [common-blocks.md](common-blocks.md) | （新設。詳細は文書を参照） |
 | `EntityState` | received health and equipment; boxes use default type dimensions only | [common-entities.md](common-entities.md) | （新設。詳細は文書を参照） |
-| `ContinuousControl` | held survival keys on terrain, fluids, ladders, vines, scaffolding and player bubble columns; no flying or riding | [common-control.md](common-control.md) | （新設。詳細は文書を参照） |
+| `ContinuousControl` | mode-bound Survival/Adventure/Creative ground keys on terrain, fluids, ladders, vines, scaffolding and player bubble columns; no flying or riding | [common-control.md](common-control.md) | （新設。詳細は文書を参照） |
 | `Digging` | any breakable block with the held item; default item speeds, received effects/attributes | [common-dig.md](common-dig.md) | （新設。詳細は文書を参照） |
 | `PlacementCheck` | received state only; cube target cell, standing eye, default entity boxes | [common-placement-check.md](common-placement-check.md) | （新設。詳細は文書を参照） |
 | `InventoryHelpers` | composed from ordinary clicks, one received outcome per click; same item and data merge | [common-inventory-helpers.md](common-inventory-helpers.md) | （新設。詳細は文書を参照） |

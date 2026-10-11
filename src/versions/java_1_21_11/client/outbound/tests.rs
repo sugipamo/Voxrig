@@ -4147,3 +4147,139 @@ async fn common_entity_history_freezes_native_packets_and_reports_retention() {
             .is_empty()
     );
 }
+
+#[tokio::test]
+async fn ground_modes_fence_other_handles_and_transient_received_mode_changes() {
+    use crate::client::{
+        GameMode,
+        control::{ControlStatus, Controls},
+    };
+    for (mode, raw) in [(GameMode::Adventure, 2f32), (GameMode::Creative, 1f32)] {
+        let (session, api, _peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        assert!(
+            client
+                .player_control(GameMode::Spectator)
+                .start_control()
+                .await
+                .is_err()
+        );
+        let start = handle.start_control().await.unwrap();
+        assert_eq!(start.mode, mode);
+        let keys = Controls {
+            forward: 1,
+            yaw: 37.,
+            pitch: -12.,
+            ..Default::default()
+        };
+        assert!(
+            client
+                .survival()
+                .set_controls_for(start.session_id, keys)
+                .await
+                .is_err()
+        );
+        assert!(
+            client
+                .survival()
+                .stop_control_for(start.session_id)
+                .await
+                .is_err()
+        );
+        assert!(
+            client
+                .survival()
+                .request_ground_jump(start.session_id)
+                .await
+                .is_err()
+        );
+        assert!(
+            handle
+                .set_controls_for(start.session_id + 1, keys)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            handle
+                .set_controls_for(start.session_id, keys)
+                .await
+                .unwrap()
+                .controls,
+            keys
+        );
+        let before = {
+            let mut state = session.state.lock().await;
+            state.sequence = 100;
+            let mut away = vec![3];
+            away.extend(0f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::GAME_STATE_CHANGE, &away)
+                .unwrap();
+            state.sequence = 101;
+            let mut back = vec![3];
+            back.extend(raw.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::GAME_STATE_CHANGE, &back)
+                .unwrap();
+            state.control.session.as_ref().unwrap().record()
+        };
+        assert_eq!(client.player_state().await.unwrap().game_mode, Some(mode));
+        assert_eq!(before.mode_change_sequence, Some(100));
+        assert!(
+            handle
+                .set_controls_for(start.session_id, keys)
+                .await
+                .is_err()
+        );
+        assert!(handle.request_ground_jump(start.session_id).await.is_err());
+        let stopped = timeout(Duration::from_secs(2), async {
+            loop {
+                let r = handle.control_record().await.unwrap().unwrap();
+                if matches!(r.status, ControlStatus::Stopped { .. }) {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(before.dispatched_ticks, stopped.dispatched_ticks);
+        assert_eq!(
+            handle.stop_control_for(start.session_id).await.unwrap(),
+            stopped
+        );
+        let next = handle.start_control().await.unwrap();
+        assert_ne!(next.session_id, start.session_id);
+        assert_eq!(next.mode_change_sequence, None);
+        assert!(handle.stop_control_for(start.session_id).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            for (seq, flags) in [(200, 6u8), (201, 4)] {
+                state.sequence = seq;
+                let mut abilities = vec![flags];
+                abilities.extend(0.05f32.to_be_bytes());
+                abilities.extend(0.1f32.to_be_bytes());
+                operations::receive(&mut state, ids::play_clientbound::ABILITIES, &abilities)
+                    .unwrap();
+            }
+            assert_eq!(
+                state
+                    .control
+                    .session
+                    .as_ref()
+                    .unwrap()
+                    .record()
+                    .flight_change_sequence,
+                Some(200)
+            );
+        }
+        assert!(
+            handle
+                .set_controls_for(next.session_id, keys)
+                .await
+                .is_err()
+        );
+        assert!(handle.request_ground_jump(next.session_id).await.is_err());
+        handle.stop_control_for(next.session_id).await.unwrap();
+        session.stop();
+    }
+}

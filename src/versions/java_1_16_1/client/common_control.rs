@@ -20,6 +20,16 @@ pub(crate) struct ContinuousControl {
 }
 
 impl ContinuousControl {
+    pub(super) fn observe_flying(&mut self, flying: bool, sequence: u64) {
+        if let Some(session) = &mut self.session {
+            session.observe_flying(flying, sequence);
+        }
+    }
+    pub(super) fn observe_mode(&mut self, mode: GameMode, sequence: u64) {
+        if let Some(session) = &mut self.session {
+            session.observe_mode(mode, sequence);
+        }
+    }
     pub(crate) fn active(&self) -> bool {
         self.session.as_ref().is_some_and(ControlSession::running)
     }
@@ -122,7 +132,7 @@ impl Bot {
         }
     }
 
-    async fn control_stop_reason(&self, generation: u64) -> Option<&'static str> {
+    async fn control_stop_reason(&self, generation: u64, mode: GameMode) -> Option<&'static str> {
         let receipts = self.common_receipts.lock().await;
         if receipts.generation != generation {
             return Some("world changed (respawn or dimension)");
@@ -131,8 +141,32 @@ impl Bot {
             return Some("flying or riding");
         }
         drop(receipts);
+        if self
+            .common_control
+            .lock()
+            .await
+            .session
+            .as_ref()
+            .is_some_and(|s| s.running() && s.flight_change_sequence.is_some())
+        {
+            return Some("flying");
+        }
+        if self
+            .common_control
+            .lock()
+            .await
+            .session
+            .as_ref()
+            .is_some_and(|s| s.running() && s.mode_change_sequence.is_some())
+        {
+            return Some("game mode changed");
+        }
         let survival = self.survival.read().await;
-        if survival.game_mode.map(|id| id & 7) != Some(0) {
+        if survival
+            .game_mode
+            .and_then(|id| GameMode::decode(id & 7).ok())
+            != Some(mode)
+        {
             Some("game mode changed")
         } else if survival.flying {
             Some("flying")
@@ -169,7 +203,11 @@ impl Bot {
     }
 
     // The connection owns release writes even if the caller stops awaiting them.
-    async fn stop_control_owned(&self, id: u64) -> Result<Option<ControlRecord>> {
+    async fn stop_control_owned(
+        &self,
+        id: u64,
+        mode: Option<GameMode>,
+    ) -> Result<Option<ControlRecord>> {
         let _gate = self.coherent_state_gate.lock().await;
         let generation = self.common_receipts.lock().await.generation;
         let mut control = self.common_control.lock().await;
@@ -177,6 +215,9 @@ impl Bot {
         let Some(session) = control.session.as_mut().filter(|s| s.id == id) else {
             return Ok(None);
         };
+        if mode.is_some_and(|mode| session.mode != mode) {
+            return Err(invalid("selected control belongs to a different mode"));
+        }
         let mut release = Ok(());
         if session.running() {
             session.status = ControlStatus::Stopped {
@@ -198,7 +239,7 @@ impl Bot {
         release.map(|()| Some(session.record()))
     }
 
-    async fn run_control(&self, id: u64, generation: u64) {
+    async fn run_control(&self, id: u64, generation: u64, mode: GameMode) {
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
@@ -217,7 +258,7 @@ impl Bot {
                 return;
             }
             let _gate = self.coherent_state_gate.lock().await;
-            let stop = self.control_stop_reason(generation).await;
+            let stop = self.control_stop_reason(generation, mode).await;
             let received = self.control_received().await;
             let mut control = self.common_control.lock().await;
             let Some(session) = control
@@ -329,11 +370,17 @@ impl crate::client::adapter::ControlOps for Bot {
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
         self.wait_until_ready().await?;
         let _gate = self.coherent_state_gate.lock().await;
-        if mode != GameMode::Survival
-            || self.survival.read().await.game_mode.map(|id| id & 7) != Some(0)
+        crate::client::control::validate_ground_mode(mode)?;
+        if self
+            .survival
+            .read()
+            .await
+            .game_mode
+            .and_then(|id| GameMode::decode(id & 7).ok())
+            != Some(mode)
         {
             return Err(invalid(
-                "continuous control requires received survival mode",
+                "continuous control requires matching received mode",
             ));
         }
         if self.common_control.lock().await.active() {
@@ -351,7 +398,7 @@ impl crate::client::adapter::ControlOps for Bot {
             ));
         }
         let generation = self.common_receipts.lock().await.generation;
-        if let Some(reason) = self.control_stop_reason(generation).await {
+        if let Some(reason) = self.control_stop_reason(generation, mode).await {
             return Err(invalid(reason));
         }
         if self.common_receipts.lock().await.pose.is_none() {
@@ -396,11 +443,12 @@ impl crate::client::adapter::ControlOps for Bot {
         }
         control.generation = Some(generation);
         control.model_tick = Some(motion.ticks);
+        session.mode = mode;
         let record = session.record();
         control.session = Some(session);
         drop(control);
         let bot = self.clone();
-        tokio::spawn(async move { bot.run_control(id, generation).await });
+        tokio::spawn(async move { bot.run_control(id, generation, mode).await });
         Ok(record)
     }
 
@@ -416,16 +464,26 @@ impl crate::client::adapter::ControlOps for Bot {
         }
         self.wait_until_ready().await?;
         let _gate = self.coherent_state_gate.lock().await;
-        if mode != GameMode::Survival || self.survival.read().await.game_mode != Some(0) {
+        if self
+            .survival
+            .read()
+            .await
+            .game_mode
+            .and_then(|id| GameMode::decode(id & 7).ok())
+            != Some(mode)
+        {
             return Err(invalid("controls require matching received mode"));
         }
         let generation = self.common_receipts.lock().await.generation;
+        if let Some(reason) = self.control_stop_reason(generation, mode).await {
+            return Err(invalid(reason));
+        }
         let mut control = self.common_control.lock().await;
         if control.generation != Some(generation) {
             return Err(invalid("control belongs to a previous world"));
         }
         match control.session.as_mut() {
-            Some(session) if session.running() => {
+            Some(session) if session.running() && session.mode == mode => {
                 if session_id.is_some_and(|id| session.id != id) {
                     return Err(invalid("selected control session was replaced"));
                 }
@@ -436,6 +494,7 @@ impl crate::client::adapter::ControlOps for Bot {
         }
     }
 
+    #[cfg(test)]
     async fn stop_control(&self) -> Result<Option<ControlRecord>> {
         let control = self.common_control.lock().await;
         let Some(session) = control.session.as_ref() else {
@@ -444,17 +503,40 @@ impl crate::client::adapter::ControlOps for Bot {
         let id = session.id;
         drop(control);
         let owner = self.clone_internal();
-        tokio::spawn(async move { owner.stop_control_owned(id).await })
+        tokio::spawn(async move { owner.stop_control_owned(id, None).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
+    #[cfg(test)]
     async fn stop_control_for(&self, session_id: u64) -> Result<ControlRecord> {
         let owner = self.clone_internal();
-        tokio::spawn(async move { owner.stop_control_owned(session_id).await })
+        tokio::spawn(async move { owner.stop_control_owned(session_id, None).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))??
             .ok_or_else(|| invalid("selected control session is missing or was replaced"))
+    }
+
+    async fn stop_control_in_mode(
+        &self,
+        mode: GameMode,
+        session_id: Option<u64>,
+    ) -> Result<Option<ControlRecord>> {
+        let control = self.common_control.lock().await;
+        let Some(session) = control.session.as_ref() else {
+            return Ok(None);
+        };
+        if session.mode != mode || session_id.is_some_and(|id| session.id != id) {
+            return Err(invalid(
+                "selected control was replaced or belongs to a different mode",
+            ));
+        }
+        let id = session.id;
+        drop(control);
+        let owner = self.clone();
+        tokio::spawn(async move { owner.stop_control_owned(id, Some(mode)).await })
+            .await
+            .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
     async fn request_ground_jump(
@@ -464,11 +546,18 @@ impl crate::client::adapter::ControlOps for Bot {
     ) -> Result<crate::client::control::GroundJumpRequest> {
         self.wait_until_ready().await?;
         let _gate = self.coherent_state_gate.lock().await;
-        if mode != GameMode::Survival || self.survival.read().await.game_mode != Some(0) {
-            return Err(invalid("ground jump requires received survival mode"));
+        if self
+            .survival
+            .read()
+            .await
+            .game_mode
+            .and_then(|id| GameMode::decode(id & 7).ok())
+            != Some(mode)
+        {
+            return Err(invalid("ground jump requires matching received mode"));
         }
         let generation = self.common_receipts.lock().await.generation;
-        if let Some(reason) = self.control_stop_reason(generation).await {
+        if let Some(reason) = self.control_stop_reason(generation, mode).await {
             return Err(invalid(reason));
         }
         let mut control = self.common_control.lock().await;
@@ -483,7 +572,8 @@ impl crate::client::adapter::ControlOps for Bot {
         control
             .session
             .as_mut()
-            .ok_or_else(|| invalid("no running control session"))?
+            .filter(|s| s.mode == mode)
+            .ok_or_else(|| invalid("no running control session in the expected mode"))?
             .request_ground_jump(session_id)
     }
 
@@ -920,5 +1010,149 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod ground_mode_tests {
+    use super::*;
+    use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn ground_modes_fence_other_handles_and_transient_received_mode_changes() {
+        for (mode, raw) in [(GameMode::Adventure, 2f32), (GameMode::Creative, 1f32)] {
+            let (bot, _packets, _release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.player.lock().await.entity_id = Some(42);
+            let mut packet = vec![3];
+            packet.extend(raw.to_be_bytes());
+            bot.apply_packet(0x1e, packet.clone()).await.unwrap();
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let handle = client.player_control(mode);
+            assert!(
+                client
+                    .player_control(GameMode::Spectator)
+                    .start_control()
+                    .await
+                    .is_err()
+            );
+            let start = handle.start_control().await.unwrap();
+            assert_eq!(start.mode, mode);
+            let keys = Controls {
+                forward: 1,
+                yaw: 37.,
+                pitch: -12.,
+                ..Default::default()
+            };
+            assert!(
+                client
+                    .survival()
+                    .set_controls_for(start.session_id, keys)
+                    .await
+                    .is_err()
+            );
+            assert!(
+                client
+                    .survival()
+                    .stop_control_for(start.session_id)
+                    .await
+                    .is_err()
+            );
+            assert!(
+                client
+                    .survival()
+                    .request_ground_jump(start.session_id)
+                    .await
+                    .is_err()
+            );
+            assert!(
+                handle
+                    .set_controls_for(start.session_id + 1, keys)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                handle
+                    .set_controls_for(start.session_id, keys)
+                    .await
+                    .unwrap()
+                    .controls,
+                keys
+            );
+            let gate = bot.coherent_state_gate.lock().await;
+            let mut away = vec![3];
+            away.extend(0f32.to_be_bytes());
+            bot.receive_game_state_change(&away, 100).await.unwrap();
+            bot.receive_game_state_change(&packet, 101).await.unwrap();
+            let before = handle.control_record().await.unwrap().unwrap();
+            assert_eq!(before.mode_change_sequence, Some(100));
+            assert_eq!(bot.survival.read().await.game_mode, Some(raw as u8));
+            drop(gate);
+            assert!(
+                handle
+                    .set_controls_for(start.session_id, keys)
+                    .await
+                    .is_err()
+            );
+            assert!(handle.request_ground_jump(start.session_id).await.is_err());
+            let stopped = timeout(Duration::from_secs(2), async {
+                loop {
+                    let r = handle.control_record().await.unwrap().unwrap();
+                    if matches!(r.status, ControlStatus::Stopped { .. }) {
+                        break r;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert_eq!(before.dispatched_ticks, stopped.dispatched_ticks);
+            assert_eq!(
+                handle.stop_control_for(start.session_id).await.unwrap(),
+                stopped
+            );
+            let next = handle.start_control().await.unwrap();
+            assert_ne!(next.session_id, start.session_id);
+            assert_eq!(next.mode_change_sequence, None);
+            assert!(handle.stop_control_for(start.session_id).await.is_err());
+            let gate = bot.coherent_state_gate.lock().await;
+            for (seq, flags) in [(200, 6u8), (201, 4)] {
+                let mut abilities = vec![flags];
+                abilities.extend(0.05f32.to_be_bytes());
+                abilities.extend(0.1f32.to_be_bytes());
+                bot.receive_player_abilities(&abilities, seq).await.unwrap();
+            }
+            assert!(!bot.survival.read().await.flying);
+            assert_eq!(
+                handle
+                    .control_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .flight_change_sequence,
+                Some(200)
+            );
+            drop(gate);
+            assert!(
+                handle
+                    .set_controls_for(next.session_id, keys)
+                    .await
+                    .is_err()
+            );
+            assert!(handle.request_ground_jump(next.session_id).await.is_err());
+            let generation = bot.common_receipts.lock().await.generation;
+            bot.common_receipts.lock().await.generation += 1;
+            assert_eq!(
+                bot.control_stop_reason(generation, mode).await,
+                Some("world changed (respawn or dimension)")
+            );
+            let ended = handle.stop_control_for(next.session_id).await.unwrap();
+            assert!(
+                matches!(ended.status,ControlStatus::Stopped{ref reason} if reason.contains("world changed") || reason=="flying")
+            );
+            bot.disconnect().await.unwrap();
+            server.await.unwrap();
+        }
     }
 }

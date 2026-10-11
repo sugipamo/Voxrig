@@ -47,6 +47,7 @@ import net.minecraft.world.phys.Vec3;
 public final class MovementOracle {
     /** A survival player driven like LocalPlayer, inside a server level. */
     static final class OraclePlayer extends Player {
+        net.minecraft.world.level.GameType mode = net.minecraft.world.level.GameType.SURVIVAL;
         Input keys = Input.EMPTY;
         Input next = Input.EMPTY;
         Vec2 moveVector = Vec2.ZERO;
@@ -57,7 +58,7 @@ public final class MovementOracle {
             getAbilities().invulnerable = true;
         }
 
-        @Override public GameType gameMode() { return GameType.SURVIVAL; }
+        @Override public GameType gameMode() { return mode; }
         // LocalPlayer: the local instance is authoritative for its own movement.
         @Override public boolean isLocalPlayer() { return true; }
         @Override public boolean isClientAuthoritative() { return false; }
@@ -348,6 +349,13 @@ public final class MovementOracle {
                         level.setBlock(origin.offset(x, y, z), state, 18);
         }
         OraclePlayer player = new OraclePlayer(level);
+        if (scenario.has("game_mode")) {
+            player.mode = net.minecraft.world.level.GameType.valueOf(scenario.get("game_mode").getAsString().toUpperCase(java.util.Locale.ROOT));
+            player.mode.updatePlayerAbilities(player.getAbilities());
+            if (player.getAbilities().flying || player.mode == net.minecraft.world.level.GameType.SPECTATOR)
+                throw new IllegalArgumentException("ground scenario cannot enable flight");
+        }
+        if (scenario.has("food")) player.getFoodData().setFoodLevel(scenario.get("food").getAsInt());
         JsonArray start = scenario.getAsJsonArray("start");
         player.setPos(origin.getX() + start.get(0).getAsDouble(), origin.getY() + start.get(1).getAsDouble(), origin.getZ() + start.get(2).getAsDouble());
         player.setOnGround(scenario.has("on_ground") ? scenario.get("on_ground").getAsBoolean() : true);
@@ -390,6 +398,9 @@ public final class MovementOracle {
             initial.addProperty(name, Double.toString(player.getAttributeValue(holder)));
         }
         initial.addProperty("food", player.getFoodData().getFoodLevel());
+        initial.addProperty("may_fly", player.getAbilities().mayfly);
+        initial.addProperty("flying", player.getAbilities().flying);
+        initial.addProperty("game_mode", player.mode.getName());
         JsonArray frames = new JsonArray();
         for (JsonElement e : scenario.getAsJsonArray("ticks")) {
             JsonObject t = e.getAsJsonObject();

@@ -24,6 +24,16 @@ pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
 }
 
 impl ContinuousControl {
+    pub(super) fn observe_flying(&mut self, flying: bool, sequence: u64) {
+        if let Some(session) = &mut self.session {
+            session.observe_flying(flying, sequence);
+        }
+    }
+    pub(super) fn observe_mode(&mut self, mode: GameMode, sequence: u64) {
+        if let Some(session) = &mut self.session {
+            session.observe_mode(mode, sequence);
+        }
+    }
     /// Whether a session currently owns the player's movement.
     pub(in crate::versions::java_1_21_11::client) fn active(&self) -> bool {
         self.session.as_ref().is_some_and(ControlSession::running)
@@ -133,10 +143,21 @@ fn received(state: &State) -> Received {
 fn stop_reason(state: &State, generation: u64, mode: GameMode) -> Option<&'static str> {
     if state.loading.generation != generation {
         Some("world changed (respawn, dimension or reconfiguration)")
-    } else if state.operations.game_mode != Some(mode) {
+    } else if state.operations.game_mode != Some(mode)
+        || state
+            .control
+            .session
+            .as_ref()
+            .is_some_and(|s| s.running() && s.mode_change_sequence.is_some())
+    {
         Some("game mode changed")
     } else if state.operations.requested_flying
         || state.operations.abilities.is_some_and(|a| a & 2 != 0)
+        || state
+            .control
+            .session
+            .as_ref()
+            .is_some_and(|s| s.running() && s.flight_change_sequence.is_some())
     {
         Some("flying")
     } else if state.vehicles.motion_interrupted()
@@ -203,12 +224,20 @@ impl Operations {
         Ok(())
     }
 
-    async fn stop_control_owned(&self, id: u64) -> Result<Option<ControlRecord>> {
+    async fn stop_control_owned(
+        &self,
+        id: u64,
+        mode: Option<GameMode>,
+    ) -> Result<Option<ControlRecord>> {
         let mut state = self.bot.session.state.lock().await;
         let entity = state.operations.local_player.entity_id;
         let Some(mut session) = state.control.session.take() else {
             return Ok(None);
         };
+        if mode.is_some_and(|mode| session.mode != mode) {
+            state.control.session = Some(session);
+            return Err(invalid("selected control belongs to a different mode"));
+        }
         if session.id != id {
             state.control.session = Some(session);
             return Ok(None);
@@ -376,11 +405,12 @@ impl crate::client::adapter::ControlOps for Operations {
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
-        if mode != GameMode::Survival || state.operations.game_mode != Some(mode) {
+        if state.operations.game_mode != Some(mode) {
             return Err(invalid(
-                "continuous control requires received survival mode",
+                "continuous control requires matching received mode",
             ));
         }
+        crate::client::control::validate_ground_mode(mode)?;
         if state.control.active() {
             return Err(invalid("a control session is already running"));
         }
@@ -464,6 +494,7 @@ impl crate::client::adapter::ControlOps for Operations {
         if let Some(previous) = previous {
             session.inherit_item_release(previous);
         }
+        session.mode = mode;
         state.control.next_id = id;
         state.control.generation = Some(generation);
         state.control.model_attempt = attempt;
@@ -490,11 +521,14 @@ impl crate::client::adapter::ControlOps for Operations {
         if state.operations.game_mode != Some(mode) {
             return Err(invalid("controls require matching received mode"));
         }
+        if let Some(reason) = stop_reason(&state, state.loading.generation, mode) {
+            return Err(invalid(reason));
+        }
         if state.control.generation != Some(state.loading.generation) {
             return Err(invalid("control belongs to a previous world"));
         }
         match state.control.session.as_mut() {
-            Some(session) if session.running() => {
+            Some(session) if session.running() && session.mode == mode => {
                 if session_id.is_some_and(|id| session.id != id) {
                     return Err(invalid("selected control session was replaced"));
                 }
@@ -505,6 +539,7 @@ impl crate::client::adapter::ControlOps for Operations {
         }
     }
 
+    #[cfg(test)]
     async fn stop_control(&self) -> Result<Option<ControlRecord>> {
         let state = self.bot.session.state.lock().await;
         let Some(session) = state.control.session.as_ref() else {
@@ -513,17 +548,40 @@ impl crate::client::adapter::ControlOps for Operations {
         let id = session.id;
         drop(state);
         let owner = self.clone();
-        tokio::spawn(async move { owner.stop_control_owned(id).await })
+        tokio::spawn(async move { owner.stop_control_owned(id, None).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
+    #[cfg(test)]
     async fn stop_control_for(&self, session_id: u64) -> Result<ControlRecord> {
         let owner = self.clone();
-        tokio::spawn(async move { owner.stop_control_owned(session_id).await })
+        tokio::spawn(async move { owner.stop_control_owned(session_id, None).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))??
             .ok_or_else(|| invalid("selected control session is missing or was replaced"))
+    }
+
+    async fn stop_control_in_mode(
+        &self,
+        mode: GameMode,
+        session_id: Option<u64>,
+    ) -> Result<Option<ControlRecord>> {
+        let state = self.bot.session.state.lock().await;
+        let Some(session) = state.control.session.as_ref() else {
+            return Ok(None);
+        };
+        if session.mode != mode || session_id.is_some_and(|id| session.id != id) {
+            return Err(invalid(
+                "selected control was replaced or belongs to a different mode",
+            ));
+        }
+        let id = session.id;
+        drop(state);
+        let owner = self.clone();
+        tokio::spawn(async move { owner.stop_control_owned(id, Some(mode)).await })
+            .await
+            .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
     async fn request_ground_jump(
@@ -533,8 +591,8 @@ impl crate::client::adapter::ControlOps for Operations {
     ) -> Result<crate::client::control::GroundJumpRequest> {
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
-        if mode != GameMode::Survival || state.operations.game_mode != Some(mode) {
-            return Err(invalid("ground jump requires received survival mode"));
+        if state.operations.game_mode != Some(mode) {
+            return Err(invalid("ground jump requires matching received mode"));
         }
         let generation = state.loading.generation;
         if state.control.generation != Some(generation) {
@@ -547,7 +605,8 @@ impl crate::client::adapter::ControlOps for Operations {
             .control
             .session
             .as_mut()
-            .ok_or_else(|| invalid("no running control session"))?
+            .filter(|s| s.mode == mode)
+            .ok_or_else(|| invalid("no running control session in the expected mode"))?
             .request_ground_jump(session_id)
     }
 

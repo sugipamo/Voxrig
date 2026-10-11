@@ -18,6 +18,38 @@ survival.stop_control_for(session.session_id).await?; // 対象sessionのダッ�
 # }
 ```
 
+## モードを指定する地上操作
+
+`Client::player_control(GameMode::Adventure)`と`GameMode::Creative`にも、
+`start_control`・`set_controls_for(id, controls)`・`request_ground_jump(id)`・
+`stop_control_for(id)`・`control_record`がある。同じ入口でSurvivalも扱える。
+モードは受信値と照合し、handleを作っても変更しない。Creativeも飛行を無効にした地上モデルである。
+Spectatorの地上開始は`Unsupported`、飛行中や乗車中の開始は拒否する。
+
+`ControlRecord::mode`は開始時に照合したモード。
+`mode_change_sequence`は、そのownerと異なるモードを実際に受信した最初のordinalである。
+1 tickの間に元のモードへ戻っても旧ownerは停止し、新規開始まで送信しない。
+`flight_change_sequence`も実際のabilitiesの飛行開始を保持し、地上へ戻っても旧ownerを再開しない。
+別モードのhandleと古いIDによる入力変更・ジャンプ・停止は他のownerを変更しない。
+停止済み記録の読取りと一致するownerの終了確認は、モード変更後にもできる。
+
+```rust,no_run
+use voxrig::client::control::Controls;
+use voxrig::client::prelude::*;
+# async fn walk(client: &Client) -> Result<()> {
+let ground = client.player_control(GameMode::Adventure);
+let owner = ground.start_control().await?;
+ground.set_controls_for(owner.session_id, Controls { forward: 1, yaw: 37.0, ..Default::default() }).await?;
+ground.request_ground_jump(owner.session_id).await?;
+ground.stop_control_for(owner.session_id).await?;
+# Ok(())
+# }
+```
+
+両版の公式サーバーで各27項目、計54項目を検証した。
+[結果・ハッシュ](evidence/common-ground-modes-20261011.json)と`run_ground_modes.py`を参照。
+元packet／NBTは非公開のローカル記録に保持する。
+
 ## 動き
 
 - sessionを記録する呼び手は、`set_controls_for(id, controls)`と`stop_control_for(id)`で対象を指定する。

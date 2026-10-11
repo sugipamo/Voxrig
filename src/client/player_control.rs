@@ -1,8 +1,8 @@
 //! Basic player inputs with an explicit expected received game mode.
-use super::{DispatchReceipt, GameMode, operations::Action};
+use super::{DispatchReceipt, GameMode, adapter::ControlOps, operations::Action};
 use crate::{Client, Result};
 
-/// View and held-slot inputs. A handle neither changes nor grants game mode.
+/// View, held-slot and ground movement inputs. A handle neither changes nor grants game mode.
 /// The adapter rechecks the expected mode and existing mutation admission under
 /// its state boundary before sending. A retained handle refuses a different mode.
 #[derive(Clone)]
@@ -35,6 +35,47 @@ impl Client {
 }
 
 impl PlayerControl {
+    /// Start held ground movement in received Survival, Adventure or Creative.
+    /// Flying, Spectator, riding and unmodeled geometry remain unsupported.
+    /// Mode changes stop the owner; a handle never changes mode or enables flight.
+    /// Released keys and current local aim seed the new connection-owned session.
+    pub async fn start_control(&self) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_control(a, self.mode).await)
+    }
+
+    /// Replace keys on the selected running owner in this handle's exact mode.
+    /// A stale ID, different mode or world refuses without mutating another owner.
+    pub async fn set_controls_for(
+        &self,
+        session_id: u64,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::set_controls(a, self.mode, Some(session_id), controls).await)
+    }
+
+    /// Queue one ground jump without changing held keys or automatically retrying.
+    /// This is local admission; the retained outcome distinguishes model and dispatch.
+    pub async fn request_ground_jump(
+        &self,
+        session_id: u64,
+    ) -> Result<super::control::GroundJumpRequest> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::request_ground_jump(a, self.mode, session_id).await)
+    }
+
+    /// Release only the selected owner in this handle's mode. The connection owns
+    /// admitted release writes even if the waiter cancels. This is not physical rest.
+    /// Matching stopped records remain readable after mode or world changes.
+    pub async fn stop_control_for(&self, session_id: u64) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control_in_mode(a, self.mode, Some(session_id)).await)?
+            .ok_or_else(|| super::registry::invalid("selected control session is missing or was replaced"))
+    }
+
+    /// Inspect the connection's latest owner, including its original admitted mode.
+    /// Inspection neither acquires inputs nor changes a retained failure.
+    pub async fn control_record(&self) -> Result<Option<super::control::ControlRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::control_record(a).await)
+    }
+
     /// Submit finite native angles (pitch -90..90), retaining rotation provenance.
     /// Modern Survival/Adventure require supported stationary standing geometry;
     /// unavailable geometry or unresolved motion refuses before sending. Complete
