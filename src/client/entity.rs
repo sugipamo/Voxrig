@@ -6,7 +6,13 @@ use super::{
 };
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
+mod contact;
 mod data;
+pub use contact::{
+    LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
+    LivingContactResult, LivingContactsModel, LivingContactsUnavailable,
+    MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts,
+};
 mod geometry;
 mod interpolation;
 mod pose;
