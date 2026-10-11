@@ -118,6 +118,7 @@ def check(version, command, request, trace, report, binary, sdk):
         return result
     peer_pose_check(version,command,with_geometry,trace,report,binary,sdk,disconnect_observer=False)
     assert all(any(c['name']==n for c in report['checks']) for n in ('peer_crouching','peer_standing'))
+    command('difficulty normal')  # Original peaceful servers immediately remove zombies.
     for kind in ('cow','pig','zombie'):
         tag='GeometryMob'
         command('kill @e[tag='+tag+']')
