@@ -30,7 +30,16 @@ def check(version,command,request,trace,report,sdk):
         wire=original(reading['source']['sequence']);assert wire['packet_id']==0x81
         body=bytes.fromhex(wire['body_hex']);entity,offset=PacketTraceProxy.varint(body)
         assert entity==request('player')['entity_id']
-        assert body[offset:]==bytes([1,25])+struct.pack('>d',value)+b'\x00',wire
+        count,size=PacketTraceProxy.varint(body[offset:]);offset+=size
+        attributes=[]
+        for _ in range(count):
+            attribute,size=PacketTraceProxy.varint(body[offset:]);offset+=size
+            base=struct.unpack_from('>d',body,offset)[0];offset+=8
+            modifiers,size=PacketTraceProxy.varint(body[offset:]);offset+=size
+            for _ in range(modifiers):
+                length,size=PacketTraceProxy.varint(body[offset:]);offset+=size+length+9
+            attributes.append((attribute,base,modifiers))
+        assert offset==len(body) and (25,value,0) in attributes,wire
         return dict(reading=reading,original_packet=wire)
     def reset(position):
         command('tp ClimbingProbe '+' '.join(map(str,position))+' 0 0');request('prepare',position=position)
