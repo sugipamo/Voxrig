@@ -172,3 +172,7 @@ MOVEMENTの拡張#44とは別に、再開不具合#37はPR #50で修正済み。
 
 姿勢・子供・scaleの寸法モデルはplayer/cow/pig/zombieの原版931ケースと公式両版57項目で照合済み。
 [検証記録](evidence/common-entity-geometry-20261011.json)。箱は受信targetのモデルであり、補間・押し合い・移動物理の確認ではない。
+
+原版LivingEntityの明示的な1回の押し合い計算は[共通モデル](common-entity-push.md)として提供する。
+[原版1,040ケースと公式両版29項目](evidence/common-entity-push-20261011.json)で検証済み。
+補間・接触の探索・pair順序・移動制御への統合は引き続きMOVEMENT / #44の残件。
