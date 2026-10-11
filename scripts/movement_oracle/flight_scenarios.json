@@ -1,0 +1,4196 @@
+[
+  {
+    "name": "creative_flight_axes",
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_flight_vertical",
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_flight_sprint_speed",
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.1,
+    "on_ground": false,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_flight_wall",
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      3.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        0,
+        4,
+        2,
+        8,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_flight_water",
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      3.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        7,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_flight_landing",
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      2.5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "spectator_flight_axes",
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "spectator_flight_vertical",
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "spectator_flight_sprint_speed",
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.1,
+    "on_ground": false,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "spectator_flight_wall",
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      3.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        0,
+        4,
+        2,
+        8,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "spectator_flight_water",
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      3.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        7,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "spectator_flight_landing",
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "on_ground": false,
+    "start": [
+      0.5,
+      2.5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.05,
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "name": "creative_ground_seed_takeoff",
+    "on_ground": true,
+    "ticks": [
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.0,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "name": "creative_zero_speed",
+    "on_ground": false,
+    "ticks": [
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "game_mode": "creative",
+    "flight": true,
+    "flying_speed": 0.05,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        -2,
+        2,
+        10,
+        2,
+        "minecraft:cobweb"
+      ]
+    ],
+    "name": "creative_cobweb",
+    "on_ground": false,
+    "ticks": [
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "name": "spectator_ground_seed_takeoff",
+    "on_ground": true,
+    "ticks": [
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.0,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "name": "spectator_zero_speed",
+    "on_ground": false,
+    "ticks": [
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        -2,
+        2,
+        10,
+        2,
+        "minecraft:cobweb"
+      ]
+    ],
+    "name": "spectator_cobweb",
+    "on_ground": false,
+    "ticks": [
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "game_mode": "spectator",
+    "flight": true,
+    "flying_speed": 0.05,
+    "start": [
+      0.5,
+      6.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        -2,
+        2,
+        10,
+        2,
+        "minecraft:honey_block"
+      ]
+    ],
+    "name": "spectator_honey",
+    "on_ground": false,
+    "ticks": [
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "jump": true,
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "sneak": true,
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  }
+]

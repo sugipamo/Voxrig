@@ -35,6 +35,17 @@ impl Client {
 }
 
 impl PlayerControl {
+    /// Start held Creative/Spectator flight with explicit first-tick keys.
+    /// Creative flight must first be enabled by `Creative::set_flying(true)`;
+    /// Spectator requires original flying abilities. Permission and speed must
+    /// be received in this world. This never grants flight or changes game mode.
+    /// Creative model landing ends this owner; ground continuation is explicit.
+    pub async fn start_flight_control(
+        &self,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_flight_control(a, self.mode, controls).await)
+    }
     /// Start held ground movement in received Survival, Adventure or Creative.
     /// Flying, Spectator, riding and unmodeled geometry remain unsupported.
     /// Mode changes stop the owner; a handle never changes mode or enables flight.

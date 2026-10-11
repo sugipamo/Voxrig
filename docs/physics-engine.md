@@ -4,7 +4,7 @@
 1回の`tick`が、clientの自分のplayerの1 tickを再現する。版の違いは`VersionTable`の
 `PhysicsConstants`と`PhysicsRules`だけで表す。通信や接続状態には触れない。
 
-共通APIではSurvival／Adventure／Creativeの地上[継続操作](common-control.md)（P7）が使う。有限入力の移動（`start_predicted_path`）は従来の乾いた地形のモデルのまま。
+共通APIではSurvival／Adventure／Creativeの地上操作とCreative／Spectator飛行の[継続操作](common-control.md)（P7）が使う。有限入力の移動（`start_predicted_path`）は従来の乾いた地形のモデルのまま。
 
 ## 対応範囲
 
@@ -33,7 +33,7 @@
 
 徒歩の範囲外は、状態を変えずに`ErrorKind::Unsupported`で拒否する。
 
-- 浮遊効果、飛行、乗車、エリトラ。
+- 浮遊効果、乗車、エリトラ。Creative／Spectatorの明示的な飛行モデルは対応。
 - ハチミツの壁を滑り降りる動き。
 - 位置や周囲の状況で形が変わるblock（竹・鍾乳石の位置ずれ、粉雪、動いているピストン）。足場とplayerに対する液体の形は対応済み。
 - 下の「確認済みのblock効果」に入っていないblockの効果。

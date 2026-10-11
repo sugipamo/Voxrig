@@ -1262,9 +1262,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
     }
     if id == input::ABILITIES {
-        state
-            .control
-            .observe_flying(payload[0] & 2 != 0, state.sequence);
+        state.control.observe_abilities(payload[0], state.sequence);
     }
     state.operations = next;
     mining::mining_inventory_received(state);

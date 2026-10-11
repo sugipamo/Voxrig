@@ -1870,6 +1870,7 @@ async fn selected_control_rejects_replacement_and_old_world_without_writes() {
     use crate::client::control::{ControlSession, ControlStatus, Controls, Output, Received};
     let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let received = Received {
+        abilities_sequence: None,
         environment: crate::client::physics::Environment::defaults(
             crate::MinecraftVersion::Java1_21_11,
         ),
@@ -1940,6 +1941,7 @@ async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
     use crate::client::control::{ControlSession, ControlStatus, Output, Received};
     let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let received = Received {
+        abilities_sequence: None,
         environment: crate::client::physics::Environment::defaults(
             crate::MinecraftVersion::Java1_21_11,
         ),
@@ -4282,4 +4284,172 @@ async fn ground_modes_fence_other_handles_and_transient_received_mode_changes() 
         handle.stop_control_for(next.session_id).await.unwrap();
         session.stop();
     }
+}
+
+#[tokio::test]
+async fn held_flight_requires_original_abilities_and_latches_restored_permission() {
+    use crate::client::{
+        GameMode,
+        control::{ControlKind, ControlStatus, Controls},
+    };
+    for mode in [GameMode::Creative, GameMode::Spectator] {
+        let (session, api, _peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        let keys = Controls {
+            jump: true,
+            forward: 1,
+            ..Default::default()
+        };
+        assert!(handle.start_flight_control(keys).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            // The compatibility flags survive, but copied/predicted context is
+            // not an original current-world receipt and must not grant flight.
+            let mut packet = vec![6];
+            packet.extend(0.05f32.to_be_bytes());
+            packet.extend(0.1f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+            state.context.abilities.as_mut().unwrap().source =
+                crate::client::ValueSource::Predicted;
+        }
+        assert!(handle.start_flight_control(keys).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            let mut packet = vec![6];
+            packet.extend(0.05f32.to_be_bytes());
+            packet.extend(0.1f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+        }
+        let start = handle.start_flight_control(keys).await.unwrap();
+        assert_eq!(start.kind, ControlKind::Flight);
+        assert_eq!(start.controls, keys);
+        assert!(handle.request_ground_jump(start.session_id).await.is_err());
+        assert!(
+            client
+                .survival()
+                .stop_control_for(start.session_id)
+                .await
+                .is_err()
+        );
+        let before = {
+            let mut state = session.state.lock().await;
+            for (sequence, flags) in [(100, 2u8), (101, 6)] {
+                state.sequence = sequence;
+                let mut packet = vec![flags];
+                packet.extend(0.05f32.to_be_bytes());
+                packet.extend(0.1f32.to_be_bytes());
+                operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+            }
+            let record = state.control.session.as_ref().unwrap().record();
+            assert_eq!(record.flight_change_sequence, Some(100));
+            record.dispatched_ticks
+        };
+        assert!(
+            handle
+                .set_controls_for(start.session_id, keys)
+                .await
+                .is_err()
+        );
+        let stopped = timeout(Duration::from_secs(2), async {
+            loop {
+                let record = handle.control_record().await.unwrap().unwrap();
+                if matches!(record.status, ControlStatus::Stopped { .. }) {
+                    break record;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(stopped.dispatched_ticks, before);
+        let fresh = handle.start_flight_control(keys).await.unwrap();
+        assert_ne!(fresh.session_id, start.session_id);
+        assert_eq!(fresh.flight_change_sequence, None);
+        assert!(handle.stop_control_for(start.session_id).await.is_err());
+        handle.stop_control_for(fresh.session_id).await.unwrap();
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn held_creative_flight_landing_disables_before_movement_and_ends_owner() {
+    use crate::client::{
+        GameMode,
+        control::{ControlStatus, Controls},
+    };
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Creative).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    {
+        let mut state = session.state.lock().await;
+        let mut packet = vec![6];
+        packet.extend(0.05f32.to_be_bytes());
+        packet.extend(0.1f32.to_be_bytes());
+        super::super::context::receive(&mut state, ids::play_clientbound::ABILITIES, &packet)
+            .unwrap();
+        operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+    }
+    let handle = client.player_control(GameMode::Creative);
+    let start = handle
+        .start_flight_control(Controls {
+            sneak: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::ABILITIES, vec![0])
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::PLAYER_INPUT, vec![32])
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap().0,
+        ids::play_serverbound::POSITION_LOOK
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::PLAYER_INPUT, vec![0])
+    );
+    let record = handle.control_record().await.unwrap().unwrap();
+    assert!(
+        matches!(record.status,ControlStatus::Stopped{ref reason} if reason=="creative flight model landed")
+    );
+    assert!(!record.frame.as_ref().unwrap().flying);
+    assert_eq!(record.dispatched_ticks, 1);
+    assert!(
+        handle
+            .set_controls_for(start.session_id, Controls::default())
+            .await
+            .is_err()
+    );
+    assert!(record.flight_disable.as_ref().unwrap().dispatched);
+    assert_eq!(
+        session
+            .state
+            .lock()
+            .await
+            .context
+            .abilities
+            .as_ref()
+            .unwrap()
+            .value
+            .flags,
+        6
+    );
+    assert!(
+        handle
+            .start_flight_control(Controls {
+                jump: true,
+                ..Default::default()
+            })
+            .await
+            .is_err()
+    );
+    let ground = handle.start_control().await.unwrap();
+    assert_ne!(ground.session_id, start.session_id);
+    handle.stop_control_for(ground.session_id).await.unwrap();
+    session.stop();
 }

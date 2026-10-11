@@ -160,7 +160,7 @@ impl Bot {
         self.common_control
             .lock()
             .await
-            .observe_flying(flags & 2 != 0, sequence);
+            .observe_abilities(flags, sequence);
         self.emit(Event::SurvivalStateUpdated);
         self.emit(Event::PlayerContextUpdated);
         Ok(())

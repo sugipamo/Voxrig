@@ -62,7 +62,7 @@ public final class MovementOracle {
         // does not manufacture the server's Soul Speed boost.
         void primeEquipmentAttribute() { tryAddSoulSpeed(); }
 
-        @Override public boolean isSpectator() { return false; }
+        @Override public boolean isSpectator() { return mode == net.minecraft.world.level.GameType.SPECTATOR; }
         @Override public boolean isCreative() { return mode.isCreative(); }
         // LocalPlayer overrides.
         @Override public boolean isLocalPlayer() { return true; }
@@ -132,7 +132,16 @@ public final class MovementOracle {
                 }
             }
             if (isInWater() && shiftKeyDown && isAffectedByFluids()) goDownInWater();
+            // Original LocalPlayer.aiStep, audited against the pinned original
+            // client JAR: held vertical flight input precedes LivingEntity.aiStep.
+            if (abilities.flying) {
+                int vertical = (inputJumping ? 1 : 0) - (shiftKeyDown ? 1 : 0);
+                if (vertical != 0) setDeltaMovement(getDeltaMovement().add(0.0, (float)vertical * abilities.getFlyingSpeed() * 3.0F, 0.0));
+            }
             super.aiStep();
+            // LocalPlayer clears Creative flight after native landing. Spectator
+            // remains flying; no movement/travel/collision method is overridden.
+            if (onGround && abilities.flying && !isSpectator()) abilities.flying = false;
         }
 
         // LocalPlayer.serverAiStep: the client copies its input into the entity.
@@ -352,10 +361,22 @@ public final class MovementOracle {
         if (scenario.has("game_mode")) {
             player.mode = net.minecraft.world.level.GameType.valueOf(scenario.get("game_mode").getAsString().toUpperCase(java.util.Locale.ROOT));
             player.mode.updatePlayerAbilities(player.abilities);
-            if (player.abilities.flying || player.mode == net.minecraft.world.level.GameType.SPECTATOR)
+            if ((!scenario.has("flight") || !scenario.get("flight").getAsBoolean()) && (player.abilities.flying || player.mode == net.minecraft.world.level.GameType.SPECTATOR))
                 throw new IllegalArgumentException("ground scenario cannot enable flight");
         }
         if (scenario.has("food")) player.getFoodData().setFoodLevel(scenario.get("food").getAsInt());
+        if (scenario.has("flight") && scenario.get("flight").getAsBoolean()) {
+            if (!player.abilities.mayfly) throw new IllegalArgumentException("flight requires native mode permission");
+            player.abilities.flying = true; // Explicit caller flight toggle, not a receipt.
+            if (scenario.has("flying_speed")) {
+                // The legacy server strips the client setter. Use its unchanged
+                // abilities NBT loader, retaining every original mode flag.
+                var save = new net.minecraft.nbt.CompoundTag();
+                player.abilities.addSaveData(save);
+                save.getCompound("abilities").putFloat("flySpeed",scenario.get("flying_speed").getAsFloat());
+                player.abilities.loadSaveData(save);
+            }
+        }
         JsonArray start = scenario.getAsJsonArray("start");
         player.setPos(origin.getX() + start.get(0).getAsDouble(), origin.getY() + start.get(1).getAsDouble(), origin.getZ() + start.get(2).getAsDouble());
         player.setOnGround(scenario.has("on_ground") ? scenario.get("on_ground").getAsBoolean() : true);
@@ -395,6 +416,7 @@ public final class MovementOracle {
         initial.addProperty("food", player.getFoodData().getFoodLevel());
         initial.addProperty("may_fly", player.abilities.mayfly);
         initial.addProperty("flying", player.abilities.flying);
+        initial.addProperty("ability_flying_speed", Float.toString(player.abilities.getFlyingSpeed()));
         initial.addProperty("game_mode", player.mode.getName());
         if (scenario.has("boots_nbt")) {
             initial.addProperty("depth_strider", net.minecraft.world.item.enchantment.EnchantmentHelper.getDepthStrider(player));
@@ -438,6 +460,7 @@ public final class MovementOracle {
             f.addProperty("crouching", player.crouching);
             f.addProperty("pose", player.getPose().name());
             f.addProperty("in_water", player.isInWater());
+            f.addProperty("flying", player.abilities.flying);
             f.addProperty("swimming", player.isSwimming());
             f.addProperty("using", player.isUsingItem());
             f.addProperty("speed", Float.toString(player.getSpeed()));

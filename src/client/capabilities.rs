@@ -111,7 +111,7 @@ pub enum Feature {
     BlockQueries,
     /// Current received entity motion, health, equipment and default bounding boxes.
     EntityState,
-    /// Held survival keys and owned one-shot ground requests with native physics.
+    /// Mode-bound ground keys/jumps and Creative/Spectator held flight.
     ContinuousControl,
     /// Item use, release and use on a block face, with the received item-in-use flag.
     ItemUse,
@@ -340,7 +340,7 @@ impl Capabilities {
                 "docs/common-blocks.md",
             ),
             Feature::ContinuousControl => restricted(
-                "mode-bound survival/adventure/creative ground keys and jumps; fluids/climbables; no flight or riding",
+                "mode-bound ground/fluid/climbing keys; Creative/Spectator flight; no elytra or riding",
                 "docs/common-control.md",
             ),
             Feature::ItemUse => restricted(
