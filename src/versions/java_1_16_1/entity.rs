@@ -493,9 +493,9 @@ pub(crate) fn parse_metadata(payload: &[u8]) -> Result<(i32, HashMap<u8, Metadat
 }
 
 /// Entity data in the common form, keeping the native serializer of each entry.
-pub(crate) fn common_metadata(
-    payload: &[u8],
-) -> Result<(i32, Vec<(u8, crate::client::EntityDataValue)>, bool)> {
+type CommonMetadata = (i32, Vec<(u8, crate::client::EntityDataValue)>, bool);
+
+pub(crate) fn common_metadata(payload: &[u8]) -> Result<CommonMetadata> {
     use crate::client::EntityDataValue as V;
     let mut rest = payload;
     let entity_id = get_varint(&mut rest)?;
