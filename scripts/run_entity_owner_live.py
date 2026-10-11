@@ -100,7 +100,7 @@ def check(version,command,request,trace,report,binary,sdk,failure_scenario):
     command('data merge entity @e[tag=OwnerCow,limit=1] '+ ('{sleeping_pos:[I;0,65,0]}' if modern else '{SleepingX:0,SleepingY:65,SleepingZ:0}'))
     reading=until(lambda:next((e for e in request('entity_sleeping') if e['entity']['id']==ident and e['sleeping'] and e['sleeping']['sleeping']),None),10)
     assert reading['sleeping']['position']==dict(x=0,y=65,z=0),reading
-    sleep_receipt=source_frame(reading['sleeping']['source']['sequence'])
+    sleep_receipt=source_frame(reading['sleeping']['source']['Received']['sequence'])
     reset([.5,65.5625,.5]);request('start')
     sleeping=contact_frame('sleep_position_receipt_and_model',request('ticks',count=2))
     assert any(b['entity']==ident for b in sleeping['bodies'])
