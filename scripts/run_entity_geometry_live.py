@@ -166,13 +166,25 @@ def check(version, command, request, trace, report, binary, sdk):
             for identifier,_,_ in modifiers:
                 command(f'attribute @e[tag={tag},limit=1] minecraft:scale modifier remove {identifier}')
             until(lambda: (row if (row:=current()) and 'Ok' in row['geometry'] and not row['geometry']['Ok']['evidence']['scale']['attribute']['value']['modifiers'] else None),5)
-        command(f'data merge entity @e[tag={tag},limit=1] '+'{'+('IsBaby:0b' if kind=='zombie' else 'Age:0')+'}')
+        if kind=='zombie':
+            # Legacy original load only calls setBaby for true IsBaby. A false
+            # NBT merge is not an adult transition or an acknowledgement.
+            command('kill @e[tag='+tag+']')
+            until(lambda: not any(r['entity']['id']==identity for r in rows()),5)
+            report['checks'].append(dict(name='zombie_baby_lifetime_retired',identity=identity))
+            command(f'summon minecraft:zombie 2.5 65 2.5 {{Tags:["{tag}"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b,IsBaby:0b}}')
+        else:
+            command(f'data merge entity @e[tag={tag},limit=1] '+'{Age:0}')
         def adult_ready():
             row=current()
             return row if row and 'Ok' in row['geometry'] and row['geometry']['Ok']['evidence']['baby']['value']=={'Bool':False} else None
         row=until(adult_ready,5)
-        assert row['entity']['id']==identity
-        report['checks'].append(dict(name=kind+'_adult_dimensions',**verify(row)))
+        if kind=='zombie':
+            assert row['entity']['id']!=identity
+            identity=copy.deepcopy(row['entity']['id'])
+        else:
+            assert row['entity']['id']==identity
+        report['checks'].append(dict(name=kind+('_new_spawn_adult_dimensions' if kind=='zombie' else '_adult_dimensions'),**verify(row)))
         saved=copy.deepcopy(row)
         command('kill @e[tag='+tag+']')
         until(lambda: not any(r['entity']['id']==identity for r in rows()),5)
