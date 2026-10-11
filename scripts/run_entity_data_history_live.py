@@ -96,6 +96,7 @@ def equipment(frame, version):
     items = json.loads((REPO / ('data/items.json' if r.old else 'data/java_1_21_11/items.json')).read_text())
     names = {v['id']: 'minecraft:' + v['name'] for v in items}
     version_name = 'Java1_16_1' if r.old else 'Java1_21_11'
+    component_names = {v['native_id']: v['name'] for v in json.loads((REPO / 'data/client_api/item_components-1.21.11.json').read_text())}
     while True:
         slot = r.take(1)[0]
         slot_name = ['MainHand', 'OffHand', 'Feet', 'Legs', 'Chest', 'Head', 'Body', 'Saddle'][slot & 127]
@@ -112,8 +113,18 @@ def equipment(frame, version):
                 data = dict(kind='legacy_nbt', bytes=list(r.raw[start:r.cursor])) if tag else dict(kind='default')
             else:
                 added, removed = r.integer(), r.integer()
-                assert added == removed == 0, ('nonempty original component patch', added, removed)
-                data = dict(kind='default')
+                values, removals = [], []
+                for _ in range(added):
+                    component = r.integer()
+                    assert component == 0  # Fixture adds only native custom_data.
+                    start = r.cursor
+                    r.nbt(r.take(1)[0])
+                    definition = dict(id=dict(version=version_name, kind='ItemComponent', value=component), name=component_names[component])
+                    values.append(dict(definition=definition, bytes=list(r.raw[start:r.cursor])))
+                for _ in range(removed):
+                    component = r.integer()
+                    removals.append(dict(id=dict(version=version_name, kind='ItemComponent', value=component), name=component_names[component]))
+                data = dict(kind='modern_components', patch=dict(added=values, removed=removals)) if added or removed else dict(kind='default')
             item = dict(id=dict(version=version_name, kind='Item', value=identifier), name=names[identifier], count=count, data=data)
             value = dict(kind='item', item=item)
         else:
@@ -215,18 +226,29 @@ def check(version, command, request, trace, report, binary, sdk):
         until(lambda: cow()['metadata'].get(str(baby_index), {}).get('value') == {'Bool': baby}, 10)
         drain()
         report['checks'].append(dict(name='cow_baby_delta_' + str(baby) + '_' + str(len(records)), value=baby, identity=identity))
-    for slot, name, count in [('weapon.mainhand', 'stone', 3), ('weapon.offhand', 'diamond', 2), ('weapon.mainhand', 'air', 1)]:
+    for slot, name, count, marker in [('weapon.mainhand', 'stone', 3, None), ('weapon.offhand', 'diamond', 2, None),
+                                      ('weapon.mainhand', 'stone', 3, 123), ('weapon.mainhand', 'stone', 3, 456), ('weapon.mainhand', 'air', 1, None)]:
+        suffix = '' if marker is None else (f'{{VoxrigHistory:{marker}}}' if version == '1.16.1' else f'[minecraft:custom_data={{VoxrigHistory:{marker}}}]')
         if version == '1.16.1':
-            command(f'replaceitem entity @e[tag=DataHistoryCow,limit=1] {slot} minecraft:{name} {count}')
+            command(f'replaceitem entity @e[tag=DataHistoryCow,limit=1] {slot} minecraft:{name}{suffix} {count}')
         else:
-            command(f'item replace entity @e[tag=DataHistoryCow,limit=1] {slot} with minecraft:{name} {count}')
+            command(f'item replace entity @e[tag=DataHistoryCow,limit=1] {slot} with minecraft:{name}{suffix} {count}')
         key = 'MainHand' if slot == 'weapon.mainhand' else 'OffHand'
         def established():
             value = cow()['equipment'].get(key, {}).get('value', {})
-            return value.get('kind') == 'empty' if name == 'air' else value.get('item', {}).get('name') == 'minecraft:' + name and value['item']['count'] == count
+            if name == 'air':
+                return value.get('kind') == 'empty'
+            if value.get('item', {}).get('name') != 'minecraft:' + name or value['item']['count'] != count:
+                return False
+            if marker is None:
+                return value['item']['data'] == dict(kind='default')
+            data = value['item']['data']
+            native = bytes([10]) + (b'\x00\x00' if version == '1.16.1' else b'') + b'\x03\x00\x0dVoxrigHistory' + struct.pack('>i', marker) + b'\x00'
+            actual = data.get('bytes') if version == '1.16.1' else data.get('patch', {}).get('added', [{}])[0].get('bytes')
+            return actual == list(native)
         until(established, 10)
         drain()
-        report['checks'].append(dict(name='equipment_' + key + '_' + name,identity=identity,count=count))
+        report['checks'].append(dict(name='equipment_' + key + '_' + name + ('_' + str(marker) if marker is not None else ''),identity=identity,count=count))
     if version == '1.21.11':
         for scale in [0.5, 2., 1.]:
             command('attribute @e[tag=DataHistoryCow,limit=1] minecraft:scale base set ' + str(scale))
@@ -239,7 +261,7 @@ def check(version, command, request, trace, report, binary, sdk):
     frozen = copy.deepcopy(records)
     assert any('Removed' in r['kind'] and r['kind']['Removed']['entity'] == identity for r in records.values())
     counts = verify_all()
-    assert counts['Metadata'] > 4 and counts['Equipment'] >= 3
+    assert counts['Metadata'] > 4 and counts['Equipment'] >= 5
     assert counts['Scale'] >= 3 if version == '1.21.11' else counts['Scale'] == 0
     report['checks'].append(dict(name='all_retained_deltas_equal_original_packet_values', counts=counts, record_count=len(records)))
     repeated = request('entity_history', reset=True)
@@ -279,7 +301,7 @@ def main():
     paths = ['src', 'examples', 'Cargo.toml', 'Cargo.lock', 'data']
     assert not subprocess.check_output(['git', 'diff', compiled, 'HEAD', '--', *paths], cwd=REPO)
     assert not subprocess.check_output(['git', 'diff', 'HEAD', '--', *paths], cwd=REPO)
-    artifacts = ['Cargo.lock', 'scripts/run_entity_data_history_live.py', 'scripts/run_entity_pose_live.py', 'scripts/run_climbing_control.py', 'scripts/run_common_native.py', 'examples/climbing_control_probe.rs']
+    artifacts = ['Cargo.lock', 'scripts/run_entity_data_history_live.py', 'scripts/run_entity_pose_live.py', 'scripts/run_climbing_control.py', 'scripts/run_common_native.py', 'examples/climbing_control_probe.rs', 'data/items.json', 'data/java_1_21_11/items.json', 'data/client_api/item_components-1.21.11.json']
     sdk = dict(source_revision=revision, binary_build_revision=compiled,
                binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),
                artifacts={f: hashlib.sha256((REPO / f).read_bytes()).hexdigest() for f in artifacts})

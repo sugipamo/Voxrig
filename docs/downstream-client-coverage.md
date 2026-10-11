@@ -36,7 +36,7 @@ cargo run --locked --example client_capabilities > /tmp/voxrig-capabilities.json
   serverの受理、停止、命中を証明しない。
 - 取消・部分送信・timeout後は残ったrecordを調べる。未解決操作を自動再送しない。
   `revoke_connection`で送信権限を遮断し、必要な観測・履歴を保存する。
-- change通知は4096件、entity履歴は8192件（1read最大1024件）、chatは256件。
+- change通知は4096件、entity履歴は最大8192件・計上8MiB（1read最大1024件、1差分のpayload最大64KiB）、chatは256件。
   event overflowでは再観測、entity履歴では明示的な`gap`を処理する。
   履歴の時刻はSDK適用時計でありsocket到着・server tick・UTCではない。
   読取時計と有限tailは[PR #35](https://github.com/sugipamo/Voxrig/pull/35)で追加済み（main `6db149b`）。
@@ -73,7 +73,7 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | container・かまど | `ContainerObservation`, `Containers` | `screen_state`、通常storage／table／furnaceの開閉とconstructor由来layout。特殊screenは残る |
 | 製作 | `Crafting` | received recipe／grid、結果取得・転送、owned recipe配置。材料計画は利用側 |
 | 別player・mobの現在状態 | `EntityObservation`, `EntityMotion`, `EntityState` | `entity_spawns`、`entity_motion`、`entities`。元spawn寿命、field別sample、health／equipment／named data。boxは型の既定寸法。独立した`derived_geometry()`はplayer/cow/pig/zombieの姿勢・子供・modern scaleを原版と照合 |
-| entity受信履歴 | `EntityHistory` | `entity_history_after`。spawn／motion／status／animation／remove／world変更／自身補正。metadata／equipment履歴は残る |
+| entity受信履歴 | `EntityHistory` | `entity_history_after`。spawn／motion／metadata／equipment／modern scale／status／animation／remove／world変更／自身補正。差分順序・部分解読・byte予算の欠落を区別 |
 | entityの指定操作 | `EntityInteraction` | `interact_entity`／`attack_entity`。旧版Dragon部位は明示的な派生モデル。命中・reach証明や自動戦術なし |
 | 乗車・操縦・下車 | `VehicleObservation`, `VehicleInput`, `VehicleDismount`, `VehicleGrounding` | `vehicle_state`、有限`start_vehicle_control`、owned下車、限定した地上継続。ボートの水面／水没／流水／泡、元の速度受信の一度だけの反映、server駆動トロッコ |
 | chat・command | `Chat` | unsigned `send_chat`／`send_command`、`chat_after`。署名必須serverは対象外 |
