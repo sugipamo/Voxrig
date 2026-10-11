@@ -128,7 +128,7 @@ impl Bot {
         }
     }
     pub(super) async fn common_click_context_received(&self) -> Result<()> {
-        self.reconcile_common_inventory_click(false).await
+        self.reconcile_common_inventory_click().await
     }
     pub(super) async fn common_click_reply_received(&self, reply: WindowTransaction) {
         if let Some(run) = super::lock_packet_state(&self.common_inventory_click)
@@ -151,7 +151,7 @@ impl Bot {
                 });
         }
     }
-    async fn reconcile_common_inventory_click(&self, confirm: bool) -> Result<()> {
+    async fn reconcile_common_inventory_click(&self) -> Result<()> {
         let Some(snapshot) = super::lock_packet_state(&self.common_inventory_click)
             .await
             .clone()
@@ -201,7 +201,10 @@ impl Bot {
             if native_conflict {
                 record.inspection("legacy click cache/ownership context changed");
             }
-            confirm && record.ready()
+            // Complete at the receive boundary, before a later independent
+            // inventory update can overwrite this already-observed outcome.
+            // Inspection timing must not decide whether exact receipts count.
+            record.ready()
         };
         if complete {
             match self
@@ -320,7 +323,7 @@ impl crate::client::adapter::InventoryClickOps for Bot {
             let (reply, result) = tokio::sync::oneshot::channel();
             tokio::spawn(async move {
                 let _gate = gate;
-                let _ = reply.send(bot.reconcile_common_inventory_click(true).await);
+                let _ = reply.send(bot.reconcile_common_inventory_click().await);
             });
             result
                 .await
