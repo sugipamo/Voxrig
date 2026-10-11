@@ -16,7 +16,6 @@ def check(version, command, request, trace, report, sdk):
     report['sdk'] = sdk
     modern = version == '1.21.11'
     position_packet = 0x1e if modern else 0x13
-    action_packet = 0x2b if modern else 0x1c
     # The actual packet ID is additionally observed from the unique native action
     # body, so version registry changes cannot be hidden by this expectation.
     start_action = 6 if modern else 8
@@ -37,7 +36,11 @@ def check(version, command, request, trace, report, sdk):
             if f['direction'] == 'clientbound' and f['phase'] in ('configuration', 'play')]) >= sequence else None, 5)
 
     def equip(item='minecraft:elytra'):
-        boundary = request('player')['receive_sequence']
+        before = request('player')
+        existing = before['inventory']['slots'][6]
+        if item == 'minecraft:air' and existing and existing['source']['kind'] == 'received' and existing['value']['kind'] == 'empty':
+            return existing  # Existing actual empty receipt; no fresh packet claimed.
+        boundary = before['receive_sequence']
         command(('item replace entity ClimbingProbe armor.chest with ' if modern else
                  'replaceitem entity ClimbingProbe armor.chest ') + item)
         return until(lambda: s if (s := request('player')['inventory']['slots'][6]) and
@@ -70,7 +73,7 @@ def check(version, command, request, trace, report, sdk):
         entity, offset = PacketTraceProxy.varint(body)
         assert entity == request('player')['entity_id'] and body[offset:offset+2] == b'\x00\x00' and body[offset+2] & 128, flag
         own = request('player')['entity_id']
-        expected = PacketTraceProxy.varint_bytes(own) if hasattr(PacketTraceProxy, 'varint_bytes') else bytes([own])
+        expected = bytes([own])
         # The fixtures use small actual login IDs; no invented native entity ID.
         assert 0 <= own < 128
         expected += bytes([start_action, 0])
