@@ -57,6 +57,15 @@ def check(version, command, request, trace, report, binary, sdk):
         result = frames[sequence - 1]
         assert result['phase'] == 'play' and result['packet_id'] == packet, result
         return result
+    def original_attributes(frame):
+        r=NativeSocialReader(frame,version);target=r.integer();attributes={}
+        for _ in range(r.integer()):
+            key=r.integer();base=struct.unpack('>d',r.take(8))[0];modifiers=[]
+            for _ in range(r.integer()):
+                identifier=r.string();amount=struct.unpack('>d',r.take(8))[0];operation=r.take(1)[0]
+                modifiers.append(dict(id=identifier,amount=amount,operation=('Addition','MultiplyBase','MultiplyTotal')[operation]))
+            attributes[key]=dict(base=base,modifiers=modifiers)
+        r.end();return target,attributes
     def verify(row, *, requested=1., baby=False):
         assert 'Ok' in row['geometry'], row
         g = row['geometry']['Ok']; evidence = g['evidence']; pose = evidence['pose']['value']['Pose']
@@ -85,14 +94,7 @@ def check(version, command, request, trace, report, binary, sdk):
         if version == '1.21.11':
             source = scale['attribute']['source']; assert source['kind'] == 'received'
             original = actual(source['sequence'],0x81)
-            r=NativeSocialReader(original,version);target=r.integer();attributes={}
-            for _ in range(r.integer()):
-                key=r.integer();base=struct.unpack('>d',r.take(8))[0];modifiers=[]
-                for _ in range(r.integer()):
-                    identifier=r.string();amount=struct.unpack('>d',r.take(8))[0];operation=r.take(1)[0]
-                    modifiers.append(dict(id=identifier,amount=amount,operation=('Addition','MultiplyBase','MultiplyTotal')[operation]))
-                attributes[key]=dict(base=base,modifiers=modifiers)
-            r.end()
+            target,attributes=original_attributes(original)
             assert target == g['entity']['native_id']
             assert attributes[25] == scale['attribute']['value']
             assert f32(scale['value']) == native['effective_scale']
@@ -190,6 +192,34 @@ def check(version, command, request, trace, report, binary, sdk):
             for identifier,_,_ in modifiers:
                 command(f'attribute @e[tag={tag},limit=1] minecraft:scale modifier remove {identifier}')
             until(lambda: (row if (row:=current()) and 'Ok' in row['geometry'] and not row['geometry']['Ok']['evidence']['scale']['attribute']['value']['modifiers'] else None),5)
+        if version=='1.21.11' and kind=='cow':
+            # A burst remains an original valid attribute update; retention is
+            # bounded independently of the native 1024-entry packet decoder.
+            previous=copy.deepcopy(current())
+            for n in range(96):
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale modifier add voxrig:geometry_budget_{n} 0 add_value')
+            def budget_rejected():
+                parent=next((e for e in request('entities')['entities'] if e['motion']['entity']['id']==identity),None)
+                if not parent or parent['scale_attribute'] is not None or parent['scale_attribute_unavailable_sequence'] is None:return None
+                frame=actual(parent['scale_attribute_unavailable_sequence'],0x81)
+                target,attributes=original_attributes(frame)
+                return (parent,frame,attributes[25]) if target==identity['native_id'] and len(attributes[25]['modifiers'])==96 else None
+            parent,frame,attribute=until(budget_rejected,5)
+            rejected=current()
+            assert rejected['geometry']=={'Err':'UnknownScale'} and rejected['scale'] is None
+            assert attribute['base']==1. and all(m['amount']==0. for m in attribute['modifiers'])
+            report['checks'].append(dict(name='cow_original_scale_retention_budget_invalidates_old_input',observation=parent,original_attribute=frame,previous_supported_geometry=previous))
+            for n in range(96):
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale modifier remove voxrig:geometry_budget_{n}')
+            def budget_restored():
+                row=current()
+                if not row or 'Ok' not in row['geometry']:return None
+                attr=row['geometry']['Ok']['evidence']['scale']['attribute']['value']
+                return row if not attr['modifiers'] else None
+            recovered=until(budget_restored,5)
+            parent=next(e for e in request('entities')['entities'] if e['motion']['entity']['id']==identity)
+            assert parent['scale_attribute_unavailable_sequence'] is None
+            report['checks'].append(dict(name='cow_original_scale_retention_budget_explicit_recovery',**verify(recovered,baby=True)))
         if kind=='zombie':
             # Legacy original load only calls setBaby for true IsBaby. A false
             # NBT merge is not an adult transition or an acknowledgement.
