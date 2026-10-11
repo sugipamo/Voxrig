@@ -51,6 +51,14 @@ def metadata(frame, version):
             elif kind == (5 if old else 6):
                 if r.boolean():
                     r.text()
+            elif old and kind == 6:
+                if r.boolean():
+                    r.integer()
+                    r.take(1)
+                    tag = r.take(1)[0]
+                    if tag:
+                        r.take(int.from_bytes(r.take(2), 'big'))
+                        r.nbt(tag)
             elif kind == (8 if old else 9):
                 r.take(12)
             elif kind == (9 if old else 10):
@@ -75,6 +83,9 @@ def metadata(frame, version):
                         return entity, entries, False
                     r.take(4)
             elif not old and kind == 18:
+                for _ in range(3):
+                    r.integer()
+            elif old and kind == 16:
                 for _ in range(3):
                     r.integer()
             elif not old and kind == 29:
