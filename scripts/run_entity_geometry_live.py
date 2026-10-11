@@ -143,6 +143,23 @@ def check(version, command, request, trace, report, binary, sdk):
                 row=until(scaled,5)
                 assert row['entity']['id']==identity
                 report['checks'].append(dict(name=kind+'_scale_'+str(amount),**verify(row,baby=True,requested=amount)))
+        if version=='1.21.11':
+            modifiers=[('voxrig:geometry_add',.25,'add_value'),('voxrig:geometry_base',.2,'add_multiplied_base'),('voxrig:geometry_total',1/3,'add_multiplied_total')]
+            for identifier,amount,operation in modifiers:
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale modifier add {identifier} {amount} {operation}')
+            def modified():
+                row=current()
+                if not row or 'Ok' not in row['geometry']:return None
+                attribute=row['geometry']['Ok']['evidence']['scale']['attribute']['value']
+                return row if len(attribute['modifiers'])==3 else None
+            row=until(modified,5)
+            assert row['geometry']['Ok']['evidence']['scale']['value']==2.
+            native_value=command(f'attribute @e[tag={tag},limit=1] minecraft:scale get 1000000')
+            assert '2000000' in native_value,native_value
+            report['checks'].append(dict(name=kind+'_original_three_modifier_operations',native_attribute_value=native_value,**verify(row,baby=True,requested=2.)))
+            for identifier,_,_ in modifiers:
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale modifier remove {identifier}')
+            until(lambda: (row if (row:=current()) and 'Ok' in row['geometry'] and not row['geometry']['Ok']['evidence']['scale']['attribute']['value']['modifiers'] else None),5)
         command(f'data merge entity @e[tag={tag},limit=1] '+'{'+('IsBaby:0b' if kind=='zombie' else 'Age:0')+'}')
         def adult_ready():
             row=current()
