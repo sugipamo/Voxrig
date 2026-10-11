@@ -167,6 +167,12 @@ def check(version, command, request, trace, report, sdk):
     assert 'correction' in corrected['status']['reason'], corrected
     stable(corrected); save('actual_correction_discards_glide_origin', record=corrected, actual_pose=request('player')['received_pose'])
 
+    reset(); owner, mark = start(); request('ticks', count=3); world = request('player')['session']
+    command('kill ClimbingProbe'); dead = stopped(); request('respawn')
+    until(lambda: request('player')['session'] != world, 10)
+    command('tp ClimbingProbe .5 65 .5 0 0'); request('prepare', position=[.5,65.,.5])
+    stale = request('mode_keys', mode='survival', session_id=owner['session_id'], controls=controls()); assert not stale['admitted'], stale
+    save('actual_death_respawn_rejects_old_glide_owner', record=dead, old_world=world, new_world=request('player')['session'], stale_refusal=stale)
     if modern:
         reset(); owner, mark = start(); request('ticks', count=3)
         command('summon minecraft:pig .5 75 .5')
@@ -181,14 +187,9 @@ def check(version, command, request, trace, report, sdk):
         command('ride ClimbingProbe dismount')
         until(lambda: v if (v := request('vehicle'))['relation'] and
               v['relation']['value']['kind'] == 'unmounted' else None, 5)
-        command('kill @e[type=minecraft:pig]')
+        ground = request('mode_start', mode='survival'); assert not ground['admitted'], ground
+        save('forced_dismount_requires_explicit_ground_origin', refusal=ground, actual=request('vehicle'))
 
-    reset(); owner, mark = start(); request('ticks', count=3); world = request('player')['session']
-    command('kill ClimbingProbe'); dead = stopped(); request('respawn')
-    until(lambda: request('player')['session'] != world, 10)
-    command('tp ClimbingProbe .5 65 .5 0 0'); request('prepare', position=[.5,65.,.5])
-    stale = request('mode_keys', mode='survival', session_id=owner['session_id'], controls=controls()); assert not stale['admitted'], stale
-    save('actual_death_respawn_rejects_old_glide_owner', record=dead, old_world=world, new_world=request('player')['session'], stale_refusal=stale)
     trace.expect_disconnect(); request('disconnect')
 
 
