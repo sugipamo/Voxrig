@@ -60,7 +60,15 @@ def check(version, command, request, trace, report, sdk):
         command('fill -4 65 -4 4 84 4 minecraft:air')
         command(f'tp ClimbingProbe .5 {height} .5 0 0')
         request('prepare', position=[.5, height, .5])
-        return equip()
+        equipment = equip()
+        # Real play starts glide after an owned jump/fall tick. A fixture tp
+        # invalidates ground provenance; it cannot turn a retained ground flag
+        # into an airborne admission or a server acknowledgement.
+        falling = admitted(request('mode_start', mode='survival'))
+        frame = request('ticks', count=2)
+        assert frame['frame']['on_ground'] == (height == 65.), frame
+        admitted(request('mode_stop', mode='survival', session_id=falling['session_id']))
+        return equipment
 
     def start(**keys):
         mark = trace.mark()
