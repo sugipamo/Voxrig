@@ -1,0 +1,186 @@
+{
+  "scope": "Mode-bound Creative/Spectator held flight on verified original Java 1.16.1/1.21.11. Public results and hashes only; original wire and NBT reports remain local.",
+  "qualification": {
+    "source_revision": "0eaf06d9605be7064e4b1b46dfabe75aad643fcb",
+    "binary_build_revision": "9081e639ecbb3d710fed974f7b27092f05d335a3",
+    "binary_sha256": "9409f52fde2fa122c1722a63098cf6ce10ed217aa2602a04d38da0d98dce84d7",
+    "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_flight_control.py": "db6a4cbf9ed92dd267cb1b9c750f2c09211d2243fb2a6a25331dd338a9258aa7",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "94be9e7f2d17d6800fa918d5662d59e4850a50f9c620237353441d2a3b7e8aef",
+      "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+      "scripts/movement_oracle/flight_scenarios.json": "009f8418b6b9c28cf2ea7d128c94e953561e6dbc5a44bfe8f9d7700d13a50a4e",
+      "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+      "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+      "data/client_api/flight_control_oracle.json.gz": "819463af2d521446a35367991ede5915bc0473de2d3b2162195dc8a911f4c55b"
+    },
+    "source_difference": "Runtime src/examples/Cargo/data identical to the compiled SDK. Later commits only refine Python independent observations and documentation."
+  },
+  "native_oracle": {
+    "fixture": "data/client_api/flight_control_oracle.json.gz",
+    "fixture_sha256": "819463af2d521446a35367991ede5915bc0473de2d3b2162195dc8a911f4c55b",
+    "runs": 38,
+    "exact_ticks": 1424,
+    "inputs": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50"
+      }
+    ],
+    "runner_sha256": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "scenarios_sha256": "009f8418b6b9c28cf2ea7d128c94e953561e6dbc5a44bfe8f9d7700d13a50a4e",
+    "client_input_audit": [
+      {
+        "version": "1.16.1",
+        "original_metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+        "original_client_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
+        "original_client_mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5"
+      },
+      {
+        "version": "1.21.11",
+        "original_metadata_sha1": "6827f8e998ee6add1b3acff9286b6c95ebeebdc1",
+        "original_client_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
+        "original_client_mappings_sha1": "031a68bebf55d824f66d6573d8c752f0e1bf232a"
+      }
+    ],
+    "native_execution": "Original Player/LivingEntity/Entity movement and collision run unchanged in each official server. Audited LocalPlayer input is ported; original GameType abilities and original float-speed setter/NBT loader provide controlled initialization."
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 34,
+      "check_names": [
+        "creative_explicit_enable_required",
+        "creative_mode_id_ground_jump_fences",
+        "creative_takeoff",
+        "creative_forward",
+        "creative_backward",
+        "creative_left",
+        "creative_right",
+        "creative_ascend",
+        "creative_descend",
+        "creative_sprint",
+        "creative_neutral_hover",
+        "creative_release_retained_without_disabling_flight",
+        "creative_explicit_neutral_restart",
+        "creative_received_revocation_ends_owner",
+        "spectator_mode_id_ground_jump_fences",
+        "spectator_takeoff",
+        "spectator_forward",
+        "spectator_backward",
+        "spectator_left",
+        "spectator_right",
+        "spectator_ascend",
+        "spectator_descend",
+        "spectator_sprint",
+        "spectator_neutral_hover",
+        "spectator_release_retained_without_disabling_flight",
+        "spectator_explicit_neutral_restart",
+        "spectator_received_revocation_ends_owner",
+        "creative_wall_collision_scope",
+        "creative_submerged_flight",
+        "spectator_wall_collision_scope",
+        "spectator_submerged_flight",
+        "creative_model_landing",
+        "creative_landing_requires_explicit_reenable",
+        "creative_explicit_ground_after_landing"
+      ],
+      "original_report_sha256": "739a746166dd9add8129e9a31ac3aff30521b770f3812720df5fb6027d4e2a05",
+      "unexpected_corrections": 0
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 36,
+      "check_names": [
+        "creative_explicit_enable_required",
+        "creative_mode_id_ground_jump_fences",
+        "creative_takeoff",
+        "creative_forward",
+        "creative_backward",
+        "creative_left",
+        "creative_right",
+        "creative_ascend",
+        "creative_descend",
+        "creative_sprint",
+        "creative_fast_sample_explicit_neutral_restart",
+        "creative_neutral_hover",
+        "creative_release_retained_without_disabling_flight",
+        "creative_explicit_neutral_restart",
+        "creative_received_revocation_ends_owner",
+        "spectator_mode_id_ground_jump_fences",
+        "spectator_takeoff",
+        "spectator_forward",
+        "spectator_backward",
+        "spectator_left",
+        "spectator_right",
+        "spectator_ascend",
+        "spectator_descend",
+        "spectator_sprint",
+        "spectator_fast_sample_explicit_neutral_restart",
+        "spectator_neutral_hover",
+        "spectator_release_retained_without_disabling_flight",
+        "spectator_explicit_neutral_restart",
+        "spectator_received_revocation_ends_owner",
+        "creative_wall_collision_scope",
+        "creative_submerged_flight",
+        "spectator_wall_collision_scope",
+        "spectator_submerged_flight",
+        "creative_model_landing",
+        "creative_landing_requires_explicit_reenable",
+        "creative_explicit_ground_after_landing"
+      ],
+      "original_report_sha256": "28547fb919dadab3391c6fb191edab655a405f81d37acc6cf12bc6b4afd68fd8",
+      "unexpected_corrections": 0
+    }
+  ],
+  "checks": {
+    "unit_passed": 973,
+    "unit_ignored": 8,
+    "integration_passed": 4,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "native_trace_tests": 6,
+    "strict_native_all_target_clippy": "passed",
+    "strict_native_rustdoc": "passed",
+    "package_allowlist": "passed",
+    "fmt": "passed",
+    "updated_capability_test": "passed"
+  },
+  "failed_qualification_preserved": [
+    {
+      "original_report_sha256": "5ddfb6c2ac8948049bbdb6a0264db7753c03c592b2d3e50073457a730e2c844b",
+      "finding": "Hover was asserted before original 0.91 horizontal damping finished. The final driver waits 60 neutral ticks; speed, displacement tolerance and SDK are unchanged."
+    },
+    {
+      "original_report_sha256": "d940f30d3756b83d86d2a255107a10cdf54dd037886715c68d281813c8d65f9b",
+      "finding": "Independent RCON missed the fixed sprint frame while the owner continued advancing. Fast modern sprint is sampled after explicit selected-owner input release, using the retained final completely written frame; same .4 coordinate bound and no teleport, speed change or replay."
+    },
+    {
+      "original_report_sha256": "d7db635abe5f10eeecf6796c6a270dfea79f4b2a71b4863c8b91f557ebecc12d",
+      "finding": "The same observation-window failure occurred during Spectator wall crossing. Its final modern frame is also sampled after explicit release; actual wall passage, original speed and wire bytes remain required."
+    }
+  ],
+  "limits": [
+    "Creative must be explicitly enabled before flight; current-world original may-fly and finite nonnegative speed are required. No guessed speed or granted game mode.",
+    "Model frames and completed writes are not original received current-time positions or server movement/stop ACKs.",
+    "Fast modern sprint and Spectator wall crossing use explicit input release before independent sampling. Momentum is retained; further movement starts through a new selected owner. Uninterrupted faster RCON sampling is not claimed.",
+    "Landing retains disable intent/full-write result separately from actual abilities. Old received flying flags do not re-enable locally disabled flight; newer packets and world transitions are authoritative.",
+    "Elytra, levitation, riding, general entity pose/scale/interpolation/push and unreviewed geometry remain separate #44 scope.",
+    "Raw original packets, NBT and failed attempts are retained only in ignored .local."
+  ]
+}
