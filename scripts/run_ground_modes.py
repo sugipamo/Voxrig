@@ -43,8 +43,13 @@ def check(version, command, request, trace, report, sdk):
                 and p['direction']=='serverbound' and p['packet_id']==move_id]
     def capture(name,record,boundary):
         assert record['status']['status']=='running' and not record['corrections'],record
-        actual=native_position()
-        assert max(abs(a-b) for a,b in zip(actual,record['frame']['position']))<.4,(actual,record)
+        # A complete SDK write can precede the original server's queued packet
+        # handling. Poll only the independent observation, never replay inputs.
+        # Keep the same .4 coordinate bound; a missed observation window fails.
+        def applied_position():
+            actual=native_position()
+            return actual if max(abs(a-b) for a,b in zip(actual,record['frame']['position']))<.4 else None
+        actual=until(applied_position,2)
         frame=record['frame']
         expected=struct.pack('>dddff',*frame['position'],record['controls']['yaw'],record['controls']['pitch'])
         expected+=bytes([int(frame['on_ground']) | (int(frame['horizontal_collision'])<<1 if version=='1.21.11' else 0)])
