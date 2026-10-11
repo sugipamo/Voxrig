@@ -199,7 +199,7 @@ def check(version, command, request, trace, report, binary, sdk):
 
     previous = e['motion']['position']['source']['sequence']
     for index, position in enumerate(([3.5, 70., 6.5], [3.5, 70., 8.5])):
-        command('tp @e[tag=ReplayCow,limit=1] '+' '.join(map(str, position)))
+        command('data merge entity @e[tag=ReplayCow,limit=1] {Pos:['+','.join(str(v)+'d' for v in position)+']}')
         def moved():
             e = entity()
             p = e['motion']['position'] if e else None
