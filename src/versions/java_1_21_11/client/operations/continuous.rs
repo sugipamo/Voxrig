@@ -209,6 +209,14 @@ fn stop_reason(
                         .is_some_and(|sequence| sequence <= after)
             }),
         )
+    } else if state.operations.local_player.scale.map(|s| s.value) != Some(1.0)
+        || state
+            .control
+            .session
+            .as_ref()
+            .is_some_and(|s| s.running() && s.scale_change_sequence.is_some())
+    {
+        Some("unmodeled player scale")
     } else if state.vehicles.motion_interrupted()
         || state.operations.local_player.motion_interruption.is_some()
     {

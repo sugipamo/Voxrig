@@ -4373,6 +4373,154 @@ async fn held_flight_requires_original_abilities_and_latches_restored_permission
 }
 
 #[tokio::test]
+async fn held_control_scale_receipts_fence_admission_and_latch_restoration_before_tick() {
+    use crate::client::{
+        GameMode,
+        control::{ControlStatus, Controls},
+    };
+    fn scale(entity: i32, value: f64) -> Vec<u8> {
+        let mut packet = Vec::new();
+        put_varint(&mut packet, entity);
+        put_varint(&mut packet, 1);
+        put_varint(&mut packet, ids::SCALE_ATTRIBUTE);
+        packet.extend(value.to_be_bytes());
+        put_varint(&mut packet, 0);
+        packet
+    }
+    for (mode, flight) in [
+        (GameMode::Survival, false),
+        (GameMode::Adventure, false),
+        (GameMode::Creative, false),
+        (GameMode::Creative, true),
+        (GameMode::Spectator, true),
+    ] {
+        let (session, api, _peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        if flight {
+            let mut state = session.state.lock().await;
+            let mut packet = vec![6];
+            packet.extend(0.05f32.to_be_bytes());
+            packet.extend(0.1f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+        }
+        {
+            let mut state = session.state.lock().await;
+            state.sequence = 20;
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &scale(42, 2.),
+            )
+            .unwrap();
+        }
+        if flight {
+            assert!(
+                handle
+                    .start_flight_control(Controls::default())
+                    .await
+                    .is_err()
+            );
+        } else {
+            assert!(handle.start_control().await.is_err());
+        }
+        {
+            let mut state = session.state.lock().await;
+            state.sequence = 21;
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &scale(42, 1.),
+            )
+            .unwrap();
+        }
+        let start = if flight {
+            handle
+                .start_flight_control(Controls::default())
+                .await
+                .unwrap()
+        } else {
+            handle.start_control().await.unwrap()
+        };
+        let before = {
+            let mut state = session.state.lock().await;
+            state.sequence = 99;
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &scale(43, 4.),
+            )
+            .unwrap();
+            assert_eq!(
+                state
+                    .control
+                    .session
+                    .as_ref()
+                    .unwrap()
+                    .scale_change_sequence,
+                None
+            );
+            for (sequence, value) in [(100, 2.), (101, 1.)] {
+                state.sequence = sequence;
+                operations::receive(
+                    &mut state,
+                    ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                    &scale(42, value),
+                )
+                .unwrap();
+            }
+            assert_eq!(state.operations.local_player.scale.unwrap().value, 1.);
+            let record = state.control.session.as_ref().unwrap().record();
+            assert_eq!(record.scale_change_sequence, Some(100));
+            record.dispatched_ticks
+        };
+        assert!(
+            handle
+                .set_controls_for(start.session_id, Controls::default())
+                .await
+                .is_err()
+        );
+        let stopped = timeout(Duration::from_secs(2), async {
+            loop {
+                let record = handle.control_record().await.unwrap().unwrap();
+                if matches!(record.status, ControlStatus::Stopped { .. }) {
+                    break record;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            stopped.status,
+            ControlStatus::Stopped {
+                reason: "unmodeled player scale".into()
+            }
+        );
+        assert_eq!(stopped.dispatched_ticks, before);
+        assert_eq!(stopped.scale_change_sequence, Some(100));
+        let fresh = if flight {
+            handle
+                .start_flight_control(Controls::default())
+                .await
+                .unwrap()
+        } else {
+            handle.start_control().await.unwrap()
+        };
+        assert_ne!(fresh.session_id, start.session_id);
+        assert_eq!(fresh.scale_change_sequence, None);
+        assert!(
+            handle
+                .set_controls_for(start.session_id, Controls::default())
+                .await
+                .is_err()
+        );
+        handle.stop_control_for(fresh.session_id).await.unwrap();
+        session.stop();
+    }
+}
+
+#[tokio::test]
 async fn held_creative_flight_landing_disables_before_movement_and_ends_owner() {
     use crate::client::{
         GameMode,

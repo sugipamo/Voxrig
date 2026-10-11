@@ -1096,6 +1096,16 @@ pub(super) fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> 
 pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Result<bool> {
     use ids::play_clientbound as input;
     if survival::receive(state, id, payload)? {
+        if id == input::ENTITY_UPDATE_ATTRIBUTES {
+            if let Some(scale) = state.operations.local_player.scale {
+                if matches!(scale.basis, ValueBasis::Received { sequence } if sequence == state.sequence)
+                {
+                    if let Some(session) = state.control.session.as_mut() {
+                        session.observe_scale(scale.value, state.sequence);
+                    }
+                }
+            }
+        }
         return Ok(true);
     }
     if !matches!(

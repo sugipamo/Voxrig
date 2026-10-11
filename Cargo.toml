@@ -38,6 +38,7 @@ include = [
     "/scripts/run_entity_history.py",
     "/scripts/run_entity_pose_oracle.py",
     "/scripts/run_entity_pose_live.py",
+    "/scripts/run_control_scale.py",
     "/scripts/EntityPoseOracle.java",
     "/scripts/run_reader_multiclient.py",
     "/scripts/NativeReaderStressControl.java",
