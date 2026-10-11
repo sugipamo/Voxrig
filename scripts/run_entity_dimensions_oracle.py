@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compare original dimension methods in registered official worlds; results/hashes only."""
 import argparse
+import gzip
 import json
 import os
 import shutil
@@ -13,7 +14,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--downloads',type=Path,required=True)
     p.add_argument('--work',type=Path,required=True)
-    p.add_argument('--output',type=Path,default=REPO/'data/client_api/entity_dimensions_oracle.json')
+    p.add_argument('--output',type=Path,default=REPO/'data/client_api/entity_dimensions_oracle.json.gz')
     args=p.parse_args();args.work.mkdir(parents=True,exist_ok=True)
     tool=(args.downloads/'SpecialSource-1.11.4-shaded.jar').resolve()
     assert digest(tool.read_bytes())==SPECIAL_SOURCE_SHA256
@@ -40,6 +41,6 @@ def main():
         rows=json.loads(output.read_text());assert len(rows)==(49 if version=='1.16.1' else 882)
         result['versions'][version]=dict(original_server_jar_sha1=sha,mappings_sha1=msha,original_output_sha256=digest(output.read_bytes()),harness_sha256=digest(source.read_bytes()),results=rows)
     result['runner_sha256']=digest(Path(__file__).read_bytes())
-    args.output.write_text(json.dumps(result,indent=2)+'\n')
+    args.output.write_bytes(gzip.compress((json.dumps(result,separators=(',', ':'))+'\n').encode(),mtime=0))
     print('original dimension cases:',sum(len(v['results']) for v in result['versions'].values()))
 if __name__=='__main__':main()

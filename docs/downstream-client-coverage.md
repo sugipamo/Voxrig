@@ -72,7 +72,7 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | inventory・装備の転送 | `InventorySwap`, `InventoryClick`, `InventoryTransfer`, `InventoryHelpers` | `received_inventory`、通常PICKUP／QUICK_MOVE／SWAP、cursor収納・merge。全click mode対応ではない |
 | container・かまど | `ContainerObservation`, `Containers` | `screen_state`、通常storage／table／furnaceの開閉とconstructor由来layout。特殊screenは残る |
 | 製作 | `Crafting` | received recipe／grid、結果取得・転送、owned recipe配置。材料計画は利用側 |
-| 別player・mobの現在状態 | `EntityObservation`, `EntityMotion`, `EntityState` | `entity_spawns`、`entity_motion`、`entities`。元spawn寿命、field別sample、health／equipment／named data。boxは型の既定寸法 |
+| 別player・mobの現在状態 | `EntityObservation`, `EntityMotion`, `EntityState` | `entity_spawns`、`entity_motion`、`entities`。元spawn寿命、field別sample、health／equipment／named data。boxは型の既定寸法。独立した`derived_geometry()`はplayer/cow/pig/zombieの姿勢・子供・modern scaleを原版と照合 |
 | entity受信履歴 | `EntityHistory` | `entity_history_after`。spawn／motion／status／animation／remove／world変更／自身補正。metadata／equipment履歴は残る |
 | entityの指定操作 | `EntityInteraction` | `interact_entity`／`attack_entity`。旧版Dragon部位は明示的な派生モデル。命中・reach証明や自動戦術なし |
 | 乗車・操縦・下車 | `VehicleObservation`, `VehicleInput`, `VehicleDismount`, `VehicleGrounding` | `vehicle_state`、有限`start_vehicle_control`、owned下車、限定した地上継続。ボートの水面／水没／流水／泡、元の速度受信の一度だけの反映、server駆動トロッコ |

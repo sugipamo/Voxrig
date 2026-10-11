@@ -11,7 +11,7 @@ use crate::{
 /// The original dimension calculation qualified for this entity type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum EntityGeometryModel {
-    /// Original player pose dimensions; modern scale except fixed sleeping dimensions.
+    /// Original player pose dimensions; modern scale except fixed sleeping/dying dimensions.
     PlayerPose,
     /// Original cow, pig or zombie dimensions, including baby and modern scale.
     AgeablePose,
@@ -83,7 +83,8 @@ pub struct EntityGeometry {
 
 impl EntityObservation {
     /// Latest received modern scale folded in native modifier-map order and
-    /// clamped to its original range. Never supplies a missing modern default.
+    /// clamped to its original range. At most 16 modifiers are modeled; more
+    /// remain readable in scale_attribute. Never supplies a missing modern default.
     pub fn scale(&self) -> Option<EntityScaleReading> {
         let version = self.motion.entity.id.session().version;
         if version == MinecraftVersion::Java1_16_1 {
@@ -319,8 +320,8 @@ mod tests {
     }
     #[test]
     fn original_registered_world_dimensions_match_all_qualified_cases_exactly() {
-        let oracle: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../data/client_api/entity_dimensions_oracle.json"
+        let oracle: serde_json::Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/entity_dimensions_oracle.json.gz")[..],
         ))
         .unwrap();
         let mut count = 0;
@@ -498,6 +499,40 @@ mod tests {
         l.clear();
         assert!(l.capture_all(v, session(v), 99).entities.is_empty());
     }
+    #[test]
+    fn unsupported_modifier_budgets_and_nonreceipt_scale_stay_unknown() {
+        let v = MinecraftVersion::Java1_21_11;
+        let mut l = SpawnLedger::default();
+        spawn(&mut l, v, "minecraft:player", 1);
+        let modifiers = (0..17)
+            .map(|n| crate::client::control::Modifier {
+                id: format!("voxrig:scale_{n}"),
+                amount: 0.01,
+                operation: crate::client::control::ModifierOperation::MultiplyTotal,
+            })
+            .collect();
+        l.receive_scale(
+            7,
+            ReceivedAttribute {
+                base: 1.,
+                modifiers,
+            },
+            3,
+        );
+        let mut e = capture(&l, v);
+        assert_eq!(
+            e.scale_attribute.as_ref().unwrap().value.modifiers.len(),
+            17
+        );
+        assert_eq!(
+            e.derived_geometry().unwrap_err(),
+            EntityGeometryUnavailable::UnknownScale
+        );
+        e.scale_attribute.as_mut().unwrap().value.modifiers.clear();
+        e.scale_attribute.as_mut().unwrap().source = ValueSource::Predicted;
+        assert!(e.scale().is_none());
+    }
+
     #[test]
     fn unsupported_types_never_get_a_default_dynamic_model() {
         for v in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {

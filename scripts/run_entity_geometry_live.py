@@ -2,6 +2,7 @@
 """Qualify sampled pose/baby/scale geometry on unchanged official loopback servers."""
 import argparse
 import copy
+import gzip
 import functools
 import hashlib
 import json
@@ -15,7 +16,7 @@ from run_entity_pose_live import check as peer_pose_check
 
 def check(version, command, request, trace, report, binary, sdk):
     report['sdk'] = sdk
-    oracle = json.loads((REPO / 'data/client_api/entity_dimensions_oracle.json').read_text())['versions'][version]['results']
+    oracle = json.loads(gzip.decompress((REPO / 'data/client_api/entity_dimensions_oracle.json.gz').read_bytes()))['versions'][version]['results']
     def rows():
         return request('entity_geometry')
     def metadata(original):
@@ -36,7 +37,7 @@ def check(version, command, request, trace, report, binary, sdk):
             elif not old and kind==5:r.text();value=None
             elif not old and kind==17:
                 for _ in range(r.integer()):
-                    assert r.integer()==20  # Original entity_effect ARGB particle.
+                    assert r.integer()==21  # Original entity_effect ARGB particle.
                     r.take(4)
                 value=None
             elif kind==(10 if old else 11):
@@ -170,7 +171,7 @@ def main():
     paths=['src','examples','Cargo.toml','Cargo.lock','data']
     assert not subprocess.check_output(['git','diff',compiled,'HEAD','--',*paths],cwd=REPO)
     assert not subprocess.check_output(['git','diff','HEAD','--',*paths],cwd=REPO)
-    artifacts=['Cargo.lock','scripts/run_entity_geometry_live.py','scripts/run_entity_pose_live.py','scripts/run_climbing_control.py','scripts/run_common_native.py','examples/climbing_control_probe.rs','data/client_api/entity_dimensions_oracle.json']
+    artifacts=['Cargo.lock','scripts/run_entity_geometry_live.py','scripts/run_entity_pose_live.py','scripts/run_climbing_control.py','scripts/run_common_native.py','examples/climbing_control_probe.rs','data/client_api/entity_dimensions_oracle.json.gz']
     sdk=dict(source_revision=revision,binary_build_revision=compiled,binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),artifacts={f:hashlib.sha256((REPO/f).read_bytes()).hexdigest() for f in artifacts})
     for version in args.version or ['1.16.1','1.21.11']:
         run(version,args.binary.resolve(),args.jars.resolve(),check=functools.partial(check,binary=args.binary.resolve(),sdk=sdk))
