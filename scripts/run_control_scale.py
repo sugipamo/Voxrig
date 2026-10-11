@@ -31,10 +31,11 @@ def check(version, command, request, trace, report, sdk):
         def applied():
             player = request('player')
             reading = player['attributes'].get('minecraft:scale')
-            return (player, reading) if reading and reading['source']['Received']['sequence'] > boundary and reading['value']['value'] == value else None
+            return (player, reading) if reading and reading['source']['kind'] == 'received' and reading['source']['sequence'] > boundary and reading['value']['value'] == value else None
         return until(applied, 5)
     def original_scale(reading, player):
-        sequence = reading['source']['Received']['sequence']
+        assert reading['source']['kind'] == 'received'
+        sequence = reading['source']['sequence']
         packets = [p for p in trace.since(0) if p['direction'] == 'clientbound'
                    and p['phase'] in ('configuration', 'play')]
         original = packets[sequence - 1]
@@ -86,7 +87,7 @@ def check(version, command, request, trace, report, sdk):
             player, reading = scale(2)
             stopped = until(lambda: (r if (r := request('record'))['status']['status'] == 'stopped' else None), 5)
             assert stopped['status']['reason'] == 'unmodeled player scale', stopped
-            assert stopped['scale_change_sequence'] == reading['source']['Received']['sequence']
+            assert stopped['scale_change_sequence'] == reading['source']['sequence']
             assert not stopped['corrections'], stopped
             release = until(lambda: [p for p in trace.since(boundary) if p['direction'] == 'serverbound' and p['phase'] == 'play' and p['packet_id'] == 0x2a and p.get('body_hex') == '00'], 5)
             save(name + '_received_scale_stops_releases', record=stopped,
