@@ -99,10 +99,11 @@ pub use crafting::{
 };
 pub use entity::{
     EntitiesObservation, EntityDataField, EntityDataReading, EntityDataSource, EntityDataValue,
+    EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
     EntityId, EntityMotionObservation, EntityObservation, EntityPartEvidence, EntityPartId,
     EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable,
-    EntityPose, EntityPoseReading, EntityPosition, EntityPositionCorrection, EntitySpawn,
-    EntitySpawns, EquipmentSlot,
+    EntityPose, EntityPoseReading, EntityPosition, EntityPositionCorrection, EntityScaleReading,
+    EntitySpawn, EntitySpawns, EquipmentSlot,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -144,9 +145,10 @@ pub mod prelude {
         WorldDifficulty, WorldEntryContext, WorldViewObservation,
     };
     pub use super::entity::{
-        EntitiesObservation, EntityObservation, EntityPartEvidence, EntityPartId, EntityPartKind,
-        EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable, EntityPose,
-        EntityPoseReading, EquipmentSlot,
+        EntitiesObservation, EntityGeometry, EntityGeometryEvidence, EntityGeometryModel,
+        EntityGeometryUnavailable, EntityObservation, EntityPartEvidence, EntityPartId,
+        EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
+        EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading, EquipmentSlot,
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{

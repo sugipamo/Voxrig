@@ -13,6 +13,8 @@
 | `equipment` | 装備欄ごとに最後に受信したitem（`MainHand`〜`Head`、1.21.11は`Body`・`Saddle`も） |
 | `living` | 生き物（playerを含む）かどうか。1.16.1は出現パケット（生き物用・player用）、1.21.11は種類（`minecraft:player`か既定属性を持つ種類）で決める。種類が分からなければ`None` |
 | `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・string・poseは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
+| `scale_attribute` | modern版のscale属性を最後に完全に受信した値。base・modifier・受信順序を保持。未受信・保存上限超過なら`None` |
+| `scale_attribute_unavailable_sequence` | 4096byteの個体別保存上限を超えたscale更新の受信順序。古いscaleを無効化し、次の保存可能な更新か新しいspawnで解除 |
 | `metadata_complete` | このentityのentity dataパケットをすべて最後まで読めたか。`false`なら、受信していないフィールドは不明として扱う |
 
 ## 姿勢の受信
@@ -33,6 +35,47 @@
 原版serializer全25姿勢の根拠は`data/client_api/entity_pose_oracle.json`。
 `scripts/run_entity_pose_oracle.py`で再生成し、`scripts/run_entity_pose_live.py`で
 両版の原版サーバーに2クライアントを接続してしゃがみ・解除・削除を検証できる。
+
+## 姿勢・子供・scaleから計算する寸法
+
+`EntityObservation::derived_geometry()`は、player・cow・pig・zombieについて、原版の
+姿勢別寸法・子供の寸法・modern版scaleを計算する。既存の`bounding_box`に加えて使える
+独立したモデルで、原版931ケースのwidth・height・箱の座標をビット単位で照合している。
+
+```rust,ignore
+for entity in client.entities().await?.entities {
+    match entity.derived_geometry() {
+        Ok(model) => println!("{:?} {:?} {:?}", model.model, model.bounds, model.evidence),
+        Err(reason) => println!("dimension model unavailable: {reason:?}"),
+    }
+}
+```
+
+- playerは原版pose enumの寸法を使う。しゃがみは高さ1.5、泳ぎ・滑空・スピンは高さ0.6。
+  睡眠とplayerの死亡姿勢は固定の0.2×0.2で、scaleを掛けない。
+- cow・pig・zombieはBabyフィールドを使い、子供の寸法を計算する。睡眠は固定寸法。
+  年齢の倍率とscaleは原版どおり別々にfloatで掛ける。
+- modern版は実際に受信したscaleのbase・modifierを原版の順序で計算し、0.0625〜16に
+  clampしてfloatへ変換する。`scale()`で値と入力を読める。未受信を1と推定しない。
+  16個を超えるmodifierは4096byteの保存上限内なら`scale_attribute`には残るが、このモデルでは計算しない。
+  保存上限を超えた更新では古い値を無効化し、`scale_attribute_unavailable_sequence`に受信順序を残す。
+  legacy版にはscale属性がなく、固定の1を使い、attributeは`None`になる。
+- `evidence`は位置・pose・Baby・scaleそれぞれの出典とcapture境界を持つ。poseが未受信で
+  metadataを完全に読めた場合、原版のStanding既定値を`TypeDefault`として明記する。
+  これはpose受信APIの値を補わず、`.pose()`は引き続き未受信なら`None`。
+- 未対応の種類、未知pose、別serializer、不明なBaby、未受信scale、未解決の位置は
+  `EntityGeometryUnavailable`を返す。部分metadataでは未受信の既定値を使わない。
+  明示的に受信済みの必要フィールドだけで計算できる場合は、`metadata_complete:false`を残す。
+- 箱は最後に受信した位置targetに置く。量子化誤差は`position_error`に別途保持し、補間・
+  現在のserver位置・押し合い・接触・射程の確認として扱わない。移動物理へ自動適用もしない。
+  保存したモデルは元のconnection/world/spawn寿命を保持し、削除後の観測には含まれない。
+
+比較fixtureは`data/client_api/entity_dimensions_oracle.json.gz`。
+`scripts/run_entity_dimensions_oracle.py`は原版サーバーの登録済みワールド内で原版メソッドを
+実行する。`scripts/run_entity_geometry_live.py`は公式両版へ実接続し、受信値と元パケットを照合する。
+元JAR・class・パケット・NBTは公開せず、解釈済みの比較結果とhashだけを保存する。
+公式両版への57項目の実接続検証と原版931ケースの結果は
+[検証記録](evidence/common-entity-geometry-20261011.json)を参照する。
 
 ## 制約
 

@@ -57,6 +57,13 @@ pub struct EntityObservation {
     /// its end. Fields absent from `metadata` are then unknown rather than the type's
     /// default; see [`EntityObservation::data`].
     pub metadata_complete: bool,
+    /// Latest complete original scale attribute receipt (Java 1.21.11).
+    /// None until received or after an input exceeds the 4096-byte retention
+    /// budget; no modern unit value is synthesized.
+    pub scale_attribute: Option<ObservedValue<crate::client::control::ReceivedAttribute>>,
+    /// Latest complete scale receipt rejected by the per-entity retention budget.
+    /// Cleared by a later supported receipt or a new spawn; old scale is invalidated.
+    pub scale_attribute_unavailable_sequence: Option<u64>,
 }
 
 /// One received entity-data value. Integer, float, boolean, string and pose serializers are
@@ -95,6 +102,8 @@ pub struct EntitiesObservation {
 
 #[derive(Default)]
 pub(super) struct Extra {
+    pub scale_attribute: Option<ObservedValue<crate::client::control::ReceivedAttribute>>,
+    pub scale_attribute_unavailable_sequence: Option<u64>,
     pub health: Option<ObservedValue<f32>>,
     pub equipment: BTreeMap<EquipmentSlot, ObservedValue<SlotKnowledge>>,
     pub metadata: BTreeMap<u8, ObservedValue<EntityDataValue>>,
@@ -120,6 +129,33 @@ pub(crate) fn modern_living(name: &str) -> bool {
 }
 
 impl SpawnLedger {
+    /// Retain only scale, bounded to one receipt per original spawn lifetime.
+    pub(crate) fn receive_scale(
+        &mut self,
+        native_id: i32,
+        mut attribute: crate::client::control::ReceivedAttribute,
+        sequence: u64,
+    ) {
+        if let Some(spawn) = self.0.get_mut(&native_id) {
+            // Bound retained allocation as well as entry counts. A valid but
+            // unmodeled new receipt must not leave an older unit scale usable.
+            let bytes = attribute.modifiers.iter().fold(
+                attribute
+                    .modifiers
+                    .len()
+                    .saturating_mul(std::mem::size_of::<crate::client::control::Modifier>()),
+                |total, modifier| total.saturating_add(modifier.id.len()),
+            );
+            if bytes > 4096 {
+                spawn.extra.scale_attribute = None;
+                spawn.extra.scale_attribute_unavailable_sequence = Some(sequence);
+            } else {
+                attribute.modifiers.shrink_to_fit();
+                spawn.extra.scale_attribute = Some(crate::client::received(attribute, sequence));
+                spawn.extra.scale_attribute_unavailable_sequence = None;
+            }
+        }
+    }
     /// Record health from a living entity's metadata.
     pub(crate) fn receive_health(&mut self, native_id: i32, health: f32, sequence: u64) {
         if let Some(spawn) = self.0.get_mut(&native_id) {
@@ -220,6 +256,8 @@ impl SpawnLedger {
             living,
             metadata: spawn.extra.metadata.clone(),
             metadata_complete: !spawn.extra.metadata_truncated,
+            scale_attribute: spawn.extra.scale_attribute.clone(),
+            scale_attribute_unavailable_sequence: spawn.extra.scale_attribute_unavailable_sequence,
         })
     }
     /// Every surviving spawn with its latest received state.

@@ -360,7 +360,7 @@ impl Capabilities {
                 "docs/common-inventory-helpers.md",
             ),
             Feature::EntityState => restricted(
-                "received health, equipment, version-aware poses and named data; default-dimension boxes",
+                "received entity fields; default boxes and qualified player/cow/pig/zombie pose/baby/scale models",
                 "docs/common-entities.md",
             ),
             Feature::Chat => restricted(

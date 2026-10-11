@@ -90,6 +90,16 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                     .receive_equipment(entity, slot, item, state.sequence);
             }
         }
+        ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES => {
+            let entity = r.varint()?;
+            let attributes = super::players::read_attribute_details(&mut r)?;
+            r.end()?; // Complete packet before mutating the lifetime ledger.
+            if let Some((_, scale)) = attributes.get(&super::ids::SCALE_ATTRIBUTE) {
+                state
+                    .entities
+                    .receive_scale(entity, scale.clone(), state.sequence);
+            }
+        }
         _ => {
             if let Some((target, update)) = decode(id, payload)? {
                 let target = target.or_else(|| {
@@ -363,5 +373,130 @@ mod common_metadata_tests {
         assert_eq!((values, complete), (vec![(6, V::Pose(5))], false));
         let (_, values, complete) = common_metadata(&[9, 6, 1, 5, 255]).unwrap();
         assert_eq!((values, complete), (vec![(6, V::Int(5))], true));
+    }
+}
+
+#[cfg(test)]
+mod scale_receipt_tests {
+    use super::*;
+    use crate::{
+        MinecraftVersion,
+        client::{SessionStamp, ValueSource},
+    };
+    #[test]
+    fn scale_updates_are_atomic_and_scoped_to_complete_live_spawns() {
+        let mut state = State::default();
+        let version = MinecraftVersion::Java1_21_11;
+        let session = SessionStamp {
+            version,
+            connection_id: 1,
+            world_generation: 0,
+        };
+        let kind = crate::client::registry::Registry::for_version(version)
+            .builtin_id("minecraft:entity_type", "minecraft:cow")
+            .unwrap()
+            .value();
+        state
+            .entities
+            .insert(
+                version,
+                NativeSpawn {
+                    id: 7,
+                    uuid: None,
+                    type_id: Some(kind),
+                    dedicated_type_name: None,
+                    position: [0.; 3],
+                    living: Some(true),
+                },
+                1,
+                16,
+            )
+            .unwrap();
+        let capture = |state: &State| {
+            state
+                .entities
+                .capture_all(version, session, 99)
+                .entities
+                .pop()
+                .unwrap()
+                .scale_attribute
+        };
+        let mut packet = vec![7, 1, 25];
+        packet.extend(2f64.to_be_bytes());
+        packet.push(0);
+        state.sequence = 3;
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+        )
+        .unwrap();
+        let original = capture(&state).unwrap();
+        assert_eq!(original.value.base, 2.);
+        assert_eq!(original.source, ValueSource::Received { sequence: 3 });
+        let mut trailing = packet.clone();
+        trailing.push(0);
+        let mut duplicate = vec![7, 2];
+        duplicate.extend_from_slice(&packet[2..]);
+        duplicate.extend_from_slice(&packet[2..]);
+        let mut nan = vec![7, 1, 25];
+        nan.extend(f64::NAN.to_be_bytes());
+        nan.push(0);
+        for malformed in [
+            &packet[..packet.len() - 1],
+            trailing.as_slice(),
+            duplicate.as_slice(),
+            nan.as_slice(),
+        ] {
+            assert!(
+                receive(
+                    &mut state,
+                    ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                    malformed
+                )
+                .is_err()
+            );
+            assert_eq!(capture(&state), Some(original.clone()));
+        }
+        // Another entity and a packet omitting scale cannot rewrite this receipt.
+        let mut other = packet.clone();
+        other[0] = 8;
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &other,
+        )
+        .unwrap();
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &[7, 0],
+        )
+        .unwrap();
+        assert_eq!(capture(&state), Some(original));
+        state.entities.remove(7);
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+        )
+        .unwrap();
+        state
+            .entities
+            .insert(
+                version,
+                NativeSpawn {
+                    id: 7,
+                    uuid: None,
+                    type_id: Some(kind),
+                    dedicated_type_name: None,
+                    position: [0.; 3],
+                    living: Some(true),
+                },
+                9,
+                16,
+            )
+            .unwrap();
+        assert!(capture(&state).is_none());
     }
 }

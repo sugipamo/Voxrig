@@ -114,12 +114,12 @@ impl Bot {
         packet_sequence: u64,
     ) -> Result<()> {
         let (entity_id, metadata) = parse_metadata(p)?;
-        let (_, common) = crate::versions::java_1_16_1::entity::common_metadata(p)?;
+        let (_, common, complete) = crate::versions::java_1_16_1::entity::common_metadata(p)?;
         // The legacy decoder reads a packet to its end or fails it.
         self.common_receipts.lock().await.entities.receive_metadata(
             entity_id,
             common,
-            true,
+            complete,
             packet_sequence,
         );
         if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
