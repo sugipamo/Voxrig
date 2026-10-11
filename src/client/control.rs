@@ -194,6 +194,9 @@ pub struct ControlRecord {
     /// for Ground, or flight/permission is removed for Flight. Later restoration
     /// cannot resume the interrupted owner.
     pub flight_change_sequence: Option<u64>,
+    /// First original own-player scale receipt outside this model's unit scale.
+    /// Java 1.16.1 has no scale attribute. Restoration does not resume this owner.
+    pub scale_change_sequence: Option<u64>,
     /// Latest converted equipment parameters sampled by this local model.
     /// Retained after stopping; never current equipment or a server acknowledgement.
     pub movement_equipment: MovementEquipment,
@@ -283,6 +286,7 @@ pub(crate) struct ControlSession {
     pub mode: super::GameMode,
     pub mode_change_sequence: Option<u64>,
     pub flight_change_sequence: Option<u64>,
+    pub scale_change_sequence: Option<u64>,
     movement_equipment: MovementEquipment,
     pub version: MinecraftVersion,
     pub id: u64,
@@ -345,6 +349,7 @@ impl ControlSession {
             mode: super::GameMode::Survival,
             mode_change_sequence: None,
             flight_change_sequence: None,
+            scale_change_sequence: None,
             movement_equipment: MovementEquipment::from(&received.environment),
             version,
             id,
@@ -470,6 +475,7 @@ impl ControlSession {
             mode: self.mode,
             mode_change_sequence: self.mode_change_sequence,
             flight_change_sequence: self.flight_change_sequence,
+            scale_change_sequence: self.scale_change_sequence,
             movement_equipment: self.movement_equipment.clone(),
             session_id: self.id,
             status: self.status.clone(),
@@ -499,6 +505,12 @@ impl ControlSession {
         };
         if self.running() && mismatch {
             self.flight_change_sequence.get_or_insert(sequence);
+        }
+    }
+
+    pub(crate) fn observe_scale(&mut self, value: f64, sequence: u64) {
+        if self.running() && value != 1.0 {
+            self.scale_change_sequence.get_or_insert(sequence);
         }
     }
 
