@@ -62,3 +62,7 @@ fresh受信位置の変化→実下車→切断を検証した。元spawnは不�
 
 受信motionとは別に、[明示的な生物補間モデル](common-entity-interpolation.md)を提供する。
 受信目標をモデルの補間位置に置き換えず、パケット適用時刻と接触・移動への統合は利用側の別の処理となる。
+
+明示的なbox・team・述語からの接触選別と入力順の`other.push(this)`計算は
+[共通の接触モデル](common-entity-contact.md)を参照。
+自動のworld query・tick割当て・移動owner統合は引き続き#44の残件。

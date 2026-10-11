@@ -25,6 +25,39 @@ fn interpolation_pose(value: &serde_json::Value) -> anyhow::Result<LivingInterpo
     Ok(pose)
 }
 
+fn contact_body(value: &serde_json::Value) -> anyhow::Result<LivingContactBody> {
+    let mut body: LivingContactBody = serde_json::from_value(value.clone())?;
+    for (key, target) in [
+        ("position_bits", &mut body.push.position),
+        ("velocity_bits", &mut body.push.velocity),
+    ] {
+        if let Some(bits) = value["push"][key].as_array() {
+            anyhow::ensure!(bits.len() == 3, "invalid original vector bits");
+            for (i, b) in bits.iter().enumerate() {
+                target[i] = f64::from_bits(u64::from_str_radix(b.as_str().unwrap(), 16)?);
+            }
+        }
+    }
+    if let Some(bits) = value["bounds_bits"].as_array() {
+        anyhow::ensure!(bits.len() == 6, "invalid original box bits");
+        let f = |i: usize| -> anyhow::Result<f64> {
+            Ok(f64::from_bits(u64::from_str_radix(
+                bits[i].as_str().unwrap(),
+                16,
+            )?))
+        };
+        body.bounds = voxrig::client::Aabb {
+            min_x: f(0)?,
+            min_y: f(1)?,
+            min_z: f(2)?,
+            max_x: f(3)?,
+            max_y: f(4)?,
+            max_z: f(5)?,
+        };
+    }
+    Ok(body)
+}
+
 fn lighting_samples(
     chunks: &[voxrig::client::ChunkObservation],
     positions: &[[i32; 3]],
@@ -117,6 +150,21 @@ async fn main() -> anyhow::Result<()> {
                 }));
                 serde_json::json!({"model":result,"pose_bits":bits,"retained":model.frame()})
             },
+            "teams" => serde_json::to_value(client.teams().await?)?,
+            "living_contacts" => {
+                let querying = contact_body(&request["querying"])?;
+                let candidates: Vec<LivingContactCandidate> = request["candidates"].as_array().unwrap().iter().map(|v| -> anyhow::Result<_> {
+                    let mut c: LivingContactCandidate = serde_json::from_value(v.clone())?;
+                    c.body = contact_body(&v["body"])?;
+                    Ok(c)
+                }).collect::<anyhow::Result<_>>()?;
+                let model = model_living_contacts(client.version(), request["client_side"].as_bool().unwrap_or(true), &querying, &candidates);
+                let velocity_bits = model.as_ref().ok().map(|m| {
+                    serde_json::json!({"querying":m.querying_velocity.map(|n|format!("{:x}",n.to_bits())),
+                        "candidates":m.candidates.iter().map(|c|c.push.as_ref().map(|p|p.first_velocity.map(|n|format!("{:x}",n.to_bits())))).collect::<Vec<_>>()})
+                });
+                serde_json::json!({"model":model,"velocity_bits":velocity_bits})
+            }
             "living_pair_push" => {
                 let input: LivingPairPushInput = serde_json::from_value(request["input"].clone())?;
                 let model = model_living_pair_push(client.version(), &input);
