@@ -1,0 +1,2052 @@
+[
+  {
+    "name": "adventure_axes",
+    "game_mode": "adventure",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "adventure_sprint_low_food",
+    "game_mode": "adventure",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ],
+    "food": 3
+  },
+  {
+    "name": "adventure_held_jump",
+    "game_mode": "adventure",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "adventure_crouch_edge",
+    "game_mode": "adventure",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -1,
+        0,
+        -1,
+        1,
+        0,
+        1,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_axes",
+    "game_mode": "creative",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": 1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "strafe": -1,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_sprint_low_food",
+    "game_mode": "creative",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sprint": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ],
+    "food": 3
+  },
+  {
+    "name": "creative_held_jump",
+    "game_mode": "creative",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "jump": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  },
+  {
+    "name": "creative_crouch_edge",
+    "game_mode": "creative",
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -1,
+        0,
+        -1,
+        1,
+        0,
+        1,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "forward": 1,
+        "sneak": true,
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      },
+      {
+        "yaw": 37.0,
+        "pitch": -12.0
+      }
+    ]
+  }
+]

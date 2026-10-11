@@ -202,3 +202,19 @@ cargo test --locked --lib client::vehicle
 サーバー外の待機から元の`isPositionEntityTicking`を確認する。検索で車両が見えない
 フィクスチャは拒否する。ゲーム本体のクラスや衝突predicateを変更しない。
 受信source・ID寿命と送信frameの実接続検証は[共通乗り物](common-vehicles.md)を参照。
+
+## Adventure／Creativeの地上操作
+
+`ground_mode_scenarios.json`と`ground_mode_oracle.json.gz`は各版8場面360 tick、両版16実行720 tick。
+前後左右、低空腹時のダッシュ、押し続けるジャンプ、縁でのしゃがみを比較する。
+公式`GameType.updatePlayerAbilities`で許可を設定し、飛行状態はfalseと確認する。
+入力以外の移動本体は公式コードを使い、速度・位置・姿勢等を各tickで完全一致させる。
+実接続は`run_ground_modes.py`を使用し、元の送信bytesと独立RCON、受信モード変更とownerの停止を照合する。
+
+```bash
+python3 -B scripts/movement_oracle/run.py --downloads .local/climbing/downloads \
+  --work .local/ground-modes/native-oracle \
+  --scenarios scripts/movement_oracle/ground_mode_scenarios.json \
+  --output data/client_api/ground_mode_oracle.json.gz \
+  --blocks-output .local/ground-modes/block-audit
+```

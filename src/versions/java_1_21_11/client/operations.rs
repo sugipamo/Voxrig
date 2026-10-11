@@ -1256,6 +1256,16 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         _ => return Ok(false),
     }
+    if id == input::GAME_STATE_CHANGE && payload[0] == 3 {
+        if let Some(mode) = next.game_mode {
+            state.control.observe_mode(mode, state.sequence);
+        }
+    }
+    if id == input::ABILITIES {
+        state
+            .control
+            .observe_flying(payload[0] & 2 != 0, state.sequence);
+    }
     state.operations = next;
     mining::mining_inventory_received(state);
     Ok(true)

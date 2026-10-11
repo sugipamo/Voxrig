@@ -65,7 +65,7 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | block検索・ray・照準 | `BlockQueries`, `BlockTargeting`, `SurvivalTargeting` | `find_blocks`、64block collision ray、handleのstatic outline targeting。形状・姿勢の制約は別 |
 | 読取専用予測 | `SurvivalPreview` | `preview_path`。1〜120tick、限定したdry地形・状態 |
 | 有限地上移動 | `SurvivalMovement`, `CreativeMovement` | `start_predicted_path`、`motion_record`。予測の完了はserverの受理ではない |
-| 継続移動 | `ContinuousControl` | `start_control`／`set_controls`／`request_ground_jump`／`stop_control`。液体、梯子、つる、足場、playerの泡の柱。接地ジャンプはsession所有の一度だけの予約と結果記録。飛行・乗車は別 |
+| 継続移動 | `ContinuousControl` | `start_control`／`set_controls`／`request_ground_jump`／`stop_control`。モード指定付きSurvival／Adventure／Creative地上操作。液体、梯子、つる、足場、playerの泡の柱。接地ジャンプはsession所有の一度だけの予約と結果記録。飛行・乗車は別 |
 | Creative操作 | `CreativeControls` | default stack、有限飛行・着地。広い姿勢／effectからの継続は残る |
 | 採掘・明示復旧 | `Digging`, `SurvivalMining`, `SurvivalMiningRecovery` | `dig`／`dig_estimate`とretained mining。既定tool速度、受信effect／属性。復旧は同profileの限定条件 |
 | 設置・使用 | `SurvivalPlacement`, `PlacementCheck`, `ItemUse` | receipt付き`place_cube`、読取専用`placement_check`、送信のみの`use_item`／`use_on_block`／解除 |

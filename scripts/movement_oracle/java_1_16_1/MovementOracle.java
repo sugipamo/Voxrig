@@ -46,6 +46,7 @@ public final class MovementOracle {
 
     /** A survival player driven like LocalPlayer, inside a server level. */
     static final class OraclePlayer extends Player {
+        net.minecraft.world.level.GameType mode = net.minecraft.world.level.GameType.SURVIVAL;
         Keys next = new Keys();
         boolean up, down, left, right, inputJumping, shiftKeyDown, sprintKey;
         float leftImpulse, forwardImpulse;
@@ -62,7 +63,7 @@ public final class MovementOracle {
         void primeEquipmentAttribute() { tryAddSoulSpeed(); }
 
         @Override public boolean isSpectator() { return false; }
-        @Override public boolean isCreative() { return false; }
+        @Override public boolean isCreative() { return mode.isCreative(); }
         // LocalPlayer overrides.
         @Override public boolean isLocalPlayer() { return true; }
         @Override public boolean isEffectiveAi() { return true; }
@@ -348,6 +349,13 @@ public final class MovementOracle {
                         level.setBlock(origin.offset(x, y, z), state, 18);
         }
         OraclePlayer player = new OraclePlayer(level);
+        if (scenario.has("game_mode")) {
+            player.mode = net.minecraft.world.level.GameType.valueOf(scenario.get("game_mode").getAsString().toUpperCase(java.util.Locale.ROOT));
+            player.mode.updatePlayerAbilities(player.abilities);
+            if (player.abilities.flying || player.mode == net.minecraft.world.level.GameType.SPECTATOR)
+                throw new IllegalArgumentException("ground scenario cannot enable flight");
+        }
+        if (scenario.has("food")) player.getFoodData().setFoodLevel(scenario.get("food").getAsInt());
         JsonArray start = scenario.getAsJsonArray("start");
         player.setPos(origin.getX() + start.get(0).getAsDouble(), origin.getY() + start.get(1).getAsDouble(), origin.getZ() + start.get(2).getAsDouble());
         player.setOnGround(scenario.has("on_ground") ? scenario.get("on_ground").getAsBoolean() : true);
@@ -385,6 +393,9 @@ public final class MovementOracle {
         }
         initial.add("movement_speed_modifiers", modifiers);
         initial.addProperty("food", player.getFoodData().getFoodLevel());
+        initial.addProperty("may_fly", player.abilities.mayfly);
+        initial.addProperty("flying", player.abilities.flying);
+        initial.addProperty("game_mode", player.mode.getName());
         if (scenario.has("boots_nbt")) {
             initial.addProperty("depth_strider", net.minecraft.world.item.enchantment.EnchantmentHelper.getDepthStrider(player));
             if (net.minecraft.world.item.enchantment.EnchantmentHelper.getEnchantmentLevel(net.minecraft.world.item.enchantment.Enchantments.SOUL_SPEED,player)>0) {

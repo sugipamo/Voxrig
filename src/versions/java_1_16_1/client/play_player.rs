@@ -19,6 +19,11 @@ impl Bot {
         if !(change.value.is_finite()) {
             return Err(anyhow::anyhow!("non-finite game-state value").into());
         }
+        if change.reason == 3
+            && (!(0.0..=3.0).contains(&change.value) || change.value.fract() != 0.0)
+        {
+            return Err(anyhow::anyhow!("invalid game mode").into());
+        }
         let mut state = self.survival.write().await;
         match change.reason {
             1 => state.raining = Some(true),
@@ -35,6 +40,10 @@ impl Bot {
             packet_sequence,
         );
         if change.reason == 3 {
+            self.common_control.lock().await.observe_mode(
+                crate::client::GameMode::decode(change.value as u8)?,
+                packet_sequence,
+            );
             self.interrupt_common_motion("native game mode changed after finite motion started")
                 .await;
         }
@@ -148,6 +157,10 @@ impl Bot {
         state.flying_speed = flying_speed;
         state.walking_speed = walking_speed;
         drop(state);
+        self.common_control
+            .lock()
+            .await
+            .observe_flying(flags & 2 != 0, sequence);
         self.emit(Event::SurvivalStateUpdated);
         self.emit(Event::PlayerContextUpdated);
         Ok(())

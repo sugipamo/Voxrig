@@ -10,6 +10,16 @@ use crate::{MinecraftVersion, NativeBlockState, Result};
 
 pub use crate::client::physics::{Controls, ItemUse, Modifier, ModifierOperation, Pose};
 
+pub(crate) fn validate_ground_mode(mode: super::GameMode) -> Result<()> {
+    if mode == super::GameMode::Spectator {
+        return Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("spectator requires a separate flight model"),
+        ));
+    }
+    Ok(())
+}
+
 /// Session state.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
@@ -137,6 +147,14 @@ pub struct ControlFrame {
 /// Observable record of the connection's control session.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlRecord {
+    /// Expected received mode at admission; changing mode stops this owner.
+    pub mode: super::GameMode,
+    /// First actual mode-change packet that disagreed with this owner, even if
+    /// a later packet restored the mode before a local tick. Not a server tick.
+    pub mode_change_sequence: Option<u64>,
+    /// First actual abilities packet reporting flight while this ground owner
+    /// was active. Later ground abilities cannot resume that owner.
+    pub flight_change_sequence: Option<u64>,
     /// Latest converted equipment parameters sampled by this local model.
     /// Retained after stopping; never current equipment or a server acknowledgement.
     pub movement_equipment: MovementEquipment,
@@ -194,6 +212,9 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    pub mode: super::GameMode,
+    pub mode_change_sequence: Option<u64>,
+    pub flight_change_sequence: Option<u64>,
     movement_equipment: MovementEquipment,
     pub version: MinecraftVersion,
     pub id: u64,
@@ -250,6 +271,9 @@ impl ControlSession {
         received: &Received,
     ) -> Self {
         Self {
+            mode: super::GameMode::Survival,
+            mode_change_sequence: None,
+            flight_change_sequence: None,
             movement_equipment: MovementEquipment::from(&received.environment),
             version,
             id,
@@ -363,6 +387,9 @@ impl ControlSession {
             }
         }
         ControlRecord {
+            mode: self.mode,
+            mode_change_sequence: self.mode_change_sequence,
+            flight_change_sequence: self.flight_change_sequence,
             movement_equipment: self.movement_equipment.clone(),
             session_id: self.id,
             status: self.status.clone(),
@@ -377,6 +404,18 @@ impl ControlSession {
 
     pub(crate) fn running(&self) -> bool {
         !matches!(self.status, ControlStatus::Stopped { .. })
+    }
+
+    pub(crate) fn observe_mode(&mut self, mode: super::GameMode, sequence: u64) {
+        if self.running() && mode != self.mode {
+            self.mode_change_sequence.get_or_insert(sequence);
+        }
+    }
+
+    pub(crate) fn observe_flying(&mut self, flying: bool, sequence: u64) {
+        if self.running() && flying {
+            self.flight_change_sequence.get_or_insert(sequence);
+        }
     }
 
     /// Apply receipts newer than the session has seen, as the client would.

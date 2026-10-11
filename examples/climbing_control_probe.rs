@@ -323,6 +323,41 @@ async fn main() -> anyhow::Result<()> {
                 std::io::stdout().flush()?;
                 return Ok(());
             }
+            "mode_start" | "mode_keys" | "mode_jump" | "mode_stop" => {
+                let mode: GameMode = serde_json::from_value(request["mode"].clone())?;
+                let handle = client.player_control(mode);
+                let result: voxrig::Result<serde_json::Value> =
+                    match request["command"].as_str().unwrap() {
+                        "mode_start" => handle
+                            .start_control()
+                            .await
+                            .map(|r| serde_json::json!({"record":r})),
+                        "mode_keys" => handle
+                            .set_controls_for(
+                                request["session_id"].as_u64().unwrap(),
+                                serde_json::from_value(request["controls"].clone())?,
+                            )
+                            .await
+                            .map(|r| serde_json::json!({"record":r})),
+                        "mode_jump" => handle
+                            .request_ground_jump(request["session_id"].as_u64().unwrap())
+                            .await
+                            .map(|r| serde_json::json!({"request":r})),
+                        _ => handle
+                            .stop_control_for(request["session_id"].as_u64().unwrap())
+                            .await
+                            .map(|r| serde_json::json!({"record":r})),
+                    };
+                match result {
+                    Ok(mut value) => {
+                        value["admitted"] = serde_json::json!(true);
+                        value
+                    }
+                    Err(error) => {
+                        serde_json::json!({"admitted":false,"kind":format!("{:?}",error.kind()),"error":error.to_string(),"record":handle.control_record().await?})
+                    }
+                }
+            }
             "start" => serde_json::to_value(survival.start_control().await?)?,
             "jump" => {
                 match survival

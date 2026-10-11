@@ -340,7 +340,7 @@ impl Capabilities {
                 "docs/common-blocks.md",
             ),
             Feature::ContinuousControl => restricted(
-                "held survival keys and owned ground jumps; terrain, fluids, climbables; no flying or riding",
+                "mode-bound survival/adventure/creative ground keys and jumps; fluids/climbables; no flight or riding",
                 "docs/common-control.md",
             ),
             Feature::ItemUse => restricted(
