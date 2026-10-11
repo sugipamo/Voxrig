@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "date": "2026-10-12",
+  "timezone": "Asia/Tokyo",
+  "issue": 88,
+  "sdk": {
+    "source_revision": "68f40fc5e96e24396b248ac5a150e3f35b7ab106",
+    "binary_build_revision": "67bd1035aa3b1ce8ed6881c26d6a5005d603f433",
+    "binary_sha256": "66edd69831586e2b3f8782aa067da2bd863dada1884e5f171e1b767aadd950bb",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_tick_live.py": "385fd640a2e52921ef380abe3b1059318091bc35ebcc0f54fe52e71f936072c7",
+      "scripts/run_entity_tick_oracle.py": "d2f65181d840df8e6260e64fe71c8cac9cc2a12da043a9a41301b4bf028263f4",
+      "scripts/entity_tick_oracle/1.16.1/EntityTickOracle.java": "4c2b37650d8791b9e8e2c1f0aa0d7286d171e816d25a2125ff27b954895d05c1",
+      "scripts/entity_tick_oracle/1.21.11/EntityTickOracle.java": "570b5146b7f431266b9b654e088c669fb4abc0542f193d92b56d0554a6beea10",
+      "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "40bd0606fa979e3b1a4ff5c3b8eff2af8f4a4e66966cd4c13c484ba5d6a34602",
+      "data/client_api/entity_tick_oracle.json.gz": "ec536ae8326748c71d7b7a9c737a16a0393265744491aa3226c111a65612d25f"
+    }
+  },
+  "authority": "Explicit original packet-handler and ClientLevel dispatch schedule. Cow interpolation isolates AI/travel; player callbacks qualify class guards only. Receive ordinal/elapsed time do not establish an autonomous native clock. Passenger callbacks are not passenger travel. Replay remains a caller-invalidated read-only model, not server acceptance or movement-owner contact integration.",
+  "native": {
+    "schedules": 32,
+    "stages": 384,
+    "callbacks": 10871,
+    "fixture_sha256": "ec536ae8326748c71d7b7a9c737a16a0393265744491aa3226c111a65612d25f",
+    "runner_sha256": "d2f65181d840df8e6260e64fe71c8cac9cc2a12da043a9a41301b4bf028263f4",
+    "versions": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "server_mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "original_client_jar_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
+        "client_mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5",
+        "original_output_sha256": "36db85994609dfe535981de13c44ad86f6b6514ea3db3c06ed05fed9c0d68a4a",
+        "harness_sha256": "4c2b37650d8791b9e8e2c1f0aa0d7286d171e816d25a2125ff27b954895d05c1"
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "server_mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "original_client_jar_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
+        "client_mappings_sha1": "031a68bebf55d824f66d6573d8c752f0e1bf232a",
+        "original_output_sha256": "5029125ebab5e6540e34757cf52e6b9b7a2e007bfe6206185e74d46a49c98e31",
+        "harness_sha256": "570b5146b7f431266b9b654e088c669fb4abc0542f193d92b56d0554a6beea10"
+      }
+    }
+  },
+  "live": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": 13,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "connected_explicit_native_schedule_0",
+        "connected_explicit_native_schedule_1",
+        "connected_explicit_native_schedule_3",
+        "connected_explicit_native_schedule_9",
+        "original_spawn_once_only_replay",
+        "original_motion_then_explicit_steps_0",
+        "original_motion_then_explicit_steps_1",
+        "removed_lifetime_stops_continuation",
+        "fresh_spawn_and_revocation_fence"
+      ],
+      "connected_explicit_stages": 48,
+      "connected_explicit_callbacks": 1185,
+      "trace_errors": [],
+      "report_path": ".local/climbing/live/1.16.1-20261011-193120/report.json",
+      "report_sha256": "df6e1f64f1248ff626876206f51f829157fb6fd5c285c670f1074e19a7a47d61",
+      "packet_trace_sha256": "90bc8e54f9d3adad9771cc3989af3ae8900c4ddf05e338725f31ad51301a537c",
+      "peer_packet_trace_sha256": "796fcca4e1f2fc9b37cdea91e3e470910888a8fb78129201e464925ccd673f03"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "checks": 13,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "connected_explicit_native_schedule_0",
+        "connected_explicit_native_schedule_1",
+        "connected_explicit_native_schedule_3",
+        "connected_explicit_native_schedule_9",
+        "original_spawn_once_only_replay",
+        "original_motion_then_explicit_steps_0",
+        "original_motion_then_explicit_steps_1",
+        "removed_lifetime_stops_continuation",
+        "fresh_spawn_and_revocation_fence"
+      ],
+      "connected_explicit_stages": 48,
+      "connected_explicit_callbacks": 1182,
+      "trace_errors": [],
+      "report_path": ".local/climbing/live/1.21.11-20261011-193138/report.json",
+      "report_sha256": "693c8a150862774efbde2168f226ce2c8ce26a75266316d7c2c33da451f90cfe",
+      "packet_trace_sha256": "b0abcb70c023e373aa682ea52e7136d458189b4ab19eb10d8f6972f209844805",
+      "peer_packet_trace_sha256": "f9137c4bd10ca352f0e528b8bfaa1b38a6b39012271e51e40f8f9dd00d7706ad"
+    }
+  ],
+  "validation": {
+    "focused_tests": 7,
+    "native_unit_passed": 1013,
+    "native_unit_ignored": 8,
+    "integration_passed": 4,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "strict_native_clippy": "passed",
+    "strict_native_rustdoc": "passed",
+    "fmt": "passed",
+    "trace_tests": 6,
+    "package_allowlist": "passed",
+    "required_ci": "MSRV/default/native/package/audit must pass at final PR head before merge"
+  },
+  "limitations": [
+    "No autonomous native packet-to-tick allocation, AI/travel/rendering or general NPC contact owner.",
+    "No Player motion override, passenger travel, modern relative teleport semantics or special species in the selected replay lane.",
+    "Legacy external membership/predicate changes during an active iterator and inChunk=false chunk-update stages refuse explicitly.",
+    "Required packet predicates must be explicit; each page must stay within one predicate fence. Caller must invalidate on revoke/closure/owner discard.",
+    "Unknown collision evidence, incomplete input/history, changed lifetime, fixed budgets and unsupported dispatch stop rather than guess."
+  ],
+  "failed_attempts": [
+    {
+      "kind": "live",
+      "report_path": ".local/climbing/live/1.16.1-20261011-192815/report.json",
+      "report_sha256": "dfe49cb6a9cb922c7bc5e2975c414deed3f7a762b150328a684b352d0ed0e22c",
+      "passed": false,
+      "checks_completed": 4,
+      "reason": "Driver initially expected true for external removal after original legacy iterator had already removed the root. SDK/original schedule agree; driver expectation corrected.",
+      "sdk": {
+        "source_revision": "67bd1035aa3b1ce8ed6881c26d6a5005d603f433",
+        "binary_build_revision": "67bd1035aa3b1ce8ed6881c26d6a5005d603f433",
+        "binary_sha256": "66edd69831586e2b3f8782aa067da2bd863dada1884e5f171e1b767aadd950bb",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_entity_tick_live.py": "e5a666d35d0480be576025222f541d2fcce945459b1fea9db5ee7bd6d11bd92a",
+          "scripts/run_entity_tick_oracle.py": "d2f65181d840df8e6260e64fe71c8cac9cc2a12da043a9a41301b4bf028263f4",
+          "scripts/entity_tick_oracle/1.16.1/EntityTickOracle.java": "4c2b37650d8791b9e8e2c1f0aa0d7286d171e816d25a2125ff27b954895d05c1",
+          "scripts/entity_tick_oracle/1.21.11/EntityTickOracle.java": "570b5146b7f431266b9b654e088c669fb4abc0542f193d92b56d0554a6beea10",
+          "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+          "examples/climbing_control_probe.rs": "40bd0606fa979e3b1a4ff5c3b8eff2af8f4a4e66966cd4c13c484ba5d6a34602",
+          "data/client_api/entity_tick_oracle.json.gz": "ec536ae8326748c71d7b7a9c737a16a0393265744491aa3226c111a65612d25f"
+        }
+      }
+    },
+    {
+      "kind": "live",
+      "report_path": ".local/climbing/live/1.16.1-20261011-192928/report.json",
+      "report_sha256": "023bf08727ea5ab5cf8833628922e2176512dc9130160a9c54322230bff8a23a",
+      "passed": false,
+      "checks_completed": 9,
+      "reason": "NBT Pos merge did not establish native movement; original wire stayed at the original position. Replaced this failed fixture with actual teleport/sync and independent RCON position checks.",
+      "sdk": {
+        "source_revision": "64f3b59d6af371e4905f22d63881ffaad4f763d0",
+        "binary_build_revision": "67bd1035aa3b1ce8ed6881c26d6a5005d603f433",
+        "binary_sha256": "66edd69831586e2b3f8782aa067da2bd863dada1884e5f171e1b767aadd950bb",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_entity_tick_live.py": "17d6a4f0bec3da1afd19b2149f1944e543741589e815501ca0dfdce7540ea4e1",
+          "scripts/run_entity_tick_oracle.py": "d2f65181d840df8e6260e64fe71c8cac9cc2a12da043a9a41301b4bf028263f4",
+          "scripts/entity_tick_oracle/1.16.1/EntityTickOracle.java": "4c2b37650d8791b9e8e2c1f0aa0d7286d171e816d25a2125ff27b954895d05c1",
+          "scripts/entity_tick_oracle/1.21.11/EntityTickOracle.java": "570b5146b7f431266b9b654e088c669fb4abc0542f193d92b56d0554a6beea10",
+          "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+          "examples/climbing_control_probe.rs": "40bd0606fa979e3b1a4ff5c3b8eff2af8f4a4e66966cd4c13c484ba5d6a34602",
+          "data/client_api/entity_tick_oracle.json.gz": "ec536ae8326748c71d7b7a9c737a16a0393265744491aa3226c111a65612d25f"
+        }
+      }
+    },
+    {
+      "kind": "native_startup",
+      "log_sha256": "b42e6e115fa52b1c48edc2a91b3b1c52ee9f4e1a7e8f6e20b642a64858aaa2dc",
+      "passed": false,
+      "reason": "A fresh legacy ResourceManager bootstrap stalled before the oracle ran. Own process was stopped; the already-started disposable formal-run world succeeded. No original class or SDK guard was patched."
+    }
+  ]
+}

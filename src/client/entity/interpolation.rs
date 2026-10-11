@@ -128,6 +128,20 @@ impl LivingInterpolation {
         self.frame()
     }
 
+    /// Apply an explicitly supplied model pose from another admitted physics
+    /// stage without advancing interpolation or changing its target/baseline.
+    /// This is not a received packet target or proof of native passenger travel.
+    pub fn set_model_pose(
+        &mut self,
+        pose: LivingInterpolationPose,
+    ) -> Result<LivingInterpolationFrame, LivingInterpolationUnavailable> {
+        if !pose.finite() {
+            return Err(LivingInterpolationUnavailable::NonFiniteState);
+        }
+        self.pose = pose;
+        Ok(self.frame())
+    }
+
     /// Evaluate one explicitly scheduled interpolation stage at `before` (which
     /// may include separately modeled movement since the preceding stage).
     /// Modern active steps require the caller's original-style `noCollision`
