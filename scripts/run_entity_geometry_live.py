@@ -34,6 +34,11 @@ def check(version, command, request, trace, report, binary, sdk):
             elif kind==(5 if old else 6):
                 if r.boolean():r.text()
                 value=None
+            elif old and kind==14:
+                tag=r.take(1)[0]
+                if tag:
+                    r.take(int.from_bytes(r.take(2),'big'));r.nbt(tag)
+                value=None
             elif not old and kind==5:r.text();value=None
             elif not old and kind==17:
                 for _ in range(r.integer()):
