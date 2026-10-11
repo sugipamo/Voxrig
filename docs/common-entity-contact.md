@@ -47,6 +47,8 @@ JARを変更せず、ClientLevelの実tick・world query順序を再現したと
 team設定・所属移動・削除の受信値とsource ordinalを、実際の原版パケットに照合する。
 受信したteam設定を、原版oracleの明示的な数値入力へ渡して計算を検証する。
 位置・box・述語・候補順序は数値モデルの入力であり、サーバー上の接触確認ではない。
+両版64項目ずつ、計128項目を検証し、observer/peerの通信エラーは0件。
+[検証記録](evidence/common-entity-contact-20261011.json)にSDK・原版・成果物のhashを保持する。
 元のパケット・NBT・JAR・classはignored `.local`に置き、公開するのは結果とhash。
 
 呼び出し側は一意で完全な候補集合と原版に対応する順序を用意し、
