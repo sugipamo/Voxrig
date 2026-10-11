@@ -11,6 +11,7 @@ import gzip
 import hashlib
 import json
 from pathlib import Path
+import re
 import struct
 import subprocess
 from run_climbing_control import REPO, run
@@ -203,12 +204,15 @@ def check(version, command, request, trace, report, binary, sdk):
 
     previous = e['motion']['position']['source']['sequence']
     for index, position in enumerate(([3.5, 70., 6.5], [3.5, 70., 8.5])):
-        command('data merge entity @e[tag=ReplayCow,limit=1] {Pos:['+','.join(str(v)+'d' for v in position)+']}')
+        command('tp @e[tag=ReplayCow,limit=1] '+' '.join(map(str, position)))
         def moved():
             e = entity()
             p = e['motion']['position'] if e else None
             return e if p and p['source']['sequence'] > previous and p['value']['position'] == position else None
         e = until(moved, 10)
+        native_position = command('data get entity @e[tag=ReplayCow,limit=1] Pos')
+        values = re.search(r'\[([^]]+)\]', native_position)
+        assert values and [float(v.strip().rstrip('df')) for v in values[1].split(',')] == position
         page = request('packet_replay_history', guards=GUARDS)
         assert 'Ok' in page['applied'], page
         records = [v for v in page['history']['records'] if 'Motion' in v['kind']
@@ -232,7 +236,8 @@ def check(version, command, request, trace, report, binary, sdk):
         assert steps[-1]['model']['frame']['model']['interpolation']['remaining_steps'] == 0
         assert steps[-1]['model']['frame']['model']['interpolation']['pose']['position'] == position
         report['checks'].append(dict(name='original_motion_then_explicit_steps_'+str(index),
-                                     received=page, original_packets=packets, steps=steps, duplicate=duplicate))
+                                     received=page, original_packets=packets, steps=steps,
+                                     native_position=native_position, duplicate=duplicate))
         previous = e['motion']['position']['source']['sequence']
     cancel = request('packet_replay_cancel')
     assert cancel['result'] == {'Ok': None}
