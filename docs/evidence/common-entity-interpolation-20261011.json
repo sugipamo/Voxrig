@@ -1,0 +1,173 @@
+{
+  "scope": "Fixed-size caller-owned inherited living-body interpolation model, qualified against original cow routines; no automatic packet-to-tick scheduling, native authority, contact discovery, owner movement integration or execution acknowledgement.",
+  "sdk": {
+    "source_revision": "28951b21cb2e5d50eb3a35312fd7d4dbf7a05293",
+    "binary_build_revision": "28951b21cb2e5d50eb3a35312fd7d4dbf7a05293",
+    "binary_sha256": "fb4320a00790f74e367325da12f9ff4b401de9672423d1f13e318f4ab2fd1ec4",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_interpolation_live.py": "2f8a14d211017fd06e8ee9de3fe4dc0e8d2ddb7c87c96d1333b698f00bccb66b",
+      "scripts/run_entity_interpolation_oracle.py": "c65d47f4a3a152fd68aab2941a1faca70b542fdf74bc69d486a627a0a524cb5c",
+      "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "db0ad5c074cf533421afcf9855d1085ccb4ec3aefb75dacc324612fd2ce5b783",
+      "data/client_api/entity_interpolation_oracle.json.gz": "ad04486cb06ff630193bf8bb88f218cfd7f8a2badd6f491dd77be7ea242ae33a"
+    }
+  },
+  "original_interpolation_comparison": {
+    "scenario_count": 420,
+    "operation_count": 3780,
+    "exact_position_double_bits": true,
+    "exact_rotation_float_bits": true,
+    "exact_remaining_steps": true,
+    "fixture_sha256": "ad04486cb06ff630193bf8bb88f218cfd7f8a2badd6f491dd77be7ea242ae33a",
+    "versions": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "server_mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "original_client_jar_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
+        "client_mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5",
+        "original_output_sha256": "b991856be8144eff6fd7d36be41a1011fc9d386e002288b1e1d8f229d698e192",
+        "harness_sha256": "2a93f9fa9ffd9196ae0dcbff87f410e7933fa9414dde6d4b6cb7dde00b763b10",
+        "scenario_count": 210,
+        "operation_count": 1890,
+        "collision_queries": 0,
+        "allowed": 0,
+        "denied": 0
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "server_mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "original_client_jar_sha1": null,
+        "client_mappings_sha1": null,
+        "original_output_sha256": "9022983d2a0f4208f89cca318ca90e8956a2c95e3add070164d12c36f938e1aa",
+        "harness_sha256": "05af57bbbabd5585ba8001e59538c65426cc808a07728cbf4c8b9be67ccf30aa",
+        "scenario_count": 210,
+        "operation_count": 1890,
+        "collision_queries": 665,
+        "allowed": 342,
+        "denied": 323
+      }
+    }
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 21,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "explicit_model_at_original_spawn",
+        "original_motion_target_0",
+        "version_bound_duplicate_target_0",
+        "explicit_model_steps_leave_receipts_unchanged_0",
+        "original_motion_target_1",
+        "version_bound_duplicate_target_1",
+        "explicit_model_steps_leave_receipts_unchanged_1",
+        "original_motion_target_2",
+        "version_bound_duplicate_target_2",
+        "explicit_model_steps_leave_receipts_unchanged_2",
+        "original_numerical_schedule_0",
+        "original_numerical_schedule_1",
+        "original_numerical_schedule_4",
+        "original_numerical_schedule_6",
+        "original_numerical_schedule_13",
+        "original_numerical_schedule_34",
+        "explicit_cancel_after_original_removal"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "artifact_sha256": {
+        "server.log": "0f750792bbf2f224421ced90dd85719e46b40bc1ee25329431c49a98b35154cc",
+        "packets.jsonl": "2cf91ff7b8744cc388b1e75bb9e293f88b5af4939db4516fa2eb2f1abc7fa934",
+        "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "peer.log": "aca8a870453608a14fd2050bdf7533f2757b677c6b20a418b36a2cfafd6bc500",
+        "probe.log": "4206d1e36c59ed116ad9d5541ece9cb59957f7fa5d7719cf74db3b1368ba4eab",
+        "report.json": "d4d07f0985108ec8f8c12a6900d2b7c21270a3f8e7133affa08b134bea2a80f3",
+        "peer-packets.jsonl": "08585eb74dea93afc02316b075b72631eb60d961b09bd41c9d038ce4c5576eea",
+        "peer.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 24,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "explicit_model_at_original_spawn",
+        "original_motion_target_0",
+        "version_bound_duplicate_target_0",
+        "missing_collision_query_preserves_model_0",
+        "explicit_model_steps_leave_receipts_unchanged_0",
+        "original_motion_target_1",
+        "version_bound_duplicate_target_1",
+        "missing_collision_query_preserves_model_1",
+        "explicit_model_steps_leave_receipts_unchanged_1",
+        "original_motion_target_2",
+        "version_bound_duplicate_target_2",
+        "missing_collision_query_preserves_model_2",
+        "explicit_model_steps_leave_receipts_unchanged_2",
+        "original_numerical_schedule_0",
+        "original_numerical_schedule_1",
+        "original_numerical_schedule_4",
+        "original_numerical_schedule_6",
+        "original_numerical_schedule_13",
+        "original_numerical_schedule_34",
+        "explicit_cancel_after_original_removal"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "artifact_sha256": {
+        "server.log": "fcdcefaa55f5dcc5aec48b389ffad571833ce32c1ca1005a8ea97160a0d3d27b",
+        "packets.jsonl": "e02f9820f5344eeb6151eecfae99929671ff58f1cbd55b241cda20d996d40f0c",
+        "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "peer.log": "bc3c6080479268480fc5631b3ba3d898199e4acde8a727755864aed63b9271f4",
+        "probe.log": "aea51b9deec2680cbb5d18c208fad55515d13f71f962a2bb621f593c89a43b46",
+        "report.json": "70783b2f230cd04562c501fb4317fd1960fc1410edf91c86c9d89e90c03ab591",
+        "peer-packets.jsonl": "a8e33fef664b317287883085cd1b521414f21ac715122d73e90ec0a17bf8ed4c",
+        "peer.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "total_live_checks": 45,
+  "live_scope": "Two common clients on each unchanged official loopback server verify actual pose transitions, cow spawn/motion/removal, original motion wire positions/angles/source ordinals and frozen history. Only explicit numerical models consume these receipts. Six original numerical schedules per version are also compared bitwise via the connected common API. Collision results and model steps are explicitly selected; native remote-client scheduling/server execution is not claimed.",
+  "local_validation": {
+    "source_revision": "28951b21cb2e5d50eb3a35312fd7d4dbf7a05293",
+    "unit_passed": 992,
+    "unit_ignored": 8,
+    "integration_passed": 4,
+    "doctest_passed": 34,
+    "doctest_ignored": 1,
+    "trace_passed": 6,
+    "fmt_passed": true,
+    "native_clippy_warnings": 0,
+    "native_rustdoc_warnings": 0,
+    "package_allowlist_passed": true,
+    "log_sha256": {
+      "all-tests-qualified": "a1b6e285f78f1a1bfc94053c32cbaa47ebb4f40134082eacb6ce21a541c2432d",
+      "doc-tests": "7f2762490d56e43cf7640e6f630bf23563bf96f80fef30e7f888d230f6a4fd95",
+      "clippy": "e1b0b07ea82de8782a50203631a9c1fa7bcf7ad3032aca2b62b6bc61b28f5127",
+      "rustdoc": "0fcac20103aa2ad4f8791eff5facfe5d9de62e93c4c65c725d1b9d5f2209de43",
+      "package-list": "3bd72f98d3107cfbeb27679008dc89f8a094979936a012b87a3f0b2a583e00c4",
+      "trace": "7d6aa752d5da0b13ec4cdfc6c817db2fcafdd6f35f3964ec16b59799ebe5112e",
+      "build": "0c40bfdd59e8e580d23ba31c9a1d372ee71d9d20232e3d7d5909e8e91ba1e170"
+    }
+  },
+  "remaining": [
+    "Automatic packet/tick scheduling, original dispatch/relative teleport and lifetime/history-gap fences",
+    "Contact admission, pushability/team/cramming queries and deterministic pair order",
+    "Integration into selected owned ground/boat movement",
+    "General species/posture geometry and own scaled-player physics",
+    "Elytra and additional mounts"
+  ],
+  "publication": "Only own implementation, interpreted numerical results and hashes are public. Original wire/NBT, JAR and class artifacts remain ignored/local."
+}
