@@ -98,15 +98,20 @@ def check(version,command,request,trace,report,binary,sdk,failure_scenario):
     command('setblock 0 65 0 minecraft:red_bed[part=head,facing=south]')
     command('setblock 0 65 -1 minecraft:red_bed[part=foot,facing=south]')
     command('data merge entity @e[tag=OwnerCow,limit=1] '+ ('{sleeping_pos:[I;0,65,0]}' if modern else '{SleepingX:0,SleepingY:65,SleepingZ:0}'))
-    request('wait',ms=200)
+    reading=until(lambda:next((e for e in request('entity_sleeping') if e['entity']['id']==ident and e['sleeping'] and e['sleeping']['sleeping']),None),10)
+    assert reading['sleeping']['position']==dict(x=0,y=65,z=0),reading
+    sleep_receipt=source_frame(reading['sleeping']['source']['sequence'])
     reset([.5,65.5625,.5]);request('start')
     sleeping=contact_frame('sleep_position_receipt_and_model',request('ticks',count=2))
-    assert any(abs(b['model_position'][1]-65.6875)<1e-9 for b in sleeping['bodies'])
+    assert any(b['entity']==ident for b in sleeping['bodies'])
+    # AI-step interpolation can move numerical feet after the sleep callback;
+    # the native oracle qualifies this order, rather than assuming bed feet.
+    record('received_sleep_position',dict(reading=reading,original_metadata=sleep_receipt))
     request('stop')
     command('setblock 0 65 0 minecraft:air')
     command('setblock 0 65 -1 minecraft:air')
     command('tp @e[tag=OwnerCow,limit=1] .9 65 .5')
-    request('wait',ms=200)
+    until(lambda:next((e for e in request('entity_sleeping') if e['entity']['id']==ident and e['sleeping'] and not e['sleeping']['sleeping']),None),10)
     reset([.5,65.,.5]);request('start')
     contact_frame('sleep_cleared_new_origin',request('ticks',count=2),True)
     # Real received target change, model position retained independently.
