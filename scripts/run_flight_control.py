@@ -131,7 +131,11 @@ def check(version, command, request, trace, report, sdk):
         if mode=='creative':admitted('flight_enable',mode,flying=True)
         keys=controls(forward=1);keys['yaw']=0.;keys['pitch']=0.
         boundary=trace.mark();owner=admitted('flight_start',mode,controls=keys)
-        record=request('ticks',count=22);actual=capture(mode+'_wall_collision_scope',record,boundary)
+        record=request('ticks',count=22)
+        # Spectator crossing reaches the same fast observation problem as
+        # sprinting; keep the final model and stop further modern writes.
+        if version=='1.21.11' and mode=='spectator':record=admitted('mode_stop',mode,owner['session_id'])
+        actual=capture(mode+'_wall_collision_scope',record,boundary)
         if mode=='creative':assert actual[2]<2.71 and record['frame']['horizontal_collision'],record
         else:assert actual[2]>3.5 and not record['frame']['horizontal_collision'],record
         admitted('mode_stop',mode,owner['session_id'])
