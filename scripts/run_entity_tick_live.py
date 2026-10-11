@@ -264,7 +264,9 @@ def main():
     args = p.parse_args()
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip()
     compiled = subprocess.check_output(['git', 'rev-parse', args.compiled_sdk_revision], cwd=REPO, text=True).strip()
-    paths = ['src', 'examples', 'Cargo.toml', 'Cargo.lock', 'data', 'scripts']
+    # The driver may be corrected without changing the compiled SDK. Its
+    # actual checkout and hash are recorded separately from the binary build.
+    paths = ['src', 'examples', 'Cargo.toml', 'Cargo.lock', 'data']
     assert not subprocess.check_output(['git', 'diff', compiled, 'HEAD', '--', *paths], cwd=REPO)
     assert not subprocess.check_output(['git', 'diff', 'HEAD', '--', *paths], cwd=REPO)
     artifacts = ['Cargo.lock', 'scripts/run_entity_tick_live.py', 'scripts/run_entity_tick_oracle.py',
