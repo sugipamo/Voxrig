@@ -98,7 +98,11 @@ def check(version, command, request, trace, report, binary, sdk):
             key = active[ident]
             b = bodies[key]
             if op == 'remove_membership':
-                assert request('tick_order_remove', native_id=ident) == {'Ok': True}
+                # Legacy tick iteration already removes marked roots from its
+                # live map. An external later removal then returns false.
+                expected = not (not modern and b['removed'])
+                found = request('tick_order_remove', native_id=ident)
+                assert found == {'Ok': expected}, (a, found)
                 del active[ident]
             elif op == 'local':
                 local[key] = a['value']
