@@ -66,7 +66,9 @@ legacyのown補正にはvelocityがないため`None`である。
 
 - `complete:true`は共通decoderがpacketを最後まで読み、余分なbyteがなかったことを示す。
   `false`なら解読できた範囲だけを保存する。modern版で未知serializer／slot／itemがある場合も、
-  それ以前の値とpacket境界を残す。legacy版の既存native decoderがpacketを拒否した場合には、
+  それ以前の値とpacket境界を残す。legacy版はnativeに読めた装備のうち共通slotに対応するentryを
+  順に残すため、未知slotより後の対応entryも含みうる。この場合も`complete:false`になる。
+  legacy版の既存native decoderがpacketを拒否した場合には、
   適用済みの履歴を作らない。装備の`Unavailable`は既存のitem変換の欠測で、`Empty`と区別する。
 - `entries`は`EntityHistoryValue::Retained { value }`、または`RetentionLimit`。
   **1 packetから履歴へコピーするpayloadの所有byte数が64KiBを超える場合は全差分を保存しない**。
@@ -100,6 +102,28 @@ removal、world変更、own補正、metadata・装備の解読済み差分、完
 motion対象のspawnやmountが解決できない場合、空間値やlifetimeを発明しない。
 byte予算によりpacket由来の無制限文字列やNBTを履歴へ蓄積しない。
 ProjectileTrack、予測・物理、freshness、戦闘判断、Body policyは利用側で定義する。
+
+## metadata・装備・scaleの実接続検証
+
+2026-10-12（日本時間）、未改変の公式1.16.1・1.21.11へ2クライアントを接続し、合計39項目が成功した。
+metadata 48差分、装備10差分、modern scale 3差分を、実際の元packetの値・順序・native IDと照合した。
+しゃがみ／解除、子供／大人の連続変更、装備のitem数・空欄・NBT／custom_dataの変更を含む。
+modern版の部分metadataも、解読できた範囲と`complete:false`を照合した。
+7件ずつのpage、削除後の再読取、実respawn、接続失効後の読取で、過去の値・個体寿命・適用時刻が
+変わらないことを確認した。両版のobserver／peer trace errorは0。
+[検証記録](evidence/common-entity-data-history-20261012.json)にSDK・runner・binary・元JARのhashと結果を保存した。
+
+```sh
+cargo build --locked --example climbing_control_probe --features native
+python3 scripts/run_entity_data_history_live.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /path/to/official-jars --compiled-sdk-revision <built-source-commit>
+cargo test --locked --lib history --features native
+```
+
+byte予算の境界・上限超過・件数／byteによるevictionとID再利用は、単体テストと既存の
+両adapter decoderテストで確認する。実接続で大量packetを合成した検証とは区別する。
+元JAR・class・packet・NBTのコピーは公開せず、自作の検証コード・解釈済みの結果・hashだけを保存する。
 
 ## 設計判断と検証
 

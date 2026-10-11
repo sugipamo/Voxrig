@@ -18,7 +18,7 @@ pub const MAX_ENTITY_HISTORY_READ: usize = 1024;
 /// Unavailability here concerns history retention, not native decoding.
 #[derive(Clone, Debug, serde::Serialize)]
 pub enum EntityHistoryValue<T> {
-    /// Complete decoded value (a decoder's prefix when `complete` is false).
+    /// Decoded values supplied by the adapter (possibly incomplete).
     Retained {
         /// Frozen value, with source given by the surrounding record.
         value: T,
@@ -78,7 +78,7 @@ pub enum EntityHistoryKind {
         native_id: i32,
         /// Original lifetime if received; absent for own/unreceived entities.
         entity: Option<EntityId>,
-        /// Packet entries preserved in wire order, or an explicit retention refusal.
+        /// Decoded entries preserved in wire order, or an explicit retention refusal.
         entries: EntityHistoryValue<Vec<EntityMetadataEntry>>,
         /// Whether the common decoder reached the clean native packet end.
         complete: bool,
@@ -89,7 +89,7 @@ pub enum EntityHistoryKind {
         native_id: i32,
         /// Original lifetime if received; absent for own/unreceived entities.
         entity: Option<EntityId>,
-        /// Packet entries preserved in wire order, or an explicit retention refusal.
+        /// Supported entries in wire order, or an explicit retention refusal.
         entries: EntityHistoryValue<Vec<EntityEquipmentEntry>>,
         /// Whether every native slot was recognized and the clean end reached.
         complete: bool,

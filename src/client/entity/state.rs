@@ -190,7 +190,7 @@ impl SpawnLedger {
             }
         }
     }
-    /// Record the supported equipment prefix from one native packet.
+    /// Record supported equipment entries from one native packet.
     pub(crate) fn receive_equipment(
         &mut self,
         native_id: i32,
