@@ -977,12 +977,8 @@ mod tests {
                             .stage,
                         Stage::Pending
                     );
-                    let mut p = vec![record.window_id() as u8];
-                    p.extend(record.send.legacy_action.unwrap().to_be_bytes());
-                    p.push(0);
-                    bot.apply_packet(0x12, p).await.unwrap();
-                    // Complete server receipts must remain inspectable while a
-                    // writer owns the gate; reconciliation is deferred, not lost.
+                    // Cursor/source alone remain pending and inspectable behind
+                    // a writer gate. The final transaction receipt is still absent.
                     let gate = bot.coherent_state_gate.lock().await;
                     assert_eq!(
                         client
@@ -1003,6 +999,10 @@ mod tests {
                     })
                     .await;
                     drop(gate);
+                    let mut p = vec![record.window_id() as u8];
+                    p.extend(record.send.legacy_action.unwrap().to_be_bytes());
+                    p.push(0);
+                    bot.apply_packet(0x12, p).await.unwrap();
                     let complete = completing.await;
                     assert!(!complete.legacy_reply.unwrap().accepted);
                 }
