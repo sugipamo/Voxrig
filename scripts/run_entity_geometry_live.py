@@ -6,6 +6,7 @@ import gzip
 import functools
 import hashlib
 import json
+import re
 from pathlib import Path
 import struct
 import subprocess
@@ -183,7 +184,8 @@ def check(version, command, request, trace, report, binary, sdk):
             row=until(modified,5)
             assert row['geometry']['Ok']['evidence']['scale']['value']==2.
             native_value=command(f'attribute @e[tag={tag},limit=1] minecraft:scale get 1000000')
-            assert '2000000' in native_value,native_value
+            match=re.search(r' is ([+-]?[0-9]+(?:\.[0-9]+)?)$',native_value)
+            assert match and float(match[1])==2.,native_value
             report['checks'].append(dict(name=kind+'_original_three_modifier_operations',native_attribute_value=native_value,**verify(row,baby=True,requested=2.)))
             for identifier,_,_ in modifiers:
                 command(f'attribute @e[tag={tag},limit=1] minecraft:scale modifier remove {identifier}')
