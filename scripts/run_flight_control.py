@@ -88,7 +88,9 @@ def check(version, command, request, trace, report, sdk):
             admitted('mode_keys',mode,session,controls=controls());request('ticks',count=10)
         boundary=trace.mark();admitted('mode_keys',mode,session,controls=controls(forward=1,sprint=True))
         record=request('ticks',count=8);capture(mode+'_sprint',record,boundary);assert record['frame']['sprinting']
-        admitted('mode_keys',mode,session,controls=controls());request('ticks',count=12)
+        # Original flight retains horizontal inertia (0.91 damping). Release
+        # is not rest: wait for native decay before asserting a hover.
+        admitted('mode_keys',mode,session,controls=controls());request('ticks',count=60)
         boundary=trace.mark();record=request('ticks',count=8);capture(mode+'_neutral_hover',record,boundary)
         assert max(abs(v) for v in record['frame']['velocity'])<.005
         boundary=trace.mark();admitted('mode_keys',mode,session,controls=controls(sneak=True));request('ticks',count=2)
