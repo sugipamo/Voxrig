@@ -92,7 +92,7 @@ flight.stop_control_for(owner.session_id).await?;
 Creativeはブロックに衝突し、Spectatorは原版のnoPhysicsでブロックを通過する。
 旧版の箱中心による座標丸めと、最新版の直接座標加算をそれぞれ使う。
 
-`ControlRecord.kind`は`ground`または`flight`。`flight_parameters`は最後にモデルが使った
+`ControlRecord.kind`は`ground`、`flight`または`glide`。`flight_parameters`は最後にモデルが使った
 受信速度とそのordinalであり、現在のabilitiesやサーバーの承認を表さない。
 `ControlFrame.flying`もモデルの結果である。
 モード変更、飛行解除、権限喪失は旧ownerを終了し、同じtick内に復元されても再開しない。
@@ -336,3 +336,9 @@ python3 -B scripts/run_climbing_control.py --accept-eula
 補正・履歴不足・未検証入力ではモデルを破棄し、古い起点から自動再開しない。
 ボートの失敗時は同じ健康な実乗車の受信境界に限りneutral/paddle解除を一度だけ試み、
 予測位置を再送しない。`failure_release`はintent・完全送信・拒否/不確実性を保持する。
+
+## Elytraの滑空
+
+`PlayerControl::start_glide_control(Controls)`は実装備・実flagを使う独立owner。
+開始writeは受理ではなく、owner停止も物理的な滑空終了ではない。
+操作・終端停止・未対応boostと証拠は[Elytra滑空](common-glide-control.md)を参照。

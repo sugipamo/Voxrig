@@ -87,6 +87,7 @@ fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> 
     }
     env.movement_speed_base = exact(&initial["movement_speed_base"]);
     env.may_fly = initial["may_fly"].as_bool().unwrap_or(false);
+    env.gliding = initial["gliding"].as_bool().unwrap_or(false);
     env.flying = initial["flying"].as_bool().unwrap_or(false);
     env.spectator = initial["game_mode"] == "spectator";
     env.ability_flying_speed = initial["ability_flying_speed"]
@@ -152,6 +153,10 @@ pub(super) fn compare(
     let mut env = environment(version, scenario, &result["initial"]);
     let mut body = Body::new(std::array::from_fn(|i| start[i] + f64::from(ORIGIN[i])));
     body.on_ground = scenario["on_ground"].as_bool().unwrap_or(true);
+    if env.gliding {
+        body.admit_glide_pose();
+        body.velocity = std::array::from_fn(|i| scenario["velocity"][i].as_f64().unwrap());
+    }
     // The oracle's player is a freshly created entity.
     body.first_tick = true;
     let mut block_at = |p: [i32; 3]| {
@@ -191,6 +196,14 @@ pub(super) fn compare(
         });
         tick(version, &mut body, &env, controls, &mut block_at)
             .map_err(|e| format!("tick {index}: {e}"))?;
+        if let Some(gliding) = expected["gliding"].as_bool() {
+            if body.gliding != gliding {
+                return Ok(Some(format!(
+                    "tick {index}: glide {} vs {gliding}",
+                    body.gliding
+                )));
+            }
+        }
         if !expected["bounds"].is_null() {
             for axis in 0..3 {
                 for (key, offset) in [("bounds", 0), ("bounds_max", 3)] {
@@ -218,6 +231,7 @@ pub(super) fn compare(
                 super::Pose::Standing => "STANDING",
                 super::Pose::Crouching => "CROUCHING",
                 super::Pose::Swimming => "SWIMMING",
+                super::Pose::FallFlying => "FALL_FLYING",
             };
             if expected["pose"].as_str() != Some(pose) {
                 return Ok(Some(format!(
@@ -239,6 +253,7 @@ pub(super) fn compare(
                 super::Pose::Standing => "STANDING",
                 super::Pose::Crouching => "CROUCHING",
                 super::Pose::Swimming => "SWIMMING",
+                super::Pose::FallFlying => "FALL_FLYING",
             };
             if expected["pose"].as_str() != Some(pose) {
                 return Ok(Some(format!(
@@ -570,4 +585,118 @@ fn scale_missing_outside_qualification_and_legacy_scaling_refuse_atomically() {
         assert!(tick(version, &mut body, &env, Controls::default(), &mut terrain).is_err());
         assert_eq!(body, original);
     }
+}
+
+#[test]
+fn elytra_glide_matches_original_client_branch_movement_and_geometry() {
+    let fixture: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/glide_oracle.json.gz")[..],
+    ))
+    .unwrap();
+    let hash = |bytes: &[u8]| {
+        use sha2::Digest;
+        format!("{:x}", sha2::Sha256::digest(bytes))
+    };
+    assert_eq!(
+        fixture["wrapper_sha256"],
+        hash(include_bytes!("../../../scripts/run_glide_oracle.py"))
+    );
+    assert_eq!(
+        fixture["runner_sha256"],
+        hash(include_bytes!("../../../scripts/movement_oracle/run.py"))
+    );
+    assert_eq!(
+        fixture["scenarios_sha256"],
+        hash(include_bytes!(
+            "../../../scripts/movement_oracle/glide_scenarios.json"
+        ))
+    );
+    let mut failures = Vec::new();
+    let mut stages = 0;
+    for (name, source, version) in [
+        (
+            "1.16.1",
+            &include_bytes!("../../../scripts/movement_oracle/java_1_16_1/MovementOracle.java")[..],
+            MinecraftVersion::Java1_16_1,
+        ),
+        (
+            "1.21.11",
+            &include_bytes!("../../../scripts/movement_oracle/java_1_21_11/MovementOracle.java")[..],
+            MinecraftVersion::Java1_21_11,
+        ),
+    ] {
+        assert_eq!(
+            fixture["owned_sources"][name]["base_harness_sha256"],
+            hash(source)
+        );
+        for result in fixture["results"][name].as_array().unwrap() {
+            let scenario = fixture["scenarios"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == result["name"])
+                .unwrap();
+            stages += result["frames"].as_array().unwrap().len();
+            match compare(version, scenario, result) {
+                Ok(None) => {}
+                Ok(Some(error)) => failures.push(format!("{name} {}: {error}", result["name"])),
+                Err(error) => failures.push(format!("{name} {}: {error}", result["name"])),
+            }
+        }
+    }
+    assert_eq!(stages, 1792);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn fast_glide_reset_sweep_refuses_uncertain_inputs_atomically() {
+    let version = MinecraftVersion::Java1_21_11;
+    let mut body = Body::new([0.5, 68.0, 0.5]);
+    body.on_ground = false;
+    body.admit_glide_pose();
+    body.velocity = [0.0, -2.5, 0.0];
+    body.fall_distance = 1.0;
+    let before = body.clone();
+    let mut env = Environment::defaults(version);
+    env.gliding = true;
+    let controls = Controls {
+        pitch: 90.0,
+        ..Default::default()
+    };
+    for candidate in [
+        "minecraft:water",
+        "minecraft:ladder[facing=north,waterlogged=false]",
+        "minecraft:cobweb",
+        "minecraft:sweet_berry_bush[age=0]",
+    ] {
+        let mut block_at = |p: [i32; 3]| {
+            Ok(if p == [0, 66, 0] {
+                state(candidate)
+            } else {
+                state("minecraft:air")
+            })
+        };
+        assert!(
+            tick(version, &mut body, &env, controls, &mut block_at).is_err(),
+            "{candidate}"
+        );
+        assert_eq!(body, before, "{candidate}");
+    }
+    let mut missing = |p: [i32; 3]| {
+        if p == [0, 66, 0] {
+            Err(crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("cell unreceived"),
+            ))
+        } else {
+            Ok(state("minecraft:air"))
+        }
+    };
+    assert!(tick(version, &mut body, &env, controls, &mut missing).is_err());
+    assert_eq!(body, before);
+    tick(version, &mut body, &env, controls, &mut |_| {
+        Ok(state("minecraft:air"))
+    })
+    .unwrap();
+    assert!(body.position[1] < 66.0);
 }

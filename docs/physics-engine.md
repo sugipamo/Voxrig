@@ -112,3 +112,6 @@ clientの移動には影響しない。
 位置・速度・衝突箱・姿勢・目の高さをbit単位で照合した。元のmovement harnessは
 変更せず、自作wrapperが実属性適用後に原版`refreshDimensions`で明示的な開始点を作る。
 これは受信packet時計やサーバー承認の再現ではない。両版の公式接続は別の根拠として保存する。
+
+自分のunit Elytra滑空は専用ownerで[資格化](common-glide-control.md)した。
+他生物の滑空、追加姿勢やgliderを接触モデルへ一般化していない。

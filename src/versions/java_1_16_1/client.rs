@@ -5419,6 +5419,9 @@ impl Bot {
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;
         self.enforce_session_limits().await?;
+        if matches!(id, 0x14 | 0x16) {
+            self.observe_common_glide_equipment(packet_sequence).await;
+        }
         Ok(true)
     }
 

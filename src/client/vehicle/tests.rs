@@ -288,6 +288,7 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
         };
         let player = PlayerObservation {
             using_item: None,
+            fall_flying: None,
             entity_id: None,
             attributes: Default::default(),
             effects: Default::default(),
@@ -577,6 +578,7 @@ fn boat_velocity_fixture(
     };
     let player = PlayerObservation {
         using_item: None,
+        fall_flying: None,
         entity_id: None,
         attributes: Default::default(),
         effects: Default::default(),

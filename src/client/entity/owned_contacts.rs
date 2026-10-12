@@ -78,6 +78,7 @@ pub(crate) struct OwnedContacts {
     valid: bool,
     boat: Option<BoatScope>,
     native_keys: BTreeMap<i32, u64>,
+    own_glide: bool,
 }
 impl OwnedContacts {
     pub(crate) fn has_bodies(&self) -> bool {
@@ -377,6 +378,25 @@ impl OwnedContacts {
             ledger,
             receive_sequence,
             None,
+            false,
+        )
+    }
+
+    pub(crate) fn new_glide(
+        session: SessionStamp,
+        owner: u64,
+        own_native_id: i32,
+        ledger: &SpawnLedger,
+        receive_sequence: u64,
+    ) -> Result<Self> {
+        Self::new_scoped(
+            session,
+            owner,
+            own_native_id,
+            ledger,
+            receive_sequence,
+            None,
+            true,
         )
     }
 
@@ -419,6 +439,7 @@ impl OwnedContacts {
                 passengers,
                 ignored,
             }),
+            false,
         )
     }
 
@@ -429,6 +450,7 @@ impl OwnedContacts {
         ledger: &SpawnLedger,
         receive_sequence: u64,
         boat: Option<BoatScope>,
+        own_glide: bool,
     ) -> Result<Self> {
         let mut model = Self {
             world: ContactTickWorld::new(session.version, 1),
@@ -443,6 +465,7 @@ impl OwnedContacts {
             valid: true,
             boat,
             native_keys: BTreeMap::from([(own_native_id, 1)]),
+            own_glide,
         };
         model.world.admit(tick_body(1, own_native_id, true), None)?;
         model.drain(ledger, receive_sequence, true)?;
@@ -947,10 +970,12 @@ impl OwnedContacts {
             let EntityDataValue::Pose(id) = value else {
                 return Err(failure("own contact pose unavailable"));
             };
+            let pose = EntityPose::from_native(self.session.version, *id);
             if !matches!(
-                EntityPose::from_native(self.session.version, *id),
+                pose,
                 Some(EntityPose::Standing | EntityPose::Crouching | EntityPose::Swimming)
-            ) {
+            ) && !(self.own_glide && pose == Some(EntityPose::FallFlying))
+            {
                 return Err(failure(
                     "own posture outside ground/held flight contact model",
                 ));

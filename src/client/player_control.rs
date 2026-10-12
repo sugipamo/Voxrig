@@ -35,6 +35,18 @@ impl Client {
 }
 
 impl PlayerControl {
+    /// Own an Elytra start request with explicit first-tick aim/keys. Actual usable
+    /// received chest equipment and an airborne model are required. The connection
+    /// waits for the actual fall-flying flag before predicting or writing movement;
+    /// complete request dispatch does not mean the server accepted glide.
+    /// Stop releases ownership/keys only; pitch down and native landing end glide.
+    pub async fn start_glide_control(
+        &self,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_glide_control(a, self.mode, controls).await)
+    }
+
     /// Start held Creative/Spectator flight with explicit first-tick keys.
     /// Creative flight must first be enabled by `Creative::set_flying(true)`;
     /// Spectator requires original flying abilities. Permission and speed must

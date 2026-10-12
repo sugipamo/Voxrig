@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "date": "2026-10-12",
+  "timezone": "Asia/Tokyo",
+  "issues": [
+    91
+  ],
+  "sdk": {
+    "source_revision": "a70cc61e0e44bf9a5ddb5a97064bd92dc64e6e7c",
+    "binary_build_revision": "35234edf0025722a943a53aff320fa97f87da196",
+    "binary_sha256": "7b1c12d81dfda163080071a20a9012af3557d2e535fecf6538759f9f20cc0f57",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_glide_live.py": "05f33ddf8f93e689656f18d0dafdf5645fc18e40a618cb80367a7d6ff4a72c28",
+      "scripts/run_glide_oracle.py": "1370ddcf4979d9a7ada45141f703fdf4ad5eadf6b24d3e2f16653d42077482b5",
+      "scripts/movement_oracle/glide_scenarios.json": "07f7afaddda99521838ab5ddba8ee8b2bdbdae747f520a394f1474c423577625",
+      "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+      "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+      "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "ffdb17ca8284badcf2fbb01a6b495d87a246fad809ab6b3ed2bad7b602a0a9ac",
+      "data/client_api/glide_oracle.json.gz": "50ea666343cef83da271c7c9e9f094114f0672f75e60f1a2004c1c439d9e3b1a"
+    }
+  },
+  "authority": "Unchanged official Player/LivingEntity tick/travel/pose on original registered server terrain, with the original Level client-side branch flag explicitly set during each owned numerical tick and restored afterward. Owned LocalPlayer input port remains unchanged; this is not a real ClientLevel packet clock or server acceptance.",
+  "qualified_domain": "Dry static vanilla terrain; unit player; vanilla chest Elytra; no firework/custom glider/multi-slot boost or water/lava glide.",
+  "native": {
+    "schedules": 56,
+    "stages": 1792,
+    "fixture_sha256": "50ea666343cef83da271c7c9e9f094114f0672f75e60f1a2004c1c439d9e3b1a",
+    "wrapper_sha256": "1370ddcf4979d9a7ada45141f703fdf4ad5eadf6b24d3e2f16653d42077482b5",
+    "runner_sha256": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "scenarios_sha256": "07f7afaddda99521838ab5ddba8ee8b2bdbdae747f520a394f1474c423577625",
+    "owned_sources": {
+      "1.16.1": {
+        "base_harness_sha256": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+        "generated_harness_sha256": "6a262d72ff7ebcad9d32e67236821387ba731e424b29e0c56e21961a8fc24278",
+        "client_branch_field": "v"
+      },
+      "1.21.11": {
+        "base_harness_sha256": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+        "generated_harness_sha256": "38f7128eb792564314c79a56b59b4a4459353113e12b7b10dcba7b19b70c7dfb",
+        "client_branch_field": "D"
+      }
+    },
+    "versions": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "6a262d72ff7ebcad9d32e67236821387ba731e424b29e0c56e21961a8fc24278",
+        "original_output_sha256": "bee8f9abe09f225f373985ec5aaece74432286e6219c5ec3b0f144e5dd12324f",
+        "owned_scenario_sha256": "2e7bd62136a06e4e0dfec8f3f0e06f411215ce3e831db71b95f6ee2d7cdfdf1a"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "38f7128eb792564314c79a56b59b4a4459353113e12b7b10dcba7b19b70c7dfb",
+        "original_output_sha256": "ba981b327f8dcf93e3eff1790f8808365413a389576acbc224fb3b6e8b97757b",
+        "owned_scenario_sha256": "2e7bd62136a06e4e0dfec8f3f0e06f411215ce3e831db71b95f6ee2d7cdfdf1a"
+      }
+    ],
+    "bit_comparisons": [
+      "position",
+      "velocity",
+      "bounds",
+      "eye_height"
+    ],
+    "other_comparisons": [
+      "pose",
+      "gliding",
+      "on_ground",
+      "collision"
+    ]
+  },
+  "live": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": 17,
+      "check_names": [
+        "ground_glide_start_refused",
+        "broken_actual_elytra_refused",
+        "actual_glide_start",
+        "neutral_glide",
+        "actual_glide_turn_and_lift",
+        "controlled_descent_and_native_landing",
+        "explicit_ground_after_actual_end_and_stale_id_refusal",
+        "actual_glide_start",
+        "actual_glide_wall",
+        "owner_stop_releases_without_claiming_physical_glide_end",
+        "actual_glide_start",
+        "before_equipment_loss",
+        "actual_equipment_loss_ends_owner",
+        "actual_glide_start",
+        "actual_correction_discards_glide_origin",
+        "actual_glide_start",
+        "actual_death_respawn_rejects_old_glide_owner"
+      ],
+      "trace_errors": [],
+      "report_path": ".local/climbing/live/1.16.1-20261011-234228/report.json",
+      "report_sha256": "ed403e110be913dde40b74c579f044bec6c739405aadd526d80632b2f939c6e0",
+      "packet_trace_sha256": "e7495b691d1d125531536db1a8e5533af525d464b6bc1bbae8fd38d06e61db23"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "checks": 20,
+      "check_names": [
+        "ground_glide_start_refused",
+        "broken_actual_elytra_refused",
+        "actual_glide_start",
+        "neutral_glide",
+        "actual_glide_turn_and_lift",
+        "controlled_descent_and_native_landing",
+        "explicit_ground_after_actual_end_and_stale_id_refusal",
+        "actual_glide_start",
+        "actual_glide_wall",
+        "owner_stop_releases_without_claiming_physical_glide_end",
+        "actual_glide_start",
+        "before_equipment_loss",
+        "actual_equipment_loss_ends_owner",
+        "actual_glide_start",
+        "actual_correction_discards_glide_origin",
+        "actual_glide_start",
+        "actual_death_respawn_rejects_old_glide_owner",
+        "actual_glide_start",
+        "actual_forced_mount_ends_glide_owner",
+        "forced_dismount_requires_explicit_ground_origin"
+      ],
+      "trace_errors": [],
+      "report_path": ".local/climbing/live/1.21.11-20261011-234250/report.json",
+      "report_sha256": "4a4be584c1260a47687cfaef677045ca6455af4ad383ce1c5d68f4ca35b6a5bd",
+      "packet_trace_sha256": "568e1eed695432a33a090e37cb54d0feb476f9600127c2a6056efb5504ebbadc"
+    }
+  ],
+  "failed_qualification_attempts": [
+    {
+      "version": "1.16.1",
+      "report_path": ".local/climbing/live/1.16.1-20261011-232256/report.json",
+      "report_sha256": "319688c67889f0a059554edc336f2f173253e68cb2ba06ac35a466adc59c7d56",
+      "packet_trace_sha256": "f7fe5558d56a3b41fd58ea10d3d29ad104424fd10f39ad4d675b7c8a0f073849",
+      "sdk": {
+        "source_revision": "c1e2bd80db4c18888cf2ea70ff77a31e3d751547",
+        "binary_build_revision": "4cd6d3d58999229d0d1d4db3098bcf1488b7efb2",
+        "binary_sha256": "fa5c429d13fb86ce2a827e3ae14052235df98ca4c230e6441e06eaa918c56dac",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_glide_live.py": "56f0178f1543c8e8fe41f651655537def424e999d511c69cb6eb9762c8f3cc9b",
+          "scripts/run_glide_oracle.py": "1370ddcf4979d9a7ada45141f703fdf4ad5eadf6b24d3e2f16653d42077482b5",
+          "scripts/movement_oracle/glide_scenarios.json": "7cf3e4a73102b66320b6a32c4ce3a455527065fe5d13005e73678bf923f49e71",
+          "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+          "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+          "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+          "examples/climbing_control_probe.rs": "ffdb17ca8284badcf2fbb01a6b495d87a246fad809ab6b3ed2bad7b602a0a9ac",
+          "data/client_api/glide_oracle.json.gz": "f4c04761db4c50d8ddbb3f3d52269edff275ff8d9094e32ad5928e3dd470f001"
+        }
+      },
+      "reason": "Driver attempted fresh glide after fixture tp while retaining preceding ground-model flag. Guard correctly refused; final driver explicitly advances an owned ground fall before glide."
+    },
+    {
+      "version": "1.21.11",
+      "report_path": ".local/climbing/live/1.21.11-20261011-232702/report.json",
+      "report_sha256": "436874303fecce214aeffba3e6597adf6be4b43e6989066298ff2478d7e7c091",
+      "packet_trace_sha256": "ace3b8ed187b06d5046d8a182cf68131e36d06b2001a48355be2628887f4cc24",
+      "sdk": {
+        "source_revision": "1c888838bab69e73cbc82009c8265f02791f0538",
+        "binary_build_revision": "4cd6d3d58999229d0d1d4db3098bcf1488b7efb2",
+        "binary_sha256": "fa5c429d13fb86ce2a827e3ae14052235df98ca4c230e6441e06eaa918c56dac",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_glide_live.py": "08dda844d345e49b71057a934e4cf906ab34d0c8ddc1c7e8c361f5d3c27778dd",
+          "scripts/run_glide_oracle.py": "1370ddcf4979d9a7ada45141f703fdf4ad5eadf6b24d3e2f16653d42077482b5",
+          "scripts/movement_oracle/glide_scenarios.json": "7cf3e4a73102b66320b6a32c4ce3a455527065fe5d13005e73678bf923f49e71",
+          "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+          "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+          "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+          "examples/climbing_control_probe.rs": "ffdb17ca8284badcf2fbb01a6b495d87a246fad809ab6b3ed2bad7b602a0a9ac",
+          "data/client_api/glide_oracle.json.gz": "f4c04761db4c50d8ddbb3f3d52269edff275ff8d9094e32ad5928e3dd470f001"
+        }
+      },
+      "reason": "SDK paused on the previously unimplemented modern fast-move fall-reset clip. Final SDK proves dry vanilla MISS, adds fast descent original comparison, and terminally stops unsupported glide origins."
+    },
+    {
+      "version": "1.21.11",
+      "report_path": ".local/climbing/live/1.21.11-20261011-234107/report.json",
+      "report_sha256": "318469d7fb2b329e14e7ece78b34cb5d31feb38cf6b95e151e73541b48a8dc57",
+      "packet_trace_sha256": "7da8feff59277fb3691c4b771a304e2de309c41cf2e27fd3803a858bb0ac3050",
+      "sdk": {
+        "source_revision": "35234edf0025722a943a53aff320fa97f87da196",
+        "binary_build_revision": "35234edf0025722a943a53aff320fa97f87da196",
+        "binary_sha256": "7b1c12d81dfda163080071a20a9012af3557d2e535fecf6538759f9f20cc0f57",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_glide_live.py": "b3d80442ed1c5bd64716497569060e6ebf0e104785b7c2bc88e0e4b615fc6ba6",
+          "scripts/run_glide_oracle.py": "1370ddcf4979d9a7ada45141f703fdf4ad5eadf6b24d3e2f16653d42077482b5",
+          "scripts/movement_oracle/glide_scenarios.json": "07f7afaddda99521838ab5ddba8ee8b2bdbdae747f520a394f1474c423577625",
+          "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+          "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+          "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+          "examples/climbing_control_probe.rs": "ffdb17ca8284badcf2fbb01a6b495d87a246fad809ab6b3ed2bad7b602a0a9ac",
+          "data/client_api/glide_oracle.json.gz": "50ea666343cef83da271c7c9e9f094114f0672f75e60f1a2004c1c439d9e3b1a"
+        }
+      },
+      "reason": "Driver attempted ordinary restart after forced dismount without qualified grounding. Existing vehicle-origin fence correctly refused. Final driver separately verifies that refusal and uses a fresh world for its other scenes."
+    }
+  ],
+  "modern_fall_reset_sweep": {
+    "original_resource": "data/minecraft/tags/block/fall_damage_resetting.json",
+    "resource_sha256": "3a765259768c8ecdfcb83e97e00dd808e709d51919d6d52436869bc93bc7b9e4",
+    "original_vanilla_values": [
+      "#minecraft:climbable",
+      "minecraft:sweet_berry_bush",
+      "minecraft:cobweb"
+    ],
+    "implementation": "Conservative MISS proof over loaded segment envelope with traversal endpoint margin, maximum native distance 8. Candidate resetting block or water refuses atomically; hit/reset/custom tag behavior is not qualified."
+  },
+  "local_validation": {
+    "focused_tests": 12,
+    "original_compare_stages": 1792,
+    "pending_start_timeout_both_versions": true,
+    "cancelled_receipt_waiter_and_mount_modern": true,
+    "revocation_before_start_write_modern": true,
+    "unknown_reset_candidates_and_missing_cells_atomic": true,
+    "unknown_glide_origin_no_recovery_retry": true,
+    "partial_write": "Existing common transport TCP cancellation/revocation tests exercise the shared send path; dedicated glide pending/revocation tests cover its start fence."
+  },
+  "limits": [
+    "Original numerical client branch on server terrain with owned input preprocessing; not full graphical ClientLevel or packet-clock qualification.",
+    "Actual received shared flag after start fence is an observation, not a causal acknowledgement; forty waiting ticks do not send position or retry START.",
+    "Owner stop releases inputs only: no STOP_FALL_FLYING packet exists; physical glide end requires independent actual state.",
+    "Only vanilla unit dry glide; water/lava, rocket boost, custom/multi-slot glider, arbitrary server tag changes and other-entity gliding contacts remain unqualified.",
+    "Legacy real forced mount during glide is not in this live corpus; common lifetime/transport guards and the explicit modern live mount are separately identified.",
+    "Any unsupported/missing glide model input terminates that origin; correction/gear loss/death/world/mount never authorizes an automatic retry."
+  ]
+}
