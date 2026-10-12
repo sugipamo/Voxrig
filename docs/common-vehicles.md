@@ -339,3 +339,5 @@ python3 -B scripts/run_boat_collisions.py --accept-eula --version 1.21.11 \
 補正・履歴不足・未検証入力ではモデルを破棄し、古い起点から自動再開しない。
 ボートの失敗時は同じ健康な実乗車の受信境界に限りneutral/paddle解除を一度だけ試み、
 予測位置を再送しない。`failure_release`はintent・完全送信・拒否/不確実性を保持する。
+
+追加mountの版・seat・装備・physics ownerと、neutral/実停止・下車の不足は[乗車の対応範囲](common-mount-coverage.md)を参照。

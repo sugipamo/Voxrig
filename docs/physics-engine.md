@@ -115,3 +115,5 @@ clientの移動には影響しない。
 
 自分のunit Elytra滑空は専用ownerで[資格化](common-glide-control.md)した。
 他生物の滑空、追加姿勢やgliderを接触モデルへ一般化していない。
+
+全原版poseの[有限分類](common-posture-coverage.md)と、追加mountの[authority/操作分類](common-mount-coverage.md)は調査結果であり、追加の物理対応を保証しない。

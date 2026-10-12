@@ -200,3 +200,5 @@ native clockの自動割当て、一般speciesと追加姿勢/乗り物は実装
 
 自分のvanilla chest Elytra・unit滑空は[専用共通owner](common-glide-control.md)で対応。
 原版56場面1,792tickと両版公式接続を照合し、boost・水中・非unit・custom gliderは未対応。
+
+追加姿勢は[全25poseの分類](common-posture-coverage.md)、追加mountは[版・seat・authorityの分類](common-mount-coverage.md)で具体的な実装issueへ分割した。#93/#94の調査完了は追加機能の完成ではなく、#103〜#111の実装と#44が残る。

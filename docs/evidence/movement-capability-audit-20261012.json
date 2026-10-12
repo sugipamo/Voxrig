@@ -1,0 +1,1373 @@
+{
+  "schema": 1,
+  "authority": "Read-only original enum runtime and class declarations. Controller and posture classification is a method/branch audit, not a numerical oracle, real connection, complete mount physics or server-current observation.",
+  "runner_sha256": "bb3be853a1c4bc4e48f79d58786a2776a3740f6ce87d5e2d3e9ea327215d1aee",
+  "enum_harness_sha256": "0e10ae8fba3454ba7f7c7f685fcc497d2fac017dec2f9daa7f82a93e62c69af0",
+  "versions": {
+    "1.16.1": {
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+      "original_inner_game_sha256": "2782d547724bc3ffc0ef6e97b2790e75c1df89241f9d4645b58c706f5e6c935b",
+      "enum_classpath_sha256": {
+        "1.16.1-server.jar": "2782d547724bc3ffc0ef6e97b2790e75c1df89241f9d4645b58c706f5e6c935b"
+      },
+      "inspected_entity_class_count": 671,
+      "controlling_passenger_declarations": [
+        {
+          "class_name": "net.minecraft.world.entity.Entity",
+          "parent": "java/lang/Object",
+          "class_sha256": "e5f0bc12c69a98e8915d5410d2c7424436d36d8dd09494870ec80c8c06d8a44e",
+          "declarations": [
+            {
+              "name": "cl",
+              "descriptor": "()Laom;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "63ae62db2697f2029dc7c8f842f7d1c1f561eae1b12e43b458226ddf148455cc",
+                "RuntimeVisibleAnnotations": "e24884cb7aa17cbb30d0ea88e1705781d13ab9c0bd0b321da1a7a780d68a6cc2"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.Pig",
+          "parent": "net.minecraft.world.entity.animal.Animal",
+          "class_sha256": "c4328e7a7be85b6e1101723e00b3ed30b361235b11f43a5cdc3df693e46c15a3",
+          "declarations": [
+            {
+              "name": "cl",
+              "descriptor": "()Laom;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "19bc3359c74100aedc2efea9134863dbd78191581142bfedf60be6f84f55826a",
+                "RuntimeVisibleAnnotations": "fea8132d52f35679cba6314dd893fd6d762152a1cadccff9b7705e7d94d78fe1"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.horse.AbstractHorse",
+          "parent": "net.minecraft.world.entity.animal.Animal",
+          "class_sha256": "a9e7422ed7e037c011e76362f186cb7f65982cf26a3817a061b39e57a37349da",
+          "declarations": [
+            {
+              "name": "cl",
+              "descriptor": "()Laom;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "c34aa945779824eb045a073a5c5703f5c6aa8e4f3321680864b2afa0bc533fc8",
+                "RuntimeVisibleAnnotations": "409647637b0f92daf558021342d9ef00580a403c3c23c6d61a503c7dd72a488b"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.monster.Ravager",
+          "parent": "net.minecraft.world.entity.raid.Raider",
+          "class_sha256": "275c62b24331ad7b22a36f5d94ab0a9b51e13e1e64f76d6ef81f0a518d17112c",
+          "declarations": [
+            {
+              "name": "cl",
+              "descriptor": "()Laom;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "2544f3f32e9a6be979b049feb68448e02bd1226bc19b6261a6924d66af9262cc",
+                "RuntimeVisibleAnnotations": "a2351504e3d9ead8b1fe9d4efb43f6d045bd3f02a1b3d57af61771d1b237fef9"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.monster.Strider",
+          "parent": "net.minecraft.world.entity.animal.Animal",
+          "class_sha256": "af59b611a049d519ede1e72b72719d3cf6e5f12ff297ca9b7894c04741ba0d18",
+          "declarations": [
+            {
+              "name": "cl",
+              "descriptor": "()Laom;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "0ca0c4a8de9bb7aa79a3f0fa84a2b3ca98470bffb1471281cb9cc2a8ab537391",
+                "RuntimeVisibleAnnotations": "791ee17c595698f6ac280e158dd9d7cb4cc73e7c966d386d0985955ecb825f53"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.vehicle.Boat",
+          "parent": "net.minecraft.world.entity.Entity",
+          "class_sha256": "a197a0ff07da842429345b5db81ccd8d62186e679b05291ebc79f2c278e813e1",
+          "declarations": [
+            {
+              "name": "cl",
+              "descriptor": "()Laom;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "2407de7c9eb2eaa8daf08adf9c5b98346e2f2cc91f0ad504666ec3c86722a077",
+                "RuntimeVisibleAnnotations": "98df667c0a24a5291d0315610f8a4a5763986f209a77914f1c9ee0983fce1be0"
+              }
+            }
+          ]
+        }
+      ],
+      "hook_declarations": [
+        {
+          "class_name": "net.minecraft.world.entity.Entity",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "q",
+            "descriptor": "(Laom;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "d1750aada9a6deabdbd9b6b75cc575af9246f58da538babc10b2a8faff3c8677"
+            }
+          },
+          "class_sha256": "e5f0bc12c69a98e8915d5410d2c7424436d36d8dd09494870ec80c8c06d8a44e"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.Entity",
+          "hook": "isControlledByLocalInstance",
+          "original_method": {
+            "name": "cr",
+            "descriptor": "()Z",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "b3b2208c0147ad8060c6160c34acf135c63494ff21b9076b65ef612e405f414e"
+            }
+          },
+          "class_sha256": "e5f0bc12c69a98e8915d5410d2c7424436d36d8dd09494870ec80c8c06d8a44e"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "isAutoSpinAttack",
+          "original_method": {
+            "name": "dQ",
+            "descriptor": "()Z",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "2702eb5651da225c9b57f68781ece98f9e0dc974093849af0193fec3aafa0cbc"
+            }
+          },
+          "class_sha256": "d7048c87d36ee675e1156371462e8e975bd6cd9c86bdffaae304bf20794d1f42"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "startSleeping",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lfu;)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "933b6ddd808ccd706d22dcdde6f00d9496776c798480b173e6e55ec2c9c09f77"
+            }
+          },
+          "class_sha256": "d7048c87d36ee675e1156371462e8e975bd6cd9c86bdffaae304bf20794d1f42"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "stopSleeping",
+          "original_method": {
+            "name": "em",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "96c3686ceeefe4152fba8ade4d7fdd560cb38cdff3199220d168e8fb9f47443b"
+            }
+          },
+          "class_sha256": "d7048c87d36ee675e1156371462e8e975bd6cd9c86bdffaae304bf20794d1f42"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.Mob",
+          "hook": "isControlledByLocalInstance",
+          "original_method": {
+            "name": "cr",
+            "descriptor": "()Z",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "678dc7c1459f0f4df55c47d570273ab99e1c30acac27aacaac64bf258016e91f"
+            }
+          },
+          "class_sha256": "20b63dd8ac4305b41831f8ebbe8b65806601a1ebbc8d869f822c45afb1c84218"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.PlayerRideableJumping",
+          "hook": "handleStartJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(I)V",
+            "access": 1025,
+            "attribute_hashes": {}
+          },
+          "class_sha256": "8bc475f84330bbb1a92f348be0d1a1872f84123c75a8e512262b098450b45e1e"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.PlayerRideableJumping",
+          "hook": "handleStopJump",
+          "original_method": {
+            "name": "c",
+            "descriptor": "()V",
+            "access": 1025,
+            "attribute_hashes": {}
+          },
+          "class_sha256": "8bc475f84330bbb1a92f348be0d1a1872f84123c75a8e512262b098450b45e1e"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.horse.AbstractHorse",
+          "hook": "handleStartJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(I)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "d98c1e0a6fe1cd7c3cebb4248804563fae660f3f7408a595aec5d8b2f8cb34c5"
+            }
+          },
+          "class_sha256": "a9e7422ed7e037c011e76362f186cb7f65982cf26a3817a061b39e57a37349da"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.horse.AbstractHorse",
+          "hook": "handleStopJump",
+          "original_method": {
+            "name": "c",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "2a4a99a979dd4d7e0ef5119d76f04e2f89fa080f94a66544ac38710933406930"
+            }
+          },
+          "class_sha256": "a9e7422ed7e037c011e76362f186cb7f65982cf26a3817a061b39e57a37349da"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.monster.Strider",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "q",
+            "descriptor": "(Laom;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "c1ecdc35ebff9de321e79ef14e58aa66435e56c42d6e3605ed37691ad1975fa8"
+            }
+          },
+          "class_sha256": "af59b611a049d519ede1e72b72719d3cf6e5f12ff297ca9b7894c04741ba0d18"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.npc.Villager",
+          "hook": "startSleeping",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lfu;)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "5b941a1d70659cda86d8d28df55f0066309c08d9f3d68ae5156265818ffedb25"
+            }
+          },
+          "class_sha256": "b193e6810926ff0a584a2edd9dab4160f54773a6ccaffd06e90431ef8c0c1c57"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.npc.Villager",
+          "hook": "stopSleeping",
+          "original_method": {
+            "name": "em",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "db33b2d7f266e040017b18a90b566e2a4fff88f337bb33ed2298b18f188039b6"
+            }
+          },
+          "class_sha256": "b193e6810926ff0a584a2edd9dab4160f54773a6ccaffd06e90431ef8c0c1c57"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.player.Player",
+          "hook": "updatePlayerPose",
+          "original_method": {
+            "name": "et",
+            "descriptor": "()V",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "2f773c9447d366bf358349469655be0c22b8a3dc229cd9fc1ccd130996e79f3a"
+            }
+          },
+          "class_sha256": "afb24d4f8770fba5def51d7229d428e1f3d603af60e80ebb62d1917a67cdf43a"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.player.Player",
+          "hook": "stopSleeping",
+          "original_method": {
+            "name": "em",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "37c2cd3f7762f65b1508ac36b2ea983205686a5cb626cdf430e4ac908fa24dc6"
+            }
+          },
+          "class_sha256": "afb24d4f8770fba5def51d7229d428e1f3d603af60e80ebb62d1917a67cdf43a"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.vehicle.Boat",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "q",
+            "descriptor": "(Laom;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "175512c6df9c5eac0443ddd4f1b72510cb66842238b52c73b069fbb1be560535"
+            }
+          },
+          "class_sha256": "a197a0ff07da842429345b5db81ccd8d62186e679b05291ebc79f2c278e813e1"
+        }
+      ],
+      "enums": {
+        "net.minecraft.world.entity.Pose": [
+          {
+            "ordinal": 0,
+            "name": "STANDING"
+          },
+          {
+            "ordinal": 1,
+            "name": "FALL_FLYING"
+          },
+          {
+            "ordinal": 2,
+            "name": "SLEEPING"
+          },
+          {
+            "ordinal": 3,
+            "name": "SWIMMING"
+          },
+          {
+            "ordinal": 4,
+            "name": "SPIN_ATTACK"
+          },
+          {
+            "ordinal": 5,
+            "name": "CROUCHING"
+          },
+          {
+            "ordinal": 6,
+            "name": "DYING"
+          }
+        ],
+        "net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket$Action": [
+          {
+            "ordinal": 0,
+            "name": "PRESS_SHIFT_KEY"
+          },
+          {
+            "ordinal": 1,
+            "name": "RELEASE_SHIFT_KEY"
+          },
+          {
+            "ordinal": 2,
+            "name": "STOP_SLEEPING"
+          },
+          {
+            "ordinal": 3,
+            "name": "START_SPRINTING"
+          },
+          {
+            "ordinal": 4,
+            "name": "STOP_SPRINTING"
+          },
+          {
+            "ordinal": 5,
+            "name": "START_RIDING_JUMP"
+          },
+          {
+            "ordinal": 6,
+            "name": "STOP_RIDING_JUMP"
+          },
+          {
+            "ordinal": 7,
+            "name": "OPEN_INVENTORY"
+          },
+          {
+            "ordinal": 8,
+            "name": "START_FALL_FLYING"
+          }
+        ]
+      },
+      "enum_output_sha256": "fb10d2d70a38430f2f4d9ec03b826545c7876f638ee9da2b43a2cbff01b25b7e",
+      "additional_inheritance": {}
+    },
+    "1.21.11": {
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+      "original_inner_game_sha256": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+      "enum_classpath_sha256": {
+        "1.21.11/server.jar": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+        "1.21.11/libraries/at/yawk/lz4/lz4-java/1.8.1/lz4-java-1.8.1.jar": "1de8ff91b90fba9d4896b8617ed3594c2e4390d321d5a92c34f80e62e406c1b0",
+        "1.21.11/libraries/com/azure/azure-json/1.4.0/azure-json-1.4.0.jar": "c50bc998cd1a6c689f8644b51c206217bf2da09d5b949e777490a60290cc3a0d",
+        "1.21.11/libraries/com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar": "b29ba9bce041e6ea822203d5b5a692660c87551241510ebc76eedffe684844c7",
+        "1.21.11/libraries/com/google/code/gson/gson/2.13.2/gson-2.13.2.jar": "dd0ce1b55a3ed2080cb70f9c655850cda86c206862310009dcb5e5c95265a5e0",
+        "1.21.11/libraries/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar": "cbfc3906b19b8f55dd7cfd6dfe0aa4532e834250d7f080bd8d211a3e246b59cb",
+        "1.21.11/libraries/com/google/guava/guava/33.5.0-jre/guava-33.5.0-jre.jar": "1e301f0c52ac248b0b14fdc3d12283c77252d4d6f48521d572e7d8c4c2cc4ac7",
+        "1.21.11/libraries/com/microsoft/azure/msal4j/1.23.1/msal4j-1.23.1.jar": "414d4fe3c66c7bb1a741014f352e5f0a8329172703e7fbb0020d232a8c8385b1",
+        "1.21.11/libraries/com/mojang/authlib/7.0.61/authlib-7.0.61.jar": "09a152617bd23c86bf59db1f9ba82ede23ec8f691a824d6c5dec4f0175f82aa4",
+        "1.21.11/libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar": "c8ee4136e474ac7723ca2b432ec8d1a2bc88ef7d1ec57c314ba9e33cdc83dd75",
+        "1.21.11/libraries/com/mojang/datafixerupper/9.0.19/datafixerupper-9.0.19.jar": "9653a39cf5c4853cc98628d902dcb23ffeb2755122ecc563bde38c8f60c0b61e",
+        "1.21.11/libraries/com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar": "8bb68d0b65e8eceb92de2bd1d9e1443a8c9a9dd1b5818a5e54870b0f8253672a",
+        "1.21.11/libraries/com/mojang/logging/1.6.11/logging-1.6.11.jar": "5d803eb7348a27468c6172daef2f0d77260dd63cde377ebfa73e36789ae8fcee",
+        "1.21.11/libraries/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar": "df90bba0fe3cb586b7f164e78fe8f8f4da3f2dd5c27fa645f888100ccc25dd72",
+        "1.21.11/libraries/io/netty/netty-buffer/4.2.7.Final/netty-buffer-4.2.7.Final.jar": "b81613c8ed22b1cc39eccf2a28bd0c1d4561fb2e5e542061617ef4ce1d228bf5",
+        "1.21.11/libraries/io/netty/netty-codec-base/4.2.7.Final/netty-codec-base-4.2.7.Final.jar": "6360415b7c87160afcde5e7d4946c35539b9f043e8166c91a7fff95cc6067d9f",
+        "1.21.11/libraries/io/netty/netty-codec-compression/4.2.7.Final/netty-codec-compression-4.2.7.Final.jar": "edd53ad34991804301a46571113d8ffb4d6f67e6d874674dafbb915724275cb3",
+        "1.21.11/libraries/io/netty/netty-codec-http/4.2.7.Final/netty-codec-http-4.2.7.Final.jar": "2984dd38420a61c4dd68fcacc51ffc528eb46f73f7795cdafdb3a4d6fcb76862",
+        "1.21.11/libraries/io/netty/netty-common/4.2.7.Final/netty-common-4.2.7.Final.jar": "2345bc0ed5843fa57aa49eba67529485c3a1d420fcf0429324c8220c7a80e9a6",
+        "1.21.11/libraries/io/netty/netty-handler/4.2.7.Final/netty-handler-4.2.7.Final.jar": "21d063409c12dbcec46d380c8856a0f7b6a5b68bb5f1d005eb065b4d64146cb3",
+        "1.21.11/libraries/io/netty/netty-resolver/4.2.7.Final/netty-resolver-4.2.7.Final.jar": "7e4d569867e6c08437fb21a220ea01c294b0e38f01149b683c895a1bcd928438",
+        "1.21.11/libraries/io/netty/netty-transport/4.2.7.Final/netty-transport-4.2.7.Final.jar": "aadc6fb05c14fb789368ca3f854721549c72f6c0d81798bbccf9de1bb716892b",
+        "1.21.11/libraries/io/netty/netty-transport-classes-epoll/4.2.7.Final/netty-transport-classes-epoll-4.2.7.Final.jar": "4492948e6a7694398e5197cf15ed2e21d6662a739d010ae666fa276e7222853c",
+        "1.21.11/libraries/io/netty/netty-transport-classes-kqueue/4.2.7.Final/netty-transport-classes-kqueue-4.2.7.Final.jar": "a3eb1c94ae1a6be9e1d1ec52c3f5c510a75b04b8ef1ea86b7e77b3f1287ae3cc",
+        "1.21.11/libraries/io/netty/netty-transport-native-epoll/4.2.7.Final/netty-transport-native-epoll-4.2.7.Final-linux-x86_64.jar": "7f395c8fdbe6990f7664408b57d919042401b893178fcba48bebf1a61bf78618",
+        "1.21.11/libraries/io/netty/netty-transport-native-epoll/4.2.7.Final/netty-transport-native-epoll-4.2.7.Final-linux-aarch_64.jar": "2f0c7309d7df48a88fb374c02cfb446e1a1e5fb597fb02d773c70ac07da2c268",
+        "1.21.11/libraries/io/netty/netty-transport-native-kqueue/4.2.7.Final/netty-transport-native-kqueue-4.2.7.Final-osx-x86_64.jar": "a29c08b6895746aaca796e72a429bc705f40267feb35f75cd8fbbcd4de6de99f",
+        "1.21.11/libraries/io/netty/netty-transport-native-kqueue/4.2.7.Final/netty-transport-native-kqueue-4.2.7.Final-osx-aarch_64.jar": "7647a69558e3d49a352781c2ae81a97e16b442d7c6565a06b4ae0f15298489d5",
+        "1.21.11/libraries/io/netty/netty-transport-native-unix-common/4.2.7.Final/netty-transport-native-unix-common-4.2.7.Final.jar": "736703b3f6d127e182f5be888b6e15732b0c08d6634e00725352a6a9d19974b2",
+        "1.21.11/libraries/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar": "9094ae67d01d0ad246f886f11ad557fc2e79c72cbf3feed83e1512a8ae90a74a",
+        "1.21.11/libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar": "b3a9408e7c51e08ef0e3bfcc08f443f6ec0f6191ba8cd7c18d53d2b22e5bdbc0",
+        "1.21.11/libraries/net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar": "b7e3d46c87bad2eb409b0e704916bcd81206168e357312dfddd0e253679cd9e0",
+        "1.21.11/libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar": "df26cc58f235f477db07f753ba5a3ab243ebe5789d9f89ecf68dd62ea9a66c28",
+        "1.21.11/libraries/org/apache/commons/commons-lang3/3.19.0/commons-lang3-3.19.0.jar": "32733ab4bc90b45b63eb72677d886961003fd4ed113e07b1028f9877cb2ac735",
+        "1.21.11/libraries/org/apache/logging/log4j/log4j-api/2.25.2/log4j-api-2.25.2.jar": "9fd66c9fe0bea06fa9666c147989a46cafaa92b4a88753697d3945cc43338cbb",
+        "1.21.11/libraries/org/apache/logging/log4j/log4j-core/2.25.2/log4j-core-2.25.2.jar": "e50db7701430ff907981850ef527a41d51a53dd0017f53a0860afcbab8570277",
+        "1.21.11/libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.25.2/log4j-slf4j2-impl-2.25.2.jar": "faffe8c867d59f813fb4bd1edf5354bfe86125811a7c9b305e5d225da8e7ea54",
+        "1.21.11/libraries/org/joml/joml/1.10.8/joml-1.10.8.jar": "bf19510145178df82cd3bd37edd514c13f411531ec5545299fd3abcbc98fe7c2",
+        "1.21.11/libraries/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab",
+        "1.21.11/libraries/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar": "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832"
+      },
+      "inspected_entity_class_count": 1100,
+      "controlling_passenger_declarations": [
+        {
+          "class_name": "net.minecraft.world.entity.Entity",
+          "parent": "java/lang/Object",
+          "class_sha256": "119d71208cf0cc14149aa7476cd5d3323be5034e984f30a80533bde124e10dda",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "d41f968e8e3656281984db95916540a1496b0475852c347362126d4694e6a381",
+                "RuntimeVisibleTypeAnnotations": "b58b101f277f8b74cd9823f60e3a34cd4a3f6d3f60e5ccf6b0be9b77e9afdba0"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.Mob",
+          "parent": "net.minecraft.world.entity.LivingEntity",
+          "class_sha256": "ba98ea9ee3ae84cb697bd16cefff79375fb05edb6c69775158568b0d3d127dad",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "c710e28113a8aa77a444055a95d376a3abd1457897312a06e3ee9e34d01d5db5",
+                "RuntimeVisibleTypeAnnotations": "5931eef9d66ea50cc9e25a739bae401940cf0bfb60b045a3916d946f994bb127"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.equine.AbstractHorse",
+          "parent": "net.minecraft.world.entity.animal.Animal",
+          "class_sha256": "99a9c9a2b74cdf5e5d2bf13892583cc40fcf2e902caa6f591516f07084de01a9",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "dd4b4024c331dc065a8beb1eab1daef67a4cb4a609090fbfbe7dd6f1001dcc91",
+                "RuntimeVisibleTypeAnnotations": "c88614276025fb765d0f123238104f5a9bbdfc3b19c94bb7a54babc3647db870"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.happyghast.HappyGhast",
+          "parent": "net.minecraft.world.entity.animal.Animal",
+          "class_sha256": "1b9dc3570be9b3f11cec53dc87b3bf918097ce6f5722fb0d1dd075c2b3057b45",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "7b98dc640d7e2f16d635e2f95cd89d0b034d09601e00e51c5b8e43acec521e60",
+                "RuntimeVisibleTypeAnnotations": "15adb408991205fe744d24a49fa1310109dcb4838be7a45ab9bde2d7e398c1dd"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "parent": "net.minecraft.world.entity.TamableAnimal",
+          "class_sha256": "6e614e3efc8727fd231c38a3e6512b394533cd8c1ed371b5bb024d91ec29f525",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "ce4c9d776ff89861a909796eb3e58e2d2f9cfe26d39364b13e1cd11e63901c42",
+                "RuntimeVisibleTypeAnnotations": "e35b95e0ffdd522fbb79f29b2275b709dc473537f333a8e0fd7053b8e617352a"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.pig.Pig",
+          "parent": "net.minecraft.world.entity.animal.Animal",
+          "class_sha256": "5842e5050ef787a83bccf0a0232f2fe7683f840fe46b170ed4884d1f8b624189",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "cf68d087656314b394998a1a5ec5286a24da98dbf6024930405d4c3dd7d46d96",
+                "RuntimeVisibleTypeAnnotations": "cba937bc5b3f96aeefb1518903a2e175a51075eefa63d88524c776273f6304a0"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.monster.Strider",
+          "parent": "net.minecraft.world.entity.animal.Animal",
+          "class_sha256": "7067816c098f94a3fa16aaf37384200f12686bfdd27af2d0919228f738dc899e",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "f0d4485571fdfbbd7a0fa5c8533473de6ee6c9800665d38e357cd81e4af0034f",
+                "RuntimeVisibleTypeAnnotations": "490ae6717ff177efbcd87b84cbe3720ad5fd22397e69b709b57551c2ef2edefd"
+              }
+            }
+          ]
+        },
+        {
+          "class_name": "net.minecraft.world.entity.vehicle.boat.AbstractBoat",
+          "parent": "net.minecraft.world.entity.vehicle.VehicleEntity",
+          "class_sha256": "e263785108fe4e7bee42d20af8fd230fe451617babf2a1f6b4c4a15c3e4a3710",
+          "declarations": [
+            {
+              "name": "dl",
+              "descriptor": "()Lchl;",
+              "access": 1,
+              "attribute_hashes": {
+                "Code": "c5164744fd4ada75abb0ef81c93bfead800d168aa410428c416111d87c0895ea",
+                "RuntimeVisibleTypeAnnotations": "78e7df2624874a456fc19146f955b857cd3de1f93df4f5e7547bccd433b1dc28"
+              }
+            }
+          ]
+        }
+      ],
+      "hook_declarations": [
+        {
+          "class_name": "net.minecraft.world.entity.Entity",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "e9ca1d48ea28ffc4eff571b5429444dcc2f50eebb77fba87e8aef730855baf98"
+            }
+          },
+          "class_sha256": "119d71208cf0cc14149aa7476cd5d3323be5034e984f30a80533bde124e10dda"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.Entity",
+          "hook": "canSimulateMovement",
+          "original_method": {
+            "name": "dx",
+            "descriptor": "()Z",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "f0adb4be5d3f1412e3830194ee0d7072824a825bf5d652231433a6683a81d5f4"
+            }
+          },
+          "class_sha256": "119d71208cf0cc14149aa7476cd5d3323be5034e984f30a80533bde124e10dda"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "travelRidden",
+          "original_method": {
+            "name": "c",
+            "descriptor": "(Lddm;Lftm;)V",
+            "access": 2,
+            "attribute_hashes": {
+              "Code": "bf81f0872200c883675a23ad0322b703cf52b6eeac216b3d70e1247fcaf03070"
+            }
+          },
+          "class_sha256": "ed3c3ed69d0d01600678e1689b4153e5595c935f50c109e36e62fe4ce87a5849"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "getRiddenInput",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lddm;Lftm;)Lftm;",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "d3f7bdf8d6b20892330fca9651ad04cd03335d8c696cc448cacd4d2f2e69493d"
+            }
+          },
+          "class_sha256": "ed3c3ed69d0d01600678e1689b4153e5595c935f50c109e36e62fe4ce87a5849"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "getRiddenSpeed",
+          "original_method": {
+            "name": "f",
+            "descriptor": "(Lddm;)F",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "77d83540c3117e9e2a78b446b4f31e9ce02a329d320fe8e957494194c7cc9979"
+            }
+          },
+          "class_sha256": "ed3c3ed69d0d01600678e1689b4153e5595c935f50c109e36e62fe4ce87a5849"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "isAutoSpinAttack",
+          "original_method": {
+            "name": "fW",
+            "descriptor": "()Z",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "fba5572c7cc583b5ea0a8f30939692b4748cac95dc7aa5f76b6e56d871926278"
+            }
+          },
+          "class_sha256": "ed3c3ed69d0d01600678e1689b4153e5595c935f50c109e36e62fe4ce87a5849"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "startSleeping",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lis;)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "c5d8e5fed1fc2f5016cc7798d8da7c0b4860dfec56ab9408328457738aa4afe1"
+            }
+          },
+          "class_sha256": "ed3c3ed69d0d01600678e1689b4153e5595c935f50c109e36e62fe4ce87a5849"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.LivingEntity",
+          "hook": "stopSleeping",
+          "original_method": {
+            "name": "gs",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "d8a34c65a26a7cfcb7fb06720d75ae7f89a585b298433e8dace890709cc16a16"
+            }
+          },
+          "class_sha256": "ed3c3ed69d0d01600678e1689b4153e5595c935f50c109e36e62fe4ce87a5849"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.Marker",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "180f6d9ce3d10247a10cdf071776f926655ba55054a5052bb831a09250636360"
+            }
+          },
+          "class_sha256": "43665f364f3f11ed2300264f6da9fa3f54d88f7accd1f14fea343385b247ee51"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.OminousItemSpawner",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "903d7c006bd28fb012d3dc6f26b0958f817c5680d6dcc4d6843ec9e76bf5327f"
+            }
+          },
+          "class_sha256": "e0f9ca488d5a07920415495fdb7f16bb310230a4f0c609259c0c825b89b39ff1"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.PlayerRideableJumping",
+          "hook": "onPlayerJump",
+          "original_method": {
+            "name": "a",
+            "descriptor": "(I)V",
+            "access": 1025,
+            "attribute_hashes": {}
+          },
+          "class_sha256": "8fbbc45bac61012529b6fc0feb27afb8eeb8479e0ef3f3bfe9ad7ec5c12411fa"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.PlayerRideableJumping",
+          "hook": "handleStartJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(I)V",
+            "access": 1025,
+            "attribute_hashes": {}
+          },
+          "class_sha256": "8fbbc45bac61012529b6fc0feb27afb8eeb8479e0ef3f3bfe9ad7ec5c12411fa"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.PlayerRideableJumping",
+          "hook": "handleStopJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "()V",
+            "access": 1025,
+            "attribute_hashes": {}
+          },
+          "class_sha256": "8fbbc45bac61012529b6fc0feb27afb8eeb8479e0ef3f3bfe9ad7ec5c12411fa"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.camel.Camel",
+          "hook": "getRiddenSpeed",
+          "original_method": {
+            "name": "f",
+            "descriptor": "(Lddm;)F",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "bdffbed687df8519195c9c8b80be987534ac98de9d2ca1a3e5e245c109604389"
+            }
+          },
+          "class_sha256": "e8347c83e2d69f55e23d96d2ed7d69b233fa076ed51cf431db726c0b2304328d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.camel.Camel",
+          "hook": "getRiddenInput",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lddm;Lftm;)Lftm;",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "760347594b6ca752d0a915067ec2e8ae6b675e6bbf117985bde418ee39168e73"
+            }
+          },
+          "class_sha256": "e8347c83e2d69f55e23d96d2ed7d69b233fa076ed51cf431db726c0b2304328d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.camel.Camel",
+          "hook": "onPlayerJump",
+          "original_method": {
+            "name": "a",
+            "descriptor": "(I)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "c5d654f416824a83dfb96aa9e3b70dc45d11cd87b5dbf5c91ffaf2027058ebb5"
+            }
+          },
+          "class_sha256": "e8347c83e2d69f55e23d96d2ed7d69b233fa076ed51cf431db726c0b2304328d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.camel.Camel",
+          "hook": "handleStartJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(I)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "50e299799fadb3cf4af7057285e8f282bc1a3ae0cf5bc7a65d9f1bb4f5173706"
+            }
+          },
+          "class_sha256": "e8347c83e2d69f55e23d96d2ed7d69b233fa076ed51cf431db726c0b2304328d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.camel.Camel",
+          "hook": "handleStopJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "8a97680060842c1aa728a079f6069b29e250e4d17c7149ad4e1ae29ed001b3d8"
+            }
+          },
+          "class_sha256": "e8347c83e2d69f55e23d96d2ed7d69b233fa076ed51cf431db726c0b2304328d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.camel.Camel",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "339276f95a64927fdac59e789f0581fa341a0c08262bec195ac221ce56f410e8"
+            }
+          },
+          "class_sha256": "e8347c83e2d69f55e23d96d2ed7d69b233fa076ed51cf431db726c0b2304328d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.equine.AbstractHorse",
+          "hook": "getRiddenInput",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lddm;Lftm;)Lftm;",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "53d66dd85c2cce2ce95f0e234f5c620a557a4e13f29ac8c1a1131a38b04d066d"
+            }
+          },
+          "class_sha256": "99a9c9a2b74cdf5e5d2bf13892583cc40fcf2e902caa6f591516f07084de01a9"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.equine.AbstractHorse",
+          "hook": "getRiddenSpeed",
+          "original_method": {
+            "name": "f",
+            "descriptor": "(Lddm;)F",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "ba86ab6ad2a0dd8ff9397ee61751b334fea04ecee0eaba62ace7f46668822490"
+            }
+          },
+          "class_sha256": "99a9c9a2b74cdf5e5d2bf13892583cc40fcf2e902caa6f591516f07084de01a9"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.equine.AbstractHorse",
+          "hook": "onPlayerJump",
+          "original_method": {
+            "name": "a",
+            "descriptor": "(I)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "ece6ec894b8fa66c2803669a580e2ec913269e83fbc3503d0b13a6bb4fb9053b"
+            }
+          },
+          "class_sha256": "99a9c9a2b74cdf5e5d2bf13892583cc40fcf2e902caa6f591516f07084de01a9"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.equine.AbstractHorse",
+          "hook": "handleStartJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(I)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "8c85daf0c9fc208d5ab7dde5b8df708eb76639d87056c18db2dc08a0e0e46764"
+            }
+          },
+          "class_sha256": "99a9c9a2b74cdf5e5d2bf13892583cc40fcf2e902caa6f591516f07084de01a9"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.equine.AbstractHorse",
+          "hook": "handleStopJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "3627e6eedda79a3ca22b08a767a0e3121c09fd14442afebdca1f19fb9647fc28"
+            }
+          },
+          "class_sha256": "99a9c9a2b74cdf5e5d2bf13892583cc40fcf2e902caa6f591516f07084de01a9"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.happyghast.HappyGhast",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "fb64e64fd06fad68aed060432ace426fe932818a2328bedc67737bf4a7df1134"
+            }
+          },
+          "class_sha256": "1b9dc3570be9b3f11cec53dc87b3bf918097ce6f5722fb0d1dd075c2b3057b45"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.happyghast.HappyGhast",
+          "hook": "getRiddenInput",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lddm;Lftm;)Lftm;",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "c5dd8b56e71008173502088c7c1b1a3541ba50a0055abfbeeb24564281d9d3ae"
+            }
+          },
+          "class_sha256": "1b9dc3570be9b3f11cec53dc87b3bf918097ce6f5722fb0d1dd075c2b3057b45"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "a9e888bb8fec27b77834e3336792b07b28c94f66b893bb14f1a8d061a8f75dbf"
+            }
+          },
+          "class_sha256": "6e614e3efc8727fd231c38a3e6512b394533cd8c1ed371b5bb024d91ec29f525"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "hook": "getRiddenInput",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lddm;Lftm;)Lftm;",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "f2249cd714631934c2d04a320e1913d7d4620cd5669f120e341ef22d904f6809"
+            }
+          },
+          "class_sha256": "6e614e3efc8727fd231c38a3e6512b394533cd8c1ed371b5bb024d91ec29f525"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "hook": "getRiddenSpeed",
+          "original_method": {
+            "name": "f",
+            "descriptor": "(Lddm;)F",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "e2c29c7af167954e3753115ae17da80d65c5400b76caa1e51c5a6c50a9fca238"
+            }
+          },
+          "class_sha256": "6e614e3efc8727fd231c38a3e6512b394533cd8c1ed371b5bb024d91ec29f525"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "hook": "onPlayerJump",
+          "original_method": {
+            "name": "a",
+            "descriptor": "(I)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "1c7d94e46555bcedde6ea620b7f068af4a2c2e8d5e8de6fbe580b2e97bfd3fe6"
+            }
+          },
+          "class_sha256": "6e614e3efc8727fd231c38a3e6512b394533cd8c1ed371b5bb024d91ec29f525"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "hook": "handleStartJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(I)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "ca895598341cc1699ca5c9fabf1b7786dddadfc77f686a2911b035851c79fe98"
+            }
+          },
+          "class_sha256": "6e614e3efc8727fd231c38a3e6512b394533cd8c1ed371b5bb024d91ec29f525"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "hook": "handleStopJump",
+          "original_method": {
+            "name": "b",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "6a146c4506522a4e718cfaefc79607977f9abe43e77888736079be03ca7281ce"
+            }
+          },
+          "class_sha256": "6e614e3efc8727fd231c38a3e6512b394533cd8c1ed371b5bb024d91ec29f525"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.pig.Pig",
+          "hook": "getRiddenInput",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lddm;Lftm;)Lftm;",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "2524b21508ef74ea15db065686e9ddab62bf0b8f5f4afa37555c5dde8461be15"
+            }
+          },
+          "class_sha256": "5842e5050ef787a83bccf0a0232f2fe7683f840fe46b170ed4884d1f8b624189"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.animal.pig.Pig",
+          "hook": "getRiddenSpeed",
+          "original_method": {
+            "name": "f",
+            "descriptor": "(Lddm;)F",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "6e22f453428150bf9878f6c209ecb780fe85b7355b59ec962669d99f88ab07c8"
+            }
+          },
+          "class_sha256": "5842e5050ef787a83bccf0a0232f2fe7683f840fe46b170ed4884d1f8b624189"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.monster.Strider",
+          "hook": "getRiddenInput",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lddm;Lftm;)Lftm;",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "87c6f9462a016be5cd8c53a00aef83129b3762ca59ccedef980c9d0db82a16a7"
+            }
+          },
+          "class_sha256": "7067816c098f94a3fa16aaf37384200f12686bfdd27af2d0919228f738dc899e"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.monster.Strider",
+          "hook": "getRiddenSpeed",
+          "original_method": {
+            "name": "f",
+            "descriptor": "(Lddm;)F",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "338eafd32fab4a0e9f39598a4764b8bac3a2d5dc53f69a9b43e9776edfa6d838"
+            }
+          },
+          "class_sha256": "7067816c098f94a3fa16aaf37384200f12686bfdd27af2d0919228f738dc899e"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.monster.Strider",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "bbd13bdc254b8ce39dc0b51ec0b10a6b3f6f62d6dc7a6b8fe1e8e5a8524fdb28"
+            }
+          },
+          "class_sha256": "7067816c098f94a3fa16aaf37384200f12686bfdd27af2d0919228f738dc899e"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.npc.villager.Villager",
+          "hook": "startSleeping",
+          "original_method": {
+            "name": "b",
+            "descriptor": "(Lis;)V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "e39ec385c5426e51506f58fe825dd6cd87754158d9e177c30ca73ce6b1d5fea2"
+            }
+          },
+          "class_sha256": "6c61aea7e045edbbb9e9b783856d62d9878cda30f7ae5c4fa97b36801a8f267d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.npc.villager.Villager",
+          "hook": "stopSleeping",
+          "original_method": {
+            "name": "gs",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "705a331b6e634acb45dc2018095fae011d5f0caf216fc89e7cd93eda4787c095"
+            }
+          },
+          "class_sha256": "6c61aea7e045edbbb9e9b783856d62d9878cda30f7ae5c4fa97b36801a8f267d"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.player.Player",
+          "hook": "updatePlayerPose",
+          "original_method": {
+            "name": "gE",
+            "descriptor": "()V",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "810f7ca15ec2c20425f587ca560ddbd3a731aab15c1beb562ab964a16e707b15"
+            }
+          },
+          "class_sha256": "c7571bf1d54583c91706f6dba1590bfb2a6e7497ad3193ec5669af07aa4eda4a"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.player.Player",
+          "hook": "getDesiredPose",
+          "original_method": {
+            "name": "n",
+            "descriptor": "()Lchx;",
+            "access": 2,
+            "attribute_hashes": {
+              "Code": "b27dc2bff5f1958bc624e5fd3287bca95843c6338741e101e04aae7f13738bdf"
+            }
+          },
+          "class_sha256": "c7571bf1d54583c91706f6dba1590bfb2a6e7497ad3193ec5669af07aa4eda4a"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.player.Player",
+          "hook": "canSimulateMovement",
+          "original_method": {
+            "name": "dx",
+            "descriptor": "()Z",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "fdbd6cfdb9773691cc649db1d6db03f325e8e95bbe696903bd14fe62cdadb04c"
+            }
+          },
+          "class_sha256": "c7571bf1d54583c91706f6dba1590bfb2a6e7497ad3193ec5669af07aa4eda4a"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.player.Player",
+          "hook": "stopSleeping",
+          "original_method": {
+            "name": "gs",
+            "descriptor": "()V",
+            "access": 1,
+            "attribute_hashes": {
+              "Code": "f373fdf47ea2205e9d49a655ae14f4bdd16f0ab7c00e147683deb7827c217d61"
+            }
+          },
+          "class_sha256": "c7571bf1d54583c91706f6dba1590bfb2a6e7497ad3193ec5669af07aa4eda4a"
+        },
+        {
+          "class_name": "net.minecraft.world.entity.vehicle.boat.AbstractBoat",
+          "hook": "canAddPassenger",
+          "original_method": {
+            "name": "s",
+            "descriptor": "(Lcgk;)Z",
+            "access": 4,
+            "attribute_hashes": {
+              "Code": "e8effbbdf1edfeac5569fe817b468ee79b276466ef4c19d537400e48e7eb6e64"
+            }
+          },
+          "class_sha256": "e263785108fe4e7bee42d20af8fd230fe451617babf2a1f6b4c4a15c3e4a3710"
+        }
+      ],
+      "enums": {
+        "net.minecraft.world.entity.Pose": [
+          {
+            "ordinal": 0,
+            "name": "STANDING"
+          },
+          {
+            "ordinal": 1,
+            "name": "FALL_FLYING"
+          },
+          {
+            "ordinal": 2,
+            "name": "SLEEPING"
+          },
+          {
+            "ordinal": 3,
+            "name": "SWIMMING"
+          },
+          {
+            "ordinal": 4,
+            "name": "SPIN_ATTACK"
+          },
+          {
+            "ordinal": 5,
+            "name": "CROUCHING"
+          },
+          {
+            "ordinal": 6,
+            "name": "LONG_JUMPING"
+          },
+          {
+            "ordinal": 7,
+            "name": "DYING"
+          },
+          {
+            "ordinal": 8,
+            "name": "CROAKING"
+          },
+          {
+            "ordinal": 9,
+            "name": "USING_TONGUE"
+          },
+          {
+            "ordinal": 10,
+            "name": "SITTING"
+          },
+          {
+            "ordinal": 11,
+            "name": "ROARING"
+          },
+          {
+            "ordinal": 12,
+            "name": "SNIFFING"
+          },
+          {
+            "ordinal": 13,
+            "name": "EMERGING"
+          },
+          {
+            "ordinal": 14,
+            "name": "DIGGING"
+          },
+          {
+            "ordinal": 15,
+            "name": "SLIDING"
+          },
+          {
+            "ordinal": 16,
+            "name": "SHOOTING"
+          },
+          {
+            "ordinal": 17,
+            "name": "INHALING"
+          }
+        ],
+        "net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket$Action": [
+          {
+            "ordinal": 0,
+            "name": "STOP_SLEEPING"
+          },
+          {
+            "ordinal": 1,
+            "name": "START_SPRINTING"
+          },
+          {
+            "ordinal": 2,
+            "name": "STOP_SPRINTING"
+          },
+          {
+            "ordinal": 3,
+            "name": "START_RIDING_JUMP"
+          },
+          {
+            "ordinal": 4,
+            "name": "STOP_RIDING_JUMP"
+          },
+          {
+            "ordinal": 5,
+            "name": "OPEN_INVENTORY"
+          },
+          {
+            "ordinal": 6,
+            "name": "START_FALL_FLYING"
+          }
+        ]
+      },
+      "enum_output_sha256": "f175c093c6d59a968a920d50032a725a52f89bffef7caca8448f474e2fa613d5",
+      "additional_inheritance": {
+        "net.minecraft.world.entity.animal.camel.CamelHusk": {
+          "parent": "net.minecraft.world.entity.animal.camel.Camel",
+          "class_sha256": "755b99fc65cbfa621e7189781447afcdc0a5fb4ba68bda6fdcfb2e65cd64f627"
+        },
+        "net.minecraft.world.entity.animal.nautilus.Nautilus": {
+          "parent": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "class_sha256": "e2229d6d7b66a2584584c644f502b064b8d714fc8e69d78a47b346e7fd046fce"
+        },
+        "net.minecraft.world.entity.animal.nautilus.ZombieNautilus": {
+          "parent": "net.minecraft.world.entity.animal.nautilus.AbstractNautilus",
+          "class_sha256": "0e55f8e57dba0ea3f0fe2db59dd18d7cd584c28e4ce22056eb3200078fc45459"
+        }
+      }
+    }
+  },
+  "existing_pose_oracle": {
+    "path": "data/client_api/entity_pose_oracle.json",
+    "sha256": "10cea5316f941bcfc88f841c44d49b14ba5f759b0042308041f9397674b2cc53",
+    "runtime_enums_matched": 25,
+    "authority": "Pose receipt/serializer qualification remains the existing separate evidence; this audit does not add posture movement."
+  },
+  "child_issues": [
+    {
+      "key": "sleep",
+      "audit": 93,
+      "number": 103,
+      "url": "https://github.com/sugipamo/Voxrig/issues/103",
+      "title": "姿勢操作: playerの入眠・起床を実受信とowner寿命に結び付ける"
+    },
+    {
+      "key": "riptide",
+      "audit": 93,
+      "number": 104,
+      "url": "https://github.com/sugipamo/Voxrig/issues/104",
+      "title": "姿勢操作: Riptideのcharge・release・spin attackを共通Clientへ追加する"
+    },
+    {
+      "key": "horse",
+      "audit": 94,
+      "number": 105,
+      "url": "https://github.com/sugipamo/Voxrig/issues/105",
+      "title": "追加乗車: 馬系のseat・ridden movement・jumpを共通契約へ追加する"
+    },
+    {
+      "key": "pig",
+      "audit": 94,
+      "number": 106,
+      "url": "https://github.com/sugipamo/Voxrig/issues/106",
+      "title": "追加乗車: 豚の操縦・boost・実停止を原版に沿って対応する"
+    },
+    {
+      "key": "strider",
+      "audit": 94,
+      "number": 107,
+      "url": "https://github.com/sugipamo/Voxrig/issues/107",
+      "title": "追加乗車: ストライダーのlava・冷え・操縦・boostを対応する"
+    },
+    {
+      "key": "camel",
+      "audit": 94,
+      "number": 108,
+      "url": "https://github.com/sugipamo/Voxrig/issues/108",
+      "title": "追加乗車: Camel/CamelHuskの二席・座り・dashを対応する"
+    },
+    {
+      "key": "happy_ghast",
+      "audit": 94,
+      "number": 109,
+      "url": "https://github.com/sugipamo/Voxrig/issues/109",
+      "title": "追加乗車: Happy Ghastのharness・四席・飛行を対応する"
+    },
+    {
+      "key": "nautilus",
+      "audit": 94,
+      "number": 110,
+      "url": "https://github.com/sugipamo/Voxrig/issues/110",
+      "title": "追加乗車: Nautilus/ZombieNautilusの水中操縦・dashを対応する"
+    },
+    {
+      "key": "passive_mount",
+      "audit": 94,
+      "number": 111,
+      "url": "https://github.com/sugipamo/Voxrig/issues/111",
+      "title": "追加乗車: 操縦不可・強制乗車の下車と起点回復を明示する"
+    }
+  ],
+  "issues": [
+    93,
+    94
+  ],
+  "date": "2026-10-12",
+  "timezone": "Asia/Tokyo",
+  "posture_order": {
+    "1.16.1": [
+      "fall_flying",
+      "sleeping",
+      "swimming",
+      "spin_attack",
+      "crouching_if_not_flying",
+      "standing"
+    ],
+    "1.21.11": [
+      "sleeping",
+      "swimming",
+      "fall_flying",
+      "spin_attack",
+      "crouching_if_not_flying",
+      "standing"
+    ]
+  },
+  "limits": [
+    "Class declaration/method-hash and read-only branch audit, not numerical movement or new live gameplay qualification.",
+    "Class count refers to the entity namespace, not concrete EntityType count. Inherited controllers and special ridden input are classified separately.",
+    "Additional posture/ride physics remains open in implementation children; audit completion does not close #44.",
+    "Original JAR, mappings, class bytes/method bodies and private javap outputs are not redistributed."
+  ],
+  "reproduction_sources": {
+    "runner": "scripts/audit_movement_capabilities.py",
+    "enum_harness": "scripts/CapabilityEnums.java",
+    "mapped_classpath_helper": "scripts/movement_oracle/run.py",
+    "mapping_reader": "scripts/run_entity_pose_oracle.py"
+  },
+  "reproduction_source_sha256": {
+    "scripts/audit_movement_capabilities.py": "bb3be853a1c4bc4e48f79d58786a2776a3740f6ce87d5e2d3e9ea327215d1aee",
+    "scripts/CapabilityEnums.java": "0e10ae8fba3454ba7f7c7f685fcc497d2fac017dec2f9daa7f82a93e62c69af0",
+    "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "scripts/run_entity_pose_oracle.py": "3448d0d91070af24832a829ae558fb40366bc2157726d48a50ea6f2617a9d69d"
+  }
+}
