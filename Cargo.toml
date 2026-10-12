@@ -39,6 +39,8 @@ include = [
     "/scripts/run_entity_data_history_live.py",
     "/scripts/run_entity_pose_oracle.py",
     "/scripts/run_entity_pose_live.py",
+    "/scripts/audit_movement_capabilities.py",
+    "/scripts/CapabilityEnums.java",
     "/scripts/run_control_scale.py",
     "/scripts/run_player_scale_oracle.py",
     "/scripts/run_glide_oracle.py",

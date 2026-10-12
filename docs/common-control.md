@@ -342,3 +342,5 @@ python3 -B scripts/run_climbing_control.py --accept-eula
 `PlayerControl::start_glide_control(Controls)`は実装備・実flagを使う独立owner。
 開始writeは受理ではなく、owner停止も物理的な滑空終了ではない。
 操作・終端停止・未対応boostと証拠は[Elytra滑空](common-glide-control.md)を参照。
+
+追加姿勢の有限な一覧と未対応のsleep/Riptide操作は[姿勢の対応範囲](common-posture-coverage.md)を参照。

@@ -540,3 +540,12 @@ port remains unchanged. This is not a graphical ClientLevel packet-clock test.
 Hashes of official JARs/mappings, base/generated harness, runner/wrapper and
 inputs are recorded. No game binaries, mappings, bytecode or method bodies are
 redistributed. Limits and live validation are in `docs/common-glide-control.md`.
+
+
+`docs/evidence/movement-capability-audit-20261012.json` contains factual
+original runtime enum ordinals, class inheritance/declarations and hashes of
+selected method attributes. The original read-only auditor verifies official
+JAR/mapping hashes and retains classpath digests; it does not redistribute game
+class bytes, mappings, bytecode or method bodies. This is a finite capability
+audit, not qualification of new posture or mounted movement. Implementation
+children remain open; the existing native/live evidence remains separate.

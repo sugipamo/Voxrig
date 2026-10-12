@@ -30,3 +30,5 @@ vehicle除外は実受信の乗員関係に結び付ける。own boatの乗員�
 crammingのサーバー側damage/RNG、mob AI、攻撃、server travelをクライアント予測から確定・送信しない。通常の操作統合に必要なRemotePlayerのnoPhysics、sleep callback、passenger除外とboat固有selectorは実装済みだが、species全般の対応は個別issueが残る。追加姿勢は #93、追加の乗り物は #94、観測/codecは #40へ分ける。
 
 原版入力のhash、owner oracle・公式サーバー接続と失敗試行は[検証記録](evidence/common-entity-owners-20261012.json)に対応付ける。特殊speciesの上記4行は継承/bytecode監査であり、そのspeciesの原版軌跡・実接続成功を報告するものではない。原版JAR・mapping・bytecode・method bodyは公開しない。
+
+#93/#94の調査・分割結果は[姿勢](common-posture-coverage.md)と[追加mount](common-mount-coverage.md)の有限一覧に記録した。sleep/Riptide・追加操縦の各実装childは未完了である。
