@@ -785,6 +785,175 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn pickup_receipt_deadline_is_configurable_without_resending() {
+        use contract::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        let (mut bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        bot.connection_options.inventory_click_receipt_timeout = Duration::ZERO;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client
+            .survival()
+            .click_inventory(Source::Player, 9, Button::Left)
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x09);
+        let first = client
+            .survival()
+            .inventory_click_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(first.stage, Stage::RequiresInspection);
+        assert!(
+            first
+                .requires_inspection
+                .as_ref()
+                .unwrap()
+                .contains("deadline")
+        );
+        let again = client
+            .survival()
+            .inventory_click_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(again.requires_inspection, first.requires_inspection);
+        assert!(again.invalidation.is_none()); // A local timeout is not a packet receipt.
+        assert!(packets.try_recv().is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn player_pickup_survives_crouch_sleep_wake_and_real_resync() {
+        use contract::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let record = client
+            .survival()
+            .click_inventory(Source::Player, 9, Button::Left)
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x09);
+        for pose in [5, 2, 0] {
+            bot.apply_packet(0x44, vec![42, 6, 18, pose, 255])
+                .await
+                .unwrap();
+            let pending = client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(pending.stage, Stage::Pending);
+            assert!(pending.invalidation.is_none());
+        }
+        // Selection/cache changes after dispatch do not reject an independent PICKUP.
+        bot.apply_packet(0x3f, vec![1]).await.unwrap();
+        slot(&bot, 9, &record.prediction.source.value, false).await;
+        let mut cursor = vec![255, 255, 255];
+        let api::SlotKnowledge::Item { item } = &record.prediction.cursor.value else {
+            panic!("item prediction")
+        };
+        write_slot(
+            &mut cursor,
+            Some(&ItemStack {
+                item_id: item.id.value(),
+                count: item.count as i8,
+                nbt: None,
+            }),
+        );
+        bot.apply_packet(0x16, cursor).await.unwrap();
+        ack(&bot, record.send.legacy_action.unwrap(), false).await;
+        let complete = api::tests::common_pickup_complete_scenario(&client, record.id).await;
+        assert_eq!(complete.stage, Stage::ObservedClicked);
+        assert!(!complete.legacy_reply.unwrap().accepted);
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn pickup_real_window_slot_and_remote_posture_failures_keep_original_receipt() {
+        use contract::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        for case in 0..3 {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            if case == 1 {
+                seed(&bot).await;
+            } else {
+                seed_container(&bot).await;
+            }
+            bot.player.lock().await.entity_id = Some(42);
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let source = if case == 1 {
+                Source::Player
+            } else {
+                Source::Container {
+                    screen: client.screen_state().await.unwrap().screen.unwrap().id,
+                }
+            };
+            let slot_index = if case == 1 { 9 } else { 0 };
+            client
+                .survival()
+                .click_inventory(source, slot_index, Button::Left)
+                .await
+                .unwrap();
+            assert_eq!(packets.recv().await.unwrap().0, 0x09);
+            match case {
+                0 => {
+                    bot.apply_packet(0x13, vec![3]).await.unwrap();
+                }
+                1 => slot(&bot, 9, &api::SlotKnowledge::Empty, false).await,
+                _ => {
+                    bot.apply_packet(0x44, vec![42, 6, 18, 2, 255])
+                        .await
+                        .unwrap();
+                }
+            }
+            // A predicted empty slot alone is a valid partial resync, so conflict
+            // it with the predecessor in a second fresh packet.
+            if case == 1 {
+                let conflict = client.player_state().await.unwrap().inventory.slots[36]
+                    .as_ref()
+                    .unwrap()
+                    .value
+                    .clone();
+                slot(&bot, 9, &conflict, false).await;
+            }
+            let receipt = bot.protocol_packet_sequence.load(Ordering::Acquire);
+            let stopped = client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(stopped.stage, Stage::RequiresInspection, "case {case}");
+            assert_eq!(stopped.invalidation.unwrap().receipt, receipt);
+            drop(release);
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
     async fn exact_equipment_pickup_both_modes_requires_fresh_cursor_slot_and_reply() {
         use api::inventory::{
             InventoryClickButton as Button, InventoryClickSource as Source,

@@ -135,8 +135,7 @@ impl Bot {
             if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                 *self.local_pose.lock().await = Some(*pose);
                 if *pose != 0 {
-                    self.interrupt_common_motion("native posture changed during finite motion")
-                        .await;
+                    self.interrupt_common_posture(*pose, packet_sequence).await;
                 }
             }
             if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {

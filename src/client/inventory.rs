@@ -18,8 +18,8 @@ use crate::Result;
 /// Compatibility name for the common source UI used by inventory operations.
 pub use click::InventorySource as InventoryClickSource;
 pub use click::{
-    InventoryClickButton, InventoryClickId, InventoryClickPrediction, InventoryClickRecord,
-    InventoryClickSend, InventoryClickStage, InventorySource,
+    Invalidation, InventoryClickButton, InventoryClickId, InventoryClickPrediction,
+    InventoryClickRecord, InventoryClickSend, InventoryClickStage, InventorySource, StateChange,
 };
 pub use transfer::{
     InventoryTransferId, InventoryTransferRecord, InventoryTransferSlot, InventoryTransferStage,
