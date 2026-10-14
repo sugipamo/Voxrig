@@ -360,6 +360,7 @@ impl Bot {
     }
     pub(super) async fn interrupt_common_posture(&self, pose: i32, receipt: u64) {
         self.common_click_posture_changed(pose, receipt).await;
+        self.common_swap_posture_changed(pose, receipt).await;
         self.interrupt_common_motion_inner("native posture changed during finite motion", false)
             .await;
     }
@@ -393,8 +394,8 @@ impl Bot {
     async fn interrupt_common_motion_operations_inner(&self, problem: &str, clicks: bool) {
         self.interrupt_common_mining(problem).await;
         self.interrupt_common_placement(problem).await;
-        self.interrupt_common_inventory_swap(problem).await;
         if clicks {
+            self.interrupt_common_inventory_swap(problem).await;
             self.interrupt_common_inventory_click(problem).await;
         }
         self.interrupt_common_crafting_take(problem).await;

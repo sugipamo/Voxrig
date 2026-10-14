@@ -82,6 +82,9 @@ impl SwapData {
             owner: Arc::new(owner),
         })
     }
+    pub(super) fn captured_owner(&self) -> &ServerRegistryObservation {
+        &self.owner
+    }
     pub(super) fn identical(&self) -> bool {
         self.source.matches(&self.hotbar, false)
     }
