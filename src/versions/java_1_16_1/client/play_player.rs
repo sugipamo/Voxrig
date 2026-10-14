@@ -19,6 +19,11 @@ impl Bot {
         if !(change.value.is_finite()) {
             return Err(anyhow::anyhow!("non-finite game-state value").into());
         }
+        if change.reason == 3
+            && (!(0.0..=3.0).contains(&change.value) || change.value.fract() != 0.0)
+        {
+            return Err(anyhow::anyhow!("invalid game mode").into());
+        }
         let mut state = self.survival.write().await;
         match change.reason {
             1 => state.raining = Some(true),
@@ -35,6 +40,10 @@ impl Bot {
             packet_sequence,
         );
         if change.reason == 3 {
+            self.common_control.lock().await.observe_mode(
+                crate::client::GameMode::decode(change.value as u8)?,
+                packet_sequence,
+            );
             self.interrupt_common_motion("native game mode changed after finite motion started")
                 .await;
         }
@@ -46,8 +55,36 @@ impl Bot {
         let join = parse_join(p)?;
         {
             let mut receipts = self.common_receipts.lock().await;
+            let mut registries = receipts.registries.clone();
+            registries.legacy_join(join.registry_codec.clone(), packet_sequence)?;
             receipts.generation = packet_sequence;
             receipts.context = Default::default();
+            receipts.context.world_entry = Some(crate::client::received(
+                crate::client::WorldEntryContext {
+                    world_name: join.world_name.clone(),
+                    dimension_type_name: Some(join.dimension.clone()),
+                    dimension_type_id: None,
+                    game_mode: join.game_mode,
+                    previous_game_mode: join.previous_game_mode as i8,
+                    hashed_seed: join.hashed_seed,
+                    debug: join.debug,
+                    flat: join.flat,
+                    last_death: None,
+                    portal_cooldown: None,
+                    sea_level: None,
+                    respawn_keep_data: None,
+                },
+                packet_sequence,
+            ));
+            receipts.context.login_conditions = join
+                .login_conditions
+                .clone()
+                .map(|v| crate::client::received(v, packet_sequence));
+
+            receipts.abilities = None;
+            receipts.fall_flying = None;
+            receipts.may_fly = None;
+            receipts.requested_flying = false;
             receipts.context.world_view.distance = join
                 .view_distance
                 .map(|distance| crate::client::received(distance, packet_sequence));
@@ -60,9 +97,7 @@ impl Bot {
             receipts.rotation_source = None;
             receipts.entities.clear();
             receipts.vehicles.clear();
-            receipts
-                .registries
-                .legacy_join(join.registry_codec.clone(), packet_sequence)?;
+            receipts.registries = registries;
             receipts.recipes = Default::default();
             receipts.container = None;
             receipts.inventory.window_id = None;
@@ -78,6 +113,7 @@ impl Bot {
         let mut survival = self.survival.write().await;
         survival.game_mode = Some(join.game_mode);
         survival.previous_game_mode = Some(join.previous_game_mode);
+        survival.item_cooldowns.clear();
         survival.dimension = Some(join.dimension);
         survival.world_name = Some(join.world_name);
         drop(survival);
@@ -88,28 +124,66 @@ impl Bot {
         Ok(())
     }
 
-    pub(super) async fn receive_player_abilities(&self, p: &[u8]) -> Result<()> {
+    pub(super) async fn receive_player_abilities(&self, p: &[u8], sequence: u64) -> Result<()> {
+        if p.len() != 9 {
+            return Err(anyhow::anyhow!("invalid abilities packet length").into());
+        }
         let mut c = Cursor::new(p);
         let flags = c.read_i8()? as u8;
+        let flying_speed = c.read_f32::<BigEndian>()?;
+        let walking_speed = c.read_f32::<BigEndian>()?;
+        if flags & !15 != 0 || !flying_speed.is_finite() || !walking_speed.is_finite() {
+            return Err(anyhow::anyhow!("invalid abilities fields").into());
+        }
         let mut state = self.survival.write().await;
         state.invulnerable = flags & 0x01 != 0;
         state.flying = flags & 0x02 != 0;
         state.flying_allowed = flags & 0x04 != 0;
         let mut receipts = self.common_receipts.lock().await;
         receipts.may_fly = Some(state.flying_allowed);
-        receipts.abilities = Some(crate::client::received(
-            flags,
-            self.protocol_packet_sequence.load(Ordering::Acquire),
+        receipts.abilities = Some(crate::client::received(flags, sequence));
+        receipts.context.abilities = Some(crate::client::received(
+            crate::client::PlayerAbilities {
+                flags,
+                flying_speed,
+                walking_speed,
+            },
+            sequence,
         ));
         if !state.flying_allowed {
             receipts.requested_flying = false;
         }
         drop(receipts);
         state.creative_mode = flags & 0x08 != 0;
-        state.flying_speed = c.read_f32::<BigEndian>()?;
-        state.walking_speed = c.read_f32::<BigEndian>()?;
+        state.flying_speed = flying_speed;
+        state.walking_speed = walking_speed;
         drop(state);
+        self.common_control
+            .lock()
+            .await
+            .observe_abilities(flags, sequence);
         self.emit(Event::SurvivalStateUpdated);
+        self.emit(Event::PlayerContextUpdated);
+        Ok(())
+    }
+
+    pub(super) async fn receive_difficulty(&self, p: &[u8], sequence: u64) -> Result<()> {
+        if p.len() != 2 {
+            return Err(anyhow::anyhow!("invalid difficulty packet length").into());
+        }
+        let difficulty = Difficulty {
+            id: p[0],
+            locked: p[1] != 0,
+        };
+        self.survival.write().await.difficulty = Some(difficulty);
+        self.common_receipts.lock().await.context.difficulty = Some(crate::client::received(
+            crate::client::WorldDifficulty {
+                id: difficulty.id,
+                locked: difficulty.locked,
+            },
+            sequence,
+        ));
+        self.emit(Event::Difficulty(difficulty));
         Ok(())
     }
 
@@ -188,6 +262,24 @@ impl Bot {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
             receipts.context = Default::default();
+            receipts.context.world_entry = Some(crate::client::received(
+                crate::client::WorldEntryContext {
+                    world_name: respawn.world_name.clone(),
+                    dimension_type_name: Some(respawn.dimension.clone()),
+                    dimension_type_id: None,
+                    game_mode: respawn.game_mode,
+                    previous_game_mode: respawn.previous_game_mode as i8,
+                    hashed_seed: Some(respawn.hashed_seed),
+                    debug: Some(respawn.debug),
+                    flat: Some(respawn.flat),
+                    last_death: None,
+                    portal_cooldown: None,
+                    sea_level: None,
+                    respawn_keep_data: Some(u8::from(respawn.copy_metadata)),
+                },
+                packet_sequence,
+            ));
+
             receipts.entities.history_context(
                 crate::MinecraftVersion::Java1_16_1,
                 packet_sequence,
@@ -201,10 +293,13 @@ impl Bot {
             receipts.rotation_source = None;
             receipts.health = None;
             receipts.using_item = None;
+            receipts.fall_flying = None;
             receipts.attributes.clear();
             receipts.effects.clear();
             receipts.air_supply = None;
             receipts.may_fly = None;
+            receipts.abilities = None;
+            receipts.fall_flying = None;
             receipts.requested_flying = false;
             receipts.container = None;
             receipts.inventory.window_id = None;
@@ -224,6 +319,7 @@ impl Bot {
         state.world_name = Some(respawn.world_name.clone());
         state.game_mode = Some(respawn.game_mode);
         state.previous_game_mode = Some(respawn.previous_game_mode);
+        state.item_cooldowns.clear();
         self.world_time_observed.store(false, Ordering::Release);
         let mut oxygen_level = self.oxygen_level.lock().await;
         *oxygen_level = oxygen_level_after_respawn(*oxygen_level, respawn.copy_metadata);
@@ -353,6 +449,179 @@ impl Bot {
 #[cfg(test)]
 mod context_tests {
     use super::*;
+    #[tokio::test]
+    async fn abilities_and_difficulty_legacy_are_atomic_received_world_context() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let missing = client.player_context().await.unwrap();
+        assert!(missing.abilities.is_none() && missing.difficulty.is_none());
+        let mut packet = vec![15];
+        packet.extend(0.075f32.to_be_bytes());
+        packet.extend(0.125f32.to_be_bytes());
+        bot.apply_packet(0x31, packet.clone()).await.unwrap();
+        bot.apply_packet(0x0d, vec![0, 0]).await.unwrap();
+        let original = client.player_context().await.unwrap();
+        let flags = original.abilities.as_ref().unwrap().value;
+        assert!(flags.invulnerable() && flags.flying() && flags.may_fly() && flags.instant_build());
+        assert_eq!((flags.flying_speed, flags.walking_speed), (0.075, 0.125));
+        assert_eq!(original.difficulty.as_ref().unwrap().value.id, 0);
+        assert!(!original.difficulty.as_ref().unwrap().value.locked);
+        let native = bot.survival.read().await.clone();
+        let ability_receipt = bot.common_receipts.lock().await.abilities.clone();
+        let mut invalid: Vec<Vec<u8>> = (0..packet.len()).map(|n| packet[..n].to_vec()).collect();
+        let mut trailing = packet.clone();
+        trailing.push(0);
+        invalid.push(trailing);
+        let mut unknown = packet.clone();
+        unknown[0] = 16;
+        invalid.push(unknown);
+        for offset in [1, 5] {
+            for value in [f32::NAN, f32::INFINITY] {
+                let mut bad = packet.clone();
+                bad[offset..offset + 4].copy_from_slice(&value.to_be_bytes());
+                invalid.push(bad);
+            }
+        }
+        for bad in invalid {
+            assert!(bot.apply_packet(0x31, bad).await.is_err());
+            assert_eq!(**bot.survival.read().await, native);
+            assert_eq!(bot.common_receipts.lock().await.abilities, ability_receipt);
+            assert_eq!(
+                client.player_context().await.unwrap().abilities,
+                original.abilities
+            );
+        }
+        for bad in [vec![], vec![1], vec![1, 0, 0]] {
+            assert!(bot.apply_packet(0x0d, bad).await.is_err());
+            assert_eq!(**bot.survival.read().await, native);
+            assert_eq!(
+                client.player_context().await.unwrap().difficulty,
+                original.difficulty
+            );
+        }
+        // Preserve original unknown byte/nonzero boolean, not a peaceful fallback.
+        bot.apply_packet(0x0d, vec![255, 2]).await.unwrap();
+        let unknown = client.player_context().await.unwrap();
+        assert_eq!(
+            unknown.difficulty.as_ref().unwrap().value,
+            crate::client::WorldDifficulty {
+                id: 255,
+                locked: true
+            }
+        );
+        assert_eq!(unknown.abilities, original.abilities);
+        packet[0] = 0;
+        packet[1..].fill(0);
+        bot.apply_packet(0x31, packet).await.unwrap();
+        let zero = client.player_context().await.unwrap();
+        assert_eq!(zero.abilities.as_ref().unwrap().value.flags, 0);
+        assert_eq!(zero.abilities.as_ref().unwrap().value.flying_speed, 0.);
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "world");
+        respawn.extend([0; 8]);
+        respawn.extend([0, 255, 0, 0, 1]);
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let next = client.player_context().await.unwrap();
+        assert_ne!(next.session, original.session);
+        assert!(next.abilities.is_none() && next.difficulty.is_none());
+        assert!(bot.common_receipts.lock().await.abilities.is_none());
+        assert_eq!(original.abilities.unwrap().value.flags, 15);
+        let _ = client.revoke_connection();
+        assert!(client.player_context().await.unwrap().abilities.is_none());
+        drop(release);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn cooldown_and_world_entry_legacy_preserve_sources_and_reject_partial_packets() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert!(
+            client
+                .player_context()
+                .await
+                .unwrap()
+                .item_cooldowns
+                .is_empty()
+        );
+        bot.apply_packet(0x17, vec![7, 20]).await.unwrap();
+        let saved = client.player_context().await.unwrap();
+        assert_eq!(
+            saved.item_cooldowns[0].key,
+            crate::client::CooldownKey::LegacyItem(7)
+        );
+        assert_eq!(saved.item_cooldowns[0].ticks.value, 20);
+        for bad in [
+            vec![],
+            vec![7],
+            vec![7, 20, 0],
+            vec![7, 255, 255, 255, 255, 15],
+        ] {
+            assert!(bot.apply_packet(0x17, bad).await.is_err());
+            assert_eq!(
+                client.player_context().await.unwrap().item_cooldowns,
+                saved.item_cooldowns
+            );
+            assert_eq!(bot.survival.read().await.item_cooldowns.get(&7), Some(&20));
+        }
+        bot.apply_packet(0x17, vec![7, 0]).await.unwrap();
+        let zero = client.player_context().await.unwrap();
+        assert_eq!(zero.item_cooldowns[0].ticks.value, 0);
+        assert_ne!(
+            zero.item_cooldowns[0].ticks.source,
+            saved.item_cooldowns[0].ticks.source
+        );
+        assert!(bot.survival.read().await.item_cooldowns.is_empty());
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "world");
+        respawn.extend(123i64.to_be_bytes());
+        respawn.extend([0, 255, 0, 1, 1]);
+        let generation = zero.session;
+        for end in 0..respawn.len() {
+            assert!(
+                bot.apply_packet(0x3a, respawn[..end].to_vec())
+                    .await
+                    .is_err()
+            );
+            let current = client.player_context().await.unwrap();
+            assert_eq!(current.session, generation);
+            assert_eq!(current.item_cooldowns, zero.item_cooldowns);
+        }
+        let mut trailing = respawn.clone();
+        trailing.push(0);
+        assert!(bot.apply_packet(0x3a, trailing).await.is_err());
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let next = client.player_context().await.unwrap();
+        assert_ne!(next.session, generation);
+        assert!(next.item_cooldowns.is_empty() && next.login_conditions.is_none());
+        assert_eq!(
+            next.world_entry.as_ref().unwrap().value.previous_game_mode,
+            -1
+        );
+        assert_eq!(
+            next.world_entry.as_ref().unwrap().value.respawn_keep_data,
+            Some(1)
+        );
+        let events = client.events_after(0).await.unwrap();
+        for receipt in [
+            &saved.item_cooldowns[0].ticks,
+            &zero.item_cooldowns[0].ticks,
+        ] {
+            assert!(events.events.iter().any(|event| event.kind
+                == crate::client::EventKind::ContextChanged
+                && event.receive_sequence
+                    == match receipt.source {
+                        crate::client::ValueSource::Received { sequence } => sequence,
+                        _ => panic!(),
+                    }));
+        }
+        let _ = client.revoke_connection();
+        drop(release);
+        server.await.unwrap();
+    }
     #[tokio::test]
     async fn player_context_legacy_keeps_sources_missing_fields_and_world_lifetimes() {
         let (bot, _packets, release, server) =

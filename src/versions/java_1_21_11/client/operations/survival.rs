@@ -124,6 +124,8 @@ pub struct LocalPlayerState {
     pub attribute_sequences: BTreeMap<i32, u64>,
     /// Last received air supply (ticks) and its receive ordinal.
     pub air_supply: Option<(i32, u64)>,
+    /// Original shared Elytra flag and its receive ordinal, never a request echo.
+    pub fall_flying: Option<(bool, u64)>,
 }
 
 /// Own item-use state from received LivingEntity flags.
@@ -166,6 +168,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         let update = crate::client::vehicle::NativePassengers::decode(payload)?;
         let player = state.operations.local_player.entity_id;
         let own = player.is_some_and(|id| update.passengers.contains(&id));
+        state.entities.history_passengers(&update);
         state
             .vehicles
             .receive(&update, player, &state.entities, state.sequence);
@@ -215,6 +218,9 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         input::ENTITY_METADATA => {
             let update = players::read_pose(&mut r, &mut next.pose)?;
+            if let Some(flags) = update.entity_flags {
+                next.fall_flying = Some((flags & 128 != 0, sequence));
+            }
             if let Some(air) = update.air_supply {
                 next.air_supply = Some((air, sequence));
             }

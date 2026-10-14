@@ -5,6 +5,77 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 
+fn interpolation_pose(value: &serde_json::Value) -> anyhow::Result<LivingInterpolationPose> {
+    let mut pose: LivingInterpolationPose = serde_json::from_value(value.clone())?;
+    if let (Some(position), Some(rotation)) = (
+        value["position_bits"].as_array(),
+        value["rotation_bits"].as_array(),
+    ) {
+        anyhow::ensure!(
+            position.len() == 3 && rotation.len() == 2,
+            "invalid original pose bits"
+        );
+        for (i, bits) in position.iter().enumerate() {
+            pose.position[i] = f64::from_bits(u64::from_str_radix(bits.as_str().unwrap(), 16)?);
+        }
+        for (i, bits) in rotation.iter().enumerate() {
+            pose.rotation[i] = f32::from_bits(bits.as_u64().unwrap().try_into()?);
+        }
+    }
+    Ok(pose)
+}
+
+fn contact_body(value: &serde_json::Value) -> anyhow::Result<LivingContactBody> {
+    let mut body: LivingContactBody = serde_json::from_value(value.clone())?;
+    for (key, target) in [
+        ("position_bits", &mut body.push.position),
+        ("velocity_bits", &mut body.push.velocity),
+    ] {
+        if let Some(bits) = value["push"][key].as_array() {
+            anyhow::ensure!(bits.len() == 3, "invalid original vector bits");
+            for (i, b) in bits.iter().enumerate() {
+                target[i] = f64::from_bits(u64::from_str_radix(b.as_str().unwrap(), 16)?);
+            }
+        }
+    }
+    if let Some(bits) = value["bounds_bits"].as_array() {
+        anyhow::ensure!(bits.len() == 6, "invalid original box bits");
+        let f = |i: usize| -> anyhow::Result<f64> {
+            Ok(f64::from_bits(u64::from_str_radix(
+                bits[i].as_str().unwrap(),
+                16,
+            )?))
+        };
+        body.bounds = voxrig::client::Aabb {
+            min_x: f(0)?,
+            min_y: f(1)?,
+            min_z: f(2)?,
+            max_x: f(3)?,
+            max_y: f(4)?,
+            max_z: f(5)?,
+        };
+    }
+    Ok(body)
+}
+
+fn indexed_body(value: &serde_json::Value) -> anyhow::Result<LivingContactIndexedBody> {
+    let mut body: LivingContactIndexedBody = serde_json::from_value(value.clone())?;
+    body.body = contact_body(&value["body"])?;
+    Ok(body)
+}
+
+fn packet_diagnostics(model: &LivingPacketModel) -> serde_json::Value {
+    let frame = model.frame();
+    let pose = frame.interpolation.pose;
+    serde_json::json!({"frame":frame,"pose_bits":{"position":pose.position.map(|n|format!("{:x}",n.to_bits())),"rotation":pose.rotation.map(f32::to_bits)}})
+}
+
+fn replay_diagnostics(model: &LivingEntityPacketReplay) -> serde_json::Value {
+    let frame = model.frame();
+    let pose = frame.model.interpolation.pose;
+    serde_json::json!({"frame":frame,"pose_bits":{"position":pose.position.map(|n|format!("{:x}",n.to_bits())),"rotation":pose.rotation.map(f32::to_bits)}})
+}
+
 fn lighting_samples(
     chunks: &[voxrig::client::ChunkObservation],
     positions: &[[i32; 3]],
@@ -56,7 +127,7 @@ async fn main() -> anyhow::Result<()> {
     let port = std::env::var("VOXRIG_PORT")?.parse()?;
     let client = Client::connect(ConnectionConfig::offline_from_env(
         Server::new("127.0.0.1", port),
-        "ClimbingProbe",
+        std::env::var("VOXRIG_PROBE_USERNAME").unwrap_or_else(|_| "ClimbingProbe".into()),
     )?)
     .await?;
     client.wait_until_ready().await?;
@@ -67,11 +138,162 @@ async fn main() -> anyhow::Result<()> {
     let mut saved_chunk = None;
     let mut saved_map = None;
     let mut saved_lighting = Vec::new();
+    let mut interpolation: Option<LivingInterpolation> = None;
+    let mut contact_index: Option<LivingContactIndex> = None;
+    let mut entity_history_cursor = None;
+    let mut packet_models = std::collections::BTreeMap::<u64, LivingPacketModel>::new();
+    let mut tick_order: Option<LivingEntityTickOrder> = None;
+    let mut packet_replay: Option<LivingEntityPacketReplay> = None;
+    let mut packet_replay_cursor = None;
+    let mut packet_replay_page = None;
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
+            "packet_model_new"=>{
+                let key=request["key"].as_u64().unwrap();
+                anyhow::ensure!(packet_models.len()<2*MAX_LIVING_TICK_BODIES||packet_models.contains_key(&key),"model driver budget exceeded");
+                let result=LivingPacketModel::new(client.version(),interpolation_pose(&request["pose"])?,request["ordinal"].as_u64().unwrap_or(0));
+                let status=result.as_ref().map(|_|());if let Ok(model)=&result {packet_models.insert(key,model.clone());}
+                serde_json::to_value(status)?
+            },
+            "packet_model_apply"|"packet_model_step"|"packet_model_cancel"|"packet_model_pose"=>{
+                let model=packet_models.get_mut(&request["key"].as_u64().unwrap()).unwrap();
+                let result=match request["command"].as_str().unwrap(){
+                    "packet_model_apply"=>model.apply(request["ordinal"].as_u64().unwrap(),serde_json::from_value(request["packet"].clone())?,serde_json::from_value(request["guards"].clone())?),
+                    "packet_model_step"=>model.step(request["collision_free"].as_bool()).map(|_|true),
+                    "packet_model_pose"=>model.set_model_pose(interpolation_pose(&request["pose"])?).map(|_|true),
+                    _=>model.cancel().map(|_|true),
+                };
+                serde_json::json!({"result":result,"model":packet_diagnostics(model)})
+            },
+            "packet_model_frame"=>packet_diagnostics(&packet_models[&request["key"].as_u64().unwrap()]),
+            "tick_order_new"=>{tick_order=Some(LivingEntityTickOrder::new(client.version()));packet_models.clear();serde_json::json!({"created":true})},
+            "tick_order_admit"=>serde_json::to_value(tick_order.as_mut().unwrap().admit(serde_json::from_value(request["body"].clone())?))?,
+            "tick_order_update"=>serde_json::to_value(tick_order.as_mut().unwrap().update(serde_json::from_value(request["body"].clone())?))?,
+            "tick_order_remove"=>serde_json::to_value(tick_order.as_mut().unwrap().remove_membership(request["native_id"].as_i64().unwrap().try_into()?))?,
+            "tick_order_begin"=>serde_json::to_value(tick_order.as_mut().unwrap().begin_tick(request["frozen"].as_bool().unwrap()))?,
+            "tick_order_next"=>serde_json::to_value(tick_order.as_mut().unwrap().next_tick())?,
+            "tick_order_finish"=>serde_json::to_value(tick_order.as_mut().unwrap().finish_tick())?,
+            "tick_order_invalidate"=>{tick_order.as_mut().unwrap().invalidate();serde_json::json!({"invalidated":true})},
+            "packet_replay_new"=>{
+                packet_replay=None;packet_replay_cursor=None;packet_replay_page=None;
+                let current=client.entities().await?;
+                let name=request["type_name"].as_str().unwrap_or("minecraft:cow");
+                let target=current.entities.iter().filter(|e|e.motion.entity.type_name.as_deref()==Some(name)).max_by_key(|e|e.motion.entity.id.spawn_sequence()).map(|e|e.motion.entity.id);
+                let mut cursor=None;let mut latest_spawn=None;let mut pages=Vec::new();let mut frontier=None;
+                for _ in 0..9 {
+                    let page=client.entity_history_after(cursor,1024).await?;
+                    anyhow::ensure!(page.gap.is_none(),"spawn/history baseline was evicted");
+                    frontier.get_or_insert(page.latest_cursor.ordinal());
+                    for record in &page.records {if matches!(&record.kind,EntityHistoryKind::Spawn(m) if Some(m.entity.id)==target){latest_spawn=Some(record.clone());}}
+                    cursor=Some(page.next_cursor);let done=page.next_cursor.ordinal()>=frontier.unwrap();pages.push(page);if done {break}
+                }
+                let result=if let Some(spawn)=latest_spawn {LivingEntityPacketReplay::from_spawn(&spawn)}else{Err(LivingReplayUnavailable::MissingSpawn)};
+                let mut application=Ok(0);
+                if let Ok(mut replay)=result.clone(){
+                    let guards=serde_json::from_value(request["guards"].clone())?;
+                    for page in &pages {match replay.apply_page(page,guards){Ok(n)=>*application.as_mut().unwrap()+=n,Err(e)=>{application=Err(e);break}}}
+                    packet_replay=Some(replay);packet_replay_cursor=cursor;packet_replay_page=pages.last().cloned();
+                }
+                serde_json::json!({"created":result.map(|_|()),"applied":application,"model":packet_replay.as_ref().map(replay_diagnostics),"history":pages})
+            },
+            "packet_replay_history"|"packet_replay_duplicate"=>{
+                let page=if request["command"]=="packet_replay_duplicate" {packet_replay_page.clone().unwrap()}else{client.entity_history_after(packet_replay_cursor,1024).await?};
+                let replay=packet_replay.as_mut().unwrap();let result=replay.apply_page(&page,serde_json::from_value(request["guards"].clone())?);
+                if result.is_ok(){packet_replay_cursor=Some(page.next_cursor);packet_replay_page=Some(page.clone());}
+                serde_json::json!({"applied":result,"model":replay_diagnostics(replay),"history":page})
+            },
+            "packet_replay_step"|"packet_replay_cancel"=>{
+                let replay=packet_replay.as_mut().unwrap();let result=if request["command"]=="packet_replay_step" {replay.step(request["collision_free"].as_bool())}else{replay.cancel()};
+                serde_json::json!({"result":result.map(|_|()),"model":replay_diagnostics(replay)})
+            },
+            "packet_replay_invalidate"=>{packet_replay.as_mut().unwrap().invalidate();serde_json::json!({"invalidated":true,"model":packet_replay.as_ref().map(replay_diagnostics)})},
+            "entity_history" => {
+                if request["reset"] == true { entity_history_cursor = None; }
+                let maximum = request["maximum"].as_u64().unwrap_or(1024).try_into()?;
+                let history = client.entity_history_after(entity_history_cursor, maximum).await?;
+                entity_history_cursor = Some(if request["tail"] == true { history.latest_cursor } else { history.next_cursor });
+                serde_json::to_value(history)?
+            },
+            "revoke_entity_history" => {
+                if let Some(replay)=packet_replay.as_mut(){replay.invalidate();}
+                let revoked = client.revoke_connection();
+                let history = client.entity_history_after(None, 1024).await?;
+                println!("{}", serde_json::json!({"revoked":revoked,"history":history,"replay":packet_replay.as_ref().map(replay_diagnostics)}));
+                std::io::stdout().flush()?;
+                return Ok(());
+            },
+            "interpolation_new" => {
+                let pose = interpolation_pose(&request["pose"])?;
+                interpolation = Some(LivingInterpolation::new(client.version(), pose, request["length"].as_u64().unwrap().try_into()?).map_err(|e| anyhow::anyhow!("{e:?}"))?);
+                serde_json::to_value(interpolation.as_ref().unwrap().frame())?
+            },
+            "interpolation_target" | "interpolation_step" | "interpolation_cancel" => {
+                let model = interpolation.as_mut().unwrap();
+                let result = match request["command"].as_str().unwrap() {
+                    "interpolation_target" => model.set_target(if request["before"].is_object() { interpolation_pose(&request["before"])? } else { model.frame().pose }, interpolation_pose(&request["pose"])?),
+                    "interpolation_step" => model.step(interpolation_pose(&request["pose"])?, request["collision_free"].as_bool()),
+                    _ => Ok(model.cancel()),
+                };
+                let bits = result.as_ref().ok().map(|f| serde_json::json!({
+                    "position":f.pose.position.map(|n| format!("{:x}", n.to_bits())),
+                    "rotation":f.pose.rotation.map(f32::to_bits)
+                }));
+                serde_json::json!({"model":result,"pose_bits":bits,"retained":model.frame()})
+            },
+            "contact_index_new" => {
+                contact_index = Some(LivingContactIndex::new(client.version()));
+                serde_json::json!({"created":true})
+            },
+            "contact_index_chunk" => serde_json::to_value(contact_index.as_mut().unwrap().set_chunk_known(
+                serde_json::from_value(request["chunk"].clone())?, request["known"].as_bool().unwrap()
+            ))?,
+            "contact_index_upsert" => serde_json::to_value(contact_index.as_mut().unwrap().upsert(indexed_body(&request["entity"])?))?,
+            "contact_index_remove" => serde_json::to_value(contact_index.as_mut().unwrap().remove(request["key"].as_u64().unwrap()))?,
+            "contact_index_visibility" => serde_json::to_value(contact_index.as_mut().unwrap().set_section_accessible(
+                serde_json::from_value(request["section"].clone())?,request["accessible"].as_bool().unwrap()
+            ))?,
+            "contact_index_query" => serde_json::to_value(contact_index.as_ref().unwrap().query(request["client_side"].as_bool().unwrap(),&indexed_body(&request["querying"])?))?,
+            "contact_index_invalidate" => {
+                contact_index.as_mut().unwrap().invalidate();
+                serde_json::json!({"invalidated":true})
+            },
+            "teams" => serde_json::to_value(client.teams().await?)?,
+            "living_contacts" => {
+                let querying = contact_body(&request["querying"])?;
+                let candidates: Vec<LivingContactCandidate> = request["candidates"].as_array().unwrap().iter().map(|v| -> anyhow::Result<_> {
+                    let mut c: LivingContactCandidate = serde_json::from_value(v.clone())?;
+                    c.body = contact_body(&v["body"])?;
+                    Ok(c)
+                }).collect::<anyhow::Result<_>>()?;
+                let model = model_living_contacts(client.version(), request["client_side"].as_bool().unwrap_or(true), &querying, &candidates);
+                let velocity_bits = model.as_ref().ok().map(|m| {
+                    serde_json::json!({"querying":m.querying_velocity.map(|n|format!("{:x}",n.to_bits())),
+                        "candidates":m.candidates.iter().map(|c|c.push.as_ref().map(|p|p.first_velocity.map(|n|format!("{:x}",n.to_bits())))).collect::<Vec<_>>()})
+                });
+                serde_json::json!({"model":model,"velocity_bits":velocity_bits})
+            }
+            "living_pair_push" => {
+                let input: LivingPairPushInput = serde_json::from_value(request["input"].clone())?;
+                let model = model_living_pair_push(client.version(), &input);
+                let bits = model.as_ref().ok().map(|m| {
+                    [m.first_velocity, m.second_velocity]
+                        .map(|v| v.map(|n| format!("{:x}", n.to_bits())))
+                });
+                serde_json::json!({"model":model,"velocity_bits":bits})
+            },
+            "entity_geometry" => serde_json::json!(client.entities().await?.entities.iter()
+                .map(|entity| serde_json::json!({"entity":entity.motion.entity,"geometry":entity.derived_geometry(),"scale":entity.scale(),"metadata_complete":entity.metadata_complete}))
+                .collect::<Vec<_>>()),
+            "entity_poses" => serde_json::json!(client.entities().await?.entities.iter()
+                .filter(|entity| entity.motion.entity.type_name.as_deref() == Some("minecraft:player"))
+                .map(|entity| serde_json::json!({"entity":entity.motion.entity,"pose":entity.pose()}))
+                .collect::<Vec<_>>()),
+            "entity_sleeping" => serde_json::json!(client.entities().await?.entities.iter()
+                .map(|entity| serde_json::json!({"entity":entity.motion.entity,"sleeping":entity.sleeping(),"pose":entity.pose()}))
+                .collect::<Vec<_>>()),
             "use_item" => serde_json::to_value(survival.use_item(Hand::Main).await?)?,
             "map_context" => {
                 let context = client
@@ -231,6 +453,11 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             "vehicle" => serde_json::to_value(client.vehicle_state().await?)?,
+            "events" => serde_json::to_value(
+                client
+                    .events_after(request["cursor"].as_u64().unwrap_or(0))
+                    .await?,
+            )?,
             "player_context" => serde_json::to_value(client.player_context().await?)?,
             "chunk_context" => {
                 let position = serde_json::from_value(request["position"].clone())?;
@@ -258,6 +485,16 @@ async fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
             "vehicle_record" => serde_json::to_value(client.vehicle_control_record().await?)?,
+            "entities" => serde_json::to_value(client.entities().await?)?,
+            "vehicle_disconnect" => {
+                client.disconnect().await?;
+                println!(
+                    "{}",
+                    serde_json::json!({"record":client.vehicle_control_record().await?})
+                );
+                std::io::stdout().flush()?;
+                return Ok(());
+            }
             "capture" => serde_json::to_value(
                 client
                     .capture(Region {
@@ -307,6 +544,54 @@ async fn main() -> anyhow::Result<()> {
                 );
                 std::io::stdout().flush()?;
                 return Ok(());
+            }
+            "mode_start" | "flight_start" | "glide_start" | "flight_enable" | "mode_keys" | "mode_jump"
+            | "mode_stop" => {
+                let mode: GameMode = serde_json::from_value(request["mode"].clone())?;
+                let handle = client.player_control(mode);
+                let result: voxrig::Result<serde_json::Value> = match request["command"]
+                    .as_str()
+                    .unwrap()
+                {
+                    "flight_start" => handle
+                        .start_flight_control(serde_json::from_value(request["controls"].clone())?)
+                        .await
+                        .map(|r| serde_json::json!({"record":r})),
+                    "flight_enable" => client
+                        .creative()
+                        .set_flying(request["flying"].as_bool().unwrap())
+                        .await
+                        .map(|r| serde_json::json!({"record":r})),
+                    "glide_start" => handle.start_glide_control(serde_json::from_value(request["controls"].clone())?).await.map(|r| serde_json::json!({"record":r})),
+                    "mode_start" => handle
+                        .start_control()
+                        .await
+                        .map(|r| serde_json::json!({"record":r})),
+                    "mode_keys" => handle
+                        .set_controls_for(
+                            request["session_id"].as_u64().unwrap(),
+                            serde_json::from_value(request["controls"].clone())?,
+                        )
+                        .await
+                        .map(|r| serde_json::json!({"record":r})),
+                    "mode_jump" => handle
+                        .request_ground_jump(request["session_id"].as_u64().unwrap())
+                        .await
+                        .map(|r| serde_json::json!({"request":r})),
+                    _ => handle
+                        .stop_control_for(request["session_id"].as_u64().unwrap())
+                        .await
+                        .map(|r| serde_json::json!({"record":r})),
+                };
+                match result {
+                    Ok(mut value) => {
+                        value["admitted"] = serde_json::json!(true);
+                        value
+                    }
+                    Err(error) => {
+                        serde_json::json!({"admitted":false,"kind":format!("{:?}",error.kind()),"error":error.to_string(),"record":handle.control_record().await?})
+                    }
+                }
             }
             "start" => serde_json::to_value(survival.start_control().await?)?,
             "jump" => {

@@ -67,7 +67,7 @@ pub struct Vec3 {
     pub z: f64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 /// Version-independent Aabb representation.
 pub struct Aabb {
     /// The `min_x` value.

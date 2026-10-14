@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "scope": "Owned mounted boat collision model against fixed-shape received boat/raft/minecart targets; original passenger exclusion lifetimes and nested-attachment fences.",
+  "publication": "Public results and artifact hashes only. Original wire/NBT reports remain local. Native oracle fixture contains synthetic controlled terrain/tick/box inputs and outputs.",
+  "qualification": {
+    "source_revision": "8be485c6f89f1bf6034042652bde48fe7e584e53",
+    "binary_build_revision": "d55565fb8fab0150df350cc045e1cab8d82c0be3",
+    "binary_sha256": "11d5a5eb1d2a41c100a0a53a37078b4cfee0ed2356df8d9dd7439b9b01797421",
+    "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_boat_collisions.py": "f5db95cfbc6b9228acd58c01432fbf7e1caa0b16c7e2295a39deb4e7fc003892",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "bfdd9a67353d353292ffca9c61b3c1f4300b2890066e92034be4191d6c9eaeb9",
+      "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+      "scripts/movement_oracle/boat_collision_scenarios.json": "922c65fb4a2ae25d243d0f13cbacafe9d7a9bf9f71c78a38da5f09040f727d4d",
+      "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "267225732f73e02a17af9f04bc75ac437659f3158e2a4a31541873f8695d261c",
+      "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "659cd663fdafc210aed084e074f648dbe64d7548cf17e0e36a9cfc8b9f06d01a",
+      "data/client_api/boat_collision_oracle.json.gz": "07784effe3a81943f1a4da5906cda0d647c52f70a680a50501667529348e434c"
+    }
+  },
+  "source_relationship": "Compiled Rust, examples, Cargo and data are identical to qualification source; qualification adds only Python validation changes. Later evidence/docs commits do not change implementation.",
+  "native_oracle": {
+    "fixture": "data/client_api/boat_collision_oracle.json.gz",
+    "fixture_sha256": "07784effe3a81943f1a4da5906cda0d647c52f70a680a50501667529348e434c",
+    "runs": 12,
+    "exact_ticks": 480,
+    "original_inputs": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "267225732f73e02a17af9f04bc75ac437659f3158e2a4a31541873f8695d261c"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "659cd663fdafc210aed084e074f648dbe64d7548cf17e0e36a9cfc8b9f06d01a"
+      }
+    ],
+    "registration": "Original vehicle constructors, world registration and getBoundingBox; actual world lookup must find every declared rigid body. Legacy original despawn cleans scene entities; modern original entity-ticking chunks are awaited outside the server thread.",
+    "scope": "Declared other vehicles are stationary inputs. Original server/physics classes, collision predicates and game geometry are unchanged; arbitrary pose/scale/interpolation and simultaneous other-entity ticks are not claimed."
+  },
+  "validation": {
+    "unit_passed": 965,
+    "integration_passed": 4,
+    "ignored": 8,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "strict_clippy": true,
+    "strict_rustdoc": true,
+    "format": true,
+    "package_allowlist": true,
+    "logs_sha256": {
+      "all-tests": "02fe4a8a72fc4fd0fd1f8a4f6579b8ec68bbfcae940cb9a35c53a2ee94b358df",
+      "clippy": "7febabd78e1052924fff884ff244c0e1d5347ad8d5e3ceae17efadf11b7b66d6",
+      "rustdoc": "da49c7785ddb50d97ee91a4c884bb843e6f85754840daf6d09ed9f995485ddf7",
+      "package-list": "ea6e8b0b6cfe82864071377bd960e9e7484dcc75360ab88b9feddeddcc0ad04c",
+      "probe-build": "03f8430165f410b2d2bb6e2c542262f34e73c0693a25670b165e06c67e60bbdc",
+      "live": "2325d24612a3683a195a56ec710013e9585e2e64f6eb204b5eac61aa2c8348e3",
+      "nested": "7aa63f91b45e0d29e366b15ed04bb5c85d085e50b55a0d6614b0c24af4e74e05",
+      "minecart": "c1f0846cef2ded5126a0fdc9130ad0ea1effa58f41f99885851578921525019a"
+    }
+  },
+  "runs": [
+    {
+      "group": "boat_rigid_collision_and_refusal",
+      "version": "1.16.1",
+      "passed": true,
+      "check_count": 9,
+      "check_names": [
+        "boat_native_rigid_collision_and_dispatch",
+        "boat_owned_neutral_continuation",
+        "original_despawn_retires_future_collision_inputs",
+        "boat_post_collision_received_dismount",
+        "minecart_native_rigid_collision_and_dispatch",
+        "minecart_owned_neutral_continuation",
+        "unsupported_pose_refusal_and_no_automatic_replay",
+        "actual_forced_exit_retains_unresolved_collision_without_replay",
+        "collision_history_readable_after_close"
+      ],
+      "report_sha256": "2fe91faa132c0278bec48585ec7d8cdce702f9cb7b79b71339abc21213e0aab7",
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077"
+    },
+    {
+      "group": "boat_rigid_collision_and_refusal",
+      "version": "1.21.11",
+      "passed": true,
+      "check_count": 9,
+      "check_names": [
+        "boat_native_rigid_collision_and_dispatch",
+        "boat_owned_neutral_continuation",
+        "original_despawn_retires_future_collision_inputs",
+        "boat_post_collision_received_dismount",
+        "minecart_native_rigid_collision_and_dispatch",
+        "minecart_owned_neutral_continuation",
+        "unsupported_pose_refusal_and_no_automatic_replay",
+        "actual_forced_exit_retains_unresolved_collision_without_replay",
+        "collision_history_readable_after_close"
+      ],
+      "report_sha256": "ea15233eefd01f6e56cbe39b9d4071761880097cbae213708d09895c0eebf43f",
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed"
+    },
+    {
+      "group": "actual_modern_nested_attachment",
+      "version": "1.21.11",
+      "passed": true,
+      "check_count": 3,
+      "check_names": [
+        "original_nested_attachment_and_restore_fence_running_owner",
+        "restored_nested_attachment_has_no_automatic_replay",
+        "nested_attachment_history_readable_after_close"
+      ],
+      "report_sha256": "3a1b15e3178558f4ae94ba793fc27c4917e3f9a9961a1fecb5d0dcd0297b7dc9",
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed"
+    },
+    {
+      "group": "existing_minecart_server_physics_regression",
+      "version": "1.16.1",
+      "passed": true,
+      "check_count": 4,
+      "check_names": [
+        "minecart_mount",
+        "minecart_forward",
+        "minecart_neutral",
+        "minecart_dismount"
+      ],
+      "report_sha256": "3f6eb58428a0afb6ad8ac2f6e7ef3a7f9273c7faad7c0feccf7766359e66a53e",
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077"
+    },
+    {
+      "group": "existing_minecart_server_physics_regression",
+      "version": "1.21.11",
+      "passed": true,
+      "check_count": 4,
+      "check_names": [
+        "minecart_mount",
+        "minecart_forward",
+        "minecart_neutral",
+        "minecart_dismount"
+      ],
+      "report_sha256": "bb6b782f0700b77e574fd0d68f23ba1a3335f9f10e22b6935e1783cd446d8774",
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed"
+    }
+  ],
+  "version_only": {
+    "legacy_nested_live": "The original 1.16.1 server has no /ride command; nested attachment, transient receipt, sibling despawn and ID lifetime guards are tested with original packet codecs on both versions. Modern live /ride is a separately declared qualification."
+  },
+  "local_original_evidence_sha256": "1201b1f7d55f537b2e7968cdad1310b4537ef45c5105d14548b664ee2e4c9c73",
+  "diagnostics": [
+    "Initial oracle setup was invalid: removed legacy actors remained in chunk queries and modern actors were outside entity-ticking sections. Corrected original registration/removal/ticking setup; no SDK expectation or trajectory tolerance weakened.",
+    "Initial live driver incorrectly requested SDK dismount after a retained unresolved refusal. The SDK correctly rejected replay; driver now verifies original forced exit and unchanged failure history.",
+    "Nested live driver response assertion was aligned to the original English /ride response (started riding). No SDK behavior changed for that correction.",
+    "Original /ride mount+dismount commands may coalesce before the native entity tracker sends any intermediate list. The driver now waits for the actual original attached SET_PASSENGERS before restoring the relation; unreceived intermediate server states are not counted as qualification.",
+    "The nested parent fixture is placed outside original minecart pickup distance so its automatic passenger pickup does not replace the declared explicit /ride trigger.",
+    "Final review added transient own-passenger parent fences, sibling edge preservation, fresh prediction seeds after nested receipts, and rejection of reusable passenger IDs without a new actual list."
+  ],
+  "remaining": [
+    "General nonrigid entity pose/scale/interpolation and push simulation.",
+    "Other player postures, continuous creative/spectator flight, elytra and additional mount types remain separately scoped; non-survival held controls are tracked in #62.",
+    "The local collision model and complete dispatch are not received contact, server-current geometry, stop acknowledgement or per-frame execution acknowledgement."
+  ]
+}

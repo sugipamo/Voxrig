@@ -493,9 +493,9 @@ pub(crate) fn parse_metadata(payload: &[u8]) -> Result<(i32, HashMap<u8, Metadat
 }
 
 /// Entity data in the common form, keeping the native serializer of each entry.
-pub(crate) fn common_metadata(
-    payload: &[u8],
-) -> Result<(i32, Vec<(u8, crate::client::EntityDataValue)>)> {
+type CommonMetadata = (i32, Vec<(u8, crate::client::EntityDataValue)>, bool);
+
+pub(crate) fn common_metadata(payload: &[u8]) -> Result<CommonMetadata> {
     use crate::client::EntityDataValue as V;
     let mut rest = payload;
     let entity_id = get_varint(&mut rest)?;
@@ -513,11 +513,24 @@ pub(crate) fn common_metadata(
             (2, MetadataValue::Float(v)) => V::Float(v),
             (3, MetadataValue::String(v)) => V::String(v),
             (7, MetadataValue::Bool(v)) => V::Bool(v),
+            (9, MetadataValue::Position(v)) => V::BlockPosition(crate::client::BlockPos {
+                x: v.x,
+                y: v.y,
+                z: v.z,
+            }),
+            (10, MetadataValue::OptionalPosition(v)) => {
+                V::OptionalBlockPosition(v.map(|v| crate::client::BlockPos {
+                    x: v.x,
+                    y: v.y,
+                    z: v.z,
+                }))
+            }
+            (18, MetadataValue::VarInt(v)) => V::Pose(v),
             _ => V::Other(kind),
         };
         values.push((key, value));
     }
-    Ok((entity_id, values))
+    Ok((entity_id, values, rest.is_empty()))
 }
 
 fn read_metadata_value(kind: i32, rest: &mut &[u8]) -> Result<MetadataValue> {
@@ -609,20 +622,61 @@ fn take_u64(rest: &mut &[u8]) -> Result<u64> {
 #[cfg(test)]
 mod common_metadata_tests {
     use super::*;
+    #[test]
+    fn original_position_codecs_preserve_values_and_boundaries() {
+        use crate::client::EntityDataValue as V;
+        for (packet, value) in
+            crate::client::entity::original_position_packets(crate::MinecraftVersion::Java1_16_1)
+        {
+            let (_, entries, complete) = common_metadata(&packet).unwrap();
+            assert!(complete);
+            assert_eq!(entries, [(30, value.clone()), (31, V::Byte(42))]);
+            if matches!(value, V::OptionalBlockPosition(Some(_))) {
+                let mut nonzero = packet.clone();
+                nonzero[3] = 255;
+                assert_eq!(common_metadata(&nonzero).unwrap().1, entries);
+            }
+            for length in 3..packet.len() - 4 {
+                assert!(common_metadata(&packet[..length]).is_err());
+            }
+            let mut trailing = packet.clone();
+            trailing.push(0);
+            assert!(!common_metadata(&trailing).unwrap().2);
+        }
+    }
+
     use crate::client::EntityDataValue as V;
+
+    #[test]
+    fn common_metadata_trailing_bytes_retain_fields_without_a_complete_claim() {
+        let (_, values, complete) = common_metadata(&[9, 6, 18, 5, 255, 0]).unwrap();
+        assert_eq!(values, vec![(6, crate::client::EntityDataValue::Pose(5))]);
+        assert!(!complete);
+        assert!(common_metadata(&[9, 6, 18, 5, 255]).unwrap().2);
+    }
+
+    #[test]
+    fn all_original_legacy_pose_ids_use_the_pose_serializer() {
+        for id in 0..7 {
+            let (_, values, _) = common_metadata(&[9, 6, 18, id, 255]).unwrap();
+            assert_eq!(values, vec![(6, V::Pose(i32::from(id)))]);
+        }
+        let (_, values, _) = common_metadata(&[9, 6, 1, 5, 255]).unwrap();
+        assert_eq!(values, vec![(6, V::Int(5))]);
+    }
 
     #[test]
     fn serializers_are_kept_and_only_plain_values_decoded() {
         // entity 5: index 0 byte 0x20, 15 varint 3, 6 pose (VarInt serializer 18), 2 string.
         let payload = [5, 0, 0, 0x20, 15, 1, 3, 6, 18, 1, 2, 3, 1, b'x', 0xff];
-        let (entity, values) = common_metadata(&payload).unwrap();
+        let (entity, values, _) = common_metadata(&payload).unwrap();
         assert_eq!(entity, 5);
         assert_eq!(
             values,
             vec![
                 (0, V::Byte(0x20)),
                 (15, V::Int(3)),
-                (6, V::Other(18)),
+                (6, V::Pose(1)),
                 (2, V::String("x".into()))
             ]
         );

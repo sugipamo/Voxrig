@@ -83,11 +83,20 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             }
         }
         ids::play_clientbound::ENTITY_EQUIPMENT => {
-            let (entity, slots) = equipment(payload);
-            for (slot, item) in slots {
+            if let Some((entity, slots, complete)) = equipment(payload) {
                 state
                     .entities
-                    .receive_equipment(entity, slot, item, state.sequence);
+                    .receive_equipment(entity, slots, complete, state.sequence);
+            }
+        }
+        ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES => {
+            let entity = r.varint()?;
+            let attributes = super::players::read_attribute_details(&mut r)?;
+            r.end()?; // Complete packet before mutating the lifetime ledger.
+            if let Some((_, scale)) = attributes.get(&super::ids::SCALE_ATTRIBUTE) {
+                state
+                    .entities
+                    .receive_scale(entity, scale.clone(), state.sequence);
             }
         }
         _ => {
@@ -128,7 +137,7 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
     loop {
         let Ok(key) = r.u8() else { break };
         if key == 255 {
-            complete = true;
+            complete = r.end().is_ok();
             break;
         }
         let Ok(kind) = r.varint() else { break };
@@ -139,6 +148,25 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
             3 => r.f32().ok().map(V::Float),
             4 => r.string().ok().map(V::String),
             8 => r.bool().ok().map(V::Bool),
+            10 => r.take(8).ok().map(|bytes| {
+                V::BlockPosition(crate::client::BlockPos::unpack(u64::from_be_bytes(
+                    bytes.try_into().expect("eight bytes"),
+                )))
+            }),
+            // The original optional-position codec uses Netty readBoolean:
+            // any nonzero byte means present. Keep this local to this codec.
+            11 => (|| -> anyhow::Result<V> {
+                let value = if r.u8()? != 0 {
+                    Some(crate::client::BlockPos::unpack(u64::from_be_bytes(
+                        r.take(8)?.try_into()?,
+                    )))
+                } else {
+                    None
+                };
+                Ok(V::OptionalBlockPosition(value))
+            })()
+            .ok(),
+            20 => r.varint().ok().map(V::Pose),
             _ => super::players::skip_metadata(&mut r, kind)
                 .ok()
                 .filter(|known| *known)
@@ -186,17 +214,16 @@ fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
 }
 
 /// Equipment entries up to the first one that cannot be decoded.
-fn equipment(
-    payload: &[u8],
-) -> (
+type DecodedEquipment = (
     i32,
     Vec<(crate::client::EquipmentSlot, crate::client::SlotKnowledge)>,
-) {
+    bool,
+);
+fn equipment(payload: &[u8]) -> Option<DecodedEquipment> {
     let mut r = Reader::new(payload);
     let mut slots = Vec::new();
-    let Ok(entity) = r.varint() else {
-        return (-1, slots);
-    };
+    let entity = r.varint().ok().filter(|id| *id >= 0)?;
+    let mut complete = false;
     for _ in 0..16 {
         let Ok(raw) = r.u8() else { break };
         let Some(slot) = crate::client::EquipmentSlot::from_native(
@@ -212,10 +239,11 @@ fn equipment(
             .unwrap_or(crate::client::SlotKnowledge::Unavailable);
         slots.push((slot, item));
         if raw & 0x80 == 0 {
+            complete = r.end().is_ok();
             break;
         }
     }
-    (entity, slots)
+    Some((entity, slots, complete))
 }
 
 fn angle(r: &mut Reader<'_>) -> anyhow::Result<f32> {
@@ -323,7 +351,91 @@ fn coordinates(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
 #[cfg(test)]
 mod common_metadata_tests {
     use super::*;
+    #[test]
+    fn original_position_codecs_preserve_values_and_boundaries() {
+        use crate::client::EntityDataValue as V;
+        for (packet, value) in
+            crate::client::entity::original_position_packets(crate::MinecraftVersion::Java1_21_11)
+        {
+            let (_, entries, complete) = common_metadata(&packet).unwrap();
+            assert!(complete);
+            assert_eq!(entries, [(30, value.clone()), (31, V::Byte(42))]);
+            if matches!(value, V::OptionalBlockPosition(Some(_))) {
+                let mut nonzero = packet.clone();
+                nonzero[3] = 255;
+                assert_eq!(common_metadata(&nonzero).unwrap().1, entries);
+            }
+            for length in 3..packet.len() - 4 {
+                let (_, entries, complete) = common_metadata(&packet[..length]).unwrap();
+                assert!(entries.is_empty() && !complete);
+            }
+            let mut trailing = packet.clone();
+            trailing.push(0);
+            assert!(!common_metadata(&trailing).unwrap().2);
+        }
+    }
+
     use crate::client::EntityDataValue as V;
+
+    #[test]
+    fn partial_equipment_receipts_keep_a_single_ordered_packet_boundary() {
+        use crate::client::{
+            EntityHistoryKind as K, EntityHistoryValue as H, EquipmentSlot as S, SessionStamp,
+            SlotKnowledge,
+        };
+        let version = crate::MinecraftVersion::Java1_21_11;
+        let mut state = State::default();
+        let cases: &[(&[u8], bool, &[S])] = &[
+            (&[7, 0x85, 0, 5, 0], true, &[S::Head, S::Head]),
+            (&[7, 5, 0, 1], false, &[S::Head]),
+            (&[7, 0x80, 0, 99, 0], false, &[S::MainHand]),
+            (&[7, 0x80, 0, 5, 1], false, &[S::MainHand]),
+            (&[7], false, &[]),
+        ];
+        for (n, (payload, _, _)) in cases.iter().enumerate() {
+            state.sequence = n as u64 + 1;
+            state.entities.history_context(version, 0, state.sequence);
+            receive(&mut state, ids::play_clientbound::ENTITY_EQUIPMENT, payload).unwrap();
+        }
+        // An unparseable ID cannot create a fabricated native_id=-1 receipt.
+        receive(&mut state, ids::play_clientbound::ENTITY_EQUIPMENT, &[]).unwrap();
+        let page = state
+            .entities
+            .history_after(
+                SessionStamp {
+                    version,
+                    connection_id: 9,
+                    world_generation: 0,
+                },
+                state.sequence,
+                None,
+                10,
+            )
+            .unwrap();
+        assert_eq!(page.records.len(), cases.len());
+        for (n, (record, (_, expected_complete, expected_slots))) in
+            page.records.iter().zip(cases).enumerate()
+        {
+            assert_eq!(record.receive_sequence, n as u64 + 1);
+            let K::Equipment {
+                native_id,
+                entity,
+                entries: H::Retained { value },
+                complete,
+            } = &record.kind
+            else {
+                panic!()
+            };
+            assert_eq!(*native_id, 7);
+            assert!(entity.is_none());
+            assert_eq!(complete, expected_complete);
+            assert_eq!(
+                value.iter().map(|v| v.slot).collect::<Vec<_>>(),
+                *expected_slots
+            );
+            assert!(value.iter().all(|v| v.value == SlotKnowledge::Empty));
+        }
+    }
 
     #[test]
     fn plain_values_decode_and_unknown_serializers_stop_the_entry_list() {
@@ -340,12 +452,152 @@ mod common_metadata_tests {
             vec![
                 (0, V::Byte(1)),
                 (17, V::Long(300)),
-                (6, V::Other(20)),
+                (6, V::Pose(1)),
                 (9, V::Float(2.5)),
                 (8, V::Bool(true))
             ]
         );
         let (_, values, complete) = common_metadata(&[9, 0, 0, 1, 255]).unwrap();
         assert_eq!((values, complete), (vec![(0, V::Byte(1))], true));
+    }
+
+    #[test]
+    fn pose_entries_require_the_original_serializer_and_clean_terminator() {
+        for id in 0..18 {
+            let (_, values, complete) = common_metadata(&[9, 6, 20, id, 255]).unwrap();
+            assert_eq!(
+                (values, complete),
+                (vec![(6, V::Pose(i32::from(id)))], true)
+            );
+        }
+        let (_, values, complete) = common_metadata(&[9, 6, 20, 5, 255, 0]).unwrap();
+        assert_eq!((values, complete), (vec![(6, V::Pose(5))], false));
+        let (_, values, complete) = common_metadata(&[9, 6, 1, 5, 255]).unwrap();
+        assert_eq!((values, complete), (vec![(6, V::Int(5))], true));
+    }
+}
+
+#[cfg(test)]
+mod scale_receipt_tests {
+    use super::*;
+    use crate::{
+        MinecraftVersion,
+        client::{SessionStamp, ValueSource},
+    };
+    #[test]
+    fn scale_updates_are_atomic_and_scoped_to_complete_live_spawns() {
+        let mut state = State::default();
+        let version = MinecraftVersion::Java1_21_11;
+        let session = SessionStamp {
+            version,
+            connection_id: 1,
+            world_generation: 0,
+        };
+        let kind = crate::client::registry::Registry::for_version(version)
+            .builtin_id("minecraft:entity_type", "minecraft:cow")
+            .unwrap()
+            .value();
+        state
+            .entities
+            .insert(
+                version,
+                NativeSpawn {
+                    id: 7,
+                    uuid: None,
+                    type_id: Some(kind),
+                    dedicated_type_name: None,
+                    position: [0.; 3],
+                    living: Some(true),
+                },
+                1,
+                16,
+            )
+            .unwrap();
+        let capture = |state: &State| {
+            state
+                .entities
+                .capture_all(version, session, 99)
+                .entities
+                .pop()
+                .unwrap()
+                .scale_attribute
+        };
+        let mut packet = vec![7, 1, 25];
+        packet.extend(2f64.to_be_bytes());
+        packet.push(0);
+        state.sequence = 3;
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+        )
+        .unwrap();
+        let original = capture(&state).unwrap();
+        assert_eq!(original.value.base, 2.);
+        assert_eq!(original.source, ValueSource::Received { sequence: 3 });
+        let mut trailing = packet.clone();
+        trailing.push(0);
+        let mut duplicate = vec![7, 2];
+        duplicate.extend_from_slice(&packet[2..]);
+        duplicate.extend_from_slice(&packet[2..]);
+        let mut nan = vec![7, 1, 25];
+        nan.extend(f64::NAN.to_be_bytes());
+        nan.push(0);
+        for malformed in [
+            &packet[..packet.len() - 1],
+            trailing.as_slice(),
+            duplicate.as_slice(),
+            nan.as_slice(),
+        ] {
+            assert!(
+                receive(
+                    &mut state,
+                    ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                    malformed
+                )
+                .is_err()
+            );
+            assert_eq!(capture(&state), Some(original.clone()));
+        }
+        // Another entity and a packet omitting scale cannot rewrite this receipt.
+        let mut other = packet.clone();
+        other[0] = 8;
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &other,
+        )
+        .unwrap();
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &[7, 0],
+        )
+        .unwrap();
+        assert_eq!(capture(&state), Some(original));
+        state.entities.remove(7);
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+        )
+        .unwrap();
+        state
+            .entities
+            .insert(
+                version,
+                NativeSpawn {
+                    id: 7,
+                    uuid: None,
+                    type_id: Some(kind),
+                    dedicated_type_name: None,
+                    position: [0.; 3],
+                    living: Some(true),
+                },
+                9,
+                16,
+            )
+            .unwrap();
+        assert!(capture(&state).is_none());
     }
 }

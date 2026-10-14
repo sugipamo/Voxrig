@@ -3,7 +3,7 @@
 `client.look`・`client.select_hotbar`は現在の受信modeをSDK内で選び、送信直前に再検査する。
 [received-mode API](common-basic-actions.md)として、利用側にmode別の分岐を要求しない。
 
-`client.player_control(expected_mode)`は、視線とheld hotbar選択だけを持つ
+`client.player_control(expected_mode)`は、視線、held hotbar選択、地上の継続操作とCreative/Spectatorの連続飛行を持つ
 `PlayerControl`を返す。ハンドルを作る操作はゲームモードを変えず、権限を与えない。
 `player_state().game_mode`の受信値を渡し、各dispatch時にadapterの状態境界内で再検査する。
 待機中にmodeが変わった場合も`State`で拒否する。modeが未受信なら同様に拒否する。
@@ -49,3 +49,5 @@ async fn aim_in_adventure(client: &Client) -> Result<()> {
 ```
 
 検証手順と実接続の記録は[共通移行APIの検証](common-migration-api-validation.md)を参照。
+
+連続操作の開始、対象IDの照合、飛行の前提条件と終了時の扱いは[共通の継続操作](common-control.md)を参照。

@@ -43,6 +43,9 @@ pub enum EventKind {
     ScreenChanged,
     /// Own position, health, experience, abilities or game mode.
     PlayerChanged,
+    /// Received player/world context changed; read `Client::player_context`.
+    /// Covers entry, abilities, difficulty, XP, weather, spawn, view and cooldowns.
+    ContextChanged,
     /// Join, respawn, dimension change or reconfiguration.
     WorldChanged,
     /// An entity was spawned. Resolve it through `Client::entity_spawns`.

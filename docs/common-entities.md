@@ -1,6 +1,8 @@
 # 共通のentity現在状態
 
 過去の受信値が必要な場合は、独立した[entity受信履歴](common-entity-history.md)を使う。
+metadata・装備のpacketごとの差分とmodern scaleも保持する。最新状態のmapと違い、
+entry順序・重複更新・部分解読・履歴の保存上限を区別して読める。
 
 `Client::entities()`は、受信した全entity（自分以外）の現在の状態を1回の観測で返す。
 1.16.1・1.21.11の両方で使える。値はすべてclientが受信したもので、予測や補間はしない。
@@ -12,10 +14,75 @@
 | `health` | 生き物の体力。metadataで受信するまで`None` |
 | `equipment` | 装備欄ごとに最後に受信したitem（`MainHand`〜`Head`、1.21.11は`Body`・`Saddle`も） |
 | `living` | 生き物（playerを含む）かどうか。1.16.1は出現パケット（生き物用・player用）、1.21.11は種類（`minecraft:player`か既定属性を持つ種類）で決める。種類が分からなければ`None` |
-| `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・stringは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
+| `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・string・pose・block position・optional block positionは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
+| `scale_attribute` | modern版のscale属性を最後に完全に受信した値。base・modifier・受信順序を保持。未受信・保存上限超過なら`None` |
+| `scale_attribute_unavailable_sequence` | 4096byteの個体別保存上限を超えたscale更新の受信順序。古いscaleを無効化し、次の保存可能な更新か新しいspawnで解除 |
 | `metadata_complete` | このentityのentity dataパケットをすべて最後まで読めたか。`false`なら、受信していないフィールドは不明として扱う |
 
+## 姿勢の受信
+
+`EntityObservation::pose()`は、原版のpose serializerで受信した最新の値を
+`EntityPoseReading`として返す。`pose`は共通名、`native_id`は版固有の番号、
+`source`は実際の受信順序を保持する。1.16.1の番号6は`Dying`、1.21.11では
+`LongJumping`なので、番号だけを版をまたいで比較しない。
+
+未受信・別のserializer・未知のentity種類では`None`。未知の番号はreadingの
+`native_id`を保持し、共通名だけ`None`になる。部分的なmetadataを受信した場合、
+既に受信したposeは残るが`metadata_complete`は`false`になる。spawn IDの再利用で
+前のentityの姿勢を引き継がない。自分のplayerはこのAPIの対象外。
+
+姿勢の受信は現在のサーバー状態・描画補間・動的な寸法の確認ではない。
+`bounding_box`は引き続き種類の既定寸法を使う。
+
+原版serializer全25姿勢の根拠は`data/client_api/entity_pose_oracle.json`。
+`scripts/run_entity_pose_oracle.py`で再生成し、`scripts/run_entity_pose_live.py`で
+両版の原版サーバーに2クライアントを接続してしゃがみ・解除・削除を検証できる。
+
+## 姿勢・子供・scaleから計算する寸法
+
+`EntityObservation::derived_geometry()`は、player・cow・pig・zombieについて、原版の
+姿勢別寸法・子供の寸法・modern版scaleを計算する。既存の`bounding_box`に加えて使える
+独立したモデルで、原版931ケースのwidth・height・箱の座標をビット単位で照合している。
+
+```rust,ignore
+for entity in client.entities().await?.entities {
+    match entity.derived_geometry() {
+        Ok(model) => println!("{:?} {:?} {:?}", model.model, model.bounds, model.evidence),
+        Err(reason) => println!("dimension model unavailable: {reason:?}"),
+    }
+}
+```
+
+- playerは原版pose enumの寸法を使う。しゃがみは高さ1.5、泳ぎ・滑空・スピンは高さ0.6。
+  睡眠とplayerの死亡姿勢は固定の0.2×0.2で、scaleを掛けない。
+- cow・pig・zombieはBabyフィールドを使い、子供の寸法を計算する。睡眠は固定寸法。
+  年齢の倍率とscaleは原版どおり別々にfloatで掛ける。
+- modern版は実際に受信したscaleのbase・modifierを原版の順序で計算し、0.0625〜16に
+  clampしてfloatへ変換する。`scale()`で値と入力を読める。未受信を1と推定しない。
+  16個を超えるmodifierは4096byteの保存上限内なら`scale_attribute`には残るが、このモデルでは計算しない。
+  保存上限を超えた更新では古い値を無効化し、`scale_attribute_unavailable_sequence`に受信順序を残す。
+  legacy版にはscale属性がなく、固定の1を使い、attributeは`None`になる。
+- `evidence`は位置・pose・Baby・scaleそれぞれの出典とcapture境界を持つ。poseが未受信で
+  metadataを完全に読めた場合、原版のStanding既定値を`TypeDefault`として明記する。
+  これはpose受信APIの値を補わず、`.pose()`は引き続き未受信なら`None`。
+- 未対応の種類、未知pose、別serializer、不明なBaby、未受信scale、未解決の位置は
+  `EntityGeometryUnavailable`を返す。部分metadataでは未受信の既定値を使わない。
+  明示的に受信済みの必要フィールドだけで計算できる場合は、`metadata_complete:false`を残す。
+- 箱は最後に受信した位置targetに置く。量子化誤差は`position_error`に別途保持し、補間・
+  現在のserver位置・押し合い・接触・射程の確認として扱わない。移動物理へ自動適用もしない。
+  保存したモデルは元のconnection/world/spawn寿命を保持し、削除後の観測には含まれない。
+
+比較fixtureは`data/client_api/entity_dimensions_oracle.json.gz`。
+`scripts/run_entity_dimensions_oracle.py`は原版サーバーの登録済みワールド内で原版メソッドを
+実行する。`scripts/run_entity_geometry_live.py`は公式両版へ実接続し、受信値と元パケットを照合する。
+元JAR・class・パケット・NBTは公開せず、解釈済みの比較結果とhashだけを保存する。
+公式両版への57項目の実接続検証と原版931ケースの結果は
+[検証記録](evidence/common-entity-geometry-20261011.json)を参照する。
+
 ## 制約
+
+原版の1回の押し合いを明示的な入力から計算する共通APIは
+[押し合いモデル](common-entity-push.md)を参照する。受信targetから自動で接触を推定しない。
 
 - `bounding_box`は既定の大きさだけを使う。姿勢（しゃがみ・寝る等）、`scale`属性、子供の大きさは反映しない。
   種類が分からない場合は`None`。
@@ -183,3 +250,37 @@ consoleから`armor_stand`を出し、頭にダイヤのヘルメットを付け
 | --- | --- | --- | --- |
 | 1.16.1 | 7.0 | `Head`: `minecraft:diamond_helmet` | 幅0.5、高さ1.975 |
 | 1.21.11 | 7.0 | `Head`: `minecraft:diamond_helmet` | 幅0.5、高さ1.975 |
+
+原版cowが継承する位置・body角度の明示的な補間モデルは
+[共通の生物補間](common-entity-interpolation.md)を参照。受信状態・自動tick割当て・
+接触探索・移動制御の統合とは別の数値モデルで、modernの各stepには衝突問い合わせが必要。
+
+明示的なbox・team・述語からの接触選別と入力順の`other.push(this)`計算は
+[共通の接触モデル](common-entity-contact.md)を参照。
+自動のworld query・tick割当て・移動owner統合は引き続き#44の残件。
+
+## 睡眠位置の受信値
+
+`EntityObservation::sleeping()`は原版の`LivingEntity.SLEEPING_POS_ID`を解釈する。
+indexは1.16.1で13、1.21.11で14。原版の`isSleeping()`と同じく、optionalな位置が
+存在するかで判定する。`Pose::Sleeping`だけからは判定しない。
+
+未受信・未知のtype・別serializerなら`None`。位置を明示的に解除するpacketを受信すると、
+`position: None`と`sleeping: false`を持つreadingが返る。`source`は元packetの受信番号。
+型の空の既定値は補わない。部分metadata後の既知値には`metadata_complete: false`を残す。
+数値IDが再利用された新spawnには、旧値を持ち越さない。
+
+`EntityDataValue::BlockPosition`と`OptionalBlockPosition`は共通`BlockPos`を保持し、
+最新mapとpacket単位の履歴の両方に残す。X/Zは26bit、Yは12bitの符号付き座標。
+原版codec 286ケースの解読結果・hashと全切断境界を確認する再現手順:
+
+```sh
+python3 scripts/run_entity_position_oracle.py --downloads .local/climbing/downloads --work .local/entity-position/oracle
+python3 scripts/run_entity_sleeping_live.py --accept-eula --binary target/debug/examples/climbing_control_probe --compiled-sdk-revision <build-commit>
+```
+
+実接続では両版の睡眠位置変更・ベッド撤去による解除、元packetとの一致、remove後の凍結、
+実respawn・接続取消を確認する。旧版Turtleの通常BlockPosも照合する。modern Turtleの
+home位置はmetadataではないため、同じ受信値を作らない。原版JAR・packetは公開せず、
+解釈結果とhashを`docs/evidence/common-entity-sleeping-20261012.json`に保存する。
+この観測だけでは、自動接触探索・native tick順序・移動ownerへの統合は完了しない。

@@ -9,6 +9,7 @@ use crate::client::{
 fn player(version: MinecraftVersion) -> PlayerObservation {
     PlayerObservation {
         using_item: None,
+        fall_flying: None,
         entity_id: None,
         attributes: Default::default(),
         effects: Default::default(),

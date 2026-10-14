@@ -13,6 +13,16 @@ pub(crate) struct Geometry {
 }
 
 impl Geometry {
+    /// Each rigid entity is one native AABB shape, before block shapes.
+    pub(crate) fn prepend_entities(&mut self, boxes: &[[f64; 6]]) {
+        let count = boxes.len();
+        self.boxes.splice(0..0, boxes.iter().copied());
+        for range in &mut self.shapes {
+            range.start += count;
+            range.end += count;
+        }
+        self.shapes.splice(0..0, (0..count).map(|i| i..i + 1));
+    }
     pub(crate) fn push(&mut self, shape: Vec<[f64; 6]>) {
         if !shape.is_empty() {
             let start = self.boxes.len();

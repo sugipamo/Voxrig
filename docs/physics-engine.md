@@ -4,7 +4,7 @@
 1回の`tick`が、clientの自分のplayerの1 tickを再現する。版の違いは`VersionTable`の
 `PhysicsConstants`と`PhysicsRules`だけで表す。通信や接続状態には触れない。
 
-共通APIでは[継続操作](common-control.md)（P7）が使う。有限入力の移動（`start_predicted_path`）は従来の乾いた地形のモデルのまま。
+共通APIではSurvival／Adventure／Creativeの地上操作とCreative／Spectator飛行の[継続操作](common-control.md)（P7）が使う。有限入力の移動（`start_predicted_path`）は従来の乾いた地形のモデルのまま。
 
 ## 対応範囲
 
@@ -15,20 +15,32 @@
 | block効果 | スライムの跳ね返りと減速、ベッドの跳ね返り、蜘蛛の巣・スイートベリーの足止め（1.21.11の「織り」効果を含む） |
 | 支えのblock | 1.21.11の`mainSupportingBlockPos`（縁に立ったときにどのblockの摩擦を使うか）、柵・壁の上 |
 | 操作 | 歩行・ジャンプ・しゃがみ（姿勢と箱の高さ、縁で止まる）・ダッシュ（開始と停止の条件、ダッシュジャンプ） |
+| 自分のscale | modernの実属性値0.125〜4。原版float寸法・姿勢・目の高さ、微小速度の閾値、押し出し・honeyの幅。legacyは1。step height等を独自に倍率変更しない |
 | 押し出し | blockの中に入ったときのclientの押し出し |
 | 属性・効果 | 移動速度（受信した修飾子＋clientのダッシュ修飾子。修飾子の適用順は各版のmapの順序を再現）、1.21.11の`jump_strength`・`step_height`・`gravity`・`sneaking_speed`・`movement_efficiency`・`water_movement_efficiency`、跳躍力上昇・低速落下・盲目・イルカの好意 |
 | アイテムの使用 | 使用中の入力の縮小（1.16.1は×0.2、1.21.11は`use_effects`の`speed_multiplier`）とダッシュ開始の禁止（1.21.11は`can_sprint`がfalseのとき） |
+| 装備の移動効果 | 1.16.1の受信ブーツの深海探索者とソウルスピード対象タグ。ソウルスピードの速度加算は受信属性を使用。1.21.11は水中移動効率の全modifier operationを公式順序で計算 |
 | 液体（P5） | 水と溶岩の中の移動、流れによる押し（水位・落下中の水・周囲の面）、水面でのジャンプ、しゃがんで沈む、ダッシュでの泳ぎ（泳ぐ姿勢と視線による上下）、低い隙間での這う姿勢、岸に手をかけて上がる動き、水没（目の位置）、水の中での落下距離のリセット、水浸しのblock、海草 |
 | 登り（P4） | 梯子・つる（各版のclimbable tag）・足場、向きが一致する梯子の上の開いたトラップドア。横方向と落下の速度制限、ジャンプ・横の衝突による登り、しゃがみでの滑り止め（足場は除く）、足場の位置としゃがみに応じた衝突形状、水浸しの梯子・足場 |
 | 泡の柱 | 上昇・下降、内部と水面で異なる加速と速度上限、内部での落下距離リセット、複数の柱への接触。1.16.1は上が空気か、1.21.11は上の衝突形状と液体が空かで水面を判定 |
 
 ボートは別の`physics/boat.rs`で有限の乗車入力に対応する。水面・水没・流水・空中・通常の陸上での
 操縦と衝突を計算する。水流の押しは非player entityの正規化を使う。トロッコはサーバーのphysicsへ入力を送る。
+ボートの固定形状の他車両との衝突には、各tickで選んだ受信packet targetと公式のfloat寸法を
+使う。元のワールド検索との12実行・480 tickの比較を保持する。これは接触の受信情報や
+任意の生物の姿勢・scale・補間位置ではない。未解決の位置、古い乗員ID、入れ子関係、
+近くの未監査entityは送信前に拒否する。
 [共通乗り物](common-vehicles.md)に対応範囲と実接続の検証手順を記載する。
+
+生物2体を利用側が明示的に選んだときの原版`LivingEntity.push`計算は
+独立した[共通モデル](common-entity-push.md)として提供する。徒歩・ボートの物理へ自動統合せず、
+補間済み位置・pair順序・乗員関係・pushabilityを利用側の入力として保持する。
+モデル位置からの[近接探索](common-entity-query.md)は独立した有界indexで提供する。
+そのindexへの更新時点と徒歩/ボートownerへの適用は、packet/tick順序の対応後に統合する。
 
 徒歩の範囲外は、状態を変えずに`ErrorKind::Unsupported`で拒否する。
 
-- 浮遊効果、飛行、乗車、エリトラ。
+- 浮遊効果、乗車、エリトラ。Creative／Spectatorの明示的な飛行モデルは対応。
 - ハチミツの壁を滑り降りる動き。
 - 位置や周囲の状況で形が変わるblock（竹・鍾乳石の位置ずれ、粉雪、動いているピストン）。足場とplayerに対する液体の形は対応済み。
 - 下の「確認済みのblock効果」に入っていないblockの効果。
@@ -86,3 +98,22 @@ clientの移動には影響しない。
 公式サーバー上で動かす比較基準に固有の注意:
 - 耕地への着地は、server側だけで確率的に土へ変わる。clientはこれを予測しない（後でblockの更新を受け取る）ので、
   比較の場面では耕地の上を歩くだけにした。
+
+原版cowが継承する位置・body角度の明示的な補間モデルは
+[共通の生物補間](common-entity-interpolation.md)を参照。受信状態・自動tick割当て・
+接触探索・移動制御の統合とは別の数値モデルで、modernの各stepには衝突問い合わせが必要。
+
+明示的なbox・team・述語からの接触選別と入力順の`other.push(this)`計算は
+[共通の接触モデル](common-entity-contact.md)を参照。
+自動のworld query・tick割当て・移動owner統合は引き続き#44の残件。
+
+
+自分のscaleは[専用oracle](common-player-scale.md)の両版73場面・1,752tickで、
+位置・速度・衝突箱・姿勢・目の高さをbit単位で照合した。元のmovement harnessは
+変更せず、自作wrapperが実属性適用後に原版`refreshDimensions`で明示的な開始点を作る。
+これは受信packet時計やサーバー承認の再現ではない。両版の公式接続は別の根拠として保存する。
+
+自分のunit Elytra滑空は専用ownerで[資格化](common-glide-control.md)した。
+他生物の滑空、追加姿勢やgliderを接触モデルへ一般化していない。
+
+全原版poseの[有限分類](common-posture-coverage.md)と、追加mountの[authority/操作分類](common-mount-coverage.md)は調査結果であり、追加の物理対応を保証しない。

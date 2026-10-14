@@ -6,6 +6,48 @@ use crate::client::{
 };
 use crate::{MinecraftVersion, Result};
 
+/// Packet change relevant to an ordinary click's declared dependencies.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StateChange {
+    /// Received own posture; the value is the native pose ordinal.
+    PostureChanged {
+        /// Native received pose ordinal.
+        pose: i32,
+    },
+    /// Original window no longer available.
+    WindowChanged,
+    /// Slot/cursor or transaction evidence changed.
+    SlotsChanged,
+}
+/// First failed operation predicate and its original packet receipt.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct Invalidation {
+    /// Actual failed predicate, retained without replay.
+    pub predicate: String,
+    /// Triggering received change.
+    pub change: StateChange,
+    /// Original packet receive ordinal; never a newly allocated sequence.
+    pub receipt: u64,
+}
+/// Small click-family dependency declaration; player PICKUP has no posture dependency.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Dependency {
+    pub(crate) remote: bool,
+}
+impl Dependency {
+    pub(crate) fn for_click(record: &InventoryClickRecord) -> Self {
+        Self {
+            remote: matches!(record.source, InventoryClickSource::Container { .. }),
+        }
+    }
+    pub(crate) fn posture_failure(self, pose: i32) -> Option<&'static str> {
+        // Remote range/eye geometry is not yet qualified for non-standing poses.
+        (self.remote && pose != 0)
+            .then_some("remote click requires qualified standing eye/range evidence")
+    }
+}
+
 /// Source UI for ordinary inventory operations, bound to the current basis.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -132,6 +174,8 @@ pub struct InventoryClickRecord {
     pub legacy_reply: Option<InventoryTransactionReply>,
     /// Persistent first conflict.
     pub requires_inspection: Option<String>,
+    /// First received dependency failure, with its original packet ordinal.
+    pub invalidation: Option<Invalidation>,
     /// Retained result independent of current inventory.
     pub stage: InventoryClickStage,
 }
@@ -465,6 +509,7 @@ fn prepare_inner(
         cursor_receipt: None,
         legacy_reply: None,
         requires_inspection: None,
+        invalidation: None,
         stage: InventoryClickStage::Pending,
     })
 }
@@ -476,8 +521,9 @@ pub(crate) fn source_slots<'a>(
     if current.session != record.initial.session || current.game_mode != Some(record.mode) {
         return Err(unavailable("click session/world/mode changed"));
     }
-    if record.initial.selected_hotbar.as_ref().map(|s| s.value)
-        != current.selected_hotbar.as_ref().map(|s| s.value)
+    if (current.session.version != MinecraftVersion::Java1_16_1 || !record.send.dispatched)
+        && record.initial.selected_hotbar.as_ref().map(|s| s.value)
+            != current.selected_hotbar.as_ref().map(|s| s.value)
     {
         return Err(unavailable("click selected hand context changed"));
     }
@@ -530,7 +576,9 @@ pub(crate) fn source_slots<'a>(
     .into_iter()
     .flatten()
     {
-        if Some(index) == record.canonical_slot() {
+        if (current.session.version == MinecraftVersion::Java1_16_1 && record.send.dispatched)
+            || Some(index) == record.canonical_slot()
+        {
             continue;
         }
         if let Some(before) = record
@@ -577,7 +625,22 @@ pub(crate) fn receive_with_registries(
     screen: Option<&ContainerScreen>,
     registries: &crate::client::registry::ServerRegistryObservation,
 ) {
+    let was_inspection = record.requires_inspection.is_some();
     receive_inner(record, current, screen, Some(registries));
+    if !was_inspection && current.session.version == MinecraftVersion::Java1_16_1 {
+        if let Some(predicate) = record.requires_inspection.clone() {
+            let window_changed = current.inventory.window_id != Some(record.window_id());
+            record.invalidation.get_or_insert(Invalidation {
+                predicate,
+                change: if window_changed {
+                    StateChange::WindowChanged
+                } else {
+                    StateChange::SlotsChanged
+                },
+                receipt: current.receive_sequence,
+            });
+        }
+    }
 }
 fn receive_inner(
     record: &mut InventoryClickRecord,
@@ -622,13 +685,17 @@ fn receive_inner(
             continue;
         };
         let classification = if let Some(context) = &record.item_context {
-            registries
-                .filter(|r| {
-                    r.session() == current.session
-                        && r.receive_sequence() == current.receive_sequence
-                })
-                .ok_or_else(|| unavailable("coherent click registry capture unavailable"))
-                .and_then(|owner| context.classify(value, before, after, owner))
+            if current.session.version == MinecraftVersion::Java1_16_1 && record.send.dispatched {
+                context.classify_captured(value, before, after)
+            } else {
+                registries
+                    .filter(|r| {
+                        r.session() == current.session
+                            && r.receive_sequence() == current.receive_sequence
+                    })
+                    .ok_or_else(|| unavailable("coherent click registry capture unavailable"))
+                    .and_then(|owner| context.classify(value, before, after, owner))
+            }
         } else {
             Ok((value.value == before.value, &value.value == after))
         };
@@ -724,6 +791,7 @@ mod tests {
         ));
         let initial = PlayerObservation {
             using_item: None,
+            fall_flying: None,
             entity_id: None,
             attributes: Default::default(),
             effects: Default::default(),
@@ -878,6 +946,10 @@ mod tests {
                         _ => Some(crate::client::received(different, 13)),
                     };
                     receive(&mut record, &current, None);
+                    if version == MinecraftVersion::Java1_16_1 {
+                        assert!(record.requires_inspection.is_none());
+                        continue;
+                    }
                     assert_eq!(record.stage, InventoryClickStage::RequiresInspection);
                     let original = record.requires_inspection.clone();
                     let restored = after(&record, 14);
@@ -893,6 +965,9 @@ mod tests {
     fn pickup_latches_restoration_world_mode_selection_other_hand_and_ui_conflicts() {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
             for conflict in 0..7 {
+                if version == MinecraftVersion::Java1_16_1 && matches!(conflict, 3 | 4) {
+                    continue;
+                }
                 let mut record = fixture(version);
                 record.send.dispatched = true;
                 let mut current = after(&record, 11);

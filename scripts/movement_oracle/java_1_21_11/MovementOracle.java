@@ -47,6 +47,7 @@ import net.minecraft.world.phys.Vec3;
 public final class MovementOracle {
     /** A survival player driven like LocalPlayer, inside a server level. */
     static final class OraclePlayer extends Player {
+        net.minecraft.world.level.GameType mode = net.minecraft.world.level.GameType.SURVIVAL;
         Input keys = Input.EMPTY;
         Input next = Input.EMPTY;
         Vec2 moveVector = Vec2.ZERO;
@@ -57,7 +58,7 @@ public final class MovementOracle {
             getAbilities().invulnerable = true;
         }
 
-        @Override public GameType gameMode() { return GameType.SURVIVAL; }
+        @Override public GameType gameMode() { return mode; }
         // LocalPlayer: the local instance is authoritative for its own movement.
         @Override public boolean isLocalPlayer() { return true; }
         @Override public boolean isClientAuthoritative() { return false; }
@@ -95,7 +96,16 @@ public final class MovementOracle {
                 }
             }
             if (isInWater() && keys.shift() && isAffectedByFluids()) goDownInWater();
+            // Original LocalPlayer.aiStep, audited against the pinned original
+            // client JAR: held vertical flight input precedes LivingEntity.aiStep.
+            if (getAbilities().flying) {
+                int vertical = (keys.jump() ? 1 : 0) - (keys.shift() ? 1 : 0);
+                if (vertical != 0) setDeltaMovement(getDeltaMovement().add(0.0, (float)vertical * getAbilities().getFlyingSpeed() * 3.0F, 0.0));
+            }
             super.aiStep();
+            // LocalPlayer clears Creative flight after native landing. Spectator
+            // remains flying; no movement/travel/collision method is overridden.
+            if (onGround() && getAbilities().flying && !isSpectator()) getAbilities().flying = false;
         }
 
         boolean hasForwardImpulse() { return moveVector.y > 1.0E-5F; }
@@ -348,6 +358,18 @@ public final class MovementOracle {
                         level.setBlock(origin.offset(x, y, z), state, 18);
         }
         OraclePlayer player = new OraclePlayer(level);
+        if (scenario.has("game_mode")) {
+            player.mode = net.minecraft.world.level.GameType.valueOf(scenario.get("game_mode").getAsString().toUpperCase(java.util.Locale.ROOT));
+            player.mode.updatePlayerAbilities(player.getAbilities());
+            if ((!scenario.has("flight") || !scenario.get("flight").getAsBoolean()) && (player.getAbilities().flying || player.mode == net.minecraft.world.level.GameType.SPECTATOR))
+                throw new IllegalArgumentException("ground scenario cannot enable flight");
+        }
+        if (scenario.has("food")) player.getFoodData().setFoodLevel(scenario.get("food").getAsInt());
+        if (scenario.has("flight") && scenario.get("flight").getAsBoolean()) {
+            if (!player.getAbilities().mayfly) throw new IllegalArgumentException("flight requires native mode permission");
+            player.getAbilities().flying = true; // Explicit caller flight toggle, not a receipt.
+            if (scenario.has("flying_speed")) player.getAbilities().setFlyingSpeed(scenario.get("flying_speed").getAsFloat());
+        }
         JsonArray start = scenario.getAsJsonArray("start");
         player.setPos(origin.getX() + start.get(0).getAsDouble(), origin.getY() + start.get(1).getAsDouble(), origin.getZ() + start.get(2).getAsDouble());
         player.setOnGround(scenario.has("on_ground") ? scenario.get("on_ground").getAsBoolean() : true);
@@ -356,6 +378,15 @@ public final class MovementOracle {
             for (Map.Entry<String, JsonElement> a : scenario.getAsJsonObject("attributes").entrySet()) {
                 var holder = BuiltInRegistries.ATTRIBUTE.get(Identifier.parse(a.getKey())).orElseThrow();
                 player.getAttribute(holder).setBaseValue(a.getValue().getAsDouble());
+            }
+        }
+        if (scenario.has("attribute_modifiers")) {
+            for (JsonElement e : scenario.getAsJsonArray("attribute_modifiers")) {
+                JsonObject m=e.getAsJsonObject();
+                var holder=BuiltInRegistries.ATTRIBUTE.get(Identifier.parse(m.get("attribute").getAsString())).orElseThrow();
+                player.getAttribute(holder).addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(
+                    Identifier.parse(m.get("id").getAsString()),m.get("amount").getAsDouble(),
+                    net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.valueOf(m.get("operation").getAsString())));
             }
         }
         if (scenario.has("effects")) {
@@ -381,6 +412,10 @@ public final class MovementOracle {
             initial.addProperty(name, Double.toString(player.getAttributeValue(holder)));
         }
         initial.addProperty("food", player.getFoodData().getFoodLevel());
+        initial.addProperty("may_fly", player.getAbilities().mayfly);
+        initial.addProperty("flying", player.getAbilities().flying);
+        initial.addProperty("ability_flying_speed", Float.toString(player.getAbilities().getFlyingSpeed()));
+        initial.addProperty("game_mode", player.mode.getName());
         JsonArray frames = new JsonArray();
         for (JsonElement e : scenario.getAsJsonArray("ticks")) {
             JsonObject t = e.getAsJsonObject();
@@ -411,6 +446,7 @@ public final class MovementOracle {
             f.addProperty("crouching", player.crouching);
             f.addProperty("pose", player.getPose().name());
             f.addProperty("in_water", player.isInWater());
+            f.addProperty("flying", player.getAbilities().flying);
             f.addProperty("swimming", player.isSwimming());
             f.addProperty("using", player.isUsingItem());
             f.addProperty("speed", Float.toString(player.getSpeed()));
@@ -433,6 +469,22 @@ public final class MovementOracle {
             var boat = new net.minecraft.world.entity.vehicle.boat.Boat(net.minecraft.world.entity.EntityType.OAK_BOAT, level, () -> net.minecraft.world.item.Items.OAK_BOAT);
             boat.setPos(player.getX(), player.getY(), player.getZ());
             boat.setYRot(scenario.has("yaw") ? scenario.get("yaw").getAsFloat() : 0.0F);
+            // Explicit stationary native fixtures: their world collision
+            // queries run unchanged; no entity predicate/geometry is overridden.
+            List<net.minecraft.world.entity.Entity> obstacles = new java.util.ArrayList<>();
+            JsonArray collisionBoxes = new JsonArray();
+            if (scenario.has("collision_bodies")) for (JsonElement element : scenario.getAsJsonArray("collision_bodies")) {
+                JsonObject inputBody = element.getAsJsonObject();
+                net.minecraft.world.entity.Entity other = inputBody.get("type").getAsString().equals("minecart") ? new net.minecraft.world.entity.vehicle.minecart.Minecart(net.minecraft.world.entity.EntityType.MINECART, level) : new net.minecraft.world.entity.vehicle.boat.Boat(net.minecraft.world.entity.EntityType.OAK_BOAT, level, () -> net.minecraft.world.item.Items.OAK_BOAT);
+                JsonArray at = inputBody.getAsJsonArray("position");
+                other.setPos(origin.getX()+at.get(0).getAsDouble(),origin.getY()+at.get(1).getAsDouble(),origin.getZ()+at.get(2).getAsDouble());
+                if (!level.addFreshEntity(other)) throw new IllegalStateException("native collision fixture not registered");
+                obstacles.add(other);
+                var box = other.getBoundingBox();
+                collisionBoxes.add(vec(box.minX-origin.getX(),box.minY-origin.getY(),box.minZ-origin.getZ(),box.maxX-origin.getX(),box.maxY-origin.getY(),box.maxZ-origin.getZ()));
+            }
+            for (var other : obstacles) if (!level.getEntities(boat, other.getBoundingBox().inflate(0.1)).contains(other))
+                throw new IllegalStateException("declared native collision fixture not visible to original world query");
             player.startRiding(boat, true, false);
             if (scenario.has("velocity")) {
                 JsonArray v = scenario.getAsJsonArray("velocity");
@@ -486,8 +538,10 @@ public final class MovementOracle {
                 frames.add(f);
             }
             player.stopRiding();
+            for (var other : obstacles) other.discard();
             JsonObject out = new JsonObject();
             out.addProperty("name", scenario.get("name").getAsString());
+            if (scenario.has("collision_bodies")) out.add("collision_boxes", collisionBoxes);
             out.add("states", resolved); out.add("frames", frames);
             return out;
         } catch (Exception e) { throw new RuntimeException(e); }
@@ -529,6 +583,24 @@ public final class MovementOracle {
         }
         JsonArray results = new JsonArray();
         MinecraftServer s = server;
+        boolean collisionScenes = false;
+        for (JsonElement e : scenarios) collisionScenes |= e.getAsJsonObject().has("collision_bodies");
+        if (collisionScenes) {
+            // Wait on the original server's actual entity-ticking chunk state,
+            // outside its thread. Hidden entity sections are not a collision oracle.
+            s.executeBlocking(() -> {
+                for (int x=63;x<=65;x++) for (int z=63;z<=65;z++) {
+                    s.overworld().setChunkForced(x,z,true);
+                    s.overworld().getChunk(x,z);
+                }
+            });
+            java.util.concurrent.atomic.AtomicBoolean ready = new java.util.concurrent.atomic.AtomicBoolean(false);
+            for (int attempt=0;attempt<600 && !ready.get();attempt++) {
+                s.executeBlocking(() -> ready.set(s.overworld().isPositionEntityTicking(new BlockPos(1024,100,1024))));
+                if (!ready.get()) Thread.sleep(50);
+            }
+            if (!ready.get()) throw new IllegalStateException("native collision fixture chunk is not entity ticking");
+        }
         server.executeBlocking(() -> {
             ServerLevel level = s.overworld();
             BlockPos origin = new BlockPos(1024, 100, 1024);

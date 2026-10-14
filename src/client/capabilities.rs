@@ -35,7 +35,7 @@ pub enum Feature {
     WorldObservation,
     /// Common own-player and received inventory observations.
     PlayerObservation,
-    /// Received experience, weather, default spawn and world-view fields.
+    /// Received abilities, difficulty, experience, weather, spawn and view fields.
     PlayerContext,
     /// Received biome volumes, packed heightmaps and block-entity NBT.
     ChunkContext,
@@ -111,7 +111,7 @@ pub enum Feature {
     BlockQueries,
     /// Current received entity motion, health, equipment and default bounding boxes.
     EntityState,
-    /// Held survival keys and owned one-shot ground requests with native physics.
+    /// Mode-bound ground keys/jumps and Creative/Spectator held flight.
     ContinuousControl,
     /// Item use, release and use on a block face, with the received item-in-use flag.
     ItemUse,
@@ -213,7 +213,7 @@ impl Capabilities {
                 "docs/common-chunk-context.md",
             ),
             Feature::PlayerContext => restricted(
-                "received experience/weather/default spawn/view packets; explicit version-only fields",
+                "received abilities, difficulty, XP, weather, spawn and view; explicit version-only fields",
                 "docs/common-player-context.md",
             ),
             Feature::ConnectionRevocation
@@ -340,7 +340,7 @@ impl Capabilities {
                 "docs/common-blocks.md",
             ),
             Feature::ContinuousControl => restricted(
-                "held survival keys and owned ground jumps; terrain, fluids, climbables; no flying or riding",
+                "mode-bound ground/fluid/climbing keys; Creative/Spectator flight; no elytra or riding",
                 "docs/common-control.md",
             ),
             Feature::ItemUse => restricted(
@@ -360,7 +360,7 @@ impl Capabilities {
                 "docs/common-inventory-helpers.md",
             ),
             Feature::EntityState => restricted(
-                "received health, equipment and named data with type defaults; default-dimension boxes",
+                "received entity fields; default boxes and qualified player/cow/pig/zombie pose/baby/scale models",
                 "docs/common-entities.md",
             ),
             Feature::Chat => restricted(

@@ -6,14 +6,16 @@
 //! block state, block friction/speed/jump factors, slime and bed bounces, cobwebs
 //! and berry bushes, sneaking (including edge back-off), sprinting, movement
 //! attributes and effects, water and lava (currents, swimming, surfacing,
-//! jumping out onto ledges), bubble columns, ladders, vines and scaffolding.
+//! jumping out onto ledges), bubble columns, ladders, vines and scaffolding,
+//! Creative flight and Spectator movement with original received abilities.
 //! Outside it the tick returns `ErrorKind::Unsupported` before changing state:
-//! flying, riding, levitation,
+//! riding, levitation,
 //! honey wall sliding and anything not reviewed in `blocks`.
 pub(crate) mod blocks;
 pub(crate) mod boat;
 mod bubbles;
 pub(crate) mod collision;
+pub(crate) mod equipment;
 #[cfg(test)]
 mod oracle_tests;
 
@@ -69,6 +71,12 @@ pub struct Modifier {
 /// as the server sent them; the engine adds only the client's own sprint modifier.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Environment {
+    /// Own native scale; missing input refuses. Legacy is exactly one.
+    #[serde(default = "unit_scale")]
+    pub player_scale: Option<f64>,
+    /// Explicit admitted Elytra model; never a sent start request or permission.
+    #[serde(default)]
+    pub gliding: bool,
     pub movement_speed_base: f64,
     /// Received movement-speed modifiers in arrival order (without sprinting).
     pub movement_speed_modifiers: Vec<Modifier>,
@@ -88,10 +96,26 @@ pub struct Environment {
     pub water_movement_efficiency: f64,
     /// Legacy Depth Strider level on the boots (0..3 counts).
     pub depth_strider: u8,
+    /// Legacy Soul Speed block tag from the owning received registry context.
+    /// Some(empty) is a received empty tag; None means no Soul Speed on the boots.
+    #[serde(default)]
+    pub legacy_soul_speed_blocks: Option<Vec<String>>,
+    /// A supplied equipment receipt/tag could not be interpreted safely.
+    #[serde(default)]
+    pub equipment_unavailable: bool,
     /// Dimension with fast lava (the Nether): stronger lava currents.
     pub fast_lava: bool,
     pub food_level: i32,
     pub may_fly: bool,
+    /// Explicit local flight model, separately admitted by the connection owner.
+    #[serde(default)]
+    pub flying: bool,
+    /// Spectator's native noPhysics movement; never inferred from flight permission.
+    #[serde(default)]
+    pub spectator: bool,
+    /// Original abilities speed converted for the model; absence is not 0.05.
+    #[serde(default)]
+    pub ability_flying_speed: Option<f32>,
     /// Item in use as the client sees it (`LocalPlayer.isUsingItem`), with its use effects.
     pub using_item: Option<ItemUse>,
 }
@@ -113,11 +137,32 @@ impl ItemUse {
     };
 }
 
+fn unit_scale() -> Option<f64> {
+    Some(1.0)
+}
+fn unit_model_scale() -> f32 {
+    1.0
+}
+
+/// Finite qualification and bounded collision-query range.
+pub(crate) fn supported_player_scale(version: MinecraftVersion, value: Option<f64>) -> bool {
+    value.is_some_and(|s| {
+        s.is_finite()
+            && if version == MinecraftVersion::Java1_16_1 {
+                s == 1.0
+            } else {
+                (0.125..=4.0).contains(&s)
+            }
+    })
+}
+
 impl Environment {
     /// Native defaults of a fresh survival player.
     pub fn defaults(version: MinecraftVersion) -> Self {
         let c = &version.table().physics;
         Self {
+            player_scale: Some(1.0),
+            gliding: false,
             movement_speed_base: f64::from(c.base_movement_speed),
             movement_speed_modifiers: Vec::new(),
             jump_strength: f64::from(c.jump_velocity),
@@ -133,9 +178,14 @@ impl Environment {
             dolphins_grace: false,
             water_movement_efficiency: 0.0,
             depth_strider: 0,
+            legacy_soul_speed_blocks: None,
+            equipment_unavailable: false,
             fast_lava: false,
             food_level: 20,
             may_fly: false,
+            flying: false,
+            spectator: false,
+            ability_flying_speed: None,
             using_item: None,
         }
     }
@@ -150,11 +200,16 @@ pub enum Pose {
     Crouching,
     /// Swimming, or crawling where nothing taller fits.
     Swimming,
+    /// Elytra fall-flying dimensions; independent of Creative flight.
+    FallFlying,
 }
 
 /// The engine's player state between ticks.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Body {
+    /// Original float scale used by numerical dimensions; not a receipt.
+    #[serde(default = "unit_model_scale")]
+    pub scale: f32,
     pub position: [f64; 3],
     /// Collision box (persisted separately where the version moves the box).
     pub bounds: [f64; 6],
@@ -191,6 +246,15 @@ pub struct Body {
     touching_lava: bool,
     /// Entity.firstTick: true only for a freshly created entity.
     pub first_tick: bool,
+    /// Native Creative landing decision after this tick; a model outcome only.
+    #[serde(default)]
+    pub flight_landed: bool,
+    /// Numerical Elytra flag, distinct from the actual metadata flag.
+    #[serde(default)]
+    pub gliding: bool,
+    /// Numerical landing/ladder end decision; not a received end.
+    #[serde(default)]
+    pub glide_ended: bool,
 }
 
 const WIDTH: f32 = 0.6;
@@ -198,7 +262,7 @@ fn height(pose: Pose) -> f32 {
     match pose {
         Pose::Standing => 1.8,
         Pose::Crouching => 1.5,
-        Pose::Swimming => 0.6,
+        Pose::Swimming | Pose::FallFlying => 0.6,
     }
 }
 
@@ -206,19 +270,19 @@ fn eye_height(pose: Pose) -> f32 {
     match pose {
         Pose::Standing => 1.62,
         Pose::Crouching => 1.27,
-        Pose::Swimming => 0.4,
+        Pose::Swimming | Pose::FallFlying => 0.4,
     }
 }
 
 /// EntityDimensions.makeBoundingBox.
-fn make_box(p: [f64; 3], pose: Pose) -> [f64; 6] {
-    let half = f64::from(WIDTH / 2.0);
+fn make_box(p: [f64; 3], pose: Pose, scale: f32) -> [f64; 6] {
+    let half = f64::from((WIDTH * scale) / 2.0);
     [
         p[0] - half,
         p[1],
         p[2] - half,
         p[0] + half,
-        p[1] + f64::from(height(pose)),
+        p[1] + f64::from(height(pose) * scale),
         p[2] + half,
     ]
 }
@@ -236,18 +300,40 @@ fn floor(v: f64) -> i32 {
 }
 
 impl Body {
+    pub(crate) fn admit_glide_pose(&mut self) {
+        self.pose = Pose::FallFlying;
+        self.bounds = make_box(self.position, self.pose, self.scale);
+    }
+    pub(crate) fn leave_glide_pose(&mut self) {
+        self.gliding = false;
+        self.glide_ended = false;
+        self.pose = Pose::Standing;
+        self.bounds = make_box(self.position, self.pose, self.scale);
+    }
+
+    pub(crate) fn set_scale(&mut self, scale: f32) {
+        if self.scale != scale {
+            self.scale = scale;
+            self.bounds = make_box(self.position, self.pose, scale);
+        }
+    }
+    pub(crate) fn eye_height(&self) -> f32 {
+        eye_height(self.pose) * self.scale
+    }
+
     /// Apply a received position (Entity.setPos): the box follows the position;
     /// velocity, ground and pose state are kept until received separately.
     pub(crate) fn teleport(&mut self, _version: MinecraftVersion, position: [f64; 3]) {
         self.position = position;
-        self.bounds = make_box(position, self.pose);
+        self.bounds = make_box(position, self.pose, self.scale);
     }
 
     /// A player standing still at `position` with the given received speed facts.
     pub fn new(position: [f64; 3]) -> Self {
         Self {
+            scale: 1.0,
             position,
-            bounds: make_box(position, Pose::Standing),
+            bounds: make_box(position, Pose::Standing, 1.0),
             velocity: [0.0; 3],
             on_ground: true,
             horizontal_collision: false,
@@ -275,6 +361,9 @@ impl Body {
             lava_height: 0.0,
             touching_lava: false,
             first_tick: false,
+            flight_landed: false,
+            gliding: false,
+            glide_ended: false,
         }
     }
 }
@@ -292,6 +381,89 @@ struct Level<'a, F> {
     block_at: &'a mut F,
     cache: HashMap<[i32; 3], (&'static blocks::State, &'static blocks::Block)>,
     states: HashMap<[i32; 3], NativeBlockState>,
+}
+
+/// A conservative dry, airborne, known static origin for the qualified glide lane.
+/// Downward shape contact is a numerical admission check, never a server ground sample.
+pub(crate) fn glide_origin(
+    version: MinecraftVersion,
+    body: &Body,
+    block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
+) -> Result<()> {
+    let mut level = Level {
+        version,
+        block_at,
+        cache: HashMap::new(),
+        states: HashMap::new(),
+    };
+    let b = body.bounds;
+    for x in floor(b[0])..=floor(b[3]) {
+        for y in floor(b[1])..=floor(b[4]) {
+            for z in floor(b[2])..=floor(b[5]) {
+                if level.fluid([x, y, z])?.is_some() {
+                    return Err(unsupported("glide fluid origin is unqualified".into()));
+                }
+            }
+        }
+    }
+    let below = [b[0], b[1] - 1e-7, b[2], b[3], b[4] - 1e-7, b[5]];
+    if body.on_ground
+        || !level.no_collision(
+            below,
+            CollisionContext {
+                bottom: b[1],
+                descending: false,
+            },
+        )?
+    {
+        return Err(unsupported(
+            "glide requires an airborne numerical origin".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Original inherited living isPushable's onClimbable input, sampled at feet.
+pub(crate) fn contact_climbable(
+    version: MinecraftVersion,
+    position: [f64; 3],
+    block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
+) -> Result<bool> {
+    let feet = position.map(floor);
+    let state = block_at(feet)?;
+    let (_, block) = blocks::lookup(version, &state)?;
+    if block.climbable {
+        return Ok(true);
+    }
+    if block.trapdoor && state.properties.get("open").map(String::as_str) == Some("true") {
+        let below = block_at([feet[0], feet[1] - 1, feet[2]])?;
+        return Ok(below.name == "minecraft:ladder"
+            && below.properties.get("facing") == state.properties.get("facing"));
+    }
+    Ok(false)
+}
+
+/// Original interpolation's block noCollision input. Entity geometry is
+/// checked separately by the owner at the same coherent model boundary.
+pub(crate) fn contact_block_collision_free(
+    version: MinecraftVersion,
+    bounds: [f64; 6],
+    current_bottom: f64,
+    block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
+) -> Result<bool> {
+    let mut level = Level {
+        version,
+        block_at,
+        cache: HashMap::new(),
+        states: HashMap::new(),
+    };
+    level.no_collision(
+        bounds,
+        CollisionContext {
+            bottom: current_bottom,
+            descending: false,
+        },
+    )
 }
 
 impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Level<'_, F> {
@@ -479,8 +651,39 @@ pub(crate) fn tick_with_ground_jump(
     {
         return Err(crate::client::registry::invalid("controls out of range"));
     }
+    if !supported_player_scale(version, env.player_scale) {
+        return Err(unsupported("unqualified or missing player scale".into()));
+    }
+    if env.gliding && (env.flying || env.player_scale != Some(1.0) || ground_requested) {
+        return Err(unsupported(
+            "Elytra requires separate unit-scale glide controls".into(),
+        ));
+    }
     if env.levitation {
         return Err(unsupported("levitation".into()));
+    }
+    if env.flying
+        && (!env.may_fly
+            || env
+                .ability_flying_speed
+                .is_none_or(|s| !s.is_finite() || s < 0.0))
+    {
+        return Err(unsupported(
+            "flight requires received permission and speed".into(),
+        ));
+    }
+    if env.spectator && !env.flying {
+        return Err(unsupported("spectator requires the flight model".into()));
+    }
+    if env.flying && ground_requested {
+        return Err(unsupported(
+            "ground requests do not apply to held flight".into(),
+        ));
+    }
+    if env.equipment_unavailable {
+        return Err(unsupported(
+            "received movement equipment/tag unavailable".into(),
+        ));
     }
     let mut level = Level {
         version,
@@ -489,6 +692,7 @@ pub(crate) fn tick_with_ground_jump(
         states: HashMap::new(),
     };
     let mut next = body.clone();
+    next.set_scale(env.player_scale.expect("validated scale") as f32);
     let outcome = Tick {
         version,
         rules: &version.table().physics_rules,
@@ -521,6 +725,13 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         controls: Controls,
         ground_requested: bool,
     ) -> Result<Option<crate::client::control::GroundJumpOutcome>> {
+        self.body.flight_landed = false;
+        self.body.gliding = self.env.gliding;
+        self.body.glide_ended = false;
+        // Player.tick clears the Spectator ground flag before travel.
+        if self.env.spectator {
+            self.body.on_ground = false;
+        }
         self.body.yaw = controls.yaw;
         self.body.pitch = controls.pitch;
         // Player.tick: updateIsUnderwater, then Entity.baseTick.
@@ -559,7 +770,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             self.modify_input()
         };
         let jumping = self.body.keys.jump;
-        if jumping {
+        if jumping && !self.env.flying {
             let lava = self.in_lava();
             let height = if lava {
                 self.body.lava_height
@@ -609,7 +820,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             zza *= 0.98;
         }
         self.travel([f64::from(xxa), 0.0, f64::from(zza)])?;
-        if !self.legacy() {
+        if !self.legacy() && !self.env.spectator {
             self.apply_effects_from_blocks(old_position)?;
         }
         // Player.aiStep tail.
@@ -620,13 +831,18 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 0.02
             };
         }
-        // Player.tick tail.
+        // LocalPlayer.aiStep clears Creative flight before Player.tick updates
+        // pose. Landing with Shift therefore changes the box in this tick.
+        self.body.flight_landed = self.env.flying && !self.env.spectator && self.body.on_ground;
         self.update_pose()?;
         Ok(ground_outcome)
     }
 
     /// LivingEntity.onClimbable: only the feet cell, including aligned open trapdoors.
     fn on_climbable(&mut self) -> Result<bool> {
+        if self.env.spectator {
+            return Ok(false);
+        }
         let feet = self.block_position();
         let block = self.level.block(feet)?;
         Ok(block.climbable || block.trapdoor && self.trapdoor_ladder(feet)?)
@@ -668,7 +884,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn eye_height(&self) -> f32 {
-        eye_height(self.body.pose)
+        self.body.eye_height()
     }
 
     /// Entity.getFluidJumpThreshold.
@@ -784,7 +1000,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
             }
         }
-        if self.length(push) > 0.0 {
+        if !self.env.flying && self.length(push) > 0.0 {
             if count > 0 {
                 push = push.map(|c| c * (1.0 / f64::from(count)));
             }
@@ -850,7 +1066,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         };
         // updateSwimming (Player: not while flying).
         let under_water = self.body.was_eye_in_water && self.body.in_water;
-        self.body.swimming = if self.body.swimming {
+        self.body.swimming = if self.env.flying {
+            false
+        } else if self.body.swimming {
             self.body.sprinting && self.body.in_water
         } else {
             let feet_water = self.legacy()
@@ -1028,7 +1246,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 p[2] + f64::from(half),
             ]
         } else {
-            make_box(self.body.position, pose)
+            make_box(self.body.position, pose, self.body.scale)
         };
         self.level
             .no_collision(deflate(b, 1e-7), self.collision_context())
@@ -1039,7 +1257,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         let under = self.body.under_water;
         if self.legacy() {
             let had_impulse = self.enough_impulse_to_sprint();
-            self.body.crouching = !self.body.swimming
+            self.body.crouching = !self.env.flying
+                && !self.body.swimming
                 && self.fits(Pose::Crouching)?
                 && (sneaking_before || !self.fits(Pose::Standing)?);
             self.body.keys = controls;
@@ -1056,7 +1275,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 forward *= 0.2;
             }
             self.body.move_vector = [left, forward];
-            self.push_out_legacy()?;
+            if !self.env.spectator {
+                self.push_out_legacy()?;
+            }
             let food = self.env.food_level > 6 || self.env.may_fly;
             let b = &*self.body;
             let possible =
@@ -1090,7 +1311,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
             }
         } else {
-            self.body.crouching = !self.body.swimming
+            self.body.crouching = !self.env.flying
+                && !self.body.swimming
                 && self.fits(Pose::Crouching)?
                 && (sneaking_before || !self.fits(Pose::Standing)?);
             self.body.keys = controls;
@@ -1101,17 +1323,20 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             } else {
                 [x / length, y / length]
             };
-            self.push_out_modern()?;
+            if !self.env.spectator {
+                self.push_out_modern()?;
+            }
             let in_water = self.body.in_water;
             let able = !self.env.blindness && (self.env.food_level > 6 || self.env.may_fly);
             // isSprintingPossible(flying=false): not in shallow water.
-            let possible = able && (!in_water || under);
+            let possible = able && (self.env.flying || !in_water || under);
             let forward = self.body.move_vector[1] > 1.0e-5;
             let moving_slowly =
                 self.body.crouching || self.body.pose == Pose::Swimming && !in_water;
             // isSlowDueToUsingItem: in use and its effects forbid sprinting.
             let slow_item = self.env.using_item.is_some_and(|u| !u.can_sprint);
             if !self.body.sprinting
+                && (!self.body.gliding || under)
                 && forward
                 && possible
                 && !slow_item
@@ -1133,8 +1358,18 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
             }
         }
-        if self.body.in_water && controls.sneak {
+        if self.body.in_water && controls.sneak && !self.env.flying {
             self.body.velocity[1] += f64::from(-0.04f32);
+        }
+        if self.env.flying {
+            let vertical = i8::from(controls.jump) - i8::from(controls.sneak);
+            if vertical != 0 {
+                let speed = self
+                    .env
+                    .ability_flying_speed
+                    .expect("validated flight speed");
+                self.body.velocity[1] += f64::from(f32::from(vertical) * speed * 3.0);
+            }
         }
         Ok(())
     }
@@ -1181,7 +1416,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
 
     // LocalPlayer.moveTowardsClosestSpace.
     fn push_out_modern(&mut self) -> Result<()> {
-        let w = f64::from(WIDTH) * 0.35;
+        let w = f64::from(WIDTH * self.body.scale) * 0.35;
         let p = self.body.position;
         for (x, z) in [
             (p[0] - w, p[2] + w),
@@ -1247,7 +1482,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
 
     // LocalPlayer.checkInBlock.
     fn push_out_legacy(&mut self) -> Result<()> {
-        let w = f64::from(WIDTH) * 0.35;
+        let w = f64::from(WIDTH * self.body.scale) * 0.35;
         let p = self.body.position;
         let y = p[1] + 0.5;
         for (x, z) in [
@@ -1386,10 +1621,100 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn travel(&mut self, input: [f64; 3]) -> Result<()> {
+        if self.env.flying {
+            let vertical = self.body.velocity[1];
+            self.travel_ground(input)?;
+            self.body.velocity[1] = vertical * 0.6;
+            self.body.fall_distance = 0.0;
+            return Ok(());
+        }
+        self.travel_ground_or_fluid(input)
+    }
+
+    fn travel_ground_or_fluid(&mut self, input: [f64; 3]) -> Result<()> {
         self.swim_vertical()?;
         if self.body.in_water || self.in_lava() {
+            if self.body.gliding {
+                return Err(unsupported("glide fluid travel is unqualified".into()));
+            }
             return self.travel_in_fluid(input);
         }
+        if self.body.gliding {
+            return self.travel_gliding(input);
+        }
+        self.travel_ground(input)
+    }
+
+    fn travel_gliding(&mut self, input: [f64; 3]) -> Result<()> {
+        if !self.legacy() && self.on_climbable()? {
+            self.travel_ground(input)?;
+            self.body.gliding = false;
+            self.body.glide_ended = true;
+            return Ok(());
+        }
+        let v = self.body.velocity;
+        if self.legacy() && v[1] > -0.5 {
+            self.body.fall_distance = 1.0;
+        }
+        let pitch = self.body.pitch * (std::f32::consts::PI / 180.0);
+        let trig =
+            |angle, cosine| crate::client::survival::model::trig(self.version, angle, cosine);
+        let yaw = -self.body.yaw * (std::f32::consts::PI / 180.0);
+        let look = [
+            f64::from(trig(yaw, false) * trig(pitch, true)),
+            f64::from(-trig(pitch, false)),
+            f64::from(trig(yaw, true) * trig(pitch, true)),
+        ];
+        let horizontal_look = (look[0] * look[0] + look[2] * look[2]).sqrt();
+        let horizontal_speed = (v[0] * v[0] + v[2] * v[2]).sqrt();
+        let lift = if self.legacy() {
+            let cos = crate::client::survival::model::trig(self.version, pitch, true);
+            f64::from(
+                (f64::from(cos) * (f64::from(cos) * (self.length(look) / 0.4).min(1.0))) as f32,
+            )
+        } else {
+            let cos = f64::from(pitch).cos();
+            cos * cos
+        };
+        let gravity = if v[1] <= 0.0 && self.env.slow_falling {
+            if self.legacy() {
+                0.01
+            } else {
+                self.env.gravity.min(0.01)
+            }
+        } else {
+            self.env.gravity
+        };
+        let mut next = [v[0], v[1] + gravity * (-1.0 + lift * 0.75), v[2]];
+        if next[1] < 0.0 && horizontal_look > 0.0 {
+            let lift_delta = next[1] * -0.1 * lift;
+            next[0] += look[0] * lift_delta / horizontal_look;
+            next[1] += lift_delta;
+            next[2] += look[2] * lift_delta / horizontal_look;
+        }
+        if pitch < 0.0 && horizontal_look > 0.0 {
+            let sine = crate::client::survival::model::trig(self.version, pitch, false);
+            let rise = horizontal_speed * f64::from(-sine) * 0.04;
+            next[0] += -look[0] * rise / horizontal_look;
+            next[1] += rise * 3.2;
+            next[2] += -look[2] * rise / horizontal_look;
+        }
+        if horizontal_look > 0.0 {
+            next[0] += (look[0] / horizontal_look * horizontal_speed - next[0]) * 0.1;
+            next[2] += (look[2] / horizontal_look * horizontal_speed - next[2]) * 0.1;
+        }
+        next[0] *= f64::from(0.99f32);
+        next[1] *= f64::from(0.98f32);
+        next[2] *= f64::from(0.99f32);
+        self.body.velocity = next;
+        self.do_move(next)?;
+        if self.body.on_ground {
+            self.body.glide_ended = true;
+        }
+        Ok(())
+    }
+
+    fn travel_ground(&mut self, input: [f64; 3]) -> Result<()> {
         let below = self.below_affecting_movement();
         let block_friction = self.level.block(below)?.friction;
         let legacy = self.legacy();
@@ -1417,6 +1742,11 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             // Player.getSpeed reads the attribute live.
             movement_speed(self.version, self.env, self.body.sprinting) as f32
                 * (0.21600002f32 / (friction * friction * friction))
+        } else if self.env.flying {
+            self.env
+                .ability_flying_speed
+                .expect("validated flight speed")
+                * if self.body.sprinting { 2.0 } else { 1.0 }
         } else if legacy {
             self.body.flying_speed
         } else if self.body.sprinting {
@@ -1478,6 +1808,22 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn do_move(&mut self, mut motion: [f64; 3]) -> Result<()> {
+        if self.env.spectator {
+            if self.legacy() {
+                // Original 1.16.1 noPhysics: move the existing box, then derive
+                // its center. Reconstructing a box from position loses rounding.
+                let b = shifted(self.body.bounds, motion);
+                self.body.bounds = b;
+                self.body.position = [(b[0] + b[3]) / 2.0, b[1], (b[2] + b[5]) / 2.0];
+            } else {
+                let position = std::array::from_fn(|i| self.body.position[i] + motion[i]);
+                self.body.teleport(self.version, position);
+                self.body.horizontal_collision = false;
+                self.body.vertical_collision = false;
+                self.body.minor_horizontal_collision = false;
+            }
+            return Ok(());
+        }
         let legacy = self.legacy();
         let stuck = self.body.stuck;
         if stuck.iter().map(|v| v * v).sum::<f64>() > 1.0e-7 {
@@ -1517,7 +1863,40 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         let apply = moved2 > 1.0e-7 || (!legacy && motion2 - moved2 < 1.0e-7);
         if apply {
             if !legacy && self.body.fall_distance != 0.0 && moved2 >= 1.0 {
-                return Err(unsupported("fall-distance reset sweep".into()));
+                if !self.body.gliding {
+                    return Err(unsupported("fall-distance reset sweep".into()));
+                }
+                // Original Entity.move clips a segment of at most eight blocks
+                // against FALLDAMAGE_RESETTING blocks and water. Prove MISS for
+                // the vanilla dry glide domain, conservatively inspecting the
+                // whole segment envelope (including native traversal endpoint
+                // extrapolation). A possible hit still refuses atomically;
+                // this is not a replacement raycast for water/resetting blocks.
+                let length = moved2.sqrt();
+                let distance = length.min(8.0);
+                let end: [f64; 3] = std::array::from_fn(|i| {
+                    self.body.position[i] + collided[i] / length * distance
+                });
+                let from: [i32; 3] =
+                    std::array::from_fn(|i| floor(self.body.position[i].min(end[i]) - 1.0e-6));
+                let to: [i32; 3] =
+                    std::array::from_fn(|i| floor(self.body.position[i].max(end[i]) + 1.0e-6));
+                for x in from[0]..=to[0] {
+                    for y in from[1]..=to[1] {
+                        for z in from[2]..=to[2] {
+                            let (state, block) = self.level.get([x, y, z])?;
+                            if state.fluid.is_some_and(|fluid| !fluid.lava)
+                                || block.climbable
+                                || matches!(
+                                    block.name.as_str(),
+                                    "minecraft:cobweb" | "minecraft:sweet_berry_bush"
+                                )
+                            {
+                                return Err(unsupported("glide fall-distance reset sweep may hit water or resetting block".into()));
+                            }
+                        }
+                    }
+                }
             }
             if self.rules.position_from_bounds {
                 self.body.bounds = shifted(self.body.bounds, collided);
@@ -1525,7 +1904,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 self.body.position = [(b[0] + b[3]) / 2.0, b[1], (b[2] + b[5]) / 2.0];
             } else {
                 self.body.position = std::array::from_fn(|i| self.body.position[i] + collided[i]);
-                self.body.bounds = make_box(self.body.position, self.body.pose);
+                self.body.bounds = make_box(self.body.position, self.body.pose, self.body.scale);
             }
         }
         let equal = |a: f64, b: f64| (b - a).abs() < f64::from(1.0e-5f32);
@@ -1598,8 +1977,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     fn after_fall_on(&mut self, block: &blocks::Block) -> Result<()> {
         let v = &mut self.body.velocity;
         match block.after_fall_on {
-            Effect::None => v[1] = 0.0,
-            Effect::Slime | Effect::Bed if self.body.keys.sneak => v[1] = 0.0,
+            Effect::None => v[1] *= 0.0,
+            Effect::Slime | Effect::Bed if self.body.keys.sneak => v[1] *= 0.0,
             Effect::Slime => {
                 if v[1] < 0.0 {
                     v[1] = -v[1] * 1.0;
@@ -1637,6 +2016,15 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn speed_factor(&mut self) -> Result<f32> {
+        if self.legacy() {
+            let env = self.env;
+            if let Some(blocks) = &env.legacy_soul_speed_blocks {
+                let p = self.landing_position()?;
+                if blocks.contains(&self.level.block(p)?.name) {
+                    return Ok(1.0);
+                }
+            }
+        }
         let feet = self.level.block(self.block_position())?;
         let own = feet.speed_factor;
         let below = self.below_affecting_movement();
@@ -1696,6 +2084,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
                 Ok(())
             }
+            // Player.makeStuckInBlock ignores these multipliers while flying.
+            Effect::Stuck if self.env.flying => Ok(()),
             Effect::Stuck if !certain => {
                 Err(unsupported(format!("possible contact with {}", block.name)))
             }
@@ -1726,7 +2116,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             }
             Effect::Honey => {
                 let p = self.body.position;
-                let half = 0.4375 + f64::from(WIDTH / 2.0);
+                let half = 0.4375 + f64::from((WIDTH * self.body.scale) / 2.0);
                 let sliding = !self.body.on_ground
                     && p[1] <= f64::from(cell[1]) + 0.9375 - 1.0e-7
                     && ((f64::from(cell[0]) + 0.5 - p[0]).abs() + 1.0e-7 > half
@@ -1759,7 +2149,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             for y in lo[1]..=hi[1] {
                 for z in lo[2]..=hi[2] {
                     let name = self.level.block([x, y, z])?.name.as_str();
-                    if self.level.block([x, y, z])?.inside == Effect::Stuck {
+                    if !self.env.flying && self.level.block([x, y, z])?.inside == Effect::Stuck {
                         if seen_stuck.is_some_and(|s| s != name) {
                             return Err(unsupported("mixed cobweb and berry bush".into()));
                         }
@@ -1790,7 +2180,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             [1, 0, 2]
         };
         let pose = self.body.pose;
-        let inside_box = |p: [f64; 3]| deflate(make_box(p, pose), f64::from(1.0e-5f32));
+        let scale = self.body.scale;
+        let inside_box = |p: [f64; 3]| deflate(make_box(p, pose, scale), f64::from(1.0e-5f32));
         let mut certain = vec![inside_box(from)];
         let mut possible = Vec::new();
         let mut at = from;
@@ -1829,7 +2220,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         for cell in sure.iter().chain(maybe.iter()) {
             let block = self.level.block(*cell)?;
             has_bubbles |= block.inside == Effect::BubbleColumn;
-            if block.inside == Effect::Stuck {
+            if !self.env.flying && block.inside == Effect::Stuck {
                 stuck_kinds.insert(self.level.block(*cell)?.name.as_str());
             }
         }
@@ -1856,7 +2247,10 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     fn bubble_effects_modern(&mut self, from: [f64; 3]) -> Result<()> {
         for (cell, certain) in
             bubbles::visits(from, self.body.position, self.movement_order, |p| {
-                deflate(make_box(p, self.body.pose), f64::from(1.0e-5f32))
+                deflate(
+                    make_box(p, self.body.pose, self.body.scale),
+                    f64::from(1.0e-5f32),
+                )
             })?
         {
             if self.level.block(cell)?.inside == Effect::BubbleColumn {
@@ -1932,7 +2326,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn back_off_from_edge(&mut self, motion: [f64; 3]) -> Result<[f64; 3]> {
-        if !self.body.keys.sneak {
+        if self.env.flying || !self.body.keys.sneak {
             return Ok(motion);
         }
         let step = f64::from(self.step_height());
@@ -2023,14 +2417,16 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         if !self.fits(Pose::Swimming)? {
             return Ok(());
         }
-        let desired = if self.body.swimming {
+        let desired = if self.body.gliding {
+            Pose::FallFlying
+        } else if self.body.swimming {
             Pose::Swimming
-        } else if self.body.keys.sneak {
+        } else if self.body.keys.sneak && (!self.env.flying || self.body.flight_landed) {
             Pose::Crouching
         } else {
             Pose::Standing
         };
-        let pose = if self.fits(desired)? {
+        let pose = if self.env.spectator || self.fits(desired)? {
             desired
         } else if self.fits(Pose::Crouching)? {
             Pose::Crouching
@@ -2050,7 +2446,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                     b[2] + f64::from(WIDTH),
                 ];
             } else {
-                self.body.bounds = make_box(self.body.position, pose);
+                self.body.bounds = make_box(self.body.position, pose, self.body.scale);
             }
         }
         Ok(())

@@ -1,5 +1,21 @@
 # 共通の継続操作（P7）
 
+地上・held flightの継続モデルは、1.21.11の自分のplayerの実受信scaleを
+0.125〜4の範囲で扱う。寸法・目の高さは原版のfloat演算で姿勢とscaleから作り、
+段差の高さや移動・ジャンプ速度に独自の倍率を掛けない。
+`ControlFrame.model_scale`・`bounds`・`eye_position`は数値予測で、受信確定値ではない。
+元属性・modifier・receive ordinalは`player().attributes`で別に観測する。
+
+操作中に開始点と異なるscaleを受信すると、対応範囲内でもownerを終了して入力を解除する。
+`ControlRecord.scale_change_sequence`はその最初の実受信ordinalを保持する。
+同じ値の再受信は終了条件にならず、変更後に元の値へ戻っても旧ownerを再開しない。
+新しいownerを明示的に開始する。欠測・非finite・範囲外は送信前に拒否する。
+原版のconstructorからの既知のunit初期値と、実際に受信した属性のsourceは区別する。
+1.16.1にはscale属性がなく、寸法は1、変更sequenceは`None`。
+
+[scale操作の契約と検証](common-player-scale.md)を参照。
+単発の採掘・到達距離・有限pathや乗車操作のscale制限は、この拡張の対象に含めない。
+
 `Client::survival()`の`start_control`・`set_controls_for`・`request_ground_jump`・`stop_control_for`・`control_record`は、
 キーを押し続ける操作を1.16.1と1.21.11で同じ型で扱う（`voxrig::client::control`）。
 
@@ -17,6 +33,90 @@ survival.stop_control_for(session.session_id).await?; // 対象sessionのダッ�
 # Ok(())
 # }
 ```
+
+## モードを指定する地上操作
+
+`Client::player_control(GameMode::Adventure)`と`GameMode::Creative`にも、
+`start_control`・`set_controls_for(id, controls)`・`request_ground_jump(id)`・
+`stop_control_for(id)`・`control_record`がある。同じ入口でSurvivalも扱える。
+モードは受信値と照合し、handleを作っても変更しない。Creativeも飛行を無効にした地上モデルである。
+Spectatorの地上開始は`Unsupported`、飛行中や乗車中の開始は拒否する。
+
+`ControlRecord::mode`は開始時に照合したモード。
+`mode_change_sequence`は、そのownerと異なるモードを実際に受信した最初のordinalである。
+1 tickの間に元のモードへ戻っても旧ownerは停止し、新規開始まで送信しない。
+`flight_change_sequence`も実際のabilitiesの飛行開始を保持し、地上へ戻っても旧ownerを再開しない。
+別モードのhandleと古いIDによる入力変更・ジャンプ・停止は他のownerを変更しない。
+停止済み記録の読取りと一致するownerの終了確認は、モード変更後にもできる。
+
+```rust,no_run
+use voxrig::client::control::Controls;
+use voxrig::client::prelude::*;
+# async fn walk(client: &Client) -> Result<()> {
+let ground = client.player_control(GameMode::Adventure);
+let owner = ground.start_control().await?;
+ground.set_controls_for(owner.session_id, Controls { forward: 1, yaw: 37.0, ..Default::default() }).await?;
+ground.request_ground_jump(owner.session_id).await?;
+ground.stop_control_for(owner.session_id).await?;
+# Ok(())
+# }
+```
+
+両版の公式サーバーで各27項目、計54項目を検証した。
+[結果・ハッシュ](evidence/common-ground-modes-20261011.json)と`run_ground_modes.py`を参照。
+元packet／NBTは非公開のローカル記録に保持する。
+
+## Creative・Spectatorの連続飛行
+
+`client.player_control(GameMode::Creative | GameMode::Spectator)`の
+`start_flight_control(Controls)`は、最初のtickから適用するキーを明示して飛行モデルを開始する。
+Creativeは先に既存の`client.creative().set_flying(true)`で飛行を有効にする。
+Spectatorは原版から受信した飛行状態を使う。現在worldの原版abilitiesと飛行速度が必要で、
+未受信の速度を0.05で補わない。速度0は原版どおり受け付ける。
+
+```rust,no_run
+use voxrig::client::control::Controls;
+use voxrig::client::prelude::*;
+# async fn fly(client: &Client) -> Result<()> {
+client.creative().set_flying(true).await?;
+let flight = client.player_control(GameMode::Creative);
+let owner = flight.start_flight_control(Controls { jump: true, ..Default::default() }).await?;
+flight.set_controls_for(owner.session_id, Controls { forward: 1, sprint: true, yaw: 37.0, ..Default::default() }).await?;
+flight.stop_control_for(owner.session_id).await?;
+# Ok(())
+# }
+```
+
+ジャンプは上昇、しゃがみは下降となり、地上ジャンプのqueueは受け付けない。
+ダッシュと原版の飛行速度で横方向の加速を計算する。水中でも泳ぎへ切り替わらない。
+Creativeはブロックに衝突し、Spectatorは原版のnoPhysicsでブロックを通過する。
+旧版の箱中心による座標丸めと、最新版の直接座標加算をそれぞれ使う。
+
+`ControlRecord.kind`は`ground`、`flight`または`glide`。`flight_parameters`は最後にモデルが使った
+受信速度とそのordinalであり、現在のabilitiesやサーバーの承認を表さない。
+`ControlFrame.flying`もモデルの結果である。
+モード変更、飛行解除、権限喪失は旧ownerを終了し、同じtick内に復元されても再開しない。
+停止は入力を解除するが、飛行の無効化や物理的な静止を意味しない。
+再開は新しいIDと明示的な初期キーを使う。
+
+Creativeがモデル上で着地したtickでは、原版clientの順序でabilitiesの解除、移動、入力解除を送る。
+`flight_disable`は解除前の受信ordinalと完全書込みの有無を保持する。
+移動や入力解除の書込みが失敗しても解除の結果を隠さず、旧ownerは再送しない。
+着地は飛行ownerを終了するため、地上の継続は`start_control()`で明示する。
+古い受信飛行フラグに対するローカル解除と、新しい原版abilities通知を区別する。
+worldが変わった場合には旧worldの入力解除を送らない。
+
+有限の`set_flying`・`move_flying`・`land`の意味はそのままで、このAPIに暗黙変換しない。
+エリトラ、乗車、浮遊効果、未監査の地形・姿勢は別の対応範囲である。
+原版比較は両版38シナリオ・1,424 tick（離陸、速度0、昇降、ダッシュ、壁、水、着地、
+クモの巣、Spectatorのハチミツ通過）で行う。
+両版の公式サーバーで計70項目（1.16.1: 34、1.21.11: 36）、予期しない補正0件を確認した。
+[結果・ハッシュ](evidence/common-held-flight-20261011.json)を参照。
+最新版の高速ダッシュとSpectator壁通過は、明示停止後の最後の送信frameをRCONで観測する。
+速度や位置誤差は変えず、慣性を保持した再開は新しいIDで明示する。
+高速で連続送信しながらRCONが全snapshotを観測できるという主張はしない。
+実接続の再現には`run_flight_control.py`とビルド済み`climbing_control_probe`を使う。
+原packet/NBTは`.local`に保持し、公開証跡は結果とハッシュだけにする。
 
 ## 動き
 
@@ -111,10 +211,37 @@ let latest = survival.control_record().await?.unwrap().ground_jump;
   泡の柱の上昇・下降、水面からの出入りにも対応する。飛行・乗車は扱わない。
   泡の柱は両版の公式サーバーへ実接続し、上下・水面脱出・停止を
   [元の通信とRCON座標](evidence/common-fluid-control-20261009.json)で確認した。
-- 1.16.1の深海探索者・ソウルスピードの靴は、まだ環境に反映していない。
+- 1.16.1は受信したプレイヤースロット8の靴から深海探索者・ソウルスピードを環境へ反映する。
+  エンチャントは元の`Enchantments`の最初の一致を使い、保存用`StoredEnchantments`は適用しない。
+  深海探索者のレベルは公式と同じ0..255で読み、物理への効果は3で上限にする。
+  ソウルスピードの対象ブロックは受信した`minecraft:soul_speed_blocks`タグを使う。
+  タグが欠けている・解釈できない場合、または装備が`Unavailable`の場合、そのtickは送信前に`Paused`になる。
+  タグの明示的な空集合を標準ブロックで補わない。サーバー側の速度補正は受信属性として取り込み、独自に加算しない。
+- 1.21.11の水中移動効率は受信属性の加算・ベース乗算・総乗算を公式の順序で計算し、0..1に制限する。
+  `ControlRecord::movement_equipment`は最後にモデルへ渡した変換済み入力を示す。
+  停止後にも読める診断値であり、現在の装備・受信事実・操作権限・サーバー受理を表さない。
 - アイテムの使用中（盾・弓・食事）の減速は、受信した`using_item`に従って再現する。sessionの間も`use_item`・
   `release_use_item`を送れる（[アイテム使用](common-item-use.md)）。
 - 時刻はclientの時計で、serverのtickとは同期しない（公式clientと同じ）。
+
+## 装備の移動効果の検証（2026-10-10）
+
+公式の物理処理による11場面・330 tickで、深海探索者のレベル・最初の一致・保存用エンチャント、
+ソウルスピード、modernの水中移動属性の全操作と上限を厳密比較した。
+ソウルスピードの速度属性は公式`tryAddSoulSpeed`で初期入力に確立し、SDKが加算を作る比較にはしていない。
+改変していない両版の公式サーバーへ共通Clientで接続し、計13項目が通過した。
+装備更新中も同じ操作所有者を使い、元の属性・位置パケットとRCON位置を照合した。予期しない補正は0回。
+[検証記録](evidence/common-equipment-movement-20261010.json)は結果と入力・SDK・binary・公式JARのhashを公開する。
+元の通信・NBT記録はローカルに保持する。
+既存のCreative明示飛行も同じSDKで両版の公式サーバーへ接続し、有効化・3回の空中移動・
+一度の飛行解除とneutral・有限の着地・地上移動・収納操作への継続を再確認した。
+これは継続操作エンジンの飛行・エリトラ対応を意味しない。
+
+```sh
+cargo build --locked --features native --example climbing_control_probe
+python3 -B scripts/run_equipment_movement.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe --compiled-sdk-revision HEAD
+```
 
 ## 単発接地ジャンプの実接続検証（2026-10-09）
 
@@ -201,3 +328,19 @@ python3 -B scripts/run_climbing_control.py --accept-eula
 [検証記録](evidence/climbing-vehicle-control-20261008.json)へ保存した。
 既存の公式jarを使う場合は`--jars /absolute/path/to/downloads`、別のCargo targetを使う場合は
 `--binary /absolute/path/to/climbing_control_probe`を指定できる。jarのSHA-1を検証する。
+
+## 生物接触の操作への統合
+
+通常scaleのplayer / cow / pig / zombieの完全な受信履歴を操作ownerへ結び付ける。
+[生物接触owner](common-entity-owners.md)と[特殊dispatchの範囲](common-entity-dispatch.md)を参照。
+補正・履歴不足・未検証入力ではモデルを破棄し、古い起点から自動再開しない。
+ボートの失敗時は同じ健康な実乗車の受信境界に限りneutral/paddle解除を一度だけ試み、
+予測位置を再送しない。`failure_release`はintent・完全送信・拒否/不確実性を保持する。
+
+## Elytraの滑空
+
+`PlayerControl::start_glide_control(Controls)`は実装備・実flagを使う独立owner。
+開始writeは受理ではなく、owner停止も物理的な滑空終了ではない。
+操作・終端停止・未対応boostと証拠は[Elytra滑空](common-glide-control.md)を参照。
+
+追加姿勢の有限な一覧と未対応のsleep/Riptide操作は[姿勢の対応範囲](common-posture-coverage.md)を参照。

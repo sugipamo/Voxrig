@@ -858,27 +858,68 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
     Ok(responses)
 }
 
-fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
-    let id = r.count(1024)?;
+fn read_spawn_info(r: &mut Reader<'_>) -> anyhow::Result<crate::client::WorldEntryContext> {
+    let id = r.count(1024)? as i32;
     let name = r.string()?;
-    r.take(8)?;
+    anyhow::ensure!(
+        name.len() <= 32_767,
+        "world key exceeds native resource-key limit"
+    );
+    crate::client::identifier::parts(&name)?;
+    let hashed_seed = i64::from_be_bytes(r.take(8)?.try_into()?);
     let game_mode = r.u8()?;
-    r.u8()?;
-    r.bool()?;
-    r.bool()?;
-    if r.bool()? {
-        r.string()?;
-        r.take(8)?;
-    }
-    r.varint()?;
-    r.varint()?;
+    crate::client::GameMode::decode(game_mode)?;
+    let previous_game_mode = r.u8()? as i8;
+    let debug = r.bool()?;
+    let flat = r.bool()?;
+    let last_death = if r.bool()? {
+        let dimension = r.string()?;
+        anyhow::ensure!(
+            dimension.len() <= 32_767,
+            "death dimension exceeds native resource-key limit"
+        );
+        crate::client::identifier::parts(&dimension)?;
+        let position = super::wire::unpack_position(u64::from_be_bytes(r.take(8)?.try_into()?));
+        Some(crate::client::DeathLocation {
+            dimension,
+            position,
+        })
+    } else {
+        None
+    };
+    let portal_cooldown = r.varint()?;
+    let sea_level = r.varint()?;
+    Ok(crate::client::WorldEntryContext {
+        world_name: name,
+        dimension_type_name: None,
+        dimension_type_id: Some(id),
+        hashed_seed: Some(hashed_seed),
+        game_mode,
+        previous_game_mode,
+        debug: Some(debug),
+        flat: Some(flat),
+        last_death,
+        portal_cooldown: Some(portal_cooldown),
+        sea_level: Some(sea_level),
+        respawn_keep_data: None,
+    })
+}
+
+fn apply_spawn_info(
+    state: &mut State,
+    entry: crate::client::WorldEntryContext,
+) -> anyhow::Result<()> {
     let dimension = *state
         .dimensions
-        .get(id)
+        .get(entry.dimension_type_id.expect("modern dimension ID") as usize)
         .context("unknown dimension registry ID")?;
-    state.world.select_dimension(name, dimension);
+    // All wire fields and operation mode are validated before this commit boundary.
+    state
+        .world
+        .select_dimension(entry.world_name.clone(), dimension);
     state.loading.reset(state.sequence);
     state.context = Default::default();
+    state.context.world_entry = Some(crate::client::received(entry.clone(), state.sequence));
     state.entities.history_context(
         MinecraftVersion::Java1_21_11,
         state.loading.generation,
@@ -892,7 +933,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         capture.invalidate(recording::RecordingIssue::WorldChanged);
     }
     state.reconstruction = Reconstruction::default();
-    state.operations.reset_world(game_mode)?;
+    state.operations.reset_world(entry.game_mode)?;
     state.players.reset_world();
     state.entities.clear();
     state.vehicles.clear();
@@ -933,26 +974,36 @@ fn apply_play(
         input::MAP => state.context.maps.receive(payload, true, state.sequence)?,
         input::LOGIN => {
             let entity_id = r.i32()?;
-            if entity_id < 0 {
-                bail!("invalid own entity identifier");
-            }
-            r.bool()?;
+            anyhow::ensure!(entity_id >= 0, "invalid own entity identifier");
+            let hardcore = r.bool()?;
             for _ in 0..r.count(1024)? {
                 r.string()?;
             }
-            r.varint()?;
+            let max_players = r.varint()?;
             let view_distance = r.varint()?;
             let simulation_distance = r.varint()?;
             anyhow::ensure!(
-                view_distance >= 0 && simulation_distance >= 0,
-                "negative login world-view distance"
+                max_players >= 0 && view_distance >= 0 && simulation_distance >= 0,
+                "negative login limit"
             );
-            r.bool()?;
-            r.bool()?;
-            r.bool()?;
-            spawn_info(state, &mut r)?;
-            r.bool()?;
+            let reduced_debug_info = r.bool()?;
+            let enable_respawn_screen = r.bool()?;
+            let limited_crafting = r.bool()?;
+            let entry = read_spawn_info(&mut r)?;
+            let enforces_secure_chat = r.bool()?;
             r.end()?;
+            apply_spawn_info(state, entry)?;
+            state.context.login_conditions = Some(crate::client::received(
+                crate::client::LoginConditions {
+                    max_players,
+                    reduced_debug_info,
+                    enable_respawn_screen,
+                    hardcore: Some(hardcore),
+                    limited_crafting: Some(limited_crafting),
+                    enforces_secure_chat: Some(enforces_secure_chat),
+                },
+                state.sequence,
+            ));
             state.context.world_view.distance =
                 Some(crate::client::received(view_distance, state.sequence));
             state.context.world_view.simulation_distance =
@@ -960,9 +1011,10 @@ fn apply_play(
             state.operations.local_player = operations::LocalPlayerState::spawned(entity_id);
         }
         input::RESPAWN => {
-            spawn_info(state, &mut r)?;
-            r.u8()?;
+            let mut entry = read_spawn_info(&mut r)?;
+            entry.respawn_keep_data = Some(r.u8()?);
             r.end()?;
+            apply_spawn_info(state, entry)?;
         }
         input::KEEP_ALIVE => {
             r.take(8)?;

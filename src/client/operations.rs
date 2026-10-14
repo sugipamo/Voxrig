@@ -417,7 +417,7 @@ impl Survival {
     /// Stop the current session, releasing sprint and sneak. Returns its record.
     /// Call `stop_control_for` when the caller tracks a particular session.
     pub async fn stop_control(&self) -> Result<Option<super::control::ControlRecord>> {
-        crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control(a).await)
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control_in_mode(a, GameMode::Survival, None).await)
     }
     /// Stop only the selected session; a missing or replacement session is
     /// rejected without releasing its inputs. The connection owns admitted
@@ -425,7 +425,10 @@ impl Survival {
     /// record remains readable; an old world cannot send release commands into
     /// the new world. Success records submission, not physical rest.
     pub async fn stop_control_for(&self, session_id: u64) -> Result<super::control::ControlRecord> {
-        crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control_for(a, session_id).await)
+        self.client
+            .player_control(GameMode::Survival)
+            .stop_control_for(session_id)
+            .await
     }
     /// Latest control record, readable after the session or connection ended.
     pub async fn control_record(&self) -> Result<Option<super::control::ControlRecord>> {

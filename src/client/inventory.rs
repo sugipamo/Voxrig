@@ -18,8 +18,8 @@ use crate::Result;
 /// Compatibility name for the common source UI used by inventory operations.
 pub use click::InventorySource as InventoryClickSource;
 pub use click::{
-    InventoryClickButton, InventoryClickId, InventoryClickPrediction, InventoryClickRecord,
-    InventoryClickSend, InventoryClickStage, InventorySource,
+    Invalidation, InventoryClickButton, InventoryClickId, InventoryClickPrediction,
+    InventoryClickRecord, InventoryClickSend, InventoryClickStage, InventorySource, StateChange,
 };
 pub use transfer::{
     InventoryTransferId, InventoryTransferRecord, InventoryTransferSlot, InventoryTransferStage,
@@ -133,6 +133,8 @@ pub struct InventorySwapRecord {
     pub legacy_reply: Option<InventoryTransactionReply>,
     /// First latched conflict; matching later state cannot erase it.
     pub requires_inspection: Option<String>,
+    /// First packet dependency failure and its original receipt.
+    pub invalidation: Option<Invalidation>,
     /// Retained outcome, separate from current inventory values.
     pub stage: InventorySwapStage,
 }
@@ -399,6 +401,7 @@ fn prepare_source_inner(
         hotbar_receipt: None,
         legacy_reply: None,
         requires_inspection: None,
+        invalidation: None,
         stage: InventorySwapStage::Pending,
     })
 }
@@ -486,7 +489,21 @@ pub(crate) fn receive_with_registries(
     screen: Option<&ContainerScreen>,
     registries: &super::registry::ServerRegistryObservation,
 ) {
+    let was_inspection = record.requires_inspection.is_some();
     receive_inner(record, current, screen, Some(registries));
+    if !was_inspection && current.session.version == crate::MinecraftVersion::Java1_16_1 {
+        if let Some(predicate) = record.requires_inspection.clone() {
+            record.invalidation.get_or_insert(Invalidation {
+                predicate,
+                change: if current.inventory.window_id != Some(record.window_id()) {
+                    StateChange::WindowChanged
+                } else {
+                    StateChange::SlotsChanged
+                },
+                receipt: current.receive_sequence,
+            });
+        }
+    }
 }
 fn receive_inner(
     record: &mut InventorySwapRecord,
@@ -526,10 +543,22 @@ fn receive_inner(
             .ok_or_else(|| unavailable("swap destination receipt unavailable"))
             .and_then(|value| {
                 let classification = if let Some(data) = &record.item_data {
+                    let registries = if current.session.version
+                        == crate::MinecraftVersion::Java1_16_1
+                        && record.send.dispatched
+                        && matches!(record.source, InventorySwapSource::PlayerMain)
+                    {
+                        Some(data.captured_owner())
+                    } else {
+                        registries
+                    };
                     let owner = registries
                         .filter(|owner| {
                             owner.session() == current.session
-                                && owner.receive_sequence() == current.receive_sequence
+                                && (current.session.version == crate::MinecraftVersion::Java1_16_1
+                                    && record.send.dispatched
+                                    && matches!(record.source, InventorySwapSource::PlayerMain)
+                                    || owner.receive_sequence() == current.receive_sequence)
                         })
                         .ok_or_else(|| unavailable("coherent swap registry capture unavailable"))?;
                     data.classify(is_source, value, before, owner)?

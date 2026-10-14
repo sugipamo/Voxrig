@@ -433,6 +433,12 @@ pub struct ConnectionOptions {
     pub event_channel_capacity: usize,
     /// Maximum time the connection actor waits for a protocol acknowledgement.
     pub protocol_ack_timeout: Duration,
+    /// Maximum receipt wait for each cursor-return click, starting after its write.
+    /// Expiry requires inspection; it never resends or extends the wait.
+    pub cursor_return_receipt_timeout: Duration,
+    /// Maximum ordinary PICKUP receipt wait after a complete write. Inspection
+    /// does not renew this deadline; timeout never authorizes a retry.
+    pub inventory_click_receipt_timeout: Duration,
 }
 
 impl Default for ConnectionOptions {
@@ -449,6 +455,8 @@ impl Default for ConnectionOptions {
             max_custom_payload_bytes: 65_536,
             event_channel_capacity: 256,
             protocol_ack_timeout: Duration::from_secs(5),
+            cursor_return_receipt_timeout: Duration::from_secs(5),
+            inventory_click_receipt_timeout: Duration::from_secs(5),
         }
     }
 }
@@ -808,6 +816,8 @@ pub struct SoundEvent {
 #[non_exhaustive]
 /// Possible values represented by `Event`.
 pub enum Event {
+    /// A complete own-player context receipt was applied.
+    PlayerContextUpdated,
     /// The `Login` variant.
     Login,
     /// The `Spawn` variant.
@@ -5078,14 +5088,7 @@ impl Bot {
             }
             0x0b => self.receive_block_change(&p, packet_sequence).await?,
             0x0c => self.receive_boss_bar(&p, packet_sequence).await?,
-            0x0d => {
-                let difficulty = Difficulty {
-                    id: *p.first().context("missing difficulty")?,
-                    locked: *p.get(1).context("missing difficulty lock")? != 0,
-                };
-                self.survival.write().await.difficulty = Some(difficulty);
-                self.emit(Event::Difficulty(difficulty));
-            }
+            0x0d => self.receive_difficulty(&p, packet_sequence).await?,
             0x0e => {
                 let chat = parse_chat(&p)?;
                 self.common_chat
@@ -5125,11 +5128,21 @@ impl Bot {
                 let mut rest = p.as_slice();
                 let item_id = get_varint(&mut rest)?;
                 let ticks = get_varint(&mut rest)?;
-                self.survival
-                    .write()
-                    .await
-                    .item_cooldowns
-                    .insert(item_id, ticks);
+                if !rest.is_empty() || item_id < 0 {
+                    return Err(anyhow::anyhow!("invalid item cooldown packet").into());
+                }
+                self.common_receipts.lock().await.context.cooldown(
+                    crate::client::CooldownKey::LegacyItem(item_id),
+                    ticks,
+                    packet_sequence,
+                )?;
+                let mut survival = self.survival.write().await;
+                if ticks == 0 {
+                    survival.item_cooldowns.remove(&item_id);
+                } else {
+                    survival.item_cooldowns.insert(item_id, ticks);
+                }
+                drop(survival);
                 self.emit(Event::ItemCooldown { item_id, ticks });
             }
             0x18 => self.receive_custom_payload(&p).await?,
@@ -5217,7 +5230,7 @@ impl Bot {
                 });
             }
             0x30 => self.receive_recipe_ghost(&p, packet_sequence).await?,
-            0x31 => self.receive_player_abilities(&p).await?,
+            0x31 => self.receive_player_abilities(&p, packet_sequence).await?,
             0x32 => self.receive_combat_event(&p, packet_sequence).await?,
             0x33 => self.receive_player_info(&p, id, packet_sequence).await?,
             0x34 => self.receive_face_player(&p).await?,
@@ -5414,6 +5427,9 @@ impl Bot {
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;
         self.enforce_session_limits().await?;
+        if matches!(id, 0x14 | 0x16) {
+            self.observe_common_glide_equipment(packet_sequence).await;
+        }
         Ok(true)
     }
 
@@ -6058,7 +6074,7 @@ fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
         min: [x, y, z],
         max: [x, y, z],
     };
-    match event {
+    let mut kinds = match event {
         Event::BlockChanged { x, y, z, .. } => vec![block(*x, *y, *z)],
         Event::BlockEntityUpdated(data) => {
             vec![block(data.position.x, data.position.y, data.position.z)]
@@ -6113,7 +6129,22 @@ fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
             }]
         }
         _ => Vec::new(),
+    };
+    if matches!(
+        event,
+        Event::Spawn
+            | Event::Respawn(_)
+            | Event::Experience(_)
+            | Event::Difficulty(_)
+            | Event::GameStateChange(_)
+            | Event::PlayerContextUpdated
+            | Event::SpawnPosition(_)
+            | Event::WorldViewUpdated(_)
+            | Event::ItemCooldown { .. }
+    ) {
+        kinds.push(K::ContextChanged);
     }
+    kinds
 }
 
 #[cfg(test)]

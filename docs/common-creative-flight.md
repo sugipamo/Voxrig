@@ -66,3 +66,5 @@ fresh chest開閉→切断まで同じClientで通す。
 Clippy warnings denied、Rust 1.85 all-target、rustdoc warnings denied、fmt、trace境界4件と、
 開発directoryを除く756 filesのCargo package buildも成功した。
 全体試験後のClippy指摘はcfg(test) moduleの配置を修正して再確認した。
+
+`player_control(GameMode::Creative).start_flight_control(Controls)`で行う連続飛行は[共通の継続操作](common-control.md)を参照。有限の飛行APIはそのまま使える。

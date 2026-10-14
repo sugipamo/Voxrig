@@ -255,15 +255,32 @@ pub(crate) trait PathMotionOps {
 
 /// Continuous control: held keys and per-tick client physics.
 pub(crate) trait ControlOps {
+    async fn start_glide_control(
+        &self,
+        mode: GameMode,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord>;
     async fn start_control(&self, mode: GameMode) -> Result<super::control::ControlRecord>;
+    async fn start_flight_control(
+        &self,
+        mode: GameMode,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord>;
     async fn set_controls(
         &self,
         mode: GameMode,
         session_id: Option<u64>,
         controls: super::control::Controls,
     ) -> Result<super::control::ControlRecord>;
+    #[cfg(test)]
     async fn stop_control(&self) -> Result<Option<super::control::ControlRecord>>;
+    #[cfg(test)]
     async fn stop_control_for(&self, session_id: u64) -> Result<super::control::ControlRecord>;
+    async fn stop_control_in_mode(
+        &self,
+        mode: GameMode,
+        session_id: Option<u64>,
+    ) -> Result<Option<super::control::ControlRecord>>;
     async fn request_ground_jump(
         &self,
         mode: GameMode,

@@ -1513,6 +1513,202 @@ async fn common_ground_fixture(
     (session, api, peer)
 }
 
+async fn common_glide_fixture() -> (Arc<Session>, crate::Client, TcpStream) {
+    let (session, api, peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    {
+        let mut state = session.state.lock().await;
+        let mut pose = state.motion.received_pose.clone().unwrap();
+        pose.position[1] = 68.0;
+        state.position = Some(pose.position);
+        state.motion.receive(pose);
+        state.motion.on_ground = Some(false);
+        let item =
+            crate::client::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11)
+                .item("minecraft:elytra")
+                .unwrap()
+                .id
+                .value();
+        let mut slot = vec![38, 1];
+        crate::protocol::put_varint(&mut slot, item);
+        slot.extend([0, 0]);
+        state
+            .receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &slot, 256)
+            .unwrap();
+    }
+    (
+        session,
+        crate::Client::from_java_1_21_11(api.bot.clone()),
+        peer,
+    )
+}
+
+#[tokio::test]
+async fn glide_start_without_actual_flag_times_out_without_position_or_retry() {
+    let (_session, client, mut peer) = common_glide_fixture().await;
+    let control = client.player_control(crate::client::GameMode::Survival);
+    let initial = control
+        .start_glide_control(Default::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::ENTITY_ACTION, vec![42, 6, 0])
+    );
+    let ended = timeout(Duration::from_secs(4), async {
+        loop {
+            let record = control.control_record().await.unwrap().unwrap();
+            if matches!(
+                record.status,
+                crate::client::control::ControlStatus::Stopped { .. }
+            ) {
+                break record;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(ended.session_id, initial.session_id);
+    assert_eq!(ended.dispatched_ticks, 0);
+    assert!(ended.frame.is_none());
+    assert!(ended.glide.unwrap().accepted_sequence.is_none());
+    assert!(
+        timeout(Duration::from_millis(80), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    let _ = client.revoke_connection();
+}
+
+#[tokio::test]
+async fn glide_cancelled_receipt_waiter_keeps_owner_and_mount_discards_origin() {
+    let (session, client, mut peer) = common_glide_fixture().await;
+    let control = client.player_control(crate::client::GameMode::Survival);
+    let initial = control
+        .start_glide_control(Default::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::ENTITY_ACTION, vec![42, 6, 0])
+    );
+    let mut waiter = Box::pin(async {
+        loop {
+            if control
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .glide
+                .unwrap()
+                .accepted_sequence
+                .is_some()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    });
+    assert!(
+        timeout(Duration::from_millis(15), waiter.as_mut())
+            .await
+            .is_err()
+    );
+    drop(waiter);
+    {
+        let mut state = session.state.lock().await;
+        state
+            .receive(
+                ids::play_clientbound::ENTITY_METADATA,
+                &[42, 0, 0, 128, 255],
+                256,
+            )
+            .unwrap();
+    }
+    assert_eq!(
+        timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+            .await
+            .unwrap()
+            .unwrap()
+            .0,
+        ids::play_serverbound::PLAYER_INPUT
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap().0,
+        ids::play_serverbound::POSITION_LOOK
+    );
+    {
+        let mut state = session.state.lock().await;
+        state
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+    }
+    let ended = timeout(Duration::from_secs(1), async {
+        loop {
+            let record = control.control_record().await.unwrap().unwrap();
+            if matches!(
+                record.status,
+                crate::client::control::ControlStatus::Stopped { .. }
+            ) {
+                break record;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(ended.session_id, initial.session_id);
+    assert!(
+        matches!(ended.status, crate::client::control::ControlStatus::Stopped { ref reason } if reason.contains("vehicle"))
+    );
+    assert!(
+        control
+            .set_controls_for(initial.session_id, Default::default())
+            .await
+            .is_err()
+    );
+    let retained = control.control_record().await.unwrap().unwrap();
+    tokio::time::sleep(Duration::from_millis(80)).await;
+    assert_eq!(control.control_record().await.unwrap().unwrap(), retained);
+    let _ = client.revoke_connection();
+}
+
+#[tokio::test]
+async fn glide_revocation_before_start_write_retains_intent_without_replay() {
+    let (session, client, mut peer) = common_glide_fixture().await;
+    let writer = session.writer.lock().await;
+    let control = client.player_control(crate::client::GameMode::Survival);
+    let initial = control
+        .start_glide_control(Default::default())
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(15)).await;
+    let _ = client.revoke_connection();
+    drop(writer);
+    let retained = timeout(Duration::from_secs(1), control.control_record())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.session_id, initial.session_id);
+    assert!(matches!(
+        retained.status,
+        crate::client::control::ControlStatus::Stopped { .. }
+    ));
+    assert!(!retained.glide.unwrap().dispatched);
+    assert_eq!(retained.dispatched_ticks, 0);
+    assert!(
+        control
+            .start_glide_control(Default::default())
+            .await
+            .is_err()
+    );
+    assert!(!matches!(
+        timeout(Duration::from_millis(80), read_packet(&mut peer, None)).await,
+        Ok(Ok(_))
+    ));
+}
+
 async fn common_ground_transport(
     mode: crate::client::GameMode,
 ) -> (
@@ -1870,6 +2066,7 @@ async fn selected_control_rejects_replacement_and_old_world_without_writes() {
     use crate::client::control::{ControlSession, ControlStatus, Controls, Output, Received};
     let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let received = Received {
+        abilities_sequence: None,
         environment: crate::client::physics::Environment::defaults(
             crate::MinecraftVersion::Java1_21_11,
         ),
@@ -1940,6 +2137,7 @@ async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
     use crate::client::control::{ControlSession, ControlStatus, Output, Received};
     let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let received = Received {
+        abilities_sequence: None,
         environment: crate::client::physics::Environment::defaults(
             crate::MinecraftVersion::Java1_21_11,
         ),
@@ -4146,4 +4344,456 @@ async fn common_entity_history_freezes_native_packets_and_reports_retention() {
             .records
             .is_empty()
     );
+}
+
+#[tokio::test]
+async fn ground_modes_fence_other_handles_and_transient_received_mode_changes() {
+    use crate::client::{
+        GameMode,
+        control::{ControlStatus, Controls},
+    };
+    for (mode, raw) in [(GameMode::Adventure, 2f32), (GameMode::Creative, 1f32)] {
+        let (session, api, _peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        assert!(
+            client
+                .player_control(GameMode::Spectator)
+                .start_control()
+                .await
+                .is_err()
+        );
+        let start = handle.start_control().await.unwrap();
+        assert_eq!(start.mode, mode);
+        let keys = Controls {
+            forward: 1,
+            yaw: 37.,
+            pitch: -12.,
+            ..Default::default()
+        };
+        assert!(
+            client
+                .survival()
+                .set_controls_for(start.session_id, keys)
+                .await
+                .is_err()
+        );
+        assert!(
+            client
+                .survival()
+                .stop_control_for(start.session_id)
+                .await
+                .is_err()
+        );
+        assert!(
+            client
+                .survival()
+                .request_ground_jump(start.session_id)
+                .await
+                .is_err()
+        );
+        assert!(
+            handle
+                .set_controls_for(start.session_id + 1, keys)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            handle
+                .set_controls_for(start.session_id, keys)
+                .await
+                .unwrap()
+                .controls,
+            keys
+        );
+        let before = {
+            let mut state = session.state.lock().await;
+            state.sequence = 100;
+            let mut away = vec![3];
+            away.extend(0f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::GAME_STATE_CHANGE, &away)
+                .unwrap();
+            state.sequence = 101;
+            let mut back = vec![3];
+            back.extend(raw.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::GAME_STATE_CHANGE, &back)
+                .unwrap();
+            state.control.session.as_ref().unwrap().record()
+        };
+        assert_eq!(client.player_state().await.unwrap().game_mode, Some(mode));
+        assert_eq!(before.mode_change_sequence, Some(100));
+        assert!(
+            handle
+                .set_controls_for(start.session_id, keys)
+                .await
+                .is_err()
+        );
+        assert!(handle.request_ground_jump(start.session_id).await.is_err());
+        let stopped = timeout(Duration::from_secs(2), async {
+            loop {
+                let r = handle.control_record().await.unwrap().unwrap();
+                if matches!(r.status, ControlStatus::Stopped { .. }) {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(before.dispatched_ticks, stopped.dispatched_ticks);
+        assert_eq!(
+            handle.stop_control_for(start.session_id).await.unwrap(),
+            stopped
+        );
+        let next = handle.start_control().await.unwrap();
+        assert_ne!(next.session_id, start.session_id);
+        assert_eq!(next.mode_change_sequence, None);
+        assert!(handle.stop_control_for(start.session_id).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            for (seq, flags) in [(200, 6u8), (201, 4)] {
+                state.sequence = seq;
+                let mut abilities = vec![flags];
+                abilities.extend(0.05f32.to_be_bytes());
+                abilities.extend(0.1f32.to_be_bytes());
+                operations::receive(&mut state, ids::play_clientbound::ABILITIES, &abilities)
+                    .unwrap();
+            }
+            assert_eq!(
+                state
+                    .control
+                    .session
+                    .as_ref()
+                    .unwrap()
+                    .record()
+                    .flight_change_sequence,
+                Some(200)
+            );
+        }
+        assert!(
+            handle
+                .set_controls_for(next.session_id, keys)
+                .await
+                .is_err()
+        );
+        assert!(handle.request_ground_jump(next.session_id).await.is_err());
+        handle.stop_control_for(next.session_id).await.unwrap();
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn held_flight_requires_original_abilities_and_latches_restored_permission() {
+    use crate::client::{
+        GameMode,
+        control::{ControlKind, ControlStatus, Controls},
+    };
+    for mode in [GameMode::Creative, GameMode::Spectator] {
+        let (session, api, _peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        let keys = Controls {
+            jump: true,
+            forward: 1,
+            ..Default::default()
+        };
+        assert!(handle.start_flight_control(keys).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            // The compatibility flags survive, but copied/predicted context is
+            // not an original current-world receipt and must not grant flight.
+            let mut packet = vec![6];
+            packet.extend(0.05f32.to_be_bytes());
+            packet.extend(0.1f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+            state.context.abilities.as_mut().unwrap().source =
+                crate::client::ValueSource::Predicted;
+        }
+        assert!(handle.start_flight_control(keys).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            let mut packet = vec![6];
+            packet.extend(0.05f32.to_be_bytes());
+            packet.extend(0.1f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+        }
+        let start = handle.start_flight_control(keys).await.unwrap();
+        assert_eq!(start.kind, ControlKind::Flight);
+        assert_eq!(start.controls, keys);
+        assert!(handle.request_ground_jump(start.session_id).await.is_err());
+        assert!(
+            client
+                .survival()
+                .stop_control_for(start.session_id)
+                .await
+                .is_err()
+        );
+        let before = {
+            let mut state = session.state.lock().await;
+            for (sequence, flags) in [(100, 2u8), (101, 6)] {
+                state.sequence = sequence;
+                let mut packet = vec![flags];
+                packet.extend(0.05f32.to_be_bytes());
+                packet.extend(0.1f32.to_be_bytes());
+                operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+            }
+            let record = state.control.session.as_ref().unwrap().record();
+            assert_eq!(record.flight_change_sequence, Some(100));
+            record.dispatched_ticks
+        };
+        assert!(
+            handle
+                .set_controls_for(start.session_id, keys)
+                .await
+                .is_err()
+        );
+        let stopped = timeout(Duration::from_secs(2), async {
+            loop {
+                let record = handle.control_record().await.unwrap().unwrap();
+                if matches!(record.status, ControlStatus::Stopped { .. }) {
+                    break record;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(stopped.dispatched_ticks, before);
+        let fresh = handle.start_flight_control(keys).await.unwrap();
+        assert_ne!(fresh.session_id, start.session_id);
+        assert_eq!(fresh.flight_change_sequence, None);
+        assert!(handle.stop_control_for(start.session_id).await.is_err());
+        handle.stop_control_for(fresh.session_id).await.unwrap();
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn held_control_scale_receipts_fence_admission_and_latch_restoration_before_tick() {
+    use crate::client::{
+        GameMode,
+        control::{ControlStatus, Controls},
+    };
+    fn scale(entity: i32, value: f64) -> Vec<u8> {
+        let mut packet = Vec::new();
+        put_varint(&mut packet, entity);
+        put_varint(&mut packet, 1);
+        put_varint(&mut packet, ids::SCALE_ATTRIBUTE);
+        packet.extend(value.to_be_bytes());
+        put_varint(&mut packet, 0);
+        packet
+    }
+    for (mode, flight) in [
+        (GameMode::Survival, false),
+        (GameMode::Adventure, false),
+        (GameMode::Creative, false),
+        (GameMode::Creative, true),
+        (GameMode::Spectator, true),
+    ] {
+        let (session, api, _peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        if flight {
+            let mut state = session.state.lock().await;
+            let mut packet = vec![6];
+            packet.extend(0.05f32.to_be_bytes());
+            packet.extend(0.1f32.to_be_bytes());
+            operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+        }
+        {
+            let mut state = session.state.lock().await;
+            state.sequence = 20;
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &scale(42, 16.),
+            )
+            .unwrap();
+        }
+        if flight {
+            assert!(
+                handle
+                    .start_flight_control(Controls::default())
+                    .await
+                    .is_err()
+            );
+        } else {
+            assert!(handle.start_control().await.is_err());
+        }
+        {
+            let mut state = session.state.lock().await;
+            state.sequence = 21;
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &scale(42, 1.),
+            )
+            .unwrap();
+        }
+        let start = if flight {
+            handle
+                .start_flight_control(Controls::default())
+                .await
+                .unwrap()
+        } else {
+            handle.start_control().await.unwrap()
+        };
+        let before = {
+            let mut state = session.state.lock().await;
+            state.sequence = 99;
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &scale(43, 4.),
+            )
+            .unwrap();
+            assert_eq!(
+                state
+                    .control
+                    .session
+                    .as_ref()
+                    .unwrap()
+                    .scale_change_sequence,
+                None
+            );
+            for (sequence, value) in [(100, 2.), (101, 1.)] {
+                state.sequence = sequence;
+                operations::receive(
+                    &mut state,
+                    ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                    &scale(42, value),
+                )
+                .unwrap();
+            }
+            assert_eq!(state.operations.local_player.scale.unwrap().value, 1.);
+            let record = state.control.session.as_ref().unwrap().record();
+            assert_eq!(record.scale_change_sequence, Some(100));
+            record.dispatched_ticks
+        };
+        assert!(
+            handle
+                .set_controls_for(start.session_id, Controls::default())
+                .await
+                .is_err()
+        );
+        let stopped = timeout(Duration::from_secs(2), async {
+            loop {
+                let record = handle.control_record().await.unwrap().unwrap();
+                if matches!(record.status, ControlStatus::Stopped { .. }) {
+                    break record;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            stopped.status,
+            ControlStatus::Stopped {
+                reason: "unmodeled player scale".into()
+            }
+        );
+        assert_eq!(stopped.dispatched_ticks, before);
+        assert_eq!(stopped.scale_change_sequence, Some(100));
+        let fresh = if flight {
+            handle
+                .start_flight_control(Controls::default())
+                .await
+                .unwrap()
+        } else {
+            handle.start_control().await.unwrap()
+        };
+        assert_ne!(fresh.session_id, start.session_id);
+        assert_eq!(fresh.scale_change_sequence, None);
+        assert!(
+            handle
+                .set_controls_for(start.session_id, Controls::default())
+                .await
+                .is_err()
+        );
+        handle.stop_control_for(fresh.session_id).await.unwrap();
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn held_creative_flight_landing_disables_before_movement_and_ends_owner() {
+    use crate::client::{
+        GameMode,
+        control::{ControlStatus, Controls},
+    };
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Creative).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    {
+        let mut state = session.state.lock().await;
+        let mut packet = vec![6];
+        packet.extend(0.05f32.to_be_bytes());
+        packet.extend(0.1f32.to_be_bytes());
+        super::super::context::receive(&mut state, ids::play_clientbound::ABILITIES, &packet)
+            .unwrap();
+        operations::receive(&mut state, ids::play_clientbound::ABILITIES, &packet).unwrap();
+    }
+    let handle = client.player_control(GameMode::Creative);
+    let start = handle
+        .start_flight_control(Controls {
+            sneak: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::ABILITIES, vec![0])
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::PLAYER_INPUT, vec![32])
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap().0,
+        ids::play_serverbound::POSITION_LOOK
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::PLAYER_INPUT, vec![0])
+    );
+    let record = handle.control_record().await.unwrap().unwrap();
+    assert!(
+        matches!(record.status,ControlStatus::Stopped{ref reason} if reason=="creative flight model landed")
+    );
+    assert!(!record.frame.as_ref().unwrap().flying);
+    assert_eq!(record.dispatched_ticks, 1);
+    assert!(
+        handle
+            .set_controls_for(start.session_id, Controls::default())
+            .await
+            .is_err()
+    );
+    assert!(record.flight_disable.as_ref().unwrap().dispatched);
+    assert_eq!(
+        session
+            .state
+            .lock()
+            .await
+            .context
+            .abilities
+            .as_ref()
+            .unwrap()
+            .value
+            .flags,
+        6
+    );
+    assert!(
+        handle
+            .start_flight_control(Controls {
+                jump: true,
+                ..Default::default()
+            })
+            .await
+            .is_err()
+    );
+    let ground = handle.start_control().await.unwrap();
+    assert_ne!(ground.session_id, start.session_id);
+    handle.stop_control_for(ground.session_id).await.unwrap();
+    session.stop();
 }

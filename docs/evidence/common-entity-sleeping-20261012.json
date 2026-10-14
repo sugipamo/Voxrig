@@ -1,0 +1,458 @@
+{
+  "scope": "Original signed BlockPos/optional BlockPos metadata in latest observations and bounded packet history; received living sleeping-position predicate independently of pose. No inferred unreceived defaults, current server state or tick/contact authority.",
+  "recorded_on_jst": "2026-10-12",
+  "sdk": {
+    "source_revision": "3a895b6e968994b85b5e167596f7bee07280d9b7",
+    "binary_build_revision": "f310ea2bad08bf573617b28c34089dde2423ce8d",
+    "binary_sha256": "4920f3bfc0d35b3382e992558feebf00006da64093c0d6fe35d749ffe5737c30",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_sleeping_live.py": "eee103acaec67275191ca744b96f2fd9da703ff08ecce362bcc05c2b3ccdc991",
+      "scripts/run_entity_data_history_live.py": "ca09e4ed14a365a097f75ba0cdee66acba3c87c0abf7c2a7ee491803798df76a",
+      "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "1175d42500eaed1515955514e6e124abecc46a534b7ac606c0f5bf869ea14074",
+      "data/client_api/entity_position_oracle.json": "568c10123fe24de2242a9a257c08756979af8bbf60a37ad5b78eb06c6f84c262",
+      "scripts/EntityPositionOracle.java": "ac79617db93eba1696263d641a039747a27886f5746751cd51c42f41c2556b1f",
+      "scripts/run_entity_position_oracle.py": "a8d3f934875f2e4c5a182c8b0089130936a390cfe2a617f042cb4ce980edb18e"
+    },
+    "features": [
+      "native"
+    ]
+  },
+  "original_codec": {
+    "fixture": "data/client_api/entity_position_oracle.json",
+    "fixture_sha256": "568c10123fe24de2242a9a257c08756979af8bbf60a37ad5b78eb06c6f84c262",
+    "roundtrips": 286,
+    "truncated_boundaries_rejected": 2416,
+    "nonzero_presence_roundtrips": 142,
+    "harness_sha256": "ac79617db93eba1696263d641a039747a27886f5746751cd51c42f41c2556b1f",
+    "runner_sha256": "a8d3f934875f2e4c5a182c8b0089130936a390cfe2a617f042cb4ce980edb18e"
+  },
+  "qualification": {
+    "total_live_checks": 52,
+    "original_frame_equal_delta_count": 85,
+    "assertions": [
+      "Original receive ordinals, native IDs, entity lifetimes and decoded ordered deltas match real packets.",
+      "Sleeping position changes and actual bed-removal wake-up preserve explicit empty optional values.",
+      "Modern omitted sleeping defaults stay missing; original legacy empty receipts stay received.",
+      "Seven-record pages, removal, actual respawn and revocation keep earlier deltas frozen.",
+      "Unit tests distinguish sleeping-position presence from pose, sticky partial metadata and reused numeric IDs."
+    ],
+    "limitations": [
+      "Modern plain BlockPos is qualified by original codec execution and decoder regressions; the live modern sleeping case uses optional BlockPos. Modern Turtle home positions are not synched metadata.",
+      "Truncated values, noncanonical nonzero presence bytes and out-of-range coordinate wrapping are original-codec/unit qualifications, not synthesized live traffic.",
+      "No native ClientLevel world query/tick execution or automatic contacts/movement-owner integration is added.",
+      "Servers are unchanged checksum-verified official loopback servers with controlled RCON fixtures."
+    ]
+  },
+  "validation": {
+    "unit_tests_per_configuration": 1001,
+    "ignored_unit_tests": 8,
+    "native_integration_tests": 4,
+    "native_doctests": 34,
+    "ignored_doctests": 1,
+    "trace_tests": 6,
+    "checks": [
+      "default/native full tests",
+      "default/native strict Clippy",
+      "native strict rustdoc",
+      "fmt"
+    ]
+  },
+  "failed_qualification_attempts": [
+    {
+      "stage": "first legacy live verifier",
+      "reason": "The verifier compared EntityDataSource and ValueSource JSON shapes directly. Receive ordinals and values already matched; the verifier was corrected and both versions rerun with unchanged SDK source."
+    }
+  ],
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 25,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "paged_peer_pose_deltas_after_removal",
+        "cow_baby_delta_True_18",
+        "cow_baby_delta_False_21",
+        "cow_baby_delta_True_23",
+        "cow_baby_delta_False_26",
+        "equipment_MainHand_stone",
+        "equipment_OffHand_diamond",
+        "equipment_MainHand_stone_123",
+        "equipment_MainHand_stone_456",
+        "equipment_MainHand_air",
+        "sleeping_initial_received_or_missing",
+        "sleeping_position_0",
+        "sleeping_position_1",
+        "sleeping_position_2",
+        "sleeping_position_3",
+        "sleeping_position_4",
+        "legacy_original_turtle_plain_position",
+        "all_retained_deltas_equal_original_packet_values",
+        "frozen_deltas_after_removal_and_repeat_read",
+        "old_world_deltas_survive_actual_respawn",
+        "frozen_deltas_readable_after_revocation"
+      ],
+      "original_frame_equal_deltas": {
+        "Metadata": 47,
+        "Equipment": 5,
+        "Scale": 0
+      },
+      "paged_records": 92,
+      "sleeping_receipts": [
+        {
+          "name": "sleeping_initial_received_or_missing",
+          "identity": {
+            "native_id": 38,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 96
+          },
+          "reading": {
+            "index": 13,
+            "metadata_complete": true,
+            "position": null,
+            "sleeping": false,
+            "source": {
+              "Received": {
+                "sequence": 97
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_0",
+          "identity": {
+            "native_id": 38,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 96
+          },
+          "reading": {
+            "index": 13,
+            "metadata_complete": true,
+            "position": {
+              "x": -2,
+              "y": 65,
+              "z": 5
+            },
+            "sleeping": true,
+            "source": {
+              "Received": {
+                "sequence": 179
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_1",
+          "identity": {
+            "native_id": 38,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 96
+          },
+          "reading": {
+            "index": 13,
+            "metadata_complete": true,
+            "position": {
+              "x": 2,
+              "y": 65,
+              "z": -3
+            },
+            "sleeping": true,
+            "source": {
+              "Received": {
+                "sequence": 186
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_2",
+          "identity": {
+            "native_id": 38,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 96
+          },
+          "reading": {
+            "index": 13,
+            "metadata_complete": true,
+            "position": null,
+            "sleeping": false,
+            "source": {
+              "Received": {
+                "sequence": 192
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_3",
+          "identity": {
+            "native_id": 38,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 96
+          },
+          "reading": {
+            "index": 13,
+            "metadata_complete": true,
+            "position": {
+              "x": -1,
+              "y": 65,
+              "z": 4
+            },
+            "sleeping": true,
+            "source": {
+              "Received": {
+                "sequence": 197
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_4",
+          "identity": {
+            "native_id": 38,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 96
+          },
+          "reading": {
+            "index": 13,
+            "metadata_complete": true,
+            "position": null,
+            "sleeping": false,
+            "source": {
+              "Received": {
+                "sequence": 203
+              }
+            }
+          }
+        }
+      ],
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "local_report": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261011-163855/report.json",
+      "report_sha256": "d4d367192c3e005d14b690bb99ce43099fcae841579fadab705b4d2cf40c4a04",
+      "trace_sha256": "39186868b896158151a34b2b304cd22d766f9bcc452a42ed63fba53b5e4d8abb",
+      "probe_log_sha256": "73f258835bcefd52380b5178bbba07d8ea412c4b57e80b0bdeb292e6868b55d8"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 27,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "paged_peer_pose_deltas_after_removal",
+        "cow_baby_delta_True_20",
+        "cow_baby_delta_False_21",
+        "cow_baby_delta_True_22",
+        "cow_baby_delta_False_23",
+        "equipment_MainHand_stone",
+        "equipment_OffHand_diamond",
+        "equipment_MainHand_stone_123",
+        "equipment_MainHand_stone_456",
+        "equipment_MainHand_air",
+        "received_scale_0.5",
+        "received_scale_2.0",
+        "received_scale_1.0",
+        "sleeping_initial_received_or_missing",
+        "sleeping_position_0",
+        "sleeping_position_1",
+        "sleeping_position_2",
+        "sleeping_position_3",
+        "sleeping_position_4",
+        "all_retained_deltas_equal_original_packet_values",
+        "frozen_deltas_after_removal_and_repeat_read",
+        "old_world_deltas_survive_actual_respawn",
+        "frozen_deltas_readable_after_revocation"
+      ],
+      "original_frame_equal_deltas": {
+        "Metadata": 22,
+        "Equipment": 5,
+        "Scale": 6
+      },
+      "paged_records": 59,
+      "sleeping_receipts": [
+        {
+          "name": "sleeping_initial_received_or_missing",
+          "identity": {
+            "native_id": 3,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "spawn_sequence": 143
+          },
+          "reading": null
+        },
+        {
+          "name": "sleeping_position_0",
+          "identity": {
+            "native_id": 3,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "spawn_sequence": 143
+          },
+          "reading": {
+            "index": 14,
+            "metadata_complete": true,
+            "position": {
+              "x": -2,
+              "y": 65,
+              "z": 5
+            },
+            "sleeping": true,
+            "source": {
+              "Received": {
+                "sequence": 167
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_1",
+          "identity": {
+            "native_id": 3,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "spawn_sequence": 143
+          },
+          "reading": {
+            "index": 14,
+            "metadata_complete": true,
+            "position": {
+              "x": 2,
+              "y": 65,
+              "z": -3
+            },
+            "sleeping": true,
+            "source": {
+              "Received": {
+                "sequence": 173
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_2",
+          "identity": {
+            "native_id": 3,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "spawn_sequence": 143
+          },
+          "reading": {
+            "index": 14,
+            "metadata_complete": true,
+            "position": null,
+            "sleeping": false,
+            "source": {
+              "Received": {
+                "sequence": 178
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_3",
+          "identity": {
+            "native_id": 3,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "spawn_sequence": 143
+          },
+          "reading": {
+            "index": 14,
+            "metadata_complete": true,
+            "position": {
+              "x": -1,
+              "y": 65,
+              "z": 4
+            },
+            "sleeping": true,
+            "source": {
+              "Received": {
+                "sequence": 183
+              }
+            }
+          }
+        },
+        {
+          "name": "sleeping_position_4",
+          "identity": {
+            "native_id": 3,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "spawn_sequence": 143
+          },
+          "reading": {
+            "index": 14,
+            "metadata_complete": true,
+            "position": null,
+            "sleeping": false,
+            "source": {
+              "Received": {
+                "sequence": 187
+              }
+            }
+          }
+        }
+      ],
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "local_report": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261011-163914/report.json",
+      "report_sha256": "40a097f0d3eec59ad7ed1aebb8110f5c24462dc474af6eebbcb4e30c81fc6064",
+      "trace_sha256": "00631806d4abe036ae7928a96fc610c1ceb2a10d8b2ed8a2907ca6342bc74d50",
+      "probe_log_sha256": "395750ad62de7c3c76f93c3ad11a3a6d54fd61a4740096c4b5942e5411a1bd85"
+    }
+  ]
+}

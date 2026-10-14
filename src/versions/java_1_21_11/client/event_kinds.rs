@@ -11,7 +11,7 @@ pub(super) fn kinds(id: i32, payload: &[u8]) -> Vec<K> {
 fn read(id: i32, payload: &[u8]) -> anyhow::Result<Vec<K>> {
     let mut r = Reader::new(payload);
     let block = |p: [i32; 3]| K::BlocksChanged { min: p, max: p };
-    Ok(match id {
+    let mut kinds = match id {
         input::BLOCK_CHANGE | input::TILE_ENTITY_DATA => {
             vec![block(super::super::wire::unpack_position(r.u64()?))]
         }
@@ -113,7 +113,25 @@ fn read(id: i32, payload: &[u8]) -> anyhow::Result<Vec<K>> {
         | input::WORLD_BORDER_WARNING_DELAY
         | input::WORLD_BORDER_WARNING_REACH => vec![K::UiChanged],
         _ => Vec::new(),
-    })
+    };
+    if matches!(
+        id,
+        input::LOGIN
+            | input::START_CONFIGURATION
+            | input::RESPAWN
+            | input::ABILITIES
+            | input::DIFFICULTY
+            | input::EXPERIENCE
+            | input::GAME_STATE_CHANGE
+            | input::SPAWN_POSITION
+            | input::UPDATE_VIEW_POSITION
+            | input::UPDATE_VIEW_DISTANCE
+            | input::SIMULATION_DISTANCE
+            | input::SET_COOLDOWN
+    ) {
+        kinds.push(K::ContextChanged);
+    }
+    Ok(kinds)
 }
 
 #[cfg(test)]

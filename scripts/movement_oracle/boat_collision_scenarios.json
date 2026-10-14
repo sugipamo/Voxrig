@@ -1,0 +1,871 @@
+[
+  {
+    "name": "rigid_front_boat",
+    "boat": true,
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "collision_bodies": [
+      {
+        "type": "boat",
+        "position": [
+          0.5,
+          1.0,
+          3.0
+        ]
+      }
+    ],
+    "ticks": [
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  {
+    "name": "rigid_front_cart",
+    "boat": true,
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "collision_bodies": [
+      {
+        "type": "minecart",
+        "position": [
+          0.5,
+          1.0,
+          3.0
+        ]
+      }
+    ],
+    "ticks": [
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  {
+    "name": "rigid_left_boat",
+    "boat": true,
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "collision_bodies": [
+      {
+        "type": "boat",
+        "position": [
+          2.5,
+          1.0,
+          1.8
+        ]
+      }
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  {
+    "name": "rigid_reverse_cart",
+    "boat": true,
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "collision_bodies": [
+      {
+        "type": "minecart",
+        "position": [
+          0.5,
+          1.0,
+          -2.0
+        ]
+      }
+    ],
+    "ticks": [
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {
+        "forward": -1
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  {
+    "name": "rigid_corner_boats",
+    "boat": true,
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ]
+    ],
+    "collision_bodies": [
+      {
+        "type": "boat",
+        "position": [
+          1.8,
+          1.0,
+          2.8
+        ]
+      },
+      {
+        "type": "minecart",
+        "position": [
+          0.5,
+          1.0,
+          3.0
+        ]
+      }
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "strafe": 1
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  },
+  {
+    "name": "rigid_water_boat",
+    "boat": true,
+    "start": [
+      0.5,
+      1.4,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        1,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "collision_bodies": [
+      {
+        "type": "boat",
+        "position": [
+          0.5,
+          1.4,
+          3.0
+        ]
+      }
+    ],
+    "ticks": [
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {
+        "forward": 1
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+    ]
+  }
+]

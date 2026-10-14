@@ -1,0 +1,92 @@
+{
+  "scope": "Fence unit-scale held control on explicit own-player scale receipts. Public results and hashes; original packet/NBT reports remain local.",
+  "qualification": {
+    "source_revision": "5022131f687a566e7ce20310b31238d0db7f063b",
+    "binary_build_revision": "316f0e8c3a4eb33334bbc28c54a3329d5e72f1ab",
+    "binary_sha256": "1822a61de11fdff4e10339f7356fc35814795b98ff38fa9d46472dc04cc3a22f",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_control_scale.py": "42c5e064db8377dadec761df21c7b5bf1b77ffbb0b98ce2b5f6b2588437e7746",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "386514e5a2e876e9baa878f95887b173cbef409a18849901d8516c91cfd8dac8"
+    },
+    "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_difference": "SDK src/examples/Cargo/data identical to compiled revision. Later changes correct the independent Python source-tag observation and merge the qualified pose parent."
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "scale_attribute_support": false,
+      "check_count": 2,
+      "check_names": [
+        "survival_unit_scale_regression",
+        "creative_unit_scale_regression"
+      ],
+      "unexpected_corrections": 0,
+      "trace_error_count": 0,
+      "raw_report_sha256": "5d283c726c57b664348c217e95728a9f1c22364fba0a82b16e0cec4530d5443f",
+      "original_packets_sha256": "c5d9123704ae328cb39bb26049620f6ea37b612a3174da71bdae92f49754b0b7"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "scale_attribute_support": true,
+      "check_count": 20,
+      "check_names": [
+        "survival_ground_scaled_admission_refused",
+        "survival_ground_received_scale_stops_releases",
+        "survival_ground_restoration_retains_owner",
+        "survival_ground_explicit_unit_scale_restart",
+        "adventure_ground_scaled_admission_refused",
+        "adventure_ground_received_scale_stops_releases",
+        "adventure_ground_restoration_retains_owner",
+        "adventure_ground_explicit_unit_scale_restart",
+        "creative_ground_scaled_admission_refused",
+        "creative_ground_received_scale_stops_releases",
+        "creative_ground_restoration_retains_owner",
+        "creative_ground_explicit_unit_scale_restart",
+        "creative_flight_scaled_admission_refused",
+        "creative_flight_received_scale_stops_releases",
+        "creative_flight_restoration_retains_owner",
+        "creative_flight_explicit_unit_scale_restart",
+        "spectator_flight_scaled_admission_refused",
+        "spectator_flight_received_scale_stops_releases",
+        "spectator_flight_restoration_retains_owner",
+        "spectator_flight_explicit_unit_scale_restart"
+      ],
+      "unexpected_corrections": 0,
+      "trace_error_count": 0,
+      "raw_report_sha256": "57cf05902e474d12528c44b022a14032a3a2522231c2432666b2f59feb8201f7",
+      "original_packets_sha256": "97558b852f5b2ce6c3bcaf35bb493b1f4b8608f1c540635556d314d94ac74144"
+    }
+  ],
+  "validation": {
+    "unit_passed": 978,
+    "unit_ignored": 8,
+    "integration_passed": 4,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "focused_restoration_test_passed": true,
+    "strict_native_clippy": true,
+    "strict_native_rustdoc": true,
+    "package_allowlist": true,
+    "fmt": true
+  },
+  "prior_probe_attempt": {
+    "version": "1.21.11",
+    "passed": false,
+    "raw_report_sha256": "3cdfc5c344dee57332925ba388eddc30a6451c205800b70755f679b2ce42440e",
+    "reason": "Live driver initially used an incorrect ValueSource JSON shape. Corrected to require kind=received and its original sequence; SDK source unchanged."
+  },
+  "limits": [
+    "No enlarged or reduced player physics is modeled. Scale must be known and exactly one.",
+    "Java 1.16.1 has no scale attribute; both its ground and explicit flight remained operational.",
+    "Stopped owner retains the first original unsupported scale receive sequence, including restoration before a local tick.",
+    "Original input-neutral writes are verified; no server execution acknowledgement or velocity-stop acknowledgement is invented.",
+    "Other posture models, dynamic entity geometry, interpolation/push, elytra and additional mounts remain in #44."
+  ]
+}

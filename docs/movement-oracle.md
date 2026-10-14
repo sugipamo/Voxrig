@@ -179,3 +179,42 @@ cargo test --locked --lib special_block_hooks_match_original_nonliving_boat_call
 ```
 
 `--work`の版別ディレクトリは再生成されるため、他の検証出力とは別のパスを使う。
+
+## ボートと固定車両の衝突の比較（2026-10-10）
+
+`boat_collision_scenarios.json`は、前・横・後ろのボート／トロッコ、角の2車両、
+水面への移行を含む6場面である。各版40 tickずつ、12実行・480 tickについて、
+公式ワールドが実際に検索する車両と衝突した元のボートの全frameを比較する。
+他車両は宣言した位置の固定入力で、任意のentityの補間や同時tickを再現する比較ではない。
+
+```bash
+python3 -B scripts/movement_oracle/run.py \
+  --downloads /absolute/path/to/downloads --work "$PWD/.local/boat-collision-oracle" \
+  --scenarios scripts/movement_oracle/boat_collision_scenarios.json \
+  --output "$PWD/data/client_api/boat_collision_oracle.json.gz" \
+  --blocks-output "$PWD/.local/boat-collision-blocks"
+cargo test --locked --lib rigid_vehicle_collisions_match_original_world_queries
+cargo test --locked --lib client::vehicle
+```
+
+場面用の車両は公式constructorで作り、公式のworld登録と`getBoundingBox`を使う。
+1.16.1の場面間の除去には公式`despawn`を使う。1.21.11は公式chunkを強制保持し、
+サーバー外の待機から元の`isPositionEntityTicking`を確認する。検索で車両が見えない
+フィクスチャは拒否する。ゲーム本体のクラスや衝突predicateを変更しない。
+受信source・ID寿命と送信frameの実接続検証は[共通乗り物](common-vehicles.md)を参照。
+
+## Adventure／Creativeの地上操作
+
+`ground_mode_scenarios.json`と`ground_mode_oracle.json.gz`は各版8場面360 tick、両版16実行720 tick。
+前後左右、低空腹時のダッシュ、押し続けるジャンプ、縁でのしゃがみを比較する。
+公式`GameType.updatePlayerAbilities`で許可を設定し、飛行状態はfalseと確認する。
+入力以外の移動本体は公式コードを使い、速度・位置・姿勢等を各tickで完全一致させる。
+実接続は`run_ground_modes.py`を使用し、元の送信bytesと独立RCON、受信モード変更とownerの停止を照合する。
+
+```bash
+python3 -B scripts/movement_oracle/run.py --downloads .local/climbing/downloads \
+  --work .local/ground-modes/native-oracle \
+  --scenarios scripts/movement_oracle/ground_mode_scenarios.json \
+  --output data/client_api/ground_mode_oracle.json.gz \
+  --blocks-output .local/ground-modes/block-audit
+```

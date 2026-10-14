@@ -10,6 +10,9 @@ use crate::{
 /// Boat prediction and submission history; received motion stays separate.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BoatMotion {
+    /// Rigid-body model inputs sampled before each local tick, bounded by the plan.
+    /// Not actual contact, render interpolation, current server pose or acceptance.
+    pub collision_samples: Vec<super::BoatCollisionSample>,
     /// Actual vehicle samples captured at admission.
     pub received: api::EntityMotionObservation,
     /// Last actual velocity selected for prediction; never a predicted velocity.
@@ -19,6 +22,8 @@ pub struct BoatMotion {
     pub velocity_updates: Vec<BoatVelocityUpdate>,
     #[serde(skip)]
     pub(crate) pending_velocity: Option<[f64; 3]>,
+    #[serde(skip)]
+    pub(crate) contacts: Option<api::entity::owned_contacts::OwnedContacts>,
     /// Declared seed, or the previous submitted run's final prediction.
     pub initial_frame: BoatFrame,
     /// Latest predicted frame retained before the multi-packet write.
@@ -100,9 +105,25 @@ pub struct VehicleControlRecord {
     pub stage: VehicleControlStage,
     /// First conflict or uncertain delivery.
     pub requires_inspection: Option<String>,
+    /// Once-only best-effort release after failure in the same received mount.
+    /// No new position is predicted or resent; submission is not acceptance.
+    pub failure_release: Option<VehicleInputRelease>,
     /// Boat-only prediction; other vehicles use their original server-side input.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub boat_motion: Option<BoatMotion>,
+}
+
+/// Dispatch facts for releasing a failed mounted owner's held input.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct VehicleInputRelease {
+    /// Coherent actual boundary at the release guard, if available.
+    pub receive_sequence: Option<u64>,
+    /// Intent retained before writer I/O; false when the guard refused.
+    pub attempted: bool,
+    /// All neutral input/paddle packets fully written, without acknowledgement.
+    pub sent: bool,
+    /// Guard refusal or uncertain write; the original failure stays unchanged.
+    pub problem: Option<String>,
 }
 impl VehicleControlRecord {
     pub(crate) fn unresolved(&self) -> bool {
@@ -177,8 +198,67 @@ pub(crate) fn prepare(
         dispatched_ticks: 0,
         stage: VehicleControlStage::Running,
         requires_inspection: None,
+        failure_release: None,
         boat_motion: None,
     })
+}
+
+pub(crate) fn failure_release(
+    record: &mut VehicleControlRecord,
+    context_: Result<(api::PlayerObservation, VehicleObservation)>,
+) -> Vec<(i32, Vec<u8>)> {
+    if record.failure_release.is_some() {
+        return Vec::new();
+    }
+    if let Some(boat) = &mut record.boat_motion {
+        boat.contacts = None;
+    }
+    let checked = context_.and_then(|(player, vehicle)| {
+        context(&player, &vehicle, record.mode, record.id.mount())?;
+        Ok(player.receive_sequence)
+    });
+    let mut release = VehicleInputRelease {
+        receive_sequence: None,
+        attempted: false,
+        sent: false,
+        problem: None,
+    };
+    let packets = match checked {
+        Ok(sequence) => {
+            release.receive_sequence = Some(sequence);
+            release.attempted = true;
+            let version = record.id.mount().session().version;
+            let mut packets = vec![payload(version, VehicleInput::default())];
+            if record.boat_motion.is_some() {
+                packets.push((
+                    if version == crate::MinecraftVersion::Java1_16_1 {
+                        0x17
+                    } else {
+                        0x22
+                    },
+                    vec![0, 0],
+                ));
+            }
+            packets
+        }
+        Err(error) => {
+            release.problem = Some(error.to_string());
+            Vec::new()
+        }
+    };
+    record.failure_release = Some(release);
+    packets
+}
+
+pub(crate) fn finish_failure_release(record: &mut VehicleControlRecord, result: Result<()>) {
+    if let Some(release) = &mut record.failure_release {
+        if release.attempted {
+            match result {
+                Ok(()) => release.sent = true,
+                Err(error) => release.problem = Some(error.to_string()),
+            }
+        }
+    }
 }
 
 pub(crate) fn configure_boat(
@@ -209,6 +289,7 @@ pub(crate) fn configure_boat(
         .filter(|p| p.stage == VehicleControlStage::Submitted && p.id.mount() == record.id.mount())
         .filter(|p| {
             p.vehicle.motion_correction_sequence == record.vehicle.motion_correction_sequence
+                && p.vehicle.attachment_change_sequence == record.vehicle.attachment_change_sequence
         })
         .and_then(|p| p.boat_motion.as_ref());
     let seed = previous_boat.and_then(|b| b.frames.last()).cloned();
@@ -256,10 +337,12 @@ pub(crate) fn configure_boat(
         }
     }
     record.boat_motion = Some(BoatMotion {
+        collision_samples: Vec::new(),
         received: motion,
         received_velocity: velocity,
         velocity_updates: Vec::new(),
         pending_velocity: None,
+        contacts: None,
         initial_frame,
         attempted_frame: None,
         frames: Vec::new(),
@@ -319,12 +402,15 @@ pub(crate) fn receive_boat_velocity(
 pub(crate) fn boat_step(
     record: &VehicleControlRecord,
     input: VehicleInput,
+    collisions: Option<&super::BoatCollisionSample>,
     block_at: &mut impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
 ) -> Result<Option<BoatFrame>> {
     record
         .boat_motion
         .as_ref()
         .map(|boat| {
+            let collisions =
+                collisions.ok_or_else(|| unavailable("boat collision sample missing"))?;
             let mut seed = boat.frames.last().unwrap_or(&boat.initial_frame).clone();
             if let Some(velocity) = boat.pending_velocity {
                 seed.velocity = velocity;
@@ -333,10 +419,51 @@ pub(crate) fn boat_step(
                 record.id.mount().session().version,
                 &seed,
                 input,
+                &collisions
+                    .bodies
+                    .iter()
+                    .map(|b| b.model_box)
+                    .collect::<Vec<_>>(),
                 block_at,
             )
         })
         .transpose()
+}
+
+pub(crate) fn bind_contacts(
+    record: &mut VehicleControlRecord,
+    ledger: &api::entity::SpawnLedger,
+) -> Result<()> {
+    if record.boat_motion.is_none() {
+        return Ok(());
+    }
+    let contacts = api::entity::owned_contacts::OwnedContacts::for_boat(record, ledger)?;
+    record.boat_motion.as_mut().expect("admitted boat").contacts = Some(contacts);
+    Ok(())
+}
+
+pub(crate) fn contact_step(
+    record: &mut VehicleControlRecord,
+    vehicle: &super::VehicleObservation,
+    ledger: &api::entity::SpawnLedger,
+    relations: &super::PassengerLedger,
+    social: (&api::ui::TeamsObservation, &api::ui::PlayerListObservation),
+    input: VehicleInput,
+    block_at: &mut impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
+) -> Result<(Option<super::BoatCollisionSample>, Option<BoatFrame>)> {
+    let Some(boat) = &record.boat_motion else {
+        return Ok((None, None));
+    };
+    let mut contacts = boat
+        .contacts
+        .clone()
+        .ok_or_else(|| unavailable("boat contact owner not admitted"))?;
+    contacts.refresh(record.id.attempt(), ledger, vehicle.receive_sequence)?;
+    contacts.teams(social.0, social.1)?;
+    let (sample, frame) =
+        contacts.tick_boat(record, vehicle, ledger, relations, input, block_at)?;
+    record.boat_motion.as_mut().unwrap().contacts = Some(contacts);
+    Ok((Some(sample), Some(frame)))
 }
 
 pub(crate) fn boat_packets(
@@ -375,6 +502,11 @@ pub(crate) fn validate(
     if vehicle.motion_correction_sequence != record.vehicle.motion_correction_sequence {
         return Err(unavailable(
             "received vehicle correction or explosion interrupted control",
+        ));
+    }
+    if vehicle.attachment_change_sequence != record.vehicle.attachment_change_sequence {
+        return Err(unavailable(
+            "received nested vehicle attachment interrupted control",
         ));
     }
     if record.boat_motion.is_some()

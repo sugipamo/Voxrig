@@ -1,0 +1,1603 @@
+[
+  {
+    "name": "legacy_depth_none",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{}"
+  },
+  {
+    "name": "legacy_depth_one",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{Enchantments:[{id:\"minecraft:depth_strider\",lvl:1}]}"
+  },
+  {
+    "name": "legacy_depth_three",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{Enchantments:[{id:\"minecraft:depth_strider\",lvl:3}]}"
+  },
+  {
+    "name": "legacy_depth_clamped",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{Enchantments:[{id:\":depth_strider\",lvl:300}]}"
+  },
+  {
+    "name": "legacy_depth_first_zero",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{Enchantments:[{id:\"depth_strider\",lvl:0},{id:\"minecraft:depth_strider\",lvl:3}]}"
+  },
+  {
+    "name": "legacy_depth_stored_only",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{StoredEnchantments:[{id:\"minecraft:depth_strider\",lvl:3}]}"
+  },
+  {
+    "name": "legacy_soul_0",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      0.875,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:soul_sand"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{Enchantments:[{id:\"minecraft:soul_speed\",lvl:0}]}"
+  },
+  {
+    "name": "legacy_soul_1",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      0.875,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:soul_sand"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "boots_nbt": "{Enchantments:[{id:\"minecraft:soul_speed\",lvl:1}]}"
+  },
+  {
+    "name": "modern_water_default",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "attributes": {
+      "minecraft:water_movement_efficiency": 0.0
+    },
+    "attribute_modifiers": []
+  },
+  {
+    "name": "modern_water_mixed",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "attributes": {
+      "minecraft:water_movement_efficiency": 0.1
+    },
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:water_movement_efficiency",
+        "id": "voxrig:water_0",
+        "amount": 0.3,
+        "operation": "ADD_VALUE"
+      },
+      {
+        "attribute": "minecraft:water_movement_efficiency",
+        "id": "voxrig:water_1",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_BASE"
+      },
+      {
+        "attribute": "minecraft:water_movement_efficiency",
+        "id": "voxrig:water_2",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_TOTAL"
+      }
+    ]
+  },
+  {
+    "name": "modern_water_clamp",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1.0,
+      0.5
+    ],
+    "blocks": [
+      [
+        -10,
+        0,
+        -10,
+        10,
+        0,
+        10,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        3,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "forward": 1,
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      },
+      {
+        "yaw": 0.0
+      }
+    ],
+    "attributes": {
+      "minecraft:water_movement_efficiency": 0.8
+    },
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:water_movement_efficiency",
+        "id": "voxrig:water_0",
+        "amount": 2.0,
+        "operation": "ADD_MULTIPLIED_TOTAL"
+      }
+    ]
+  }
+]

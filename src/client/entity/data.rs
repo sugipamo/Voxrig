@@ -16,6 +16,9 @@ pub enum EntityDataField {
     /// Shared flags byte: on fire 0x01, crouching 0x02, sprinting 0x08, swimming 0x10,
     /// invisible 0x20, glowing 0x40, fall flying 0x80.
     SharedFlags,
+    /// Original pose enum; native identifiers differ by version. No type
+    /// default is invented when the original enum value was not exported.
+    Pose,
     /// Remaining air ticks.
     AirSupply,
     /// Whether the custom name is always shown.
@@ -30,6 +33,9 @@ pub enum EntityDataField {
     LivingFlags,
     /// Health of a living entity.
     Health,
+    /// Original optional sleeping block position of a living entity. An absent
+    /// receipt stays unknown; the common table does not export its default.
+    SleepingPosition,
     /// Arrows stuck in a living entity.
     ArrowCount,
     /// Mob flags: no AI 0x01, left-handed 0x02, aggressive 0x04.
@@ -79,6 +85,7 @@ impl EntityDataField {
     /// Every field.
     pub const ALL: &'static [Self] = &[
         Self::SharedFlags,
+        Self::Pose,
         Self::AirSupply,
         Self::CustomNameVisible,
         Self::Silent,
@@ -86,6 +93,7 @@ impl EntityDataField {
         Self::TicksFrozen,
         Self::LivingFlags,
         Self::Health,
+        Self::SleepingPosition,
         Self::ArrowCount,
         Self::MobFlags,
         Self::Baby,
@@ -112,6 +120,7 @@ impl EntityDataField {
     /// Official (owner class, field) names in any supported version.
     pub const fn official_names(self) -> &'static [(&'static str, &'static str)] {
         match self {
+            Self::Pose => &[("Entity", "DATA_POSE")],
             Self::SharedFlags => &[("Entity", "DATA_SHARED_FLAGS_ID")],
             Self::AirSupply => &[("Entity", "DATA_AIR_SUPPLY_ID")],
             Self::CustomNameVisible => &[("Entity", "DATA_CUSTOM_NAME_VISIBLE")],
@@ -120,6 +129,7 @@ impl EntityDataField {
             Self::TicksFrozen => &[("Entity", "DATA_TICKS_FROZEN")],
             Self::LivingFlags => &[("LivingEntity", "DATA_LIVING_ENTITY_FLAGS")],
             Self::Health => &[("LivingEntity", "DATA_HEALTH_ID")],
+            Self::SleepingPosition => &[("LivingEntity", "SLEEPING_POS_ID")],
             Self::ArrowCount => &[("LivingEntity", "DATA_ARROW_COUNT_ID")],
             Self::MobFlags => &[("Mob", "DATA_MOB_FLAGS_ID")],
             Self::Baby => &[

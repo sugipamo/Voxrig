@@ -1096,6 +1096,25 @@ pub(super) fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> 
 pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Result<bool> {
     use ids::play_clientbound as input;
     if survival::receive(state, id, payload)? {
+        if id == input::ENTITY_METADATA {
+            if let Some((value, sequence)) = state.operations.local_player.fall_flying {
+                if sequence == state.sequence {
+                    if let Some(owner) = &mut state.control.session {
+                        owner.observe_gliding(value, sequence);
+                    }
+                }
+            }
+        }
+        if id == input::ENTITY_UPDATE_ATTRIBUTES {
+            if let Some(scale) = state.operations.local_player.scale {
+                if matches!(scale.basis, ValueBasis::Received { sequence } if sequence == state.sequence)
+                {
+                    if let Some(session) = state.control.session.as_mut() {
+                        session.observe_scale(scale.value, state.sequence);
+                    }
+                }
+            }
+        }
         return Ok(true);
     }
     if !matches!(
@@ -1171,11 +1190,19 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             if flags & !15 != 0 {
                 bail!("invalid ability flags");
             }
-            r.f32()?;
-            r.f32()?;
+            let flying_speed = r.f32()?;
+            let walking_speed = r.f32()?;
             r.end()?;
             next.abilities = Some(flags);
             next.abilities_sequence = Some(state.sequence);
+            state.context.abilities = Some(crate::client::received(
+                crate::client::PlayerAbilities {
+                    flags,
+                    flying_speed,
+                    walking_speed,
+                },
+                state.sequence,
+            ));
             if flags & 4 == 0 {
                 next.requested_flying = false;
             }
@@ -1248,7 +1275,21 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         _ => return Ok(false),
     }
+    if id == input::GAME_STATE_CHANGE && payload[0] == 3 {
+        if let Some(mode) = next.game_mode {
+            state.control.observe_mode(mode, state.sequence);
+        }
+    }
+    if id == input::ABILITIES {
+        state.control.observe_abilities(payload[0], state.sequence);
+    }
     state.operations = next;
+    if matches!(
+        id,
+        input::WINDOW_ITEMS | input::SET_SLOT | input::SET_PLAYER_INVENTORY
+    ) {
+        continuous::observe_glide_equipment(state);
+    }
     mining::mining_inventory_received(state);
     Ok(true)
 }
@@ -1423,6 +1464,10 @@ pub(super) fn common_player_in_state(
             .local_player
             .using_item
             .map(|u| api::received(u.hand, u.receive_sequence)),
+        fall_flying: native
+            .local_player
+            .fall_flying
+            .map(|(v, s)| api::received(v, s)),
         entity_id: native.local_player.entity_id,
         attributes: native
             .local_player

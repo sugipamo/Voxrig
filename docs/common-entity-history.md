@@ -1,7 +1,7 @@
-# Entityの受信履歴 (#30)
+# Entityの受信履歴 (#30・#40)
 
 `Client::entity_history_after(cursor, maximum_records)`は、native decoderが適用した時点の
-entityの空間情報・status・animation・lifetimeとown-playerの位置補正を保存して返す。
+entityの空間情報・metadata・装備・scale・status・animation・lifetimeとown-playerの位置補正を保存して返す。
 1.16.1・1.21.11で同じ契約を使う。`events_after`の通知や、後から読んだ`entities()`で
 過去の値を組み立てない。`entities()`は現在状態、こちらは過去の受信サンプルである。
 
@@ -26,8 +26,10 @@ loop {
 
 ## 読取・保持の契約
 
-- 接続ごとに直近8192 **record**を保持する。4096件の通知履歴とは独立している。
-  1回の読取は1〜1024件。保持数を超えた最古のrecordを捨て、`gap`で失ったordinalを明示する。
+- 接続ごとに最大8192 **record**、保存値の計上byte数で最大8MiBを保持する。
+  計上対象はrecordの固定部分と、その所有する文字列・配列・item data・modifierで、allocatorの
+  管理領域や未使用の確保容量は含まない。4096件の通知履歴とは独立している。
+  1回の読取は1〜1024件。件数またはbyte予算を超えた最古のrecordを捨て、`gap`で失ったordinalを明示する。
 - `None`は先頭からの初回読取。既に古い履歴が失われていれば初回でも`gap`を返す。
   `next_cursor`から再開し、`has_more`なら続きを読む。
   明示的に過去を飛ばす場合だけ`latest_cursor`を使う。
@@ -57,6 +59,32 @@ sequenceを保つ。後からのsnapshotやモデル値、未受信の速度・�
 `OwnPositionCorrection`として保存し、解決済みposeと、解決できたnative velocityを返す。
 legacyのown補正にはvelocityがないため`None`である。
 
+`Metadata`／`Equipment`は**その1 packetの差分**を保存する。後からの現在状態をコピーせず、
+元のentry順序と重複index／slotを保つ。値の出典はrecordの`receive_sequence`で、受信済みの
+値だけを持ち、pose・子供状態・healthの既定値を補わない。metadataのindex・serializerは版固有。
+位置serializerは`BlockPosition` / `OptionalBlockPosition`として符号付き座標と明示的な空値を保持する。
+`Other(n)`はserializer番号だけで、その型のpayloadを完全保存した意味ではない。
+
+- `complete:true`は共通decoderがpacketを最後まで読み、余分なbyteがなかったことを示す。
+  `false`なら解読できた範囲だけを保存する。modern版で未知serializer／slot／itemがある場合も、
+  それ以前の値とpacket境界を残す。legacy版はnativeに読めた装備のうち共通slotに対応するentryを
+  順に残すため、未知slotより後の対応entryも含みうる。この場合も`complete:false`になる。
+  legacy版の既存native decoderがpacketを拒否した場合には、
+  適用済みの履歴を作らない。装備の`Unavailable`は既存のitem変換の欠測で、`Empty`と区別する。
+- `entries`は`EntityHistoryValue::Retained { value }`、または`RetentionLimit`。
+  **1 packetから履歴へコピーするpayloadの所有byte数が64KiBを超える場合は全差分を保存しない**。
+  packetのnative ID・元lifetime・受信順序・`complete`は残す。これはdecoderの部分解読や
+  ledgerの古いrecordのevictionとは別の欠落で、entryの一部を完全な差分と見せない。
+  最新の`entities()`への既存の適用処理は変わらない。
+- spawnが分からない場合やown playerでは`entity:None`。numeric IDを新しいlifetimeへ後付けしない。
+  受信したspawnに属する差分は、削除・ID再利用・world変更後も元のworld／spawn sequenceを保つ。
+
+`Scale`はmodern版の属性packetを完全に読んだときだけ、実際のscaleのbaseとmodifierを
+元の順序で保存する。未受信を1と推定せず、legacy版にはこのrecordを生成しない。
+同じ64KiBの履歴予算を適用する。最新状態の個体別4096byte上限とは独立しており、その上限を
+超えて最新scaleが無効化された場合でも、履歴側の予算内なら元の属性入力を保存できる。
+履歴の値は過去の受信値で、現在のscaleや物理・装備の作用を証明しない。
+
 `applied_after`は、この接続の履歴ledgerを作ってから、SDKが値を保存した時点までの単調時刻。
 **socketへの到着時刻、relayの受信時刻、server tick、UTC時刻、利用側のpoll時刻ではない。**
 同じpacket内でもrecord ordinalで順序を確定し、別接続の経過時間を直接比較しない。
@@ -70,10 +98,33 @@ pageの`captured_after`は同じ履歴ledgerの時計を読み取った時刻で
 利用側の時計の原点より前になる場合は、変換不能として扱いゼロへ丸めない。
 
 保持対象は、既存decoderが対応する受信spawn、既知lifetimeのmotion、status、animation、
-removal、world変更、own補正。metadata、装備、未対応のpacket payload全体は保存しない。
+removal、world変更、own補正、metadata・装備の解読済み差分、完全に読めたmodern scale。
+未対応のpacket payload全体は保存しない。
 motion対象のspawnやmountが解決できない場合、空間値やlifetimeを発明しない。
-フィールドを必要以上に広げず、8192件の保持でpacket由来の無制限文字列やNBTを蓄積しない。
+byte予算によりpacket由来の無制限文字列やNBTを履歴へ蓄積しない。
 ProjectileTrack、予測・物理、freshness、戦闘判断、Body policyは利用側で定義する。
+
+## metadata・装備・scaleの実接続検証
+
+2026-10-12（日本時間）、未改変の公式1.16.1・1.21.11へ2クライアントを接続し、合計39項目が成功した。
+metadata 48差分、装備10差分、modern scale 3差分を、実際の元packetの値・順序・native IDと照合した。
+しゃがみ／解除、子供／大人の連続変更、装備のitem数・空欄・NBT／custom_dataの変更を含む。
+modern版の部分metadataも、解読できた範囲と`complete:false`を照合した。
+7件ずつのpage、削除後の再読取、実respawn、接続失効後の読取で、過去の値・個体寿命・適用時刻が
+変わらないことを確認した。両版のobserver／peer trace errorは0。
+[検証記録](evidence/common-entity-data-history-20261012.json)にSDK・runner・binary・元JARのhashと結果を保存した。
+
+```sh
+cargo build --locked --example climbing_control_probe --features native
+python3 scripts/run_entity_data_history_live.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /path/to/official-jars --compiled-sdk-revision <built-source-commit>
+cargo test --locked --lib history --features native
+```
+
+byte予算の境界・上限超過・件数／byteによるevictionとID再利用は、単体テストと既存の
+両adapter decoderテストで確認する。実接続で大量packetを合成した検証とは区別する。
+元JAR・class・packet・NBTのコピーは公開せず、自作の検証コード・解釈済みの結果・hashだけを保存する。
 
 ## 設計判断と検証
 
@@ -103,3 +154,6 @@ python3 scripts/run_entity_history.py --accept-eula \
   --binary target/debug/examples/migration_api_probe --jars /path/to/official-jars
 cargo test --locked --lib entity_history --features native
 ```
+
+元packetの一度だけの適用と版ごとのentity更新順は、
+[明示的なモデルschedule](common-entity-schedule.md)を参照。

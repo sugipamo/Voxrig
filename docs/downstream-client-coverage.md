@@ -16,7 +16,7 @@ native整数ID、保存したJSON、別接続のcursorから現在の操作対�
 `Capabilities::for_version(version)`／`client.capabilities()`は静的な実装情報で、
 準備完了・現在のgame mode・権限・chunkの存在を保証しない。操作ごとの検査が必要。
 
-接続せずに全49機能群の現在の宣言をJSONとして取得できる。
+接続せずに全52機能群の現在の宣言をJSONとして取得できる。
 
 ```sh
 cargo run --locked --example client_capabilities > /tmp/voxrig-capabilities.json
@@ -36,7 +36,7 @@ cargo run --locked --example client_capabilities > /tmp/voxrig-capabilities.json
   serverの受理、停止、命中を証明しない。
 - 取消・部分送信・timeout後は残ったrecordを調べる。未解決操作を自動再送しない。
   `revoke_connection`で送信権限を遮断し、必要な観測・履歴を保存する。
-- change通知は4096件、entity履歴は8192件（1read最大1024件）、chatは256件。
+- change通知は4096件、entity履歴は最大8192件・計上8MiB（1read最大1024件、1差分のpayload最大64KiB）、chatは256件。
   event overflowでは再観測、entity履歴では明示的な`gap`を処理する。
   履歴の時刻はSDK適用時計でありsocket到着・server tick・UTCではない。
   読取時計と有限tailは[PR #35](https://github.com/sugipamo/Voxrig/pull/35)で追加済み（main `6db149b`）。
@@ -47,7 +47,7 @@ cargo run --locked --example client_capabilities > /tmp/voxrig-capabilities.json
 接続設定・利用側で確認する順序は[公開API](public-client-api.md)、
 [移行手順](client-api-migration.md)、[利用側検証](client-api-consumer-validation.md)を参照する。
 
-## 現在の共通機能: 全49群
+## 現在の共通機能: 全52群
 
 下の各Featureは`Feature::ALL`に対応する。両版で共通入口があり、厳密な制約は
 [能力表](common-capabilities.md)と各機能文書で確認する。
@@ -58,19 +58,22 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | 接続の遮断・復帰 | `ConnectionRevocation`, `Respawn` | `revoke_connection`、死亡受信後のowned `respawn`。自動再接続なし |
 | 名前・ID・受信registry | `Registry` | `registry`、`server_registry_state`。版／接続／configurationの所有情報を保持 |
 | 自分と周囲の一括観測 | `WorldObservation`, `PlayerObservation` | `capture`、`observe_region`、`player_state`。受信とlocal model、欠測を区別 |
+| playerの受信文脈 | `PlayerContext` | `player_context`。world entry・前回mode・LOGIN条件・cooldown・能力・飛行／歩行速度・難易度・経験値・天候・default spawn・view。元source、world所有、欠測と既知のゼロ／falseを保持 |
+| chunkの受信文脈 | `ChunkContext` | `chunk_context`。biome volume・heightmap・block entity NBT。元sourceと列のincarnationを保持し、地形から補完しない |
+| 地図の受信 | `Maps` | `map_observation`。header・optional icons・部分pixelと各source。世界ごとのID、欠測pixel、bounded cacheとimmutable capture |
 | 視点・hotbar | `BasicControls` | `look`、`select_hotbar`、`player_control(mode)`。Spectatorのhotbarは拒否 |
 | block検索・ray・照準 | `BlockQueries`, `BlockTargeting`, `SurvivalTargeting` | `find_blocks`、64block collision ray、handleのstatic outline targeting。形状・姿勢の制約は別 |
 | 読取専用予測 | `SurvivalPreview` | `preview_path`。1〜120tick、限定したdry地形・状態 |
 | 有限地上移動 | `SurvivalMovement`, `CreativeMovement` | `start_predicted_path`、`motion_record`。予測の完了はserverの受理ではない |
-| 継続移動 | `ContinuousControl` | `start_control`／`set_controls`／`request_ground_jump`／`stop_control`。液体、梯子、つる、足場、playerの泡の柱。接地ジャンプはsession所有の一度だけの予約と結果記録。飛行・乗車は別 |
+| 継続移動 | `ContinuousControl` | `start_control`／`set_controls`／`request_ground_jump`／`stop_control`。モード指定付きSurvival／Adventure／Creative地上操作。液体、梯子、つる、足場、playerの泡の柱。接地ジャンプはsession所有の一度だけの予約と結果記録。飛行・乗車は別 |
 | Creative操作 | `CreativeControls` | default stack、有限飛行・着地。広い姿勢／effectからの継続は残る |
 | 採掘・明示復旧 | `Digging`, `SurvivalMining`, `SurvivalMiningRecovery` | `dig`／`dig_estimate`とretained mining。既定tool速度、受信effect／属性。復旧は同profileの限定条件 |
 | 設置・使用 | `SurvivalPlacement`, `PlacementCheck`, `ItemUse` | receipt付き`place_cube`、読取専用`placement_check`、送信のみの`use_item`／`use_on_block`／解除 |
 | inventory・装備の転送 | `InventorySwap`, `InventoryClick`, `InventoryTransfer`, `InventoryHelpers` | `received_inventory`、通常PICKUP／QUICK_MOVE／SWAP、cursor収納・merge。全click mode対応ではない |
 | container・かまど | `ContainerObservation`, `Containers` | `screen_state`、通常storage／table／furnaceの開閉とconstructor由来layout。特殊screenは残る |
 | 製作 | `Crafting` | received recipe／grid、結果取得・転送、owned recipe配置。材料計画は利用側 |
-| 別player・mobの現在状態 | `EntityObservation`, `EntityMotion`, `EntityState` | `entity_spawns`、`entity_motion`、`entities`。元spawn寿命、field別sample、health／equipment／named data。boxは型の既定寸法 |
-| entity受信履歴 | `EntityHistory` | `entity_history_after`。spawn／motion／status／animation／remove／world変更／自身補正。metadata／equipment履歴は残る |
+| 別player・mobの現在状態 | `EntityObservation`, `EntityMotion`, `EntityState` | `entity_spawns`、`entity_motion`、`entities`。元spawn寿命、field別sample、health／equipment／named data。boxは型の既定寸法。独立した`derived_geometry()`はplayer/cow/pig/zombieの姿勢・子供・modern scaleを原版と照合 |
+| entity受信履歴 | `EntityHistory` | `entity_history_after`。spawn／motion／metadata／equipment／modern scale／status／animation／remove／world変更／自身補正。差分順序・部分解読・byte予算の欠落を区別 |
 | entityの指定操作 | `EntityInteraction` | `interact_entity`／`attack_entity`。旧版Dragon部位は明示的な派生モデル。命中・reach証明や自動戦術なし |
 | 乗車・操縦・下車 | `VehicleObservation`, `VehicleInput`, `VehicleDismount`, `VehicleGrounding` | `vehicle_state`、有限`start_vehicle_control`、owned下車、限定した地上継続。ボートの水面／水没／流水／泡、元の速度受信の一度だけの反映、server駆動トロッコ |
 | chat・command | `Chat` | unsigned `send_chat`／`send_command`、`chat_after`。署名必須serverは対象外 |
@@ -98,11 +101,11 @@ P3は現在のoffline二版以外の導入条件。各項目内でも場面を�
 
 | ID・優先度 | 利用側に必要な残件 | 現状の根拠と受入条件 |
 | --- | --- | --- |
-| OBS-ENTITY / P1 | pose／子供／scaleを反映したentity box・eye、未解読metadata、metadata／equipment履歴、modern相対補正・特殊トロッコsample | [entity現在状態](common-entities.md)・[motion](common-entity-motion.md)・[history](common-entity-history.md)。既定boxと受信確定値を分離し、未確定なら理由を返す。remove／ID再利用／world resetと両版実接続を検査 |
-| OBS-WORLD / P1 | さらに未監査のworld/player文脈 | [`Client::player_context()`](common-player-context.md)で経験値・独立天候field・default world spawn・world-view fieldを提供。[`Client::chunk_context()`](common-chunk-context.md)で受信biome、heightmap、block entity NBTと列のincarnationを提供。[`Client::map_observation()`](common-maps.md)で地図のheader、icon、部分pixelを両版へ提供。元の受信sourceとworld generation、未受信と既知のゼロ／falseを保持。追加の文脈とmodern decode監査は#41継続 |
+| OBS-ENTITY / P1 | 対応種類外のpose／子供／scaleを反映したentity box・eye、未解読metadata、modern相対補正・特殊トロッコsample | [entity現在状態](common-entities.md)・[motion](common-entity-motion.md)・[history](common-entity-history.md)。player／cow／pig／zombieの派生寸法と、metadata／equipment／modern scaleの受信差分履歴、BlockPos／optional BlockPosと睡眠位置の受信判定は対応済み。既定boxと受信確定値を分離し、未確定なら理由を返す。remove／ID再利用／world resetと両版実接続を検査 |
+| OBS-WORLD / P1 | さらに未監査のworld/player文脈 | [`Client::player_context()`](common-player-context.md)で能力・難易度・経験値・独立天候field・default world spawn・world-view fieldを提供。[`Client::chunk_context()`](common-chunk-context.md)で受信biome、heightmap、block entity NBTと列のincarnationを提供。[`Client::map_observation()`](common-maps.md)で地図のheader、icon、部分pixelを両版へ提供。元の受信sourceとworld generation、未受信と既知のゼロ／falseを保持。LOGIN／RESPAWN全体の入場情報、元のprevious mode、版固有cooldown keyと通知にも対応。modern全packetのdecode parityは独立して監査 |
 | INVENTORY / P1 | 明示slot装備・drop・hand swap、armor／offhand／resultのclick残差、製作台入力SWAP／QUICK_MOVE、複雑item/componentの残constructor・比較・hash | [item data](common-item-data.md)・[inventory](common-inventory-clicks.md)・[recipes](common-recipes.md)。容量・item data・cursor／slot保存を検査し、拒否／取消／部分I/Oで再送しない。装備計画は利用側 |
 | WINDOWS / P2 | villager trade、enchant、anvil、beacon、brewingなど特殊menuとsign／book編集 | nativeには一部入口があるが共通layout・結果契約は未完。openingに束縛した対象、slot／property／選択の元値、消費と出力の受信を保持。別screen／mode／close／取消を検査 |
-| MOVEMENT / P2 | ボートのentity衝突・特殊block hook、残る装備移動効果、別姿勢／飛行／elytra／他の乗り物 | [vehicles](common-vehicles.md)・[control](common-control.md)・[physics](physics-engine.md)。ボート／トロッコを先行する。公式処理oracle＋元送信packet＋独立server pose、neutral／強制下車／補正後の停止を検査 |
+| MOVEMENT / P2 | 一般entityの姿勢／scale／補間・押し合い、別姿勢／追加の乗り物。固定形状の車両衝突、泡・slime／bed／honey／cobwebと受信ブーツ・水中属性の補正は対応済み | [vehicles](common-vehicles.md)・[control](common-control.md)・[physics](physics-engine.md)。装備は[11場面330 tickと両版13項目](evidence/common-equipment-movement-20261010.json)、車両衝突は[12実行480 tickと21項目、既存トロッコ8項目](evidence/common-boat-collisions-20261010.json)で検証。受信target・元送信packet＋独立RCON、neutral／取消／強制除外と再送禁止を照合。Adventure／Creative地上held controlは[原版720 tickと両版54項目](evidence/common-ground-modes-20261011.json)で検証済み。Creative／Spectatorの連続飛行は[原版1,424 tickと両版70項目](evidence/common-held-flight-20261011.json)で検証済み。姿勢の受信保持は[原版25姿勢と両版8項目](evidence/common-entity-poses-20261011.json)で検証済み。未対応scaleを受信したheld controlの終了・復元後の明示再開は[両版22項目](evidence/common-control-scale-20261011.json)で検証済み |
 | INTERACTION / P2 | 姿勢・属性に合うreach／eye、entity ray／visibilityと位置指定interaction、非cube／waterloggedなどの確認付き設置と結果待機 | `use_on_block`は汎用送信として既存。確認付き操作への拡張を混同しない。未知shape／動くblock／欠測／変更競合を拒否し、対象blockと材料の実受信を別々に保持 |
 | PROTOCOL / P2 | sound／stop sound、particle、world／block action、pickup、break progress、explosion文脈、camera／leash、command tree／tab completion、statistics／advancements、client settings／brand／payload、resource pack／NBT query | [旧版packet coverage](protocol-coverage.md)はnativeの全92分岐を示すだけ。共通型・能力宣言・bounded受信とrequest ID所有を追加。権限による拒否も実接続で検査。resource packは要求/statusのprotocol面が先で、asset download／描画は別 |
 | LIFECYCLE / P2–P3 | 広いscene／編集／replay／reconfiguration／chunk再観測・明示復旧、遮断後の全履歴可読性、online認証・暗号化・署名chat、追加版 | raw recordingと選択replayは既存。操作権限を復元せず、切断／取消／buffer上限／旧IDを検査。onlineと追加版は別のP3導入機能として分離し、offline対応をonline対応としない |
@@ -166,3 +169,36 @@ Voxrigは、その判断に必要な受信事実、指定された低水準操�
 
 INVENTORYのarmor／offhand交換は既存#38で追跡し、#42はそれ以外の残件。
 MOVEMENTの拡張#44とは別に、再開不具合#37はPR #50で修正済み。単発接地ジャンプは#49で追跡する。
+
+姿勢・子供・scaleの寸法モデルはplayer/cow/pig/zombieの原版931ケースと公式両版57項目で照合済み。
+[検証記録](evidence/common-entity-geometry-20261011.json)。箱は受信targetのモデルであり、補間・押し合い・移動物理の確認ではない。
+
+原版LivingEntityの明示的な1回の押し合い計算は[共通モデル](common-entity-push.md)として提供する。
+[原版1,040ケースと公式両版29項目](evidence/common-entity-push-20261011.json)で検証済み。
+明示的な補間・接触選別・入力順のpair計算は提供済み。
+明示したモデル時点の位置からの[近接探索](common-entity-query.md)は、版ごとの原版検索順序で候補を選ぶ。
+[明示的なentity schedule](common-entity-schedule.md)は、元packetの一度だけの適用と
+原版map/listの更新順を提供する。通常scaleのplayer/cow/pig/zombieは
+[生物接触owner](common-entity-owners.md)で徒歩・held flight・ボートへ統合した。
+[特殊dispatchの対応範囲](common-entity-dispatch.md)と #97/#98/#99を参照。
+native clockの自動割当て、一般speciesと追加姿勢/乗り物は実装済みとは扱わない。
+
+原版cowが継承する位置・body角度の明示的な補間モデルは
+[共通の生物補間](common-entity-interpolation.md)を参照。受信状態・自動tick割当て・
+接触探索・移動制御の統合とは別の数値モデルで、modernの各stepには衝突問い合わせが必要。
+
+明示的なbox・team・述語からの接触選別と入力順の`other.push(this)`計算は
+[共通の接触モデル](common-entity-contact.md)を参照。
+モデル位置からのworld queryは独立した探索段階として提供する。
+自動のpacket/tick割当て・移動owner統合は引き続き#44の残件。
+
+
+自分のplayerのmodern scale 0.125〜4は[地上・held flight](common-player-scale.md)で対応。
+原版73場面・1,752tickと公式両版35項目で、実属性/modifier・寸法・eye・壁衝突・
+飛行・変更後の終端停止・world変更後の新規ownerを検証した。
+他生物のscale、単発の到達距離操作、乗車scaleの拡張は別の対応範囲である。
+
+自分のvanilla chest Elytra・unit滑空は[専用共通owner](common-glide-control.md)で対応。
+原版56場面1,792tickと両版公式接続を照合し、boost・水中・非unit・custom gliderは未対応。
+
+追加姿勢は[全25poseの分類](common-posture-coverage.md)、追加mountは[版・seat・authorityの分類](common-mount-coverage.md)で具体的な実装issueへ分割した。#93/#94の調査完了は追加機能の完成ではなく、#103〜#111の実装と#44が残る。
