@@ -112,6 +112,24 @@ impl Bot {
                 });
             run.record.inspection(predicate);
         }
+        if let Some(run) = lock_packet_state(&self.common_inventory_swap)
+            .await
+            .as_mut()
+            .filter(|run| {
+                run.record.stage == crate::client::inventory::InventorySwapStage::Pending
+                    && run.record.window_id() == i32::from(window_id)
+            })
+        {
+            let predicate = "swap original window closed";
+            run.record
+                .invalidation
+                .get_or_insert(crate::client::inventory::Invalidation {
+                    predicate: predicate.into(),
+                    change: crate::client::inventory::StateChange::WindowChanged,
+                    receipt: packet_sequence,
+                });
+            crate::client::inventory::inspection(&mut run.record, predicate);
+        }
         self.common_container_close_received(i32::from(window_id), packet_sequence)
             .await;
         let mut inventory = self.inventory.write().await;
