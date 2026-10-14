@@ -922,7 +922,12 @@ impl OwnedContacts {
                 if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
                     || !matches!(
                         name,
-                        "minecraft:player" | "minecraft:cow" | "minecraft:pig" | "minecraft:zombie"
+                        "minecraft:player"
+                            | "minecraft:cow"
+                            | "minecraft:pig"
+                            | "minecraft:zombie"
+                            | "minecraft:sheep"
+                            | "minecraft:creeper"
                     )
                     || self.boat.as_ref().is_some_and(|b| b.ignored.contains(&id))
                 {
@@ -1526,6 +1531,79 @@ mod tests {
             "order": format!("{:?}", model.world.order),
             "spatial": format!("{:?}", model.world.spatial),
         })
+    }
+
+    #[test]
+    fn sheep_and_creeper_admission_and_sheep_age_receipts() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for name in ["sheep", "creeper"] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                ledger.history_context(version, 3, 2);
+                ledger
+                    .insert(
+                        version,
+                        NativeSpawn {
+                            id: 7,
+                            uuid: Some([2; 16]),
+                            type_id: None,
+                            dedicated_type_name: Some(name),
+                            position: [0.9, 65., 0.5],
+                            living: Some(true),
+                        },
+                        2,
+                        16,
+                    )
+                    .unwrap();
+                ledger.initialize_motion(
+                    7,
+                    NativeSpawnMotion {
+                        position: Some([0.9, 65., 0.5]),
+                        rotation: Some([0.; 2]),
+                        head_yaw: Some(0.),
+                        velocity: Some([0.; 3]),
+                    },
+                    2,
+                );
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                let body = model.world.bodies.values().next().unwrap();
+                assert_eq!(body.dispatch, ContactDispatch::InheritedLiving);
+                let adult = (body.width, body.height);
+                if name == "sheep" {
+                    assert_eq!(adult, (0.9, 1.3));
+                    let index = version
+                        .table()
+                        .entity_data("minecraft:sheep")
+                        .iter()
+                        .find(|r| {
+                            EntityDataField::Baby
+                                .official_names()
+                                .iter()
+                                .any(|&(owner, field)| r.owner == owner && r.field == field)
+                        })
+                        .unwrap()
+                        .index;
+                    for (sequence, baby) in [(3, true), (4, false)] {
+                        ledger.history_context(version, 3, sequence);
+                        ledger.receive_metadata(
+                            7,
+                            [(index, EntityDataValue::Bool(baby))],
+                            true,
+                            sequence,
+                        );
+                        model.refresh(10, &ledger, sequence).unwrap();
+                        let body = model.world.bodies.values().next().unwrap();
+                        let factor = if baby { 0.5 } else { 1. };
+                        assert_eq!(
+                            (body.width, body.height),
+                            (adult.0 * factor, adult.1 * factor)
+                        );
+                    }
+                } else {
+                    assert_eq!(adult, (0.6, 1.7));
+                }
+            }
+        }
     }
 
     #[test]

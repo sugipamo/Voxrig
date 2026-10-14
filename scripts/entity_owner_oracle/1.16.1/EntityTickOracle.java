@@ -76,6 +76,14 @@ public final class EntityTickOracle {
         ProbeBoat(){super(client,.4,65.,-.3);key=++lifetime;setId(3000000);setPos(.4,65.,-.3);yRot=0;xRot=0;setDeltaMovement(.02,0.,.08);}
         @Override public void tick(){JsonObject e=new JsonObject();e.addProperty("key",key);e.addProperty("native_id",getId());e.addProperty("dispatch","boat_tick");e.add("before",pose(this));net.minecraft.world.phys.AABB box=getBoundingBox();box=new net.minecraft.world.phys.AABB(box.minX-1.0000001,box.minY-5.0000001,box.minZ-1.0000001,box.maxX+1.0000001,box.maxY+5.0000001,box.maxZ+1.0000001);JsonArray candidates=new JsonArray();for(Entity other:client.getEntities(this,box,EntitySelector.NO_SPECTATORS)){if(other instanceof LivingEntity living && keys.containsKey(living) && other.isPushable())candidates.add(key(living));}e.add("geometry_query",candidates);super.tick();e.add("after",pose(this));seen.add(e);}
     }
+    static class RemoteSheep extends net.minecraft.world.entity.animal.Sheep {
+        RemoteSheep(){super(EntityType.SHEEP,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class RemoteCreeper extends net.minecraft.world.entity.monster.Creeper {
+        RemoteCreeper(){super(EntityType.CREEPER,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
     static class RemoteCow extends Cow {
         RemoteCow(){super(EntityType.COW,client);}
         @Override public void tick(){dispatch(this,()->super.aiStep());}
@@ -97,7 +105,7 @@ public final class EntityTickOracle {
     static int key(LivingEntity e){return keys.get(e);}
     static int remaining(LivingEntity e){try{return steps.getInt(e);}catch(Exception error){throw new RuntimeException(error);}}
     static void cancelModel(LivingEntity e){try{steps.setInt(e,0);}catch(Exception error){throw new RuntimeException(error);}}
-    static String name(LivingEntity e){return e instanceof RemoteActorPlayer?"minecraft:player":e instanceof RemotePig?"minecraft:pig":e instanceof RemoteZombie?"minecraft:zombie":"minecraft:cow";}
+    static String name(LivingEntity e){return e instanceof RemoteSheep?"minecraft:sheep":e instanceof RemoteCreeper?"minecraft:creeper":e instanceof RemoteActorPlayer?"minecraft:player":e instanceof RemotePig?"minecraft:pig":e instanceof RemoteZombie?"minecraft:zombie":"minecraft:cow";}
     static void dispatch(LivingEntity e,Runnable aiStep){
         JsonObject event=new JsonObject();event.addProperty("key",key(e));event.addProperty("native_id",e.getId());event.addProperty("dispatch","tick");event.add("before",pose(e));
         aiStep.run();
@@ -132,7 +140,7 @@ public final class EntityTickOracle {
     }
     static double n(JsonObject p,int i){return p.getAsJsonArray("position").get(i).getAsDouble();}
     static float r(JsonObject p,int i){return p.getAsJsonArray("rotation").get(i).getAsFloat();}
-    static void spawn(int id,List<JsonObject> actions){LivingEntity e=switch(actorKind){case 1->new RemotePig();case 2->new RemoteZombie();case 3->new RemoteActorPlayer(id);default->new RemoteCow();};int fresh=++lifetime;keys.put(e,fresh);e.setId(id);e.setPos(.1,65.2,boatMode?1.8:-.3);e.setDeltaMovement(.02,.0025,-.035);e.yRot=0;e.xRot=0;e.setPacketCoordinates(.1,65.2,boatMode?1.8:-.3);e.inChunk=true;e.xChunk=0;e.yChunk=4;e.zChunk=-1;byId.put(id,e);all.put(fresh,e);legacyMap.put(id,e);registered.getChunk(e.blockPosition()).addEntity(e);admitted.add(e);
+    static void spawn(int id,List<JsonObject> actions){LivingEntity e=switch(actorKind){case 4->new RemoteSheep();case 5->new RemoteCreeper();case 1->new RemotePig();case 2->new RemoteZombie();case 3->new RemoteActorPlayer(id);default->new RemoteCow();};int fresh=++lifetime;keys.put(e,fresh);e.setId(id);e.setPos(.1,65.2,boatMode?1.8:-.3);e.setDeltaMovement(.02,.0025,-.035);e.yRot=0;e.xRot=0;e.setPacketCoordinates(.1,65.2,boatMode?1.8:-.3);e.inChunk=true;e.xChunk=0;e.yChunk=4;e.zChunk=-1;byId.put(id,e);all.put(fresh,e);legacyMap.put(id,e);registered.getChunk(e.blockPosition()).addEntity(e);admitted.add(e);
         JsonObject a=new JsonObject();a.addProperty("op","spawn");a.addProperty("native_id",id);a.addProperty("key",key(e));a.addProperty("type_name",name(e));a.add("pose",pose(e));actions.add(a);
     }
     static JsonObject action(String op,int id){JsonObject a=new JsonObject();a.addProperty("op",op);a.addProperty("native_id",id);return a;}
@@ -143,6 +151,12 @@ public final class EntityTickOracle {
         net.minecraft.network.syncher.SynchedEntityData donor=new net.minecraft.network.syncher.SynchedEntityData(e);donor.define(accessor,value);listener.handleSetEntityData(new ClientboundSetEntityDataPacket(e.getId(),donor,true));
         JsonObject a=action("sleep",e.getId());a.add("position",active?new Gson().toJsonTree(new int[]{0,65,0}):JsonNull.INSTANCE);actions.add(a);
     }
+    @SuppressWarnings("unchecked") static void baby(LivingEntity e,boolean active,List<JsonObject> actions,String[] args)throws Exception {
+        Field f=AgableMob.class.getDeclaredField(args[args.length-1]);f.setAccessible(true);
+        net.minecraft.network.syncher.EntityDataAccessor<Boolean> accessor=(net.minecraft.network.syncher.EntityDataAccessor<Boolean>)f.get(null);
+        net.minecraft.network.syncher.SynchedEntityData donor=new net.minecraft.network.syncher.SynchedEntityData(e);donor.define(accessor,active);listener.handleSetEntityData(new ClientboundSetEntityDataPacket(e.getId(),donor,true));
+        JsonObject a=action("baby",e.getId());a.addProperty("value",active);a.add("bounds",pose(e).get("bounds"));actions.add(a);
+    }
     static void teleport(LivingEntity e,double distance,List<JsonObject> actions){
         double x=e.getX()+distance,y=e.getY(),z=e.getZ();float yaw=90,pitch=-45;
         JsonObject a=action("absolute",e.getId());a.add("position",new Gson().toJsonTree(new double[]{x,y,z}));a.add("rotation",new Gson().toJsonTree(new float[]{yaw,pitch}));a.addProperty("ground",true);actions.add(a);
@@ -150,7 +164,7 @@ public final class EntityTickOracle {
         e.setPos(x,y,z);e.yRot=yaw;e.xRot=pitch;e.setOnGround(true);ClientboundTeleportEntityPacket packet=new ClientboundTeleportEntityPacket(e);e.setPos(ox,oy,oz);e.yRot=or;e.xRot=op;e.setOnGround(ground);listener.handleTeleportEntity(packet);
     }
     static JsonObject evaluate(int seed,ServerLevel level,String[] args)throws Exception{
-        controlledBoat=null;lifetime=0;keys=new IdentityHashMap<>();unticking=new HashSet<>();actorKind=seed%4;registered=level;byId=new LinkedHashMap<>();all=new LinkedHashMap<>();mutation=false;
+        controlledBoat=null;lifetime=0;keys=new IdentityHashMap<>();unticking=new HashSet<>();actorKind=seed<16?seed%4:seed<20?4:5;registered=level;byId=new LinkedHashMap<>();all=new LinkedHashMap<>();mutation=false;
         client=(ClientLevel)allocate(ProbeClientLevel.class);
         for(Field f:Level.class.getDeclaredFields())if(!Modifier.isStatic(f.getModifiers())){f.setAccessible(true);f.set(client,f.get(level));}
         admitted=new ArrayList<>();legacyMap=new Int2ObjectOpenHashMap<>();set(client,ClientLevel.class,args[1],legacyMap);set(client,ClientLevel.class,args[2],new ArrayList<>());set(client,ClientLevel.class,args[3],allocate(ProbeChunkCache.class));
@@ -169,6 +183,7 @@ public final class EntityTickOracle {
                         if(stage==0 && seed%2!=0){for(int i=0;i<count;i++)spawn(i==0?0:(i==1?primary:(seed==0&&i<5?new int[]{0,0,33,755,66}[i]:(i%2==0?-1:1)*(seed*257+i*37))),actions);}
             if(boatMode){boolean forward=stage<9;controlledBoat.setInput(false,false,forward,false);JsonObject a=action("boat_input",controlledBoat.getId());a.addProperty("forward",forward);actions.add(a);}
             LivingEntity e=byId.get(primary);
+            if(actorKind==4 && (stage==0||stage==2))baby(e,stage==0,actions,args);
             if(stage==1||stage==10){for(int i=0;i<2;i++){
                 JsonObject a=action("relative",primary);a.add("delta",new Gson().toJsonTree(new int[]{512,-128,-512}));a.add("rotation",new Gson().toJsonTree(new int[]{64,-32}));a.addProperty("ground",true);actions.add(a);
                 listener.handleMoveEntity(new ClientboundMoveEntityPacket.PosRot(primary,(short)512,(short)-128,(short)-512,(byte)64,(byte)-32,true));}}
@@ -184,7 +199,7 @@ public final class EntityTickOracle {
             if(stage==11){cancelModel(e);actions.add(action("cancel",primary));}
             client.tickEntities();
             JsonObject step=new JsonObject();step.addProperty("stage",stage);step.add("actions",new Gson().toJsonTree(actions));step.add("during_tick",new Gson().toJsonTree(inside));step.add("ticks",new Gson().toJsonTree(seen));JsonArray states=new JsonArray();
-            for(LivingEntity body:byId.values()){JsonObject state=new JsonObject();state.addProperty("key",key(body));state.addProperty("native_id",body.getId());state.add("pose",pose(body));state.addProperty("remaining_steps",remaining(body));states.add(state);}step.add("states",states);out.add(step);
+            for(LivingEntity body:byId.values()){JsonObject state=new JsonObject();state.addProperty("key",key(body));state.addProperty("native_id",body.getId());state.add("pose",pose(body));state.addProperty("remaining_steps",remaining(body));states.add(state);}step.add("states",states);step.add("local_after",pose(minecraft.player));out.add(step);
         }
         for(Entity body:admitted)registered.getChunk(body.xChunk,body.zChunk).removeEntity(body);
         JsonObject row=new JsonObject();row.addProperty("seed",seed);row.addProperty("scene",boatMode?"boat":"walking");row.add("steps",out);return row;
@@ -195,7 +210,7 @@ public final class EntityTickOracle {
         net.minecraft.server.Main.main(new String[]{"--nogui"});MinecraftServer server=null;
         for(int i=0;i<120&&(server==null||server.getTickCount()<20);i++){Thread.sleep(500);if(server==null)server=findServer();}
         if(server==null)throw new IllegalStateException("not ready");MinecraftServer s=server;
-        JsonArray result=new JsonArray();s.executeBlocking(()->{for(int x=-16;x<=32;x++)for(int z=-16;z<=16;z++)s.overworld().setBlock(new net.minecraft.core.BlockPos(x,64,z),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),0);try{set(s.overworld(),Level.class,args[7],true);try{for(int scene=0;scene<2;scene++){boatMode=scene==1;for(int seed=0;seed<16;seed++)result.add(evaluate(seed,s.overworld(),args));}}finally{set(s.overworld(),Level.class,args[7],false);}}catch(Exception e){throw new RuntimeException(e);}});
+        JsonArray result=new JsonArray();s.executeBlocking(()->{for(int x=-16;x<=32;x++)for(int z=-16;z<=16;z++)s.overworld().setBlock(new net.minecraft.core.BlockPos(x,64,z),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),0);try{set(s.overworld(),Level.class,args[7],true);try{for(int scene=0;scene<2;scene++){boatMode=scene==1;for(int seed=0;seed<24;seed++)result.add(evaluate(seed,s.overworld(),args));}}finally{set(s.overworld(),Level.class,args[7],false);}}catch(Exception e){throw new RuntimeException(e);}});
         Files.writeString(Path.of(args[0]),new Gson().toJson(result)+"\n");s.halt(false);System.exit(0);
     }catch(Throwable e){e.printStackTrace();System.exit(1);}}
 }
