@@ -563,7 +563,7 @@ mod tests {
                         .iter()
                         .find(|t| t["dispatch"] == "player_tick")
                         .unwrap();
-                    if stage == 0 && seed >= 16 {
+                    if stage == 0 && (16..24).contains(&seed) {
                         let actors = step["ticks"].as_array().unwrap();
                         let own_slot = actors
                             .iter()
@@ -678,7 +678,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(stages, 576);
+        assert_eq!(stages, 1680);
         assert_eq!(pushed_slots, [[[true; 2]; 2]; 2]);
     }
 
@@ -957,7 +957,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(stages, 576);
+        assert_eq!(stages, 1680);
     }
     fn update_received_geometry(world: &mut ContactTickWorld, key: u64) {
         let b = &world.bodies[&key];
@@ -1008,6 +1008,46 @@ mod tests {
                 format!("{:x}", sha2::Sha256::digest(source))
             );
             assert_eq!(x["versions"][v]["original_client_jar_sha1"], jar);
+            let policy: Value = serde_json::from_str(include_str!(
+                "../../../docs/evidence/contact-capabilities-20261014.json"
+            ))
+            .unwrap();
+            let types = x["versions"][v]["results"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|row| row["steps"].as_array().unwrap())
+                .flat_map(|step| step["actions"].as_array().unwrap())
+                .filter(|action| action["op"] == "spawn")
+                .map(|action| action["type_name"].as_str().unwrap())
+                .collect::<std::collections::BTreeSet<_>>();
+            for (name, entry) in policy["versions"][v]["types"].as_object().unwrap() {
+                if entry["capability"] == "Inherited" {
+                    assert!(
+                        types.contains(format!("minecraft:{name}").as_str()),
+                        "{v} {name} missing from numerical oracle"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn original_client_exclusions_keep_bat_and_armor_stand_distinct_from_vehicle_hooks() {
+        let x: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/entity_owner_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        for version in ["1.16.1", "1.21.11"] {
+            let rows = x["versions"][version]["exclusions"].as_array().unwrap();
+            assert_eq!(rows.len(), 4);
+            for row in rows {
+                assert_eq!(row["pushable"], false, "{version} {row}");
+                if version == "1.21.11" {
+                    assert_eq!(row["solid"], false);
+                }
+                assert_vector(velocity(&row["before"]), velocity(&row["after"]), version);
+            }
         }
     }
 

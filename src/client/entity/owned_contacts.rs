@@ -3,6 +3,7 @@ use super::{
     EntityDataField, EntityDataValue, EntityHistoryCursor, EntityHistoryKind, EntityHistoryValue,
     EntityId, EntityPose, LivingInterpolationPose, LivingTickBody, MAX_ENTITY_HISTORY_READ,
     MAX_ENTITY_HISTORY_RECORDS, SpawnLedger,
+    contact_capabilities::{self, DeferredContact, WalkingPush},
     contact_tick::{ContactDispatch, ContactTickBody, ContactTickWorld},
 };
 use crate::{
@@ -72,6 +73,7 @@ pub(crate) struct OwnedContacts {
     cursor: Option<EntityHistoryCursor>,
     fresh: u64,
     inputs: BTreeMap<u64, Inputs>,
+    deferred: BTreeMap<i32, DeferredContact>,
     origin: u64,
     tick: u64,
     receive_sequence: u64,
@@ -222,6 +224,17 @@ impl ContactCheckpoint {
         }
         target.world = self.model.world.clone();
         target.inputs = self.model.inputs.clone();
+        target.deferred = self.model.deferred.clone();
+        for body in target.deferred.values_mut() {
+            body.entity.session.connection_id = target.session.connection_id;
+        }
+        target.deferred.retain(|_, body| {
+            surviving.contains(&body.entity)
+                && !target
+                    .boat
+                    .as_ref()
+                    .is_some_and(|b| b.ignored.contains(&body.entity))
+        });
         for input in target.inputs.values_mut() {
             input.entity.session.connection_id = target.session.connection_id;
         }
@@ -339,6 +352,7 @@ impl OwnedContacts {
             cursor: None,
             fresh: 1,
             inputs: BTreeMap::new(),
+            deferred: BTreeMap::new(),
             origin: 0,
             tick: 0,
             receive_sequence: 0,
@@ -353,7 +367,7 @@ impl OwnedContacts {
     }
 
     pub(crate) fn has_bodies(&self) -> bool {
-        !self.world.bodies.is_empty()
+        !self.world.bodies.is_empty() || self.deferred.values().any(|b| b.relevant(false))
     }
 
     pub(crate) fn tick_boat(
@@ -395,6 +409,8 @@ impl OwnedContacts {
         if let Some(velocity) = boat.pending_velocity {
             seed.velocity = velocity;
         }
+        let deferred = &self.deferred;
+        contact_capabilities::check(deferred.values(), boat_query(seed.bounds), true)?;
         let own_bounds = std::cell::RefCell::new(seed.bounds);
         let fixed = ledger
             .capture(self.session, self.receive_sequence)
@@ -498,6 +514,11 @@ impl OwnedContacts {
                     &mut *read.borrow_mut(),
                 )?
                 .ok_or_else(|| failure("missing boat frame"))?;
+                contact_capabilities::check(
+                    deferred.values(),
+                    contact_capabilities::hull(boat_query(seed.bounds), boat_query(frame.bounds)),
+                    true,
+                )?;
                 *own_bounds.borrow_mut() = frame.bounds;
                 Ok((sample, frame))
             },
@@ -582,6 +603,8 @@ impl OwnedContacts {
     )> {
         use crate::client::{LivingContactBody, LivingPushBody, physics};
         let version = self.session.version;
+        let deferred = &self.deferred;
+        contact_capabilities::check(deferred.values(), aabb(body.bounds), false)?;
         let read = std::cell::RefCell::new(block_at);
         let mut local = LivingContactBody {
             push: LivingPushBody {
@@ -596,18 +619,19 @@ impl OwnedContacts {
             legacy_pushthrough: 0.,
             team: own_team.map(|t| t.1),
         };
-        if self.has_bodies() && !environment.spectator {
+        if !self.world.bodies.is_empty() && !environment.spectator {
             local.push.pushable =
                 !physics::contact_climbable(version, body.position, &mut *read.borrow_mut())?;
         }
         let mut outcome = None;
         let inputs = &self.inputs;
-        let nonempty = self.has_bodies();
+        let nonempty = !self.world.bodies.is_empty();
         let pairs = self.world.tick(
             &mut local,
             (own_team.map(|t| t.0.as_str()), environment.spectator),
             false,
             |local| {
+                let before = local.bounds;
                 body.velocity = local.push.velocity;
                 outcome = physics::tick_with_ground_jump(
                     version,
@@ -620,6 +644,11 @@ impl OwnedContacts {
                 local.push.position = body.position;
                 local.push.velocity = body.velocity;
                 local.bounds = aabb(body.bounds);
+                contact_capabilities::check(
+                    deferred.values(),
+                    contact_capabilities::hull(before, local.bounds),
+                    false,
+                )?;
                 local.push.pushable = environment.spectator
                     || (!nonempty
                         || !physics::contact_climbable(
@@ -945,11 +974,11 @@ impl OwnedContacts {
             }
         }
         self.checkpoint_errors.clear();
-        // Every surviving body must have a qualified runtime dispatch. No
-        // default box or received target is promoted to current contact state.
-        let surviving = ledger.capture(self.session, sequence);
-        for spawn in surviving.entities {
+        // Unknown bodies remain in native order, but only a conservative
+        // owner-time proof can defer their refusal until the movement query.
+        for spawn in ledger.capture(self.session, sequence).entities {
             if !self.inputs.values().any(|i| i.entity == spawn.id)
+                && !self.deferred.values().any(|i| i.entity == spawn.id)
                 && !self.boat.as_ref().is_some_and(|scope| {
                     scope.ignored.contains(&spawn.id)
                         || spawn
@@ -959,7 +988,7 @@ impl OwnedContacts {
                 })
             {
                 let mut value = refusal(&unsupported(format!(
-                    "unqualified contact dispatch: {:?}",
+                    "contact lifetime lacks capability state: {:?}",
                     spawn.type_name
                 )));
                 let context = value.context_mut();
@@ -1138,10 +1167,54 @@ impl OwnedContacts {
             }
             return Err(failure("contact record lifetime changed"));
         }
+        match &record.kind {
+            EntityHistoryKind::Scale {
+                entity: Some(entity),
+                ..
+            }
+            | EntityHistoryKind::Equipment {
+                entity: Some(entity),
+                ..
+            }
+            | EntityHistoryKind::Status {
+                entity: Some(entity),
+                ..
+            }
+            | EntityHistoryKind::Animation {
+                entity: Some(entity),
+                ..
+            } => {
+                if let Some(body) = self
+                    .deferred
+                    .get_mut(&entity.native_id())
+                    .filter(|b| b.entity == *entity)
+                {
+                    body.invalidate();
+                }
+            }
+            EntityHistoryKind::Passengers {
+                entity, passengers, ..
+            } => {
+                for body in self.deferred.values_mut() {
+                    if Some(body.entity) == *entity
+                        || match passengers {
+                            EntityHistoryValue::Retained { value } => {
+                                value.iter().any(|(_, id)| *id == Some(body.entity))
+                            }
+                            EntityHistoryValue::RetentionLimit => true,
+                        }
+                    {
+                        body.invalidate();
+                    }
+                }
+            }
+            _ => {}
+        }
         let ordinal = record.ordinal;
         match &record.kind {
             EntityHistoryKind::Spawn(m) => {
                 let id = m.entity.id;
+                self.deferred.remove(&id.native_id());
                 let old = self
                     .world
                     .bodies
@@ -1162,18 +1235,39 @@ impl OwnedContacts {
                 };
                 if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
                     || !matches!(
-                        name,
-                        "minecraft:player"
-                            | "minecraft:cow"
-                            | "minecraft:pig"
-                            | "minecraft:zombie"
-                            | "minecraft:sheep"
-                            | "minecraft:creeper"
+                        contact_capabilities::capabilities(self.session.version, name).walking,
+                        WalkingPush::Inherited | WalkingPush::RemotePlayer
                     )
                     || self.boat.as_ref().is_some_and(|b| b.ignored.contains(&id))
                 {
-                    // Current unqualified dispatch is refused below. A
-                    // removed old body still contributes map capacity.
+                    // Harmless and unresolved bodies keep their original slot.
+                    // No received target is claimed as a current model box.
+                    if surviving.is_none_or(|ids| ids.contains(&id))
+                        && !self.boat.as_ref().is_some_and(|scope| {
+                            scope.ignored.contains(&id)
+                                || crate::client::vehicle::collision::rigid(name)
+                        })
+                    {
+                        let pose =
+                            m.position
+                                .as_ref()
+                                .zip(m.rotation.as_ref())
+                                .and_then(|(p, r)| {
+                                    let source = crate::client::ValueSource::Received {
+                                        sequence: record.receive_sequence,
+                                    };
+                                    (p.source == source && r.source == source).then_some(
+                                        LivingInterpolationPose {
+                                            position: p.value.position,
+                                            rotation: r.value,
+                                        },
+                                    )
+                                });
+                        self.deferred.insert(
+                            id.native_id(),
+                            DeferredContact::new(self.session.version, id, name, pose, ordinal),
+                        );
+                    }
                     self.fresh = self
                         .fresh
                         .checked_add(1)
@@ -1246,6 +1340,22 @@ impl OwnedContacts {
                 );
             }
             EntityHistoryKind::Motion(m) => {
+                if let Some(body) = self.deferred.get_mut(&m.entity.id.native_id()) {
+                    if body.entity != m.entity.id {
+                        return Err(failure("deferred contact motion lifetime changed"));
+                    }
+                    let packet = m
+                        .packet
+                        .as_ref()
+                        .filter(|p| {
+                            p.source
+                                == crate::client::ValueSource::Received {
+                                    sequence: record.receive_sequence,
+                                }
+                        })
+                        .and_then(|p| p.value.living_packet(self.session.version).ok());
+                    body.apply(ordinal, packet);
+                }
                 if let Some(body) = self
                     .world
                     .bodies
@@ -1291,6 +1401,7 @@ impl OwnedContacts {
                 }
             }
             EntityHistoryKind::Removed { native_id, .. } => {
+                self.deferred.remove(native_id);
                 self.world
                     .order
                     .remove_membership(*native_id)
@@ -1349,6 +1460,14 @@ impl OwnedContacts {
                 let Some(entity) = entity else {
                     return Ok(());
                 };
+                if let Some(body) = self
+                    .deferred
+                    .get_mut(native_id)
+                    .filter(|b| b.entity == *entity)
+                {
+                    body.metadata(entries, *complete);
+                    return Ok(());
+                }
                 let Some(key) = self
                     .inputs
                     .iter()
@@ -1808,6 +1927,297 @@ mod tests {
             "order": format!("{:?}", model.world.order),
             "spatial": format!("{:?}", model.world.spatial),
         })
+    }
+
+    fn extra(
+        ledger: &mut SpawnLedger,
+        version: V,
+        name: &'static str,
+        position: [f64; 3],
+        motion: bool,
+        sequence: u64,
+    ) {
+        ledger.history_context(version, 3, sequence);
+        ledger
+            .insert(
+                version,
+                NativeSpawn {
+                    id: 8,
+                    uuid: None,
+                    type_id: None,
+                    dedicated_type_name: Some(name),
+                    position,
+                    living: None,
+                },
+                sequence,
+                32,
+            )
+            .unwrap();
+        ledger.initialize_motion(
+            8,
+            if motion {
+                NativeSpawnMotion {
+                    position: Some(position),
+                    rotation: Some([0.; 2]),
+                    ..Default::default()
+                }
+            } else {
+                NativeSpawnMotion::default()
+            },
+            sequence,
+        );
+    }
+
+    fn player_step(
+        model: &mut OwnedContacts,
+        body: &mut crate::client::physics::Body,
+    ) -> Result<()> {
+        model
+            .tick_player(
+                body,
+                &crate::client::physics::Environment::defaults(model.session.version),
+                crate::client::control::Controls::default(),
+                false,
+                None,
+                &mut |_| {
+                    Ok(crate::NativeBlockState {
+                        name: "minecraft:air".into(),
+                        properties: Default::default(),
+                    })
+                },
+            )
+            .map(|_| ())
+    }
+    #[test]
+    fn harmless_overlap_keeps_native_slots_without_motion_metadata_profiles_or_teams() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for name in ["item", "arrow", "snowball", "bat", "armor_stand"] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(&mut ledger, version, name, [0., 65., 0.], false, 2);
+                // Even incomplete metadata has no living/boat contact relevance.
+                ledger.receive_metadata(8, [], false, 3);
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 3).unwrap();
+                assert!(!model.has_bodies(), "{version:?} {name}");
+                assert!(model.world.order.body(model.native_keys[&8]).is_some());
+                let mut own = crate::client::physics::Body::new([0., 65., 0.]);
+                player_step(&mut model, &mut own).unwrap();
+                assert_eq!(own.velocity[0], 0.);
+                assert_eq!(own.velocity[2], 0.);
+                assert!(model.frame(0).bodies.is_empty());
+                contact_capabilities::check(model.deferred.values(), boat_query(own.bounds), true)
+                    .unwrap();
+            }
+        }
+    }
+    #[test]
+    fn unaudited_predicate_uses_generic_conservative_geometry_instead_of_a_species_default() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "spider", [6., 65., 0.], true, 2);
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            assert!(model.world.bodies.is_empty());
+            player_step(
+                &mut model.clone(),
+                &mut crate::client::physics::Body::new([0., 65., 0.]),
+            )
+            .unwrap();
+            ledger.history_context(version, 3, 3);
+            ledger.receive_motion(
+                version,
+                8,
+                NativeMotion::Relative {
+                    delta: [-24576, 0, 0],
+                    rotation: None,
+                    ground: false,
+                },
+                3,
+            );
+            model.refresh(10, &ledger, 3).unwrap();
+            assert!(
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 0.])
+                )
+                .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_body_refusal_is_deferred_and_conservative_not_a_received_box_shortcut() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "horse", [6., 65., 0.], true, 2);
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            let baby = version
+                .table()
+                .entity_data("minecraft:horse")
+                .iter()
+                .find(|r| {
+                    EntityDataField::Baby
+                        .official_names()
+                        .contains(&(r.owner, r.field))
+                })
+                .unwrap()
+                .index;
+            ledger.receive_metadata(8, [(baby, EntityDataValue::Bool(true))], true, 2);
+            model.refresh(10, &ledger, 2).unwrap();
+            let own = crate::client::physics::Body::new([0., 65., 0.]);
+            player_step(&mut model.clone(), &mut own.clone()).unwrap();
+            contact_capabilities::check(model.deferred.values(), boat_query(own.bounds), true)
+                .unwrap();
+            ledger.history_context(version, 3, 3);
+            ledger.receive_motion(
+                version,
+                8,
+                NativeMotion::Relative {
+                    delta: [-24576, 0, 0],
+                    rotation: None,
+                    ground: false,
+                },
+                3,
+            );
+            model.refresh(10, &ledger, 3).unwrap();
+            let before = numerical_state(&model);
+            assert!(player_step(&mut model.clone(), &mut own.clone()).is_err());
+            assert_eq!(before, numerical_state(&model)); // actual control commits only successful clones
+            assert!(
+                contact_capabilities::check(model.deferred.values(), boat_query(own.bounds), true)
+                    .is_err()
+            );
+            // A later distant target cannot erase the possible near current box.
+            ledger.history_context(version, 3, 4);
+            ledger.receive_motion(
+                version,
+                8,
+                NativeMotion::Relative {
+                    delta: [24576, 0, 0],
+                    rotation: None,
+                    ground: false,
+                },
+                4,
+            );
+            model.refresh(10, &ledger, 4).unwrap();
+            assert!(player_step(&mut model.clone(), &mut own.clone()).is_err());
+            // Native-ID reuse is a new lifetime with a new hull.
+            ledger.remove(8);
+            extra(&mut ledger, version, "horse", [6., 65., 0.], true, 5);
+            model.refresh(10, &ledger, 5).unwrap();
+            player_step(&mut model.clone(), &mut own.clone()).unwrap();
+        }
+    }
+    #[test]
+    fn unsupported_missing_dynamic_geometry_metadata_and_passengers_destroy_disjoint_proofs() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for (name, motion) in [
+                ("horse", false),
+                ("slime", true),
+                ("shulker", true),
+                ("boat", true),
+            ] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(
+                    &mut ledger,
+                    version,
+                    if name == "boat" && version == V::Java1_21_11 {
+                        "oak_boat"
+                    } else {
+                        name
+                    },
+                    [600., 65., 0.],
+                    motion,
+                    2,
+                );
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                assert!(
+                    player_step(
+                        &mut model,
+                        &mut crate::client::physics::Body::new([0., 65., 0.])
+                    )
+                    .is_err(),
+                    "{version:?} {name}"
+                );
+            }
+            for complete in [false, true] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(&mut ledger, version, "horse", [6., 65., 0.], true, 2);
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                ledger.history_context(version, 3, 3);
+                ledger.receive_metadata(8, [(6, EntityDataValue::Int(99))], complete, 3);
+                model.refresh(10, &ledger, 3).unwrap();
+                assert!(
+                    player_step(
+                        &mut model,
+                        &mut crate::client::physics::Body::new([0., 65., 0.])
+                    )
+                    .is_err()
+                );
+            }
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "horse", [6., 65., 0.], true, 2);
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            ledger.history_context(version, 3, 3);
+            ledger.history_passengers(&crate::client::vehicle::NativePassengers {
+                vehicle: 8,
+                passengers: vec![99],
+            });
+            model.refresh(10, &ledger, 3).unwrap();
+            assert!(
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 0.])
+                )
+                .is_err()
+            );
+        }
+    }
+    #[test]
+    fn conservative_contacts_check_the_swept_prediction_and_checkpoint_world_lifetime() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "horse", [6., 65., 0.], true, 2);
+            let model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            let mut own = crate::client::physics::Body::new([0., 65., 0.]);
+            own.velocity = [8., 0., 0.];
+            assert!(player_step(&mut model.clone(), &mut own).is_err());
+            for sequence in 3..MAX_ENTITY_HISTORY_RECORDS as u64 + 8 {
+                ledger.history_context(version, 3, sequence);
+                ledger.history_signal(500, None, Some(0));
+            }
+            let fresh = OwnedContacts::new(
+                session,
+                11,
+                99,
+                &ledger,
+                MAX_ENTITY_HISTORY_RECORDS as u64 + 8,
+            )
+            .unwrap();
+            assert_eq!(fresh.deferred[&8].entity, model.deferred[&8].entity);
+            player_step(
+                &mut fresh.clone(),
+                &mut crate::client::physics::Body::new([0., 65., 0.]),
+            )
+            .unwrap();
+            let mut wrong = session;
+            wrong.world_generation += 1;
+            assert!(
+                OwnedContacts::new(
+                    wrong,
+                    12,
+                    99,
+                    &ledger,
+                    MAX_ENTITY_HISTORY_RECORDS as u64 + 8
+                )
+                .is_err()
+            );
+        }
     }
 
     #[test]

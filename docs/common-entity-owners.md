@@ -1,6 +1,6 @@
 # 徒歩・ボートの生物接触モデル
 
-共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、player / cow / pig / zombie / sheep / creeper の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
+共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、版ごとの private capability table で資格化した inherited-living / RemotePlayer の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
 
 ## モデルの開始点
 
@@ -43,7 +43,7 @@
 | passenger / vehicle | 実際の寿命付き乗員関係。own boatの乗員は衝突入力から除外。途中の変更・nested未検証関係は停止 |
 | pose / baby / scale | 既存の原版寸法modelを使う。他の生物の非unit scale、未知pose/serializer、spin attackなど未検証hookは拒否。自分の地上・held flightのscale範囲は[別契約](common-player-scale.md) |
 
-モデルには原版tick順の256 active body / 512 retained bodyの上限もある。種類不明や未検証dispatchを、遠いからという理由だけで通常生物に読み替えない。walkingでは固定車両の独自push、一般species、乗員travelなどをこの4種類のlaneへ混ぜない。ボートには既存の固定車両laneを保つ。これらの追加対応、modern相対補正・特殊トロッコの入力は #40 と個別issueに従う。
+モデルには原版tick順の256 active body / 512 retained bodyの上限もある。種類不明や未検証dispatchを、遠いからという理由だけで通常生物に読み替えない。walkingでは固定車両の独自push、未監査hook、乗員travelなどを inherited-living lane へ混ぜない。ボートには既存の固定車両laneを保つ。これらの追加対応、modern相対補正・特殊トロッコの入力は #40 と個別issueに従う。
 
 履歴欠落、部分decode、必要な地形不足、未検証hook、own correction、world/owner変更では、生物のモデルを破棄して後続frameを止める。通常の地形待ちと同じ自動再開を、このモデルへ適用しない。own sleeping / spin attack / elytra姿勢も別の操作kindを必要とする。
 
@@ -55,7 +55,7 @@ crammingのサーバー側判定・damage・RNGは計算・送信しない。多
 
 `entity_owner_oracle.json.gz` は、未変更の公式client JARを先に読み込む自作headless harnessの数値結果。実際のClientLevel、LocalPlayer、Cow/Pig/Zombie/RemotePlayer、乗員を持つ原版Boat、packet handler、元のchunk/entity storageを使う。描画constructor、audio送出、passenger rideTick、LocalPlayerのGUI入力前処理は切り離し、その境界をfixtureにも記載する。
 
-両版96スケジュール・1152段階で、徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
+両版280スケジュール・3360段階で、徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
 
 実接続は同じ共通Clientと固定バイナリを両版公式serverで使い、実際の元packet、spawn寿命、独立RCON、停止/下車を保存する。強制下車と未検証dispatchの2場面を別runで検証し、入力解除の一度だけの送信と後続予測frameの停止を確認する。結果とSDK・バイナリ・元JARの対応は[検証記録](evidence/common-entity-owners-20261012.json)に保持する。
 
@@ -75,4 +75,39 @@ owner oracleのown travel比較は記録したloaded stone worldを対象とし�
 追加の原版入力hash、継承先、metadata、数値oracleの範囲・再実行手順は
 [dispatch の追加監査](common-entity-dispatch.md)と
 [監査記録](evidence/sheep-creeper-contact-20261014.json)に記載する。
-他の未監査speciesへの global refusal は継続する。
+未監査入力は以下の private relevance fence に従う。
+
+## Private capabilities と relevance fence（option 1）
+
+公開 API、公開 geometry の資格範囲、予測値の意味・送信保証は変更しない。
+owner は walking の outgoing push、incoming pushability、solid collision、geometry を
+別々に保持する。版別の原版 EntityType class と accessor ancestry を生成入力に使い、
+`pushEntities` / `doPush` / `push` / `isPushable`、姿勢・寸法・述語と client AI-step
+wrapper の継承先を確認した通常生物を inherited lane へ入れる。
+LivingEntity の metadata があるだけでは admission にならない。
+生成規則・全登録種類の method owner は
+[capability evidence](evidence/contact-capabilities-20261014.json)に固定する。
+原版数値 oracle は新たに入る全 class と conservative Horse の通常状態を両版で比較する。
+
+Item、監査した arrow / throwable projectile、Bat、ArmorStand は local movement の
+walking push と boat solid selector に無関係なので native slot だけを保持する。
+この lane は motion、living metadata、team/profile、remote terrain を要求せず、
+公開 contact frame の numerical body を作らない。ArmorStand の rideable-minecart
+callback は別hookであり、minecart を通常生物へ読み替えない。
+FireworkRocket の attached-player boost や Vex.tick の noPhysics wrapper は
+無関係な projectile / 通常生物に補わず、unknown のまま保持する。
+
+未資格でも継承 packet interpolation と通常geometryが確認できるbody（Spider /
+Ghastなど）、および最大寸法を個別監査したHorseは conservative hull だけを保持する。hull は spawn と全受信 interpolation anchor を
+覆い、経過tickだけでは縮まらない。最新の遠いtargetで近い可能性を消さない。
+正常な pose/baby/health metadata は最大寸法の証明を保持するが、未知serializer、
+部分decode、保持gap、sleep-position callback、scale/equipment/status/animation、
+mount変更は証明を失わせる。未知の動的geometry / motion を有限距離で補わない。
+証明がなければ遠くても拒否する。
+
+各tickで local の開始boxと移動後までのswept hullを検査し、boat は別の元selector
+queryを開始/移動後の両方で検査する。未資格bodyのhullが交差するか、bounded geometryを
+持たなければ、失敗した staged prediction を破棄して送信前に停止する。
+交差しないことが証明できる場合だけ tick を許す。履歴更新・metadata・mount・除去・
+同じnative IDの再spawn・checkpoint / world境界でも再評価し、旧寿命のhullを流用しない。
+この保守的証明は数値の近似modeでも、server-current boxの主張でもない。

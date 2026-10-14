@@ -69,6 +69,7 @@ include = [
     "/scripts/run_entity_tick_live.py",
     "/scripts/entity_tick_oracle/**",
     "/scripts/run_entity_owner_oracle.py",
+    "/scripts/audit_contact_capabilities.py",
     "/scripts/run_entity_owner_live.py",
     "/scripts/entity_owner_oracle/**",
     "/scripts/run_reader_multiclient.py",

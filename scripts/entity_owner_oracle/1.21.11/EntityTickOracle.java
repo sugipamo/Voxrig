@@ -87,6 +87,62 @@ public final class EntityTickOracle {
         ProbeBoat(){super(EntityType.OAK_BOAT,client,()->net.minecraft.world.item.Items.OAK_BOAT);key=++lifetime;setId(3000000);setPos(.4,65.,-.3);setYRot(0);setXRot(0);setDeltaMovement(.02,0.,.08);}
         @Override public void tick(){JsonObject e=new JsonObject();e.addProperty("key",key);e.addProperty("native_id",getId());e.addProperty("dispatch","boat_tick");e.add("before",pose(this));net.minecraft.world.phys.AABB box=getBoundingBox();box=new net.minecraft.world.phys.AABB(box.minX-1.0000001,box.minY-5.0000001,box.minZ-1.0000001,box.maxX+1.0000001,box.maxY+5.0000001,box.maxZ+1.0000001);JsonArray candidates=new JsonArray();for(Entity other:client.getEntities(this,box,EntitySelector.NO_SPECTATORS)){if(other instanceof LivingEntity living && keys.containsKey(living) && other.isPushable())candidates.add(key(living));}e.add("geometry_query",candidates);super.tick();e.add("after",pose(this));seen.add(e);}
     }
+    static class ContactAxolotl extends net.minecraft.world.entity.animal.axolotl.Axolotl {
+        ContactAxolotl(){super(EntityType.AXOLOTL,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactBogged extends net.minecraft.world.entity.monster.skeleton.Bogged {
+        ContactBogged(){super(EntityType.BOGGED,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactCat extends net.minecraft.world.entity.animal.feline.Cat {
+        ContactCat(){super(EntityType.CAT,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactCopperGolem extends net.minecraft.world.entity.animal.golem.CopperGolem {
+        ContactCopperGolem(){super(EntityType.COPPER_GOLEM,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactGiant extends net.minecraft.world.entity.monster.Giant {
+        ContactGiant(){super(EntityType.GIANT,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactOcelot extends net.minecraft.world.entity.animal.feline.Ocelot {
+        ContactOcelot(){super(EntityType.OCELOT,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactParched extends net.minecraft.world.entity.monster.skeleton.Parched {
+        ContactParched(){super(EntityType.PARCHED,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactPiglinBrute extends net.minecraft.world.entity.monster.piglin.PiglinBrute {
+        ContactPiglinBrute(){super(EntityType.PIGLIN_BRUTE,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactSilverfish extends net.minecraft.world.entity.monster.Silverfish {
+        ContactSilverfish(){super(EntityType.SILVERFISH,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactSkeleton extends net.minecraft.world.entity.monster.skeleton.Skeleton {
+        ContactSkeleton(){super(EntityType.SKELETON,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactStray extends net.minecraft.world.entity.monster.skeleton.Stray {
+        ContactStray(){super(EntityType.STRAY,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactVillager extends net.minecraft.world.entity.npc.villager.Villager {
+        ContactVillager(){super(EntityType.VILLAGER,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactWitherSkeleton extends net.minecraft.world.entity.monster.skeleton.WitherSkeleton {
+        ContactWitherSkeleton(){super(EntityType.WITHER_SKELETON,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    static class ContactHorse extends net.minecraft.world.entity.animal.equine.Horse {
+        ContactHorse(){super(EntityType.HORSE,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
     static class RemoteSheep extends net.minecraft.world.entity.animal.sheep.Sheep {
         RemoteSheep(){super(EntityType.SHEEP,client);}
         @Override public void tick(){dispatch(this,()->super.aiStep());}
@@ -115,7 +171,7 @@ public final class EntityTickOracle {
     static int key(LivingEntity e){return keys.get(e);}
     static int remaining(LivingEntity e){try{return steps.getInt(data.get(e.getInterpolation()));}catch(Exception error){throw new RuntimeException(error);}}
     static void cancelModel(LivingEntity e){e.getInterpolation().cancel();}
-    static String name(LivingEntity e){return e instanceof RemoteSheep?"minecraft:sheep":e instanceof RemoteCreeper?"minecraft:creeper":e instanceof RemoteActorPlayer?"minecraft:player":e instanceof RemotePig?"minecraft:pig":e instanceof RemoteZombie?"minecraft:zombie":"minecraft:cow";}
+    static String name(LivingEntity e){return e instanceof ContactAxolotl?"minecraft:axolotl":e instanceof ContactBogged?"minecraft:bogged":e instanceof ContactCat?"minecraft:cat":e instanceof ContactCopperGolem?"minecraft:copper_golem":e instanceof ContactGiant?"minecraft:giant":e instanceof ContactOcelot?"minecraft:ocelot":e instanceof ContactParched?"minecraft:parched":e instanceof ContactPiglinBrute?"minecraft:piglin_brute":e instanceof ContactSilverfish?"minecraft:silverfish":e instanceof ContactSkeleton?"minecraft:skeleton":e instanceof ContactStray?"minecraft:stray":e instanceof ContactVillager?"minecraft:villager":e instanceof ContactWitherSkeleton?"minecraft:wither_skeleton":e instanceof ContactHorse?"minecraft:horse":e instanceof RemoteSheep?"minecraft:sheep":e instanceof RemoteCreeper?"minecraft:creeper":e instanceof RemoteActorPlayer?"minecraft:player":e instanceof RemotePig?"minecraft:pig":e instanceof RemoteZombie?"minecraft:zombie":"minecraft:cow";}
     static void dispatch(LivingEntity e,Runnable aiStep){
         JsonObject event=new JsonObject();event.addProperty("key",key(e));event.addProperty("native_id",e.getId());event.addProperty("dispatch","tick");event.add("before",pose(e));
         aiStep.run();
@@ -150,7 +206,7 @@ public final class EntityTickOracle {
     }
     static double n(JsonObject p,int i){return p.getAsJsonArray("position").get(i).getAsDouble();}
     static float r(JsonObject p,int i){return p.getAsJsonArray("rotation").get(i).getAsFloat();}
-    static void spawn(int id,List<JsonObject> actions){LivingEntity e=switch(actorKind){case 4->new RemoteSheep();case 5->new RemoteCreeper();case 1->new RemotePig();case 2->new RemoteZombie();case 3->new RemoteActorPlayer(id);default->new RemoteCow();};int fresh=++lifetime;keys.put(e,fresh);e.setId(id);e.setPos(.1,65.2,boatMode?1.8:-.3);e.setDeltaMovement(.02,.0025,-.035);e.setYRot(0);e.setXRot(0);e.getPositionCodec().setBase(e.position());byId.put(id,e);all.put(fresh,e);storage.addEntity(e);
+    static void spawn(int id,List<JsonObject> actions){LivingEntity e=switch(actorKind){case 6->new ContactAxolotl();case 7->new ContactBogged();case 8->new ContactCat();case 9->new ContactCopperGolem();case 10->new ContactGiant();case 11->new ContactOcelot();case 12->new ContactParched();case 13->new ContactPiglinBrute();case 14->new ContactSilverfish();case 15->new ContactSkeleton();case 16->new ContactStray();case 17->new ContactVillager();case 18->new ContactWitherSkeleton();case 19->new ContactHorse();case 4->new RemoteSheep();case 5->new RemoteCreeper();case 1->new RemotePig();case 2->new RemoteZombie();case 3->new RemoteActorPlayer(id);default->new RemoteCow();};int fresh=++lifetime;keys.put(e,fresh);e.setId(id);e.setPos(.1,65.2,boatMode?1.8:-.3);e.setDeltaMovement(.02,.0025,-.035);e.setYRot(0);e.setXRot(0);e.getPositionCodec().setBase(e.position());byId.put(id,e);all.put(fresh,e);storage.addEntity(e);
         JsonObject a=new JsonObject();a.addProperty("op","spawn");a.addProperty("native_id",id);a.addProperty("key",key(e));a.addProperty("type_name",name(e));a.add("pose",pose(e));actions.add(a);
     }
     static JsonObject action(String op,int id){JsonObject a=new JsonObject();a.addProperty("op",op);a.addProperty("native_id",id);return a;}
@@ -162,7 +218,7 @@ public final class EntityTickOracle {
         JsonObject a=action("sleep",e.getId());a.add("position",active?new Gson().toJsonTree(new int[]{0,65,0}):JsonNull.INSTANCE);actions.add(a);
     }
     @SuppressWarnings("unchecked") static void baby(LivingEntity e,boolean active,List<JsonObject> actions,String[] args)throws Exception {
-        Field f=AgeableMob.class.getDeclaredField(args[args.length-1]);f.setAccessible(true);
+        Field f=AgeableMob.class.getDeclaredField(args[26]);f.setAccessible(true);
         net.minecraft.network.syncher.EntityDataAccessor<Boolean> accessor=(net.minecraft.network.syncher.EntityDataAccessor<Boolean>)f.get(null);
         listener.handleSetEntityData(new ClientboundSetEntityDataPacket(e.getId(),List.of(net.minecraft.network.syncher.SynchedEntityData.DataValue.create(accessor,active))));
         JsonObject a=action("baby",e.getId());a.addProperty("value",active);a.add("bounds",pose(e).get("bounds"));actions.add(a);
@@ -174,11 +230,12 @@ public final class EntityTickOracle {
         listener.handleEntityPositionSync(new ClientboundEntityPositionSyncPacket(e.getId(),new PositionMoveRotation(new net.minecraft.world.phys.Vec3(x,y,z),new net.minecraft.world.phys.Vec3(.125,-.25,.375),yaw,pitch),true));
     }
     static JsonObject evaluate(int seed,ServerLevel level,String[] args)throws Exception{
-        controlledBoat=null;lifetime=0;keys=new IdentityHashMap<>();unticking=new HashSet<>();actorKind=seed<16?seed%4:seed<20?4:5;registered=level;byId=new LinkedHashMap<>();all=new LinkedHashMap<>();mutation=false;
+        controlledBoat=null;lifetime=0;keys=new IdentityHashMap<>();unticking=new HashSet<>();actorKind=seed<16?seed%4:seed<20?4:seed<24?5:6+(seed-24)/4;registered=level;byId=new LinkedHashMap<>();all=new LinkedHashMap<>();mutation=false;
         client=(ClientLevel)allocate(ProbeClientLevel.class);
         for(Field f:Level.class.getDeclaredFields())if(!Modifier.isStatic(f.getModifiers())){f.setAccessible(true);f.set(client,f.get(level));}
         modernList=new EntityTickList();rates=new TickRateManager();set(client,ClientLevel.class,args[1],modernList);set(client,ClientLevel.class,args[2],rates);
         set(client,ClientLevel.class,args[24],registered.environmentAttributes());
+        ClientLevel.ClientLevelData worldData=new ClientLevel.ClientLevelData(net.minecraft.world.Difficulty.NORMAL,false,true);worldData.setGameTime(registered.getGameTime());worldData.setDayTime(registered.getDayTime());set(client,ClientLevel.class,args[29],worldData);
         Minecraft minecraft=(Minecraft)allocate(Minecraft.class);
         set(minecraft,Minecraft.class,args[3],new PacketProcessor(Thread.currentThread()));
         listener=(ClientPacketListener)allocate(ClientPacketListener.class);
@@ -187,10 +244,10 @@ public final class EntityTickOracle {
         set(client,ClientLevel.class,args[10],allocate(ProbeChunkCache.class));storage=new TransientEntitySectionManager<>(Entity.class,new Callbacks());set(client,ClientLevel.class,args[11],storage);
         for(int x=-4;x<=4;x++)for(int z=-4;z<=4;z++)storage.startTicking(new net.minecraft.world.level.ChunkPos(x,z));
         set(client,ClientLevel.class,args[18],new ArrayList<>());set(client,ClientLevel.class,args[19],new ArrayList<>());set(client,ClientLevel.class,args[20],registered.getWorldBorder());
-        JsonArray out=new JsonArray();int count=new int[]{8,25,50,100}[seed%4];int primary=seed*257+1;
+        JsonArray out=new JsonArray();int count=seed<24?new int[]{8,25,50,100}[seed%4]:8;int primary=seed*257+1;
         for(int stage=0;stage<12;stage++){
             List<JsonObject> actions=new ArrayList<>();inside=new ArrayList<>();seen=new ArrayList<>();
-            if(stage==0 && seed%2==0){for(int i=0;i<count;i++)spawn(i==0?0:(i==1?primary:(i%2==0?-1:1)*(seed*257+i*37)),actions);}if(stage==0){ProbeLocalPlayer player=local(new ProbePlayer(level,2000000+seed),minecraft,args);modernList.add(player);storage.addEntity(player);JsonObject p=action("spawn_player",player.getId());p.addProperty("key",player.key);p.add("pose",pose(player));actions.add(p);}
+            if(stage==0 && seed%2==0){for(int i=0;i<count;i++)spawn(i==0?0:(i==1?primary:(i%2==0?-1:1)*(seed*257+i*37)),actions);}if(stage==0){ProbeLocalPlayer player=local(new ProbePlayer(level,2000000+seed),minecraft,args);exclusionLocal=player;modernList.add(player);storage.addEntity(player);JsonObject p=action("spawn_player",player.getId());p.addProperty("key",player.key);p.add("pose",pose(player));actions.add(p);}
             if(stage==0 && boatMode){controlledBoat=new ProbeBoat();modernList.add(controlledBoat);storage.addEntity(controlledBoat);((ProbeLocalPlayer)minecraft.player).startRiding(controlledBoat);JsonObject a=action("spawn_boat",controlledBoat.getId());a.addProperty("key",controlledBoat.key);a.add("pose",pose(controlledBoat));actions.add(a);}
                         if(stage==0 && seed%2!=0){for(int i=0;i<count;i++)spawn(i==0?0:(i==1?primary:(i%2==0?-1:1)*(seed*257+i*37)),actions);}
             if(boatMode){boolean forward=stage<9;controlledBoat.setInput(false,false,forward,false);JsonObject a=action("boat_input",controlledBoat.getId());a.addProperty("forward",forward);actions.add(a);}
@@ -215,13 +272,30 @@ public final class EntityTickOracle {
         }
         JsonObject row=new JsonObject();row.addProperty("seed",seed);row.addProperty("scene",boatMode?"boat":"walking");row.add("steps",out);return row;
     }
+    static Player exclusionLocal;
+    static JsonArray exclusions(String[] args) throws Exception {
+        JsonArray rows=new JsonArray();
+        Entity[] entities={new net.minecraft.world.entity.ambient.Bat(EntityType.BAT,client),new net.minecraft.world.entity.decoration.ArmorStand(EntityType.ARMOR_STAND,client),new net.minecraft.world.entity.item.ItemEntity(EntityType.ITEM,client),new net.minecraft.world.entity.projectile.arrow.Arrow(EntityType.ARROW,client)};
+        String[] names={"minecraft:bat","minecraft:armor_stand","minecraft:item","minecraft:arrow"};
+        Method doPush=LivingEntity.class.getDeclaredMethod(args[27],Entity.class);doPush.setAccessible(true);
+        Method pushEntities=LivingEntity.class.getDeclaredMethod(args[28]);pushEntities.setAccessible(true);
+        for(int i=0;i<entities.length;i++){
+            Entity e=entities[i];e.setPos(.1,65.,-.3);
+            JsonObject row=new JsonObject();row.addProperty("type",names[i]);row.addProperty("pushable",e.isPushable());row.addProperty("solid",e.canBeCollidedWith(exclusionLocal));
+            exclusionLocal.setPos(.4,65.,-.3);exclusionLocal.setDeltaMovement(.125,-.25,.375);
+            row.add("before",pose(exclusionLocal));
+            if(e instanceof LivingEntity living){doPush.invoke(living,exclusionLocal);pushEntities.invoke(living);}
+            row.add("after",pose(exclusionLocal));rows.add(row);
+        }
+        return rows;
+    }
     public static void main(String[] args){try {
         originalPlayerAiStep=java.lang.invoke.MethodHandles.privateLookupIn(Player.class,java.lang.invoke.MethodHandles.lookup()).findSpecial(Player.class,args[21],java.lang.invoke.MethodType.methodType(void.class),Player.class);
         data=InterpolationHandler.class.getDeclaredField(args[7]);data.setAccessible(true);steps=Class.forName(InterpolationHandler.class.getName()+"$"+args[9]).getDeclaredField(args[8]);steps.setAccessible(true);
         net.minecraft.server.Main.main(new String[]{"--nogui"});MinecraftServer server=null;
         for(int i=0;i<120&&(server==null||server.getTickCount()<20);i++){Thread.sleep(500);if(server==null)server=findServer();}
         if(server==null)throw new IllegalStateException("not ready");MinecraftServer s=server;
-        JsonArray result=new JsonArray();s.executeBlocking(()->{for(int x=-16;x<=32;x++)for(int z=-16;z<=16;z++)s.overworld().setBlock(new net.minecraft.core.BlockPos(x,64,z),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),0);try{set(s.overworld(),Level.class,args[6],true);try{for(int scene=0;scene<2;scene++){boatMode=scene==1;for(int seed=0;seed<24;seed++)result.add(evaluate(seed,s.overworld(),args));}}finally{set(s.overworld(),Level.class,args[6],false);}}catch(Exception e){throw new RuntimeException(e);}});
+        JsonArray result=new JsonArray();s.executeBlocking(()->{for(int x=-16;x<=32;x++)for(int z=-16;z<=16;z++)s.overworld().setBlock(new net.minecraft.core.BlockPos(x,64,z),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),0);try{set(s.overworld(),Level.class,args[6],true);try{for(int scene=0;scene<2;scene++){boatMode=scene==1;for(int seed=0;seed<80;seed++)result.add(evaluate(seed,s.overworld(),args));}Files.writeString(Path.of(args[0]+".exclusions.json"),new Gson().toJson(exclusions(args))+"\n");}finally{set(s.overworld(),Level.class,args[6],false);}}catch(Exception e){throw new RuntimeException(e);}});
         Files.writeString(Path.of(args[0]),new Gson().toJson(result)+"\n");s.halt(false);System.exit(0);
     }catch(Throwable e){e.printStackTrace();System.exit(1);}}
 }

@@ -79,10 +79,10 @@
     }
   },
   "numerical_oracle": {
-    "fixture_sha256": "b7052bc4d1d201aba6348913947074369baffd8bf3db34c72465f1c7d72e176c",
-    "runner_sha256": "1bd7e1692092eb6d7ec4883cf905bacf920f752c32b44c325e7235050eff0747",
-    "schedules": 96,
-    "stages": 1152,
+    "fixture_sha256": "8c515f58fb34ebb339355f5587e9ebeed320ab7a477f830b4752fabd8cde8e9f",
+    "runner_sha256": "9a3aceebd3d6f47abb3bd501965f35f5f5037f7d8d8e0a04a0b29b28e2ed00d2",
+    "schedules": 280,
+    "stages": 3360,
     "authority": "Unchanged official client packet handlers, original AI-step/interpolation/push, original Player.aiStep neutral travel and mounted Boat.tick in real ClientLevel runtime dispatch. Headless allocation omits graphics constructors/audio delivery; ClientLevel reads original registered chunks, light and environment attributes. Modern section visibility and own player mode/input guards are explicit. Passenger rideTick and graphics LocalPlayer input preprocessing are isolated. These are explicit owned numerical ticks, not a native clock, full NPC baseTick/fluid/AI, server-current motion or acceptance.",
     "provenance": {
       "1.16.1": {
@@ -90,16 +90,664 @@
         "server_mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
         "original_client_jar_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
         "client_mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5",
-        "original_output_sha256": "8ca9d028cb43b58e85bfe62ba77bf5c95034783a26e0230670bc7774e6ea3507",
-        "harness_sha256": "44dd4fe44d5c9a854248f3644d5cb5ffe211a8af95d10825fe1b43dcbd6c1762"
+        "original_output_sha256": "f57e6fa750f077a6c53b5a1fd05faa009f1e36c0310fb120b9badb72a2ea7d0a",
+        "harness_sha256": "69d481d31674f7d90c0d983b1fa6bfb768786f9968082e9938e9d61756a4e5ab",
+        "exclusions": [
+          {
+            "type": "minecraft:bat",
+            "pushable": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          },
+          {
+            "type": "minecraft:armor_stand",
+            "pushable": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          },
+          {
+            "type": "minecraft:item",
+            "pushable": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          },
+          {
+            "type": "minecraft:arrow",
+            "pushable": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          }
+        ]
       },
       "1.21.11": {
         "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
         "server_mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
         "original_client_jar_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
         "client_mappings_sha1": "031a68bebf55d824f66d6573d8c752f0e1bf232a",
-        "original_output_sha256": "e9b30dcfbeaf8f6dc18caf48f138db169f72f8ac3df1338a8b635d9fa338b6a0",
-        "harness_sha256": "63e717f6c1fcdffcf67af6247cd56377ff9d8c9992fbf777032e383edf6aaea7"
+        "original_output_sha256": "cfbb186fb5b5ee95555db19bfe0eb4d5a675e4544963befb63ff87d7d725a659",
+        "harness_sha256": "268671a876f208ffa719570bd24819f8fb36762ef28033c0348c5823a42a1a05",
+        "exclusions": [
+          {
+            "type": "minecraft:bat",
+            "pushable": false,
+            "solid": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          },
+          {
+            "type": "minecraft:armor_stand",
+            "pushable": false,
+            "solid": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          },
+          {
+            "type": "minecraft:item",
+            "pushable": false,
+            "solid": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          },
+          {
+            "type": "minecraft:arrow",
+            "pushable": false,
+            "solid": false,
+            "before": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            },
+            "after": {
+              "position": [
+                0.4,
+                65.0,
+                -0.3
+              ],
+              "rotation": [
+                0.0,
+                0.0
+              ],
+              "position_bits": [
+                "3fd999999999999a",
+                "4050400000000000",
+                "bfd3333333333333"
+              ],
+              "rotation_bits": [
+                0,
+                0
+              ],
+              "velocity": [
+                0.125,
+                -0.25,
+                0.375
+              ],
+              "velocity_bits": [
+                "3fc0000000000000",
+                "bfd0000000000000",
+                "3fd8000000000000"
+              ],
+              "bounds": [
+                0.09999998807907107,
+                65.0,
+                -0.600000011920929,
+                0.700000011920929,
+                66.79999995231628,
+                1.1920928966180355e-08
+              ]
+            }
+          }
+        ]
       }
     }
   },

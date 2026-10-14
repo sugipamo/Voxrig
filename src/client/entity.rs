@@ -7,6 +7,7 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod contact;
+mod contact_capabilities;
 pub(crate) mod contact_tick;
 pub(crate) mod owned_contacts;
 pub use owned_contacts::{EntityContactFrame, EntityContactSample};
