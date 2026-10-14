@@ -281,36 +281,39 @@ impl Bot {
                     .send
                     .dispatched = true;
             }
-            tokio::time::timeout(contract::close::RECEIPT_TIMEOUT, async {
-                loop {
-                    {
-                        let _gate = self.coherent_state_gate.lock().await;
-                        let (current, _) = self.close_current(id).await?;
-                        self.close_native_basis(window, &current).await?;
-                        let ready = super::lock_packet_state(&self.common_container_close)
-                            .await
-                            .as_ref()
-                            .expect("retained")
-                            .return_steps
-                            .last()
-                            .is_some_and(|s| {
-                                s.stage == api::inventory::InventoryClickStage::ObservedClicked
-                            });
-                        if ready {
-                            self.connection
-                                .finish_cursor_return(id.attempt(), number)
+            tokio::time::timeout(
+                self.connection_options.cursor_return_receipt_timeout,
+                async {
+                    loop {
+                        {
+                            let _gate = self.coherent_state_gate.lock().await;
+                            let (current, _) = self.close_current(id).await?;
+                            self.close_native_basis(window, &current).await?;
+                            let ready = super::lock_packet_state(&self.common_container_close)
                                 .await
-                                .map_err(|e| {
-                                    api::inventory::unavailable(format!(
-                                        "return step release: {e:?}"
-                                    ))
-                                })?;
-                            return Ok::<(), crate::Error>(());
+                                .as_ref()
+                                .expect("retained")
+                                .return_steps
+                                .last()
+                                .is_some_and(|s| {
+                                    s.stage == api::inventory::InventoryClickStage::ObservedClicked
+                                });
+                            if ready {
+                                self.connection
+                                    .finish_cursor_return(id.attempt(), number)
+                                    .await
+                                    .map_err(|e| {
+                                        api::inventory::unavailable(format!(
+                                            "return step release: {e:?}"
+                                        ))
+                                    })?;
+                                return Ok::<(), crate::Error>(());
+                            }
                         }
+                        tokio::time::sleep(Duration::from_millis(10)).await;
                     }
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-            })
+                },
+            )
             .await
             .map_err(|_| {
                 api::inventory::unavailable(

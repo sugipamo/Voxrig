@@ -331,3 +331,13 @@ python3 -B scripts/run_boat_collisions.py --accept-eula --version 1.21.11 \
 原packet・NBTを含むreportは`.local`に保存し、公開するのは
 [結果と実行ソースのhash](evidence/common-boat-collisions-20261010.json)である。
 一般のentityの姿勢・scale・補間／押し合い、連続飛行／elytra、追加の乗り物は#44の残件である。
+
+## 生物接触の操作への統合
+
+通常scaleのplayer / cow / pig / zombieの完全な受信履歴を操作ownerへ結び付ける。
+[生物接触owner](common-entity-owners.md)と[特殊dispatchの範囲](common-entity-dispatch.md)を参照。
+補正・履歴不足・未検証入力ではモデルを破棄し、古い起点から自動再開しない。
+ボートの失敗時は同じ健康な実乗車の受信境界に限りneutral/paddle解除を一度だけ試み、
+予測位置を再送しない。`failure_release`はintent・完全送信・拒否/不確実性を保持する。
+
+追加mountの版・seat・装備・physics ownerと、neutral/実停止・下車の不足は[乗車の対応範囲](common-mount-coverage.md)を参照。

@@ -15,6 +15,7 @@ pub(crate) mod constructor;
 pub mod container;
 pub mod context;
 pub mod control;
+pub mod glide;
 pub use context::{
     CooldownKey, DeathLocation, DefaultSpawnPosition, Experience, ItemCooldown, LoginConditions,
     PlayerAbilities, PlayerContextObservation, WeatherObservation, WorldDifficulty,
@@ -24,10 +25,15 @@ pub mod crafting;
 pub(crate) mod enchantments;
 pub(crate) mod entity;
 pub use entity::{
-    EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
-    LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
-    LivingContactResult, LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_READ,
-    MAX_ENTITY_HISTORY_RECORDS, MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts,
+    EntityContactFrame, EntityContactSample, EntityEquipmentEntry, EntityHistory,
+    EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
+    EntityHistoryValue, EntityMetadataEntry, LivingContactBody, LivingContactCandidate,
+    LivingContactDisposition, LivingContactIndex, LivingContactIndexedBody, LivingContactKind,
+    LivingContactPlayer, LivingContactQuery, LivingContactQueryUnavailable, LivingContactResult,
+    LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_BYTES,
+    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS, MAX_ENTITY_HISTORY_VALUE_BYTES,
+    MAX_LIVING_CONTACT_CANDIDATES, MAX_LIVING_CONTACT_INDEX_BODIES,
+    MAX_LIVING_CONTACT_INDEX_CHUNKS, MAX_LIVING_CONTACT_QUERY_CHUNKS, model_living_contacts,
 };
 pub mod flight;
 pub(crate) mod fraction;
@@ -104,13 +110,16 @@ pub use crafting::{
 pub use entity::{
     EntitiesObservation, EntityDataField, EntityDataReading, EntityDataSource, EntityDataValue,
     EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
-    EntityId, EntityMotionObservation, EntityObservation, EntityPartEvidence, EntityPartId,
-    EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable,
-    EntityPose, EntityPoseReading, EntityPosition, EntityPositionCorrection, EntityScaleReading,
-    EntitySpawn, EntitySpawns, EquipmentSlot, LivingInterpolation, LivingInterpolationFrame,
-    LivingInterpolationPose, LivingInterpolationUnavailable, LivingPairPushDisposition,
+    EntityId, EntityMotionObservation, EntityMotionPacket, EntityObservation, EntityPartEvidence,
+    EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
+    EntityPartUnavailable, EntityPose, EntityPoseReading, EntityPosition, EntityPositionCorrection,
+    EntityScaleReading, EntitySleepingReading, EntitySpawn, EntitySpawns, EquipmentSlot,
+    LivingEntityPacketReplay, LivingEntityTickOrder, LivingInterpolation, LivingInterpolationFrame,
+    LivingInterpolationPose, LivingInterpolationUnavailable, LivingMotionPacket, LivingPacketFrame,
+    LivingPacketGuards, LivingPacketModel, LivingPacketUnavailable, LivingPairPushDisposition,
     LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable, LivingPushBody,
-    model_living_pair_push,
+    LivingReplayFrame, LivingReplayUnavailable, LivingTickBody, LivingTickDispatch,
+    LivingTickInstruction, LivingTickUnavailable, MAX_LIVING_TICK_BODIES, model_living_pair_push,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -126,10 +135,11 @@ pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
 pub use vehicle::{
-    BoatCollisionBody, BoatCollisionSample, BoatFrame, BoatMotion, BoatVelocityUpdate,
-    DismountGrounding, DismountId, DismountRecord, DismountStage, MAX_BOAT_COLLISION_BODIES,
-    MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId, VehicleControlRecord,
-    VehicleControlStage, VehicleInput, VehicleObservation, VehicleRelation,
+    BoatCollisionBody, BoatCollisionGeometry, BoatCollisionSample, BoatFrame, BoatMotion,
+    BoatVelocityUpdate, DismountGrounding, DismountId, DismountRecord, DismountStage,
+    MAX_BOAT_COLLISION_BODIES, MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId,
+    VehicleControlRecord, VehicleControlStage, VehicleInput, VehicleInputRelease,
+    VehicleObservation, VehicleRelation,
 };
 
 /// Imports for consumers selecting their Minecraft version at setup.
@@ -152,15 +162,22 @@ pub mod prelude {
         WorldDifficulty, WorldEntryContext, WorldViewObservation,
     };
     pub use super::entity::{
-        EntitiesObservation, EntityGeometry, EntityGeometryEvidence, EntityGeometryModel,
-        EntityGeometryUnavailable, EntityObservation, EntityPartEvidence, EntityPartId,
-        EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
-        EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading, EquipmentSlot,
-        LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
-        LivingContactResult, LivingContactsModel, LivingContactsUnavailable, LivingInterpolation,
+        EntitiesObservation, EntityContactFrame, EntityContactSample, EntityGeometry,
+        EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable, EntityObservation,
+        EntityPartEvidence, EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation,
+        EntityPartState, EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading,
+        EntitySleepingReading, EquipmentSlot, LivingContactBody, LivingContactCandidate,
+        LivingContactDisposition, LivingContactIndex, LivingContactIndexedBody, LivingContactKind,
+        LivingContactPlayer, LivingContactQuery, LivingContactQueryUnavailable,
+        LivingContactResult, LivingContactsModel, LivingContactsUnavailable,
+        LivingEntityPacketReplay, LivingEntityTickOrder, LivingInterpolation,
         LivingInterpolationFrame, LivingInterpolationPose, LivingInterpolationUnavailable,
-        LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel,
-        LivingPairPushUnavailable, LivingPushBody, MAX_LIVING_CONTACT_CANDIDATES,
+        LivingMotionPacket, LivingPacketFrame, LivingPacketGuards, LivingPacketModel,
+        LivingPacketUnavailable, LivingPairPushDisposition, LivingPairPushInput,
+        LivingPairPushModel, LivingPairPushUnavailable, LivingPushBody, LivingReplayFrame,
+        LivingReplayUnavailable, LivingTickBody, LivingTickDispatch, LivingTickInstruction,
+        LivingTickUnavailable, MAX_LIVING_CONTACT_CANDIDATES, MAX_LIVING_CONTACT_INDEX_BODIES,
+        MAX_LIVING_CONTACT_INDEX_CHUNKS, MAX_LIVING_CONTACT_QUERY_CHUNKS, MAX_LIVING_TICK_BODIES,
         model_living_contacts, model_living_pair_push,
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
@@ -203,9 +220,11 @@ pub mod prelude {
     };
     pub use super::vehicle::control::{
         BoatFrame, BoatMotion, BoatVelocityUpdate, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId,
-        VehicleControlRecord, VehicleControlStage, VehicleInput,
+        VehicleControlRecord, VehicleControlStage, VehicleInput, VehicleInputRelease,
     };
-    pub use super::vehicle::{BoatCollisionBody, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES};
+    pub use super::vehicle::{
+        BoatCollisionBody, BoatCollisionGeometry, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES,
+    };
     pub use super::{
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceRecord, CraftingFillRecord,
         DigEstimate, DigRecord, Hand, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,
@@ -216,21 +235,23 @@ pub mod prelude {
         ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,
         CraftingGridUnreturnedSplit, CraftingResultDestination, CraftingSource, CraftingTakeId,
         CraftingTakeRecord, CraftingTakeStage, Creative, DismountGrounding, DismountId,
-        DismountRecord, DismountStage, EntityId, EntityMotionObservation, EntityPosition,
-        EntityPositionCorrection, EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding,
-        FlightRecord, FlightStage, FurnaceObservation, FurnaceSlot, GameMode, ItemComponent,
-        ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId, PlayerObservation,
-        ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
-        ReceivedRecipeGhost, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock,
-        RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
-        RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,
-        RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
-        RecipeTrimPattern, RespawnRecord, RespawnStage, Server, Support, Survival,
-        VehicleObservation, VehicleRelation,
+        DismountRecord, DismountStage, EntityId, EntityMotionObservation, EntityMotionPacket,
+        EntityPosition, EntityPositionCorrection, EntitySpawn, EntitySpawns, Feature,
+        FlightCommand, FlightLanding, FlightRecord, FlightStage, FurnaceObservation, FurnaceSlot,
+        GameMode, ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId,
+        PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
+        ReceivedItem, ReceivedRecipe, ReceivedRecipeGhost, ReceivedRecipes, ReceivedSlot,
+        RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout,
+        RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount, RecipePlacementId,
+        RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage,
+        RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, RespawnRecord, RespawnStage,
+        Server, Support, Survival, VehicleObservation, VehicleRelation,
     };
     pub use super::{
-        EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
-        EntityHistoryRecord, MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+        EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap,
+        EntityHistoryKind, EntityHistoryRecord, EntityHistoryValue, EntityMetadataEntry,
+        MAX_ENTITY_HISTORY_BYTES, MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+        MAX_ENTITY_HISTORY_VALUE_BYTES,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

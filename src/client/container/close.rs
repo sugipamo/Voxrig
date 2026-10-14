@@ -540,6 +540,7 @@ mod tests {
         slots[9] = screen.slots[27].clone();
         let initial = PlayerObservation {
             using_item: None,
+            fall_flying: None,
             entity_id: None,
             attributes: Default::default(),
             effects: Default::default(),

@@ -93,6 +93,19 @@ impl LivingInterpolation {
         }
     }
 
+    /// Original modern noCollision call exists only after a previous stage.
+    /// The query uses the target displaced by separately modeled body movement.
+    pub(crate) fn collision_query_position(&self) -> Option<[f64; 3]> {
+        (self.version == MinecraftVersion::Java1_21_11 && self.remaining != 0)
+            .then_some(self.previous)
+            .flatten()
+            .map(|previous| {
+                std::array::from_fn(|i| {
+                    self.target.position[i] + (self.pose.position[i] - previous.position[i])
+                })
+            })
+    }
+
     /// Admit an already resolved full target. Native packet dispatch, relative
     /// teleport resolution and legacy tiny-teleport suppression precede this call.
     /// Modern identical active targets retain their remaining steps; legacy resets.
@@ -126,6 +139,20 @@ impl LivingInterpolation {
         self.remaining = 0;
         self.previous = None;
         self.frame()
+    }
+
+    /// Apply an explicitly supplied model pose from another admitted physics
+    /// stage without advancing interpolation or changing its target/baseline.
+    /// This is not a received packet target or proof of native passenger travel.
+    pub fn set_model_pose(
+        &mut self,
+        pose: LivingInterpolationPose,
+    ) -> Result<LivingInterpolationFrame, LivingInterpolationUnavailable> {
+        if !pose.finite() {
+            return Err(LivingInterpolationUnavailable::NonFiniteState);
+        }
+        self.pose = pose;
+        Ok(self.frame())
     }
 
     /// Evaluate one explicitly scheduled interpolation stage at `before` (which

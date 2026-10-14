@@ -21,6 +21,12 @@ pub(crate) struct ContinuousControl {
 }
 
 impl ContinuousControl {
+    pub(super) fn observe_gliding(&mut self, value: bool, sequence: u64) {
+        if let Some(owner) = &mut self.session {
+            owner.observe_gliding(value, sequence);
+        }
+    }
+
     pub(super) fn observe_abilities(&mut self, flags: u8, sequence: u64) {
         if let Some(session) = &mut self.session {
             session.observe_abilities(flags, sequence);
@@ -142,6 +148,26 @@ impl Bot {
         }
     }
 
+    async fn glide_equipment(&self) -> Result<crate::client::glide::GliderEquipment> {
+        let receipts = self.common_receipts.lock().await;
+        crate::client::glide::equipment(receipts.inventory.slots.get(6).and_then(Option::as_ref))
+    }
+    pub(super) async fn observe_common_glide_equipment(&self, sequence: u64) {
+        if self
+            .common_control
+            .lock()
+            .await
+            .session
+            .as_ref()
+            .is_some_and(|s| s.running() && s.glide.is_some())
+        {
+            let available = self.glide_equipment().await.is_ok();
+            if let Some(owner) = &mut self.common_control.lock().await.session {
+                owner.observe_glider_equipment(available, sequence);
+            }
+        }
+    }
+
     async fn control_stop_reason(
         &self,
         generation: u64,
@@ -152,11 +178,16 @@ impl Bot {
         if receipts.generation != generation {
             return Some("world changed (respawn or dimension)");
         }
+        if kind != crate::client::control::ControlKind::Glide
+            && receipts.fall_flying.as_ref().is_some_and(|v| v.value)
+        {
+            return Some("actual Elytra glide requires a separate owner");
+        }
         if receipts.vehicles.motion_interrupted() {
             return Some("riding");
         }
         match kind {
-            crate::client::control::ControlKind::Ground if receipts.requested_flying => {
+            crate::client::control::ControlKind::Ground | crate::client::control::ControlKind::Glide if receipts.requested_flying => {
                 return Some("flying");
             }
             crate::client::control::ControlKind::Flight => {
@@ -198,7 +229,7 @@ impl Bot {
             != Some(mode)
         {
             Some("game mode changed")
-        } else if kind == crate::client::control::ControlKind::Ground && survival.flying {
+        } else if kind != crate::client::control::ControlKind::Flight && survival.flying {
             Some("flying")
         } else if survival.vitals.as_ref().is_some_and(|v| v.health <= 0.0) {
             Some("player died")
@@ -304,7 +335,7 @@ impl Bot {
             else {
                 return;
             };
-            if let Some(reason) = stop {
+            if let Some(reason) = stop.or_else(|| session.glide_stop_reason(&received)) {
                 session.status = ControlStatus::Stopped {
                     reason: reason.into(),
                 };
@@ -315,6 +346,74 @@ impl Bot {
                             reason: format!("{reason}; release write failed: {error}"),
                         };
                     }
+                }
+                return;
+            }
+            if kind == crate::client::control::ControlKind::Glide {
+                if !session.glide.as_ref().unwrap().dispatched {
+                    if self
+                        .common_receipts
+                        .lock()
+                        .await
+                        .fall_flying
+                        .as_ref()
+                        .is_some_and(|v| v.value)
+                    {
+                        session.status = ControlStatus::Stopped {
+                            reason: "actual glide preceded start dispatch; inspect before reuse"
+                                .into(),
+                        };
+                        return;
+                    }
+                    if let Err(error) = self.control_entity_action(8).await {
+                        session.status = ControlStatus::Stopped {
+                            reason: format!(
+                                "glide start write failed; inspect before reuse: {error}"
+                            ),
+                        };
+                        return;
+                    }
+                    session.glide.as_mut().unwrap().dispatched = true;
+                }
+                if session.glide_waiting() {
+                    continue;
+                }
+            }
+            session.apply_received(&received);
+            let contacts_ready: Result<()> = async {
+                if let Some(contacts) = &mut session.contacts {
+                    let receipts = self.common_receipts.lock().await;
+                    let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+                    let stamp = crate::client::SessionStamp {
+                        version: MinecraftVersion::Java1_16_1,
+                        connection_id: self.connection_id(),
+                        world_generation: generation,
+                    };
+                    contacts.refresh(id, &receipts.entities, sequence)?;
+                    let teams = self.common_teams.lock().await.capture(stamp, sequence);
+                    let profiles = self
+                        .common_player_list
+                        .lock()
+                        .await
+                        .capture(stamp, sequence);
+                    contacts.teams(&teams, &profiles)?;
+                    session.contact_team = crate::client::entity::owned_contacts::team(
+                        &teams,
+                        &self.login_profile.name,
+                    );
+                }
+                Ok(())
+            }
+            .await;
+            if let Err(error) = contacts_ready {
+                session.contacts = None;
+                session.status = ControlStatus::Stopped {
+                    reason: error.to_string(),
+                };
+                if let Err(release) = self.release_control(session).await {
+                    session.status = ControlStatus::Stopped {
+                        reason: format!("{error}; release write failed: {release}"),
+                    };
                 }
                 return;
             }
@@ -331,6 +430,11 @@ impl Bot {
                     session.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };
+                    if let Err(release) = self.release_control(session).await {
+                        session.status = ControlStatus::Stopped {
+                            reason: format!("{error}; release write failed: {release}"),
+                        };
+                    }
                     return;
                 }
             };
@@ -342,6 +446,8 @@ impl Bot {
                     dispatched: false,
                 });
             }
+            let glide_ended =
+                kind == crate::client::control::ControlKind::Glide && session.body.glide_ended;
             let written: Result<()> = async {
                 if landed {
                     self.send(0x1a, &[0]).await?;
@@ -391,6 +497,17 @@ impl Bot {
                     };
                 }
             }
+            if glide_ended {
+                session.status = ControlStatus::Stopped {
+                    reason: "glide model landed or reached a ladder; actual flag is separate"
+                        .into(),
+                };
+                if let Err(error) = self.release_control(session).await {
+                    session.status = ControlStatus::Stopped {
+                        reason: format!("glide model ended; release write failed: {error}"),
+                    };
+                }
+            }
             if landed {
                 control.flight_disabled = Some((
                     generation,
@@ -430,7 +547,7 @@ impl Bot {
             self.physics.lock().await.record_movement(snapshot);
             self.common_receipts.lock().await.position_source =
                 Some(crate::client::ValueSource::Predicted);
-            if landed {
+            if landed || glide_ended {
                 return;
             }
         }
@@ -442,8 +559,11 @@ impl Bot {
         &self,
         mode: GameMode,
         initial_flight_controls: Option<Controls>,
+        glide: bool,
     ) -> Result<ControlRecord> {
-        let kind = if initial_flight_controls.is_some() {
+        let kind = if glide {
+            crate::client::control::ControlKind::Glide
+        } else if initial_flight_controls.is_some() {
             crate::client::control::ControlKind::Flight
         } else {
             crate::client::control::ControlKind::Ground
@@ -454,7 +574,8 @@ impl Bot {
             }
             crate::client::control::ControlKind::Flight
                 if matches!(mode, GameMode::Creative | GameMode::Spectator) => {}
-            _ => return Err(invalid("held flight requires Creative or Spectator mode")),
+            crate::client::control::ControlKind::Glide if mode != GameMode::Spectator => {}
+            _ => return Err(invalid("selected control kind does not support this mode")),
         }
         if let Some(controls) = initial_flight_controls {
             crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
@@ -501,6 +622,24 @@ impl Bot {
         let player = self.player.lock().await.clone();
         let motion = **self.motion.lock().await;
         let received = self.control_received().await;
+        if glide
+            && self
+                .common_receipts
+                .lock()
+                .await
+                .fall_flying
+                .as_ref()
+                .is_some_and(|v| v.value)
+        {
+            return Err(invalid(
+                "already fall-flying; new start request is not qualified",
+            ));
+        }
+        let equipment = if glide {
+            Some(self.glide_equipment().await?)
+        } else {
+            None
+        };
         let mut control = self.common_control.lock().await;
         control.next_id += 1;
         let id = control.next_id;
@@ -537,10 +676,80 @@ impl Bot {
         }
         control.generation = Some(generation);
         control.model_tick = Some(motion.ticks);
+        if !glide
+            && control
+                .session
+                .as_ref()
+                .is_some_and(|p| p.kind == crate::client::control::ControlKind::Glide)
+        {
+            if *self.local_pose.lock().await != Some(0) {
+                return Err(invalid("ground after glide requires actual standing pose"));
+            }
+            session.body.leave_glide_pose();
+        }
         session.mode = mode;
         session.kind = kind;
         if let Some(controls) = initial_flight_controls {
             session.controls = controls;
+        }
+        {
+            let receipts = self.common_receipts.lock().await;
+            let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+            let stamp = crate::client::SessionStamp {
+                version: MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: generation,
+            };
+            if let Some(own) = player.entity_id {
+                let constructor = if glide {
+                    crate::client::entity::owned_contacts::OwnedContacts::new_glide
+                } else {
+                    crate::client::entity::owned_contacts::OwnedContacts::new
+                };
+                let mut contacts = constructor(stamp, id, own, &receipts.entities, sequence)?;
+                let teams = self.common_teams.lock().await.capture(stamp, sequence);
+                let profiles = self
+                    .common_player_list
+                    .lock()
+                    .await
+                    .capture(stamp, sequence);
+                contacts.teams(&teams, &profiles)?;
+                session.contact_team =
+                    crate::client::entity::owned_contacts::team(&teams, &self.login_profile.name);
+                session.contacts = Some(contacts);
+            } else if !receipts
+                .entities
+                .capture(stamp, sequence)
+                .entities
+                .is_empty()
+            {
+                return Err(invalid("contact model requires own login entity"));
+            }
+        }
+        if let Some(equipment) = equipment {
+            let world = self.world.lock().await;
+            crate::client::physics::glide_origin(
+                MinecraftVersion::Java1_16_1,
+                &session.body,
+                &mut |p| super::common_motion::legacy_motion_block(&world, p),
+            )?;
+            drop(world);
+
+            if session.body.on_ground || session.body.in_water || received.environment.levitation {
+                return Err(invalid(
+                    "glide requires an airborne non-water model without levitation",
+                ));
+            }
+            session.glide = Some(crate::client::glide::GlideRecord {
+                after_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+                dispatched: false,
+                accepted_sequence: None,
+                ended_sequence: None,
+                actual: self.common_receipts.lock().await.fall_flying.clone(),
+                equipment,
+                equipment_invalidated_sequence: None,
+                waiting_ticks: 0,
+            });
         }
         let record = session.record();
         control.session = Some(session);
@@ -552,8 +761,16 @@ impl Bot {
 }
 
 impl crate::client::adapter::ControlOps for Bot {
+    async fn start_glide_control(
+        &self,
+        mode: GameMode,
+        controls: Controls,
+    ) -> Result<ControlRecord> {
+        self.start_control_inner(mode, Some(controls), true).await
+    }
+
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None).await
+        self.start_control_inner(mode, None, false).await
     }
 
     async fn start_flight_control(
@@ -561,7 +778,7 @@ impl crate::client::adapter::ControlOps for Bot {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls)).await
+        self.start_control_inner(mode, Some(controls), false).await
     }
 
     async fn set_controls(
@@ -598,6 +815,7 @@ impl crate::client::adapter::ControlOps for Bot {
         if let Some(reason) = self.control_stop_reason(generation, mode, kind).await {
             return Err(invalid(reason));
         }
+        let received = self.control_received().await;
         let mut control = self.common_control.lock().await;
         if control.generation != Some(generation) {
             return Err(invalid("control belongs to a previous world"));
@@ -606,6 +824,9 @@ impl crate::client::adapter::ControlOps for Bot {
             Some(session) if session.running() && session.mode == mode => {
                 if session_id.is_some_and(|id| session.id != id) {
                     return Err(invalid("selected control session was replaced"));
+                }
+                if let Some(reason) = session.glide_stop_reason(&received) {
+                    return Err(invalid(reason));
                 }
                 session.controls = controls;
                 Ok(session.record())
@@ -722,6 +943,68 @@ mod tests {
     use crate::client::adapter::ControlOps;
     use crate::client::control::Output;
     use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn glide_start_without_actual_flag_times_out_without_position_or_retry() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        {
+            let mut player = bot.player.lock().await;
+            player.entity_id = Some(42);
+            player.y = 68.0;
+            player.on_ground = false;
+        }
+        bot.common_receipts
+            .lock()
+            .await
+            .pose
+            .as_mut()
+            .unwrap()
+            .position[1] = 68.0;
+        let id = crate::client::registry::Registry::for_version(MinecraftVersion::Java1_16_1)
+            .item("minecraft:elytra")
+            .unwrap()
+            .id
+            .value() as u16;
+        let mut slot = vec![0, 0, 6, 1];
+        crate::protocol::put_varint(&mut slot, i32::from(id));
+        slot.extend([1, 0]);
+        bot.apply_packet(0x16, slot).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let control = client.player_control(GameMode::Survival);
+        let initial = control
+            .start_glide_control(Default::default())
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap(), (0x1c, vec![42, 8, 0]));
+        let ended = timeout(Duration::from_secs(4), async {
+            loop {
+                let record = control.control_record().await.unwrap().unwrap();
+                if matches!(record.status, ControlStatus::Stopped { .. }) {
+                    break record;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(ended.session_id, initial.session_id);
+        assert_eq!(ended.dispatched_ticks, 0);
+        assert!(ended.frame.is_none());
+        assert!(ended.glide.unwrap().accepted_sequence.is_none());
+        assert!(
+            timeout(Duration::from_millis(80), packets.recv())
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        drop(release);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn selected_control_rejects_replacement_and_old_world_without_writes() {

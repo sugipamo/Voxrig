@@ -28,6 +28,8 @@ pub enum ControlKind {
     Ground,
     /// Creative or Spectator held flight, with original abilities speed.
     Flight,
+    /// Elytra glide; starts only after an actual accepted metadata flag.
+    Glide,
 }
 
 /// Converted inputs to the held-flight model, not current flight or an ACK.
@@ -148,6 +150,14 @@ pub struct GroundJumpRequest {
 /// Engine state after one tick: a prediction, not a received position.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlFrame {
+    /// Numerical Elytra model, not the actual fall-flying metadata.
+    pub gliding: bool,
+    /// Original float scale used by this numerical frame, not a receipt.
+    pub model_scale: f32,
+    /// Numerical collision bounds, minimum XYZ then maximum XYZ.
+    pub bounds: [f64; 6],
+    /// Numerical eye position for this pose and scale.
+    pub eye_position: [f64; 3],
     /// Native model flight flag after the tick; landing can clear it locally.
     pub flying: bool,
     /// Session tick that produced this frame.
@@ -179,6 +189,11 @@ pub struct ControlFrame {
 /// Observable record of the connection's control session.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlRecord {
+    /// Owned Elytra request and actual receipts; None for other control kinds.
+    pub glide: Option<super::glide::GlideRecord>,
+    /// Latest automatic entity contact frame, at this owner's explicit model
+    /// origin. Numerical feet/velocity are separate from received targets.
+    pub entity_contacts: Option<super::EntityContactFrame>,
     /// Model explicitly selected when this owner was created.
     pub kind: ControlKind,
     /// Last converted held-flight parameters, retained when the owner stops.
@@ -194,7 +209,7 @@ pub struct ControlRecord {
     /// for Ground, or flight/permission is removed for Flight. Later restoration
     /// cannot resume the interrupted owner.
     pub flight_change_sequence: Option<u64>,
-    /// First original own-player scale receipt outside this model's unit scale.
+    /// First original own-player scale receipt differing from this owner's origin.
     /// Java 1.16.1 has no scale attribute. Restoration does not resume this owner.
     pub scale_change_sequence: Option<u64>,
     /// Latest converted equipment parameters sampled by this local model.
@@ -280,6 +295,10 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    pub(crate) glide: Option<super::glide::GlideRecord>,
+    pub(crate) contacts: Option<super::entity::owned_contacts::OwnedContacts>,
+    pub(crate) entity_contacts: Option<super::EntityContactFrame>,
+    pub(crate) contact_team: Option<(String, super::ui::TeamCollision)>,
     pub kind: ControlKind,
     flight_parameters: Option<FlightParameters>,
     pub flight_disable: Option<FlightDisable>,
@@ -287,6 +306,7 @@ pub(crate) struct ControlSession {
     pub mode_change_sequence: Option<u64>,
     pub flight_change_sequence: Option<u64>,
     pub scale_change_sequence: Option<u64>,
+    admitted_scale: Option<f64>,
     movement_equipment: MovementEquipment,
     pub version: MinecraftVersion,
     pub id: u64,
@@ -338,11 +358,17 @@ impl ControlSession {
     pub(crate) fn from_model(
         version: MinecraftVersion,
         id: u64,
-        body: Body,
+        mut body: Body,
         rotation: [f32; 2],
         received: &Received,
     ) -> Self {
+        if let Some(scale) = received.environment.player_scale {
+            body.set_scale(scale as f32);
+        }
         Self {
+            contacts: None,
+            entity_contacts: None,
+            contact_team: None,
             kind: ControlKind::Ground,
             flight_parameters: None,
             flight_disable: None,
@@ -350,6 +376,8 @@ impl ControlSession {
             mode_change_sequence: None,
             flight_change_sequence: None,
             scale_change_sequence: None,
+            glide: None,
+            admitted_scale: received.environment.player_scale,
             movement_equipment: MovementEquipment::from(&received.environment),
             version,
             id,
@@ -469,6 +497,8 @@ impl ControlSession {
             }
         }
         ControlRecord {
+            glide: self.glide.clone(),
+            entity_contacts: self.entity_contacts.clone(),
             kind: self.kind,
             flight_parameters: self.flight_parameters.clone(),
             flight_disable: self.flight_disable.clone(),
@@ -500,7 +530,7 @@ impl ControlSession {
 
     pub(crate) fn observe_abilities(&mut self, flags: u8, sequence: u64) {
         let mismatch = match self.kind {
-            ControlKind::Ground => flags & 2 != 0,
+            ControlKind::Ground | ControlKind::Glide => flags & 2 != 0,
             ControlKind::Flight => flags & 6 != 6,
         };
         if self.running() && mismatch {
@@ -508,14 +538,76 @@ impl ControlSession {
         }
     }
 
+    pub(crate) fn glide_stop_reason(&self, received: &Received) -> Option<&'static str> {
+        let g = self.glide.as_ref()?;
+        if g.ended_sequence.is_some() {
+            Some("actual glide ended")
+        } else if g.equipment_invalidated_sequence.is_some() {
+            Some("glider equipment unavailable or unusable")
+        } else if self.has_new_pose(received) {
+            Some("glide correction requires a new owner")
+        } else if received.environment.levitation {
+            Some("glide levitation is unsupported")
+        } else if received.environment.player_scale != Some(1.0) {
+            Some("glide nonunit scale is unqualified")
+        } else if g.waiting_ticks >= 40 {
+            Some("glide start unconfirmed; inspect before a new explicit request")
+        } else {
+            None
+        }
+    }
+    /// No model tick or position write is allowed before an actual flag receipt.
+    pub(crate) fn glide_waiting(&mut self) -> bool {
+        let Some(g) = &mut self.glide else {
+            return false;
+        };
+        if g.accepted_sequence.is_none() {
+            g.waiting_ticks = g.waiting_ticks.saturating_add(1);
+            true
+        } else {
+            if self.frame.is_none() {
+                self.body.admit_glide_pose();
+            }
+            false
+        }
+    }
+
+    pub(crate) fn observe_gliding(&mut self, value: bool, sequence: u64) {
+        if !self.running() {
+            return;
+        }
+        let Some(glide) = &mut self.glide else {
+            return;
+        };
+        glide.actual = Some(crate::client::received(value, sequence));
+        if sequence <= glide.after_sequence {
+            return;
+        }
+        if value && glide.dispatched && glide.accepted_sequence.is_none() {
+            glide.accepted_sequence = Some(sequence);
+        } else if !value && glide.accepted_sequence.is_some() && glide.ended_sequence.is_none() {
+            glide.ended_sequence = Some(sequence);
+        }
+    }
+
+    pub(crate) fn observe_glider_equipment(&mut self, available: bool, sequence: u64) {
+        if self.running() {
+            if let Some(glide) = &mut self.glide {
+                if !available && glide.equipment_invalidated_sequence.is_none() {
+                    glide.equipment_invalidated_sequence = Some(sequence);
+                }
+            }
+        }
+    }
+
     pub(crate) fn observe_scale(&mut self, value: f64, sequence: u64) {
-        if self.running() && value != 1.0 {
+        if self.running() && Some(value) != self.admitted_scale {
             self.scale_change_sequence.get_or_insert(sequence);
         }
     }
 
     /// Apply receipts newer than the session has seen, as the client would.
-    fn apply_received(&mut self, received: &Received) {
+    pub(crate) fn apply_received(&mut self, received: &Received) {
         let pose = received
             .pose
             .filter(|p| self.last_pose.is_none_or(|seen| p.0 > seen));
@@ -566,6 +658,18 @@ impl ControlSession {
         if matches!(self.status, ControlStatus::Paused { .. }) {
             self.cancel_ground_jump("control was paused before the next physics tick");
         }
+        if self.kind == ControlKind::Glide
+            && self.glide.as_ref().is_none_or(|g| {
+                !g.dispatched
+                    || g.accepted_sequence.is_none()
+                    || g.ended_sequence.is_some()
+                    || g.equipment_invalidated_sequence.is_some()
+            })
+        {
+            return Err(crate::client::registry::invalid(
+                "glide tick requires the same confirmed actual glide owner",
+            ));
+        }
         let ground_requested = self
             .ground_jump
             .as_ref()
@@ -585,11 +689,20 @@ impl ControlSession {
                     spectator: environment.spectator,
                 });
         }
+        if self.kind == ControlKind::Glide {
+            environment.gliding = true;
+        }
         self.movement_equipment = MovementEquipment::from(&environment);
         environment.using_item = match &received.using_item {
             Some((sequence, _)) if self.released_use == Some(*sequence) => None,
             Some((_, Ok(using))) => *using,
             Some((_, Err(reason))) => {
+                if self.kind == ControlKind::Glide {
+                    self.status = ControlStatus::Stopped {
+                        reason: reason.clone(),
+                    };
+                    return Err(crate::client::registry::invalid(reason));
+                }
                 self.status = ControlStatus::Paused {
                     reason: reason.clone(),
                 };
@@ -599,20 +712,50 @@ impl ControlSession {
         };
         self.tick += 1;
         let controls = self.controls;
-        let ground_outcome = match physics::tick_with_ground_jump(
-            self.version,
-            &mut self.body,
-            &environment,
-            controls,
-            ground_requested,
-            block_at,
-        ) {
+        let contact_bodies = self.contacts.as_ref().is_some_and(|c| c.has_bodies());
+        let physics_result = if let Some(contacts) = &self.contacts {
+            let mut next = contacts.clone();
+            let mut body = self.body.clone();
+            match next.tick_player(
+                &mut body,
+                &environment,
+                controls,
+                ground_requested,
+                self.contact_team.as_ref(),
+                block_at,
+            ) {
+                Ok((outcome, frame)) => {
+                    self.body = body;
+                    self.contacts = Some(next);
+                    self.entity_contacts = Some(frame);
+                    Ok(outcome)
+                }
+                Err(error) => Err(error),
+            }
+        } else {
+            physics::tick_with_ground_jump(
+                self.version,
+                &mut self.body,
+                &environment,
+                controls,
+                ground_requested,
+                block_at,
+            )
+        };
+        let ground_outcome = match physics_result {
             Ok(outcome) => {
                 self.status = ControlStatus::Running;
                 outcome
             }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
+                if contact_bodies || self.kind == ControlKind::Glide {
+                    self.status = ControlStatus::Stopped {
+                        reason: error.to_string(),
+                    };
+                    self.contacts = None;
+                    return Err(error);
+                }
                 self.status = ControlStatus::Paused {
                     reason: error.to_string(),
                 };
@@ -628,6 +771,14 @@ impl ControlSession {
         }
         let b = &self.body;
         self.frame = Some(ControlFrame {
+            gliding: self.body.gliding,
+            model_scale: b.scale,
+            bounds: b.bounds,
+            eye_position: [
+                b.position[0],
+                b.position[1] + f64::from(b.eye_height()),
+                b.position[2],
+            ],
             flying: environment.flying && !b.flight_landed,
             tick: self.tick,
             position: b.position,
@@ -748,6 +899,38 @@ mod tests {
                 properties: Default::default(),
             })
         }
+    }
+
+    #[test]
+    fn scaled_origin_is_installed_before_contact_ticks_and_latches_any_change() {
+        let mut facts = received(Some((1, [0.5, 64., 0.5], Some([0.; 3]))), None);
+        facts.environment.player_scale = Some(2.0);
+        let mut session =
+            ControlSession::new(MinecraftVersion::Java1_21_11, 1, [0.5, 64., 0.5], &facts);
+        assert_eq!(session.body.scale, 2.0);
+        assert_eq!(
+            session.body.bounds[3] - session.body.bounds[0],
+            f64::from(0.6f32 * 2.0)
+        );
+        session.observe_scale(2.0, 10);
+        assert_eq!(session.scale_change_sequence, None);
+        session.observe_scale(1.0, 11);
+        session.observe_scale(2.0, 12);
+        assert_eq!(session.scale_change_sequence, Some(11));
+        session.status = ControlStatus::Stopped {
+            reason: "scale origin changed".into(),
+        };
+        let fresh = session.resume(2, [0.; 2], &facts);
+        assert_eq!(fresh.scale_change_sequence, None);
+        assert_eq!(fresh.body.scale, 2.0);
+        facts.environment.player_scale = Some(0.5);
+        let smaller = session.resume(3, [0.; 2], &facts);
+        assert_eq!(smaller.body.scale, 0.5);
+        assert_eq!(
+            smaller.body.bounds[4] - smaller.body.bounds[1],
+            f64::from(1.8f32 * 0.5)
+        );
+        assert_eq!(smaller.body.velocity, session.body.velocity);
     }
 
     #[test]
@@ -1201,5 +1384,130 @@ mod tests {
             assert_eq!(session.dispatched_ticks, 3);
             assert!(session.frame.as_ref().unwrap().position[1] > 64.0);
         }
+    }
+    fn glide_session() -> ControlSession {
+        use crate::client::{ItemData, ItemStack, SlotKnowledge, registry::Registry};
+        let version = MinecraftVersion::Java1_21_11;
+        let native = Registry::for_version(version)
+            .item("minecraft:elytra")
+            .unwrap();
+        let equipment = super::super::glide::equipment(Some(&crate::client::received(
+            SlotKnowledge::Item {
+                item: ItemStack {
+                    id: native.id,
+                    name: native.name.clone(),
+                    count: 1,
+                    data: ItemData::Default,
+                },
+            },
+            10,
+        )))
+        .unwrap();
+        let mut s = ControlSession::new(
+            version,
+            1,
+            [0.5, 78., 0.5],
+            &received(Some((11, [0.5, 78., 0.5], Some([0.; 3]))), None),
+        );
+        s.kind = ControlKind::Glide;
+        s.glide = Some(super::super::glide::GlideRecord {
+            after_sequence: 11,
+            dispatched: false,
+            accepted_sequence: None,
+            ended_sequence: None,
+            actual: None,
+            equipment,
+            equipment_invalidated_sequence: None,
+            waiting_ticks: 0,
+        });
+        s
+    }
+    #[test]
+    fn glide_request_write_never_substitutes_for_an_actual_flag() {
+        let mut s = glide_session();
+        let body = s.body.clone();
+        let r = received(Some((11, [0.5, 78., 0.5], Some([0.; 3]))), None);
+        s.observe_gliding(true, 12);
+        assert_eq!(s.glide.as_ref().unwrap().accepted_sequence, None);
+        s.glide.as_mut().unwrap().dispatched = true;
+        assert!(s.step(&r, &mut world(false)).is_err());
+        assert_eq!(s.body, body);
+        s.observe_gliding(true, 11);
+        assert_eq!(s.glide.as_ref().unwrap().accepted_sequence, None);
+        s.observe_gliding(true, 13);
+        assert_eq!(s.glide.as_ref().unwrap().accepted_sequence, Some(13));
+        assert!(!s.glide_waiting());
+        assert_eq!(s.body.pose, Pose::FallFlying);
+        assert!(s.step(&r, &mut world(false)).unwrap().is_some());
+    }
+    #[test]
+    fn actual_glide_end_and_equipment_loss_latch_before_restoration() {
+        let mut s = glide_session();
+        s.glide.as_mut().unwrap().dispatched = true;
+        s.observe_gliding(true, 12);
+        s.observe_gliding(false, 13);
+        s.observe_gliding(true, 14);
+        assert_eq!(s.glide.as_ref().unwrap().ended_sequence, Some(13));
+        assert_eq!(
+            s.glide_stop_reason(&received(Some((11, [0.5, 78., 0.5], Some([0.; 3]))), None)),
+            Some("actual glide ended")
+        );
+        s.observe_glider_equipment(false, 15);
+        s.observe_glider_equipment(true, 16);
+        assert_eq!(
+            s.glide.as_ref().unwrap().equipment_invalidated_sequence,
+            Some(15)
+        );
+        let snapshot = s.body.clone();
+        assert!(s.step(&received(None, None), &mut world(false)).is_err());
+        assert_eq!(s.body, snapshot);
+    }
+    #[test]
+    fn unconfirmed_glide_has_bounded_wait_and_correction_ends_its_origin() {
+        let mut s = glide_session();
+        s.glide.as_mut().unwrap().dispatched = true;
+        for _ in 0..40 {
+            assert!(s.glide_waiting());
+        }
+        assert!(
+            s.glide_stop_reason(&received(Some((11, [0.5, 78., 0.5], Some([0.; 3]))), None))
+                .unwrap()
+                .contains("unconfirmed")
+        );
+        let mut s = glide_session();
+        s.glide.as_mut().unwrap().dispatched = true;
+        s.observe_gliding(true, 12);
+        assert_eq!(
+            s.glide_stop_reason(&received(Some((13, [0.5, 79., 0.5], Some([0.; 3]))), None)),
+            Some("glide correction requires a new owner")
+        );
+        s.status = ControlStatus::Stopped {
+            reason: "disconnected".into(),
+        };
+        let old = s.record();
+        s.observe_gliding(false, 14);
+        s.observe_glider_equipment(false, 15);
+        assert_eq!(s.record(), old);
+    }
+
+    #[test]
+    fn glide_unknown_terrain_ends_origin_without_resuming_after_recovery() {
+        let mut s = glide_session();
+        s.glide.as_mut().unwrap().dispatched = true;
+        s.observe_gliding(true, 12);
+        assert!(!s.glide_waiting());
+        let r = received(Some((11, [0.5, 78., 0.5], Some([0.; 3]))), None);
+        let body = s.body.clone();
+        assert!(
+            s.step(&r, &mut |_| Err(crate::client::registry::invalid(
+                "cell unreceived"
+            )))
+            .is_err()
+        );
+        assert_eq!(s.body, body);
+        assert!(matches!(s.status, ControlStatus::Stopped { .. }));
+        let retained = s.record();
+        assert!(s.step(&r, &mut world(false)).unwrap().is_none());
+        assert_eq!(s.record(), retained);
     }
 }

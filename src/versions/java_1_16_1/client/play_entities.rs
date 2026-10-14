@@ -123,11 +123,19 @@ impl Bot {
             packet_sequence,
         );
         if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
+            if let Some(MetadataValue::Byte(flags)) = metadata.get(&0) {
+                let value = *flags as u8 & 128 != 0;
+                self.common_receipts.lock().await.fall_flying =
+                    Some(crate::client::received(value, packet_sequence));
+                self.common_control
+                    .lock()
+                    .await
+                    .observe_gliding(value, packet_sequence);
+            }
             if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                 *self.local_pose.lock().await = Some(*pose);
                 if *pose != 0 {
-                    self.interrupt_common_motion("native posture changed during finite motion")
-                        .await;
+                    self.interrupt_common_posture(*pose, packet_sequence).await;
                 }
             }
             if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {
@@ -231,19 +239,23 @@ impl Bot {
         }
         {
             let mut receipts = self.common_receipts.lock().await;
+            let mut entries = Vec::new();
+            let mut complete = rest.is_empty();
             for (slot, stack) in &equipment {
                 let Some(slot) = crate::client::EquipmentSlot::from_native(
                     crate::MinecraftVersion::Java1_16_1,
                     *slot as u8,
                 ) else {
+                    complete = false;
                     continue;
                 };
                 let item = crate::client::legacy_slot(stack.as_ref())
                     .unwrap_or(crate::client::SlotKnowledge::Unavailable);
-                receipts
-                    .entities
-                    .receive_equipment(entity_id, slot, item, packet_sequence);
+                entries.push((slot, item));
             }
+            receipts
+                .entities
+                .receive_equipment(entity_id, entries, complete, packet_sequence);
         }
         if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
             entity.equipment.extend(equipment);
@@ -258,6 +270,7 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             let receipts = &mut *receipts;
+            receipts.entities.history_passengers(&update);
             receipts
                 .vehicles
                 .receive(&update, player_id, &receipts.entities, packet_sequence);

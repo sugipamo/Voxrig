@@ -12,8 +12,29 @@ use contract::{
 pub(super) struct NativeInventoryClick {
     pub(super) record: InventoryClickRecord,
     pub(super) released: bool,
+    receipt_deadline: Option<tokio::time::Instant>,
 }
 impl Bot {
+    pub(super) async fn common_click_posture_changed(&self, pose: i32, receipt: u64) {
+        if let Some(run) = super::lock_packet_state(&self.common_inventory_click)
+            .await
+            .as_mut()
+        {
+            if run.record.unresolved() {
+                if let Some(predicate) =
+                    click::Dependency::for_click(&run.record).posture_failure(pose)
+                {
+                    run.record.invalidation.get_or_insert(click::Invalidation {
+                        predicate: predicate.into(),
+                        change: click::StateChange::PostureChanged { pose },
+                        receipt,
+                    });
+                    run.record.inspection(predicate);
+                }
+            }
+        }
+    }
+
     async fn common_click_send_owned(
         &self,
         id: InventoryClickId,
@@ -30,6 +51,11 @@ impl Bot {
             if record.requires_inspection.is_some() {
                 return Err(contract::unavailable("click interrupted before I/O"));
             }
+            if let Some(predicate) = click::Dependency::for_click(&record)
+                .posture_failure(self.local_pose.lock().await.unwrap_or(-1))
+            {
+                return Err(contract::unavailable(predicate));
+            }
             let current = self.common_player_unlocked().await?;
             let screen = self
                 .common_receipts
@@ -39,6 +65,20 @@ impl Bot {
                 .as_ref()
                 .map(|s| s.capture(current.session));
             let slots = click::source_slots(&record, &current, screen.as_ref())?;
+            if let Some(context) = &record.item_context {
+                let registries = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .registries
+                    .capture(current.session, current.receive_sequence);
+                context.classify(
+                    &record.source_before,
+                    &record.source_before,
+                    &record.prediction.source.value,
+                    &registries,
+                )?;
+            }
             if !contract::same_received_value(
                 slots
                     .get(usize::from(record.source_slot))
@@ -140,9 +180,13 @@ impl Bot {
                     .await?;
             }
             let mut guard = super::lock_packet_state(&self.common_inventory_click).await;
-            let record = &mut guard.as_mut().expect("retained").record;
-            record.send.dispatched = true;
-            Ok(record.clone())
+            let run = guard.as_mut().expect("retained");
+            run.receipt_deadline = Some(
+                tokio::time::Instant::now()
+                    + self.connection_options.inventory_click_receipt_timeout,
+            );
+            run.record.send.dispatched = true;
+            Ok(run.record.clone())
         }
         .await;
         if let Err(e) = &result {
@@ -160,7 +204,7 @@ impl Bot {
         }
     }
     pub(super) async fn common_click_context_received(&self) -> Result<()> {
-        self.reconcile_common_inventory_click(false).await
+        self.reconcile_common_inventory_click().await
     }
     pub(super) async fn common_click_reply_received(&self, reply: WindowTransaction) {
         if let Some(run) = super::lock_packet_state(&self.common_inventory_click)
@@ -183,7 +227,7 @@ impl Bot {
                 });
         }
     }
-    async fn reconcile_common_inventory_click(&self, confirm: bool) -> Result<()> {
+    async fn reconcile_common_inventory_click(&self) -> Result<()> {
         let Some(snapshot) = super::lock_packet_state(&self.common_inventory_click)
             .await
             .clone()
@@ -206,20 +250,6 @@ impl Bot {
             .container
             .as_ref()
             .map(|s| s.capture(current.session));
-        let inventory = self.inventory.read().await;
-        let cache_cursor = api::legacy_slot(inventory.cursor.as_ref())?;
-        let native_conflict = !inventory.pending_clicks.is_empty()
-            || inventory
-                .open_window
-                .as_ref()
-                .map_or(0, |s| i32::from(s.id))
-                != snapshot.record.window_id()
-            || current
-                .inventory
-                .cursor
-                .as_ref()
-                .is_none_or(|c| c.value != cache_cursor);
-        drop(inventory);
         let complete = {
             let mut guard = super::lock_packet_state(&self.common_inventory_click).await;
             let record = &mut guard.as_mut().expect("retained").record;
@@ -229,11 +259,18 @@ impl Bot {
                 .await
                 .registries
                 .capture(current.session, current.receive_sequence);
-            click::receive_with_registries(record, &current, screen.as_ref(), &registries);
-            if native_conflict {
-                record.inspection("legacy click cache/ownership context changed");
+            if !record.ready()
+                && snapshot
+                    .receipt_deadline
+                    .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
+            {
+                record.inspection("click receipt deadline elapsed; inspect without replay");
             }
-            confirm && record.ready()
+            click::receive_with_registries(record, &current, screen.as_ref(), &registries);
+            // Complete at the receive boundary, before a later independent
+            // inventory update can overwrite this already-observed outcome.
+            // Inspection timing must not decide whether exact receipts count.
+            record.ready()
         };
         if complete {
             match self
@@ -328,11 +365,17 @@ impl crate::client::adapter::InventoryClickOps for Bot {
                 ));
             }
         }
+        if let Some(predicate) = click::Dependency::for_click(&record)
+            .posture_failure(self.local_pose.lock().await.unwrap_or(-1))
+        {
+            return Err(contract::unavailable(predicate));
+        }
         let id = record.id;
         *super::lock_packet_state(&self.common_inventory_click).await =
             Some(NativeInventoryClick {
                 record,
                 released: false,
+                receipt_deadline: None,
             });
         let (reply, result) = tokio::sync::oneshot::channel();
         let bot = self.clone_internal();
@@ -352,7 +395,7 @@ impl crate::client::adapter::InventoryClickOps for Bot {
             let (reply, result) = tokio::sync::oneshot::channel();
             tokio::spawn(async move {
                 let _gate = gate;
-                let _ = reply.send(bot.reconcile_common_inventory_click(true).await);
+                let _ = reply.send(bot.reconcile_common_inventory_click().await);
             });
             result
                 .await

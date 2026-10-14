@@ -434,6 +434,12 @@ pub struct ConnectionOptions {
     pub event_channel_capacity: usize,
     /// Maximum time the connection actor waits for a protocol acknowledgement.
     pub protocol_ack_timeout: Duration,
+    /// Maximum receipt wait for each cursor-return click, starting after its write.
+    /// Expiry requires inspection; it never resends or extends the wait.
+    pub cursor_return_receipt_timeout: Duration,
+    /// Maximum ordinary PICKUP receipt wait after a complete write. Inspection
+    /// does not renew this deadline; timeout never authorizes a retry.
+    pub inventory_click_receipt_timeout: Duration,
 }
 
 impl Default for ConnectionOptions {
@@ -450,6 +456,8 @@ impl Default for ConnectionOptions {
             max_custom_payload_bytes: 65_536,
             event_channel_capacity: 256,
             protocol_ack_timeout: Duration::from_secs(5),
+            cursor_return_receipt_timeout: Duration::from_secs(5),
+            inventory_click_receipt_timeout: Duration::from_secs(5),
         }
     }
 }
@@ -5438,6 +5446,9 @@ impl Bot {
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;
         self.enforce_session_limits().await?;
+        if matches!(id, 0x14 | 0x16) {
+            self.observe_common_glide_equipment(packet_sequence).await;
+        }
         Ok(true)
     }
 

@@ -33,6 +33,9 @@ pub enum EntityDataField {
     LivingFlags,
     /// Health of a living entity.
     Health,
+    /// Original optional sleeping block position of a living entity. An absent
+    /// receipt stays unknown; the common table does not export its default.
+    SleepingPosition,
     /// Arrows stuck in a living entity.
     ArrowCount,
     /// Mob flags: no AI 0x01, left-handed 0x02, aggressive 0x04.
@@ -90,6 +93,7 @@ impl EntityDataField {
         Self::TicksFrozen,
         Self::LivingFlags,
         Self::Health,
+        Self::SleepingPosition,
         Self::ArrowCount,
         Self::MobFlags,
         Self::Baby,
@@ -125,6 +129,7 @@ impl EntityDataField {
             Self::TicksFrozen => &[("Entity", "DATA_TICKS_FROZEN")],
             Self::LivingFlags => &[("LivingEntity", "DATA_LIVING_ENTITY_FLAGS")],
             Self::Health => &[("LivingEntity", "DATA_HEALTH_ID")],
+            Self::SleepingPosition => &[("LivingEntity", "SLEEPING_POS_ID")],
             Self::ArrowCount => &[("LivingEntity", "DATA_ARROW_COUNT_ID")],
             Self::MobFlags => &[("Mob", "DATA_MOB_FLAGS_ID")],
             Self::Baby => &[

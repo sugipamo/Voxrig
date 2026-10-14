@@ -1,0 +1,341 @@
+{
+  "schema": 1,
+  "date": "2026-10-12",
+  "timezone": "Asia/Tokyo",
+  "issues": [
+    89,
+    92
+  ],
+  "sdk": {
+    "source_revision": "7dda2cb68765e7be10351c631db8600514f57184",
+    "binary_build_revision": "dc0736e441d0bc9e037b495e0cca21c628046c3c",
+    "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_owner_live.py": "b1c658c22b43d346b370e33cc8a26e641ac54090b4fb290e37cdcbab04a04a5c",
+      "scripts/run_entity_owner_oracle.py": "f9ea7b35eae86573f7f19b03f059f9db76cce34d6428dbfbceecb825cf2b604b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "40bd0606fa979e3b1a4ff5c3b8eff2af8f4a4e66966cd4c13c484ba5d6a34602",
+      "data/client_api/entity_owner_oracle.json.gz": "6f8eb9f646337815d861f8be5af487481f8c841fc14c7b745e9e0a3a16b569bc",
+      "scripts/entity_owner_oracle/1.16.1/EntityTickOracle.java": "ca67033376c74dc16aba0b6196f876c3c345819e1c9856db1ccae77280afe764",
+      "scripts/entity_owner_oracle/1.21.11/EntityTickOracle.java": "c8f219331efedf2ccc759335b048f0bc3c22dd0b95c9c5fa1901691cc848d372"
+    }
+  },
+  "authority": "Unchanged official client packet handlers, original AI-step/interpolation/push, original Player.aiStep neutral travel and mounted Boat.tick in real ClientLevel runtime dispatch. Headless allocation omits graphics constructors/audio delivery; ClientLevel reads original registered chunks, light and environment attributes. Modern section visibility and own player mode/input guards are explicit. Passenger rideTick and graphics LocalPlayer input preprocessing are isolated. These are explicit owned numerical ticks, not a native clock, full NPC baseTick/fluid/AI, server-current motion or acceptance.",
+  "native": {
+    "schedules": 64,
+    "stages": 768,
+    "fixture_sha256": "6f8eb9f646337815d861f8be5af487481f8c841fc14c7b745e9e0a3a16b569bc",
+    "runner_sha256": "f9ea7b35eae86573f7f19b03f059f9db76cce34d6428dbfbceecb825cf2b604b",
+    "versions": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "server_mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "original_client_jar_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
+        "client_mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5",
+        "original_output_sha256": "0ab97690f12717e5f94c6d8f2c449bbf7ead6cb76884819f3e5282d5f409a6ab",
+        "harness_sha256": "ca67033376c74dc16aba0b6196f876c3c345819e1c9856db1ccae77280afe764"
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "server_mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "original_client_jar_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
+        "client_mappings_sha1": "031a68bebf55d824f66d6573d8c752f0e1bf232a",
+        "original_output_sha256": "ae117d709ba49f2d6aa406b73d0edb6eeef08afd53c207b07213210f39b23657",
+        "harness_sha256": "c8f219331efedf2ccc759335b048f0bc3c22dd0b95c9c5fa1901691cc848d372"
+      }
+    }
+  },
+  "live": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": 16,
+      "check_names": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model",
+        "received_sleep_position",
+        "sleep_cleared_new_origin",
+        "received_move_during_owner",
+        "motion_receipts",
+        "removed_fresh_spawn_origin",
+        "new_spawn_lifetime",
+        "own_correction_discards_contact_owner",
+        "explicit_new_owner",
+        "boat_living_geometry_and_cancelled_waiter",
+        "actual_dismount",
+        "forced_dismount_stops_old_owner"
+      ],
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "boat_submitted_ticks": 24,
+      "report_path": ".local/climbing/live/1.16.1-20261011-220554/report.json",
+      "report_sha256": "4e32b6a003028531dd6b6c95f58e552e077fcde1a325a73c16cbf11da5221624",
+      "packet_trace_sha256": "97e3141a3eeb27ccb10ab0b0ca18dd303348fa04690100e1970de25d8107ea44",
+      "peer_packet_trace_sha256": "f6196ed49be7618f04f30831bcae9fb36e2279b2aefa8f7c98fa100a4f1fee7e"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "checks": 16,
+      "check_names": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model",
+        "received_sleep_position",
+        "sleep_cleared_new_origin",
+        "received_move_during_owner",
+        "motion_receipts",
+        "removed_fresh_spawn_origin",
+        "new_spawn_lifetime",
+        "own_correction_discards_contact_owner",
+        "explicit_new_owner",
+        "boat_living_geometry_and_cancelled_waiter",
+        "actual_dismount",
+        "forced_dismount_stops_old_owner"
+      ],
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "boat_submitted_ticks": 24,
+      "report_path": ".local/climbing/live/1.21.11-20261011-220617/report.json",
+      "report_sha256": "82ef32949b2b6eea9f3e55b86e243020390735e742e489cbde7def3f47065e2b",
+      "packet_trace_sha256": "35092dfba0cfa718f63039d8771d3e6260e6937a04a62e356cabd33fc6dd8d08",
+      "peer_packet_trace_sha256": "fc4425159fef1f3e8271ba1973a07a3d79046622383fe651c1e23f17c5a6fe1a"
+    },
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": 16,
+      "check_names": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model",
+        "received_sleep_position",
+        "sleep_cleared_new_origin",
+        "received_move_during_owner",
+        "motion_receipts",
+        "removed_fresh_spawn_origin",
+        "new_spawn_lifetime",
+        "own_correction_discards_contact_owner",
+        "explicit_new_owner",
+        "boat_living_geometry_and_cancelled_waiter",
+        "actual_dismount",
+        "unsupported_dispatch_releases_once"
+      ],
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "boat_submitted_ticks": 24,
+      "report_path": ".local/climbing/live/1.16.1-20261011-220649/report.json",
+      "report_sha256": "14ac334409b6bcdcec60b3e5085b5fa245b21e9bf38291f10d61fb9074a1d4ad",
+      "packet_trace_sha256": "963d5b80cad0361e17f4486ff29c75ed7a83cfab23566f83d767fcf96aedf77e",
+      "peer_packet_trace_sha256": "495b45e0a2ac9e127c805e19b3e5ed406dda3c6283ac692597dea1583cb2cc24"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "checks": 16,
+      "check_names": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model",
+        "received_sleep_position",
+        "sleep_cleared_new_origin",
+        "received_move_during_owner",
+        "motion_receipts",
+        "removed_fresh_spawn_origin",
+        "new_spawn_lifetime",
+        "own_correction_discards_contact_owner",
+        "explicit_new_owner",
+        "boat_living_geometry_and_cancelled_waiter",
+        "actual_dismount",
+        "unsupported_dispatch_releases_once"
+      ],
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "boat_submitted_ticks": 24,
+      "report_path": ".local/climbing/live/1.21.11-20261011-220711/report.json",
+      "report_sha256": "3f56fb2172cae87b4047b5c706fd3b83bd49ab32b1a2360da4a8efcaa6030b26",
+      "packet_trace_sha256": "73bb169b8d6a21bd574baf81a32fc9a58021788b4b7d95dc4610f4014b9ea00d",
+      "peer_packet_trace_sha256": "1b03c3fc34c799b93f3869b17a2466b30dcf800fb9d3c3c91303e97d66448034"
+    }
+  ],
+  "validation": {
+    "focused_entity_tests": 61,
+    "native_unit_passed": 1019,
+    "native_unit_ignored": 8,
+    "integration_passed": 4,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "strict_native_clippy": "passed",
+    "strict_native_rustdoc": "passed",
+    "fmt": "passed",
+    "trace_tests": 6,
+    "package_allowlist": "passed",
+    "required_ci": "MSRV/default/native/package/audit must pass at final PR head before merge"
+  },
+  "limitations": [
+    "Owned numerical ticks with declared constructor/history origin, not a graphical native clock or server-current entity travel.",
+    "Remote AI-step isolates NPC baseTick/fluid/AI/travel. Own neutral Player travel and mounted Boat physics are qualified on the recorded loaded stone world; custom world-border collision is not established.",
+    "Only normal-scale player/cow/pig/zombie contact dispatch is admitted. Unknown species/hooks, selected living passenger travel, unsupported metadata/status/equipment/scale or incomplete input refuse.",
+    "Fixed received rigid-vehicle geometry remains the existing boat lane; special minecarts/modern relative correction observation remain #40.",
+    "Native schedules compare up to100 actors; SDK active/retained/collision/input/history budgets refuse rather than truncate. Cramming damage/RNG is server-owned.",
+    "Species override audit is interpreted method ownership/guard inspection, not trajectory/live qualification for those species. Concrete follow-ups #97/#98/#99 remain on #44.",
+    "Failure release uses the actual coherent still-mounted receive boundary. Correction can precede removal; neutral/paddle release is once only and never retries predicted position."
+  ],
+  "failed_attempts": [
+    {
+      "report_path": ".local/climbing/live/1.16.1-20261011-214827/report.json",
+      "report_sha256": "edb41667580041105ec7d3210bbdc6349f2a9397bc57fd006cd75039f69b0e63",
+      "checks_completed": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin"
+      ],
+      "source_revision": "dc0736e441d0bc9e037b495e0cca21c628046c3c",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    },
+    {
+      "report_path": ".local/climbing/live/1.16.1-20261011-215143/report.json",
+      "report_sha256": "0e5fc078725ababd35610776d69d5df5704e296b9dd038523d7deee886069764",
+      "checks_completed": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact"
+      ],
+      "source_revision": "4290fdd994688b5b7ffd4640592aff86928781bd",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    },
+    {
+      "report_path": ".local/climbing/live/1.16.1-20261011-215459/report.json",
+      "report_sha256": "3436a8093f693fecd2e2e06c0b8e7bba5b33101167914e3d1245a2709ab91c31",
+      "checks_completed": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model",
+        "sleep_cleared_new_origin",
+        "received_move_during_owner",
+        "motion_receipts"
+      ],
+      "source_revision": "97ef059b3f077e12d7cf8539bde19bdd8db1837a",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    },
+    {
+      "report_path": ".local/climbing/live/1.16.1-20261011-215935/report.json",
+      "report_sha256": "81ee2576cd62677788d0ce24d398c276401c2385dd87b4d4cb4be096b0535fe9",
+      "checks_completed": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model",
+        "sleep_cleared_new_origin",
+        "received_move_during_owner",
+        "motion_receipts",
+        "removed_fresh_spawn_origin",
+        "new_spawn_lifetime",
+        "own_correction_discards_contact_owner",
+        "explicit_new_owner"
+      ],
+      "source_revision": "48c9f5bab2238c2c83f088582f9bd877c5c08084",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    },
+    {
+      "report_path": ".local/climbing/live/1.16.1-20261011-220141/report.json",
+      "report_sha256": "8be79d726cbab2bf761cb84c19bce920e9a2fc3ec2445fa924a7ccd944aface5",
+      "checks_completed": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model",
+        "sleep_cleared_new_origin",
+        "received_move_during_owner",
+        "motion_receipts",
+        "removed_fresh_spawn_origin",
+        "new_spawn_lifetime",
+        "own_correction_discards_contact_owner",
+        "explicit_new_owner",
+        "boat_living_geometry_and_cancelled_waiter",
+        "actual_dismount"
+      ],
+      "source_revision": "7bbe5ea271df2efc9c8630330c31ef7671d988e4",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    },
+    {
+      "report_path": ".local/climbing/live/1.16.1-20261011-220428/report.json",
+      "report_sha256": "ca94549fbf60a1af052fc99a8a82e9276fdb39e9caff100f22bb47fb41665bbc",
+      "checks_completed": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact"
+      ],
+      "source_revision": "16d09afe6c135c8ae661993eb57f349b8bd488dd",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    },
+    {
+      "report_path": ".local/climbing/live/1.21.11-20261011-220045/report.json",
+      "report_sha256": "982c81e4b80f847d84157a2212d31bf851e1eeeec1af603ab7cdc68ec96c7778",
+      "checks_completed": [],
+      "source_revision": "f2632bd552c97de05fb55fe3c0f2ae0cab9cd33f",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    },
+    {
+      "report_path": ".local/climbing/live/1.21.11-20261011-220301/report.json",
+      "report_sha256": "c5e5d423ecd18d108707c097c586df84eaa421bddc6a3e6527c49582283f20ba",
+      "checks_completed": [
+        "actual_remote_player_constructor_and_motion",
+        "actual_spawn_origin",
+        "walking_contact",
+        "received_team_excludes_contact",
+        "sleep_position_receipt_and_model"
+      ],
+      "source_revision": "0a46a811d04290804a8292ce6f7556d1db44d6b5",
+      "binary_sha256": "13c0bd6ed9a66cfa7de95418d4c4d6a142a0bff45ba6b9de969ee20931be26c2"
+    }
+  ],
+  "failed_attempt_explanation": "Driver-only qualification fixes: ControlRecord has no world_generation field; metadata provenance is Received; sleeping query actor does not suppress awake first receiver push; model feet can interpolate after sleep callback; fixture drops introduced unsupported item dispatch; legacy removal/death lifetime must be awaited; packet trace decoder may trail completed writer; modern gamerule names differ; correction may arrive before passenger removal. SDK/binary remained dc0736e throughout.",
+  "native_setup_attempts": [
+    {
+      "log_path": "/tmp/voxrig-owner-original-boat.log",
+      "log_sha256": "f3c8df185eb635e1e5c76f763b1ef80ff272e0df2bd621dac139e8e0680b9304"
+    },
+    {
+      "log_path": "/tmp/voxrig-owner-original-boat-2.log",
+      "log_sha256": "0fc93d1b56e94b6f35bfa1834f5d6a79d8bfa0cebcf8454d6f304c12b0056022"
+    },
+    {
+      "log_path": "/tmp/voxrig-owner-original-sleep.log",
+      "log_sha256": "8ad4324fc270724d91c281a822610ed890b41c9376a4f1c8e3adb1c9c333b9c0"
+    },
+    {
+      "log_path": "/tmp/voxrig-owner-original-final.log",
+      "log_sha256": "8ad4324fc270724d91c281a822610ed890b41c9376a4f1c8e3adb1c9c333b9c0"
+    },
+    {
+      "log_path": "/tmp/voxrig-owner-original-query.log",
+      "log_sha256": "8ad4324fc270724d91c281a822610ed890b41c9376a4f1c8e3adb1c9c333b9c0"
+    },
+    {
+      "log_path": "/tmp/voxrig-owner-original-collision.log",
+      "log_sha256": "8ad4324fc270724d91c281a822610ed890b41c9376a4f1c8e3adb1c9c333b9c0"
+    }
+  ],
+  "native_setup_explanation": "Headless original-world harness initialization exposed missing graphics/environment references, modern ticking visibility and legacy NPC chunk registration. Original physics methods were never patched. Final source/JAR/runner hashes and 768 stages include actual NPC chunk registrations and candidate visitation order."
+}

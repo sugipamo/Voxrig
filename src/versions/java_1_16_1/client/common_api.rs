@@ -87,6 +87,7 @@ impl Bot {
             selected_hotbar: receipts.selected_hotbar.clone(),
             inventory: received_inventory,
             using_item: receipts.using_item.clone(),
+            fall_flying: receipts.fall_flying.clone(),
             entity_id: player.entity_id,
             attributes: receipts.attributes.clone(),
             effects: receipts.effects.clone(),

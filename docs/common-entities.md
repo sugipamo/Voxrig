@@ -1,6 +1,8 @@
 # 共通のentity現在状態
 
 過去の受信値が必要な場合は、独立した[entity受信履歴](common-entity-history.md)を使う。
+metadata・装備のpacketごとの差分とmodern scaleも保持する。最新状態のmapと違い、
+entry順序・重複更新・部分解読・履歴の保存上限を区別して読める。
 
 `Client::entities()`は、受信した全entity（自分以外）の現在の状態を1回の観測で返す。
 1.16.1・1.21.11の両方で使える。値はすべてclientが受信したもので、予測や補間はしない。
@@ -12,7 +14,7 @@
 | `health` | 生き物の体力。metadataで受信するまで`None` |
 | `equipment` | 装備欄ごとに最後に受信したitem（`MainHand`〜`Head`、1.21.11は`Body`・`Saddle`も） |
 | `living` | 生き物（playerを含む）かどうか。1.16.1は出現パケット（生き物用・player用）、1.21.11は種類（`minecraft:player`か既定属性を持つ種類）で決める。種類が分からなければ`None` |
-| `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・string・poseは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
+| `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・string・pose・block position・optional block positionは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
 | `scale_attribute` | modern版のscale属性を最後に完全に受信した値。base・modifier・受信順序を保持。未受信・保存上限超過なら`None` |
 | `scale_attribute_unavailable_sequence` | 4096byteの個体別保存上限を超えたscale更新の受信順序。古いscaleを無効化し、次の保存可能な更新か新しいspawnで解除 |
 | `metadata_complete` | このentityのentity dataパケットをすべて最後まで読めたか。`false`なら、受信していないフィールドは不明として扱う |
@@ -256,3 +258,29 @@ consoleから`armor_stand`を出し、頭にダイヤのヘルメットを付け
 明示的なbox・team・述語からの接触選別と入力順の`other.push(this)`計算は
 [共通の接触モデル](common-entity-contact.md)を参照。
 自動のworld query・tick割当て・移動owner統合は引き続き#44の残件。
+
+## 睡眠位置の受信値
+
+`EntityObservation::sleeping()`は原版の`LivingEntity.SLEEPING_POS_ID`を解釈する。
+indexは1.16.1で13、1.21.11で14。原版の`isSleeping()`と同じく、optionalな位置が
+存在するかで判定する。`Pose::Sleeping`だけからは判定しない。
+
+未受信・未知のtype・別serializerなら`None`。位置を明示的に解除するpacketを受信すると、
+`position: None`と`sleeping: false`を持つreadingが返る。`source`は元packetの受信番号。
+型の空の既定値は補わない。部分metadata後の既知値には`metadata_complete: false`を残す。
+数値IDが再利用された新spawnには、旧値を持ち越さない。
+
+`EntityDataValue::BlockPosition`と`OptionalBlockPosition`は共通`BlockPos`を保持し、
+最新mapとpacket単位の履歴の両方に残す。X/Zは26bit、Yは12bitの符号付き座標。
+原版codec 286ケースの解読結果・hashと全切断境界を確認する再現手順:
+
+```sh
+python3 scripts/run_entity_position_oracle.py --downloads .local/climbing/downloads --work .local/entity-position/oracle
+python3 scripts/run_entity_sleeping_live.py --accept-eula --binary target/debug/examples/climbing_control_probe --compiled-sdk-revision <build-commit>
+```
+
+実接続では両版の睡眠位置変更・ベッド撤去による解除、元packetとの一致、remove後の凍結、
+実respawn・接続取消を確認する。旧版Turtleの通常BlockPosも照合する。modern Turtleの
+home位置はmetadataではないため、同じ受信値を作らない。原版JAR・packetは公開せず、
+解釈結果とhashを`docs/evidence/common-entity-sleeping-20261012.json`に保存する。
+この観測だけでは、自動接触探索・native tick順序・移動ownerへの統合は完了しない。

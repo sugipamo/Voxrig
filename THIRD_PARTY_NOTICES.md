@@ -500,3 +500,52 @@ and records original JAR/mapping/tool/harness/runner and input hashes.
 `boat_scenarios.py` generates the inputs; reproduction and scope are recorded
 in `docs/movement-oracle.md`. No game binaries, mappings or decompiled method
 bodies are distributed or relicensed.
+
+The owned `scripts/entity_tick_oracle` harnesses and runner execute unchanged
+official client packet handlers and ClientLevel tick iteration on registered
+original worlds. Headless allocation skips rendering constructors; cow callbacks
+isolate AI/travel while invoking original interpolation, and Player callbacks
+qualify dispatch guards only. `data/client_api/entity_tick_oracle.json.gz` contains
+numerical schedules, pose bits, callback order and source/input hashes. Original
+JARs, mappings, classes and packet captures are not redistributed. This does not
+qualify an autonomous native clock, passenger physics or general NPC travel.
+
+The owned `scripts/entity_owner_oracle` harnesses execute original client-world
+packet handlers, entity storage/iteration, remote living AI-step, neutral Player
+travel and mounted Boat tick. `data/client_api/entity_owner_oracle.json.gz`
+contains observed numerical trajectories, candidate order and input/source hashes.
+Graphics constructors, audio output, passenger rideTick and GUI input preprocessing
+are isolated and explicitly recorded; full remote baseTick/AI/travel and an
+autonomous native clock are not qualified. Species override documentation is an
+interpreted audit, not redistributed bytecode or a general gameplay qualification.
+Official JARs, mappings, bytecode, method bodies and raw packet logs remain local.
+
+
+`data/client_api/player_scale_oracle.json.gz` contains observed numerical
+positions, velocities, dimensions, poses and eye heights from unchanged official
+LivingEntity/Player methods. The owned wrapper `run_player_scale_oracle.py`
+adds an explicit original refreshDimensions origin and observations to a private
+generated copy of the existing owned movement harness; the base harness remains
+unchanged. Original JAR/mapping, base/generated harness, runner, wrapper and input
+hashes are retained. Owned LocalPlayer input preprocessing remains a port,
+not a graphical packet clock. Game binaries, mappings, method bodies and raw
+captures remain local and are not distributed or relicensed.
+
+
+`data/client_api/glide_oracle.json.gz` records numerical glide movement and
+geometry from unchanged official Player/LivingEntity methods. The original
+wrapper selects the original Level client-side branch for each numerical tick
+on original server terrain, restoring it afterward; the existing owned input
+port remains unchanged. This is not a graphical ClientLevel packet-clock test.
+Hashes of official JARs/mappings, base/generated harness, runner/wrapper and
+inputs are recorded. No game binaries, mappings, bytecode or method bodies are
+redistributed. Limits and live validation are in `docs/common-glide-control.md`.
+
+
+`docs/evidence/movement-capability-audit-20261012.json` contains factual
+original runtime enum ordinals, class inheritance/declarations and hashes of
+selected method attributes. The original read-only auditor verifies official
+JAR/mapping hashes and retains classpath digests; it does not redistribute game
+class bytes, mappings, bytecode or method bodies. This is a finite capability
+audit, not qualification of new posture or mounted movement. Implementation
+children remain open; the existing native/live evidence remains separate.

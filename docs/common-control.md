@@ -1,12 +1,20 @@
 # 共通の継続操作（P7）
 
-地上・飛行の継続モデルはscale 1のplayerを対象とする。1.21.11では、
-別のscaleを受信すると現在のownerを終了してキーを解放する。
-`ControlRecord.scale_change_sequence`は、その最初の実際の受信順序を保持する。
-scaleが1へ戻ってもそのownerは再開せず、新しいownerを明示して作る必要がある。
-scale不明・1以外での開始も拒否する。1.16.1にはこの属性がなく、この記録は`None`。
-これは通常寸法のモデルで誤った送信を続けないための制限であり、拡大・縮小の
-物理モデルは#44に残る。
+地上・held flightの継続モデルは、1.21.11の自分のplayerの実受信scaleを
+0.125〜4の範囲で扱う。寸法・目の高さは原版のfloat演算で姿勢とscaleから作り、
+段差の高さや移動・ジャンプ速度に独自の倍率を掛けない。
+`ControlFrame.model_scale`・`bounds`・`eye_position`は数値予測で、受信確定値ではない。
+元属性・modifier・receive ordinalは`player().attributes`で別に観測する。
+
+操作中に開始点と異なるscaleを受信すると、対応範囲内でもownerを終了して入力を解除する。
+`ControlRecord.scale_change_sequence`はその最初の実受信ordinalを保持する。
+同じ値の再受信は終了条件にならず、変更後に元の値へ戻っても旧ownerを再開しない。
+新しいownerを明示的に開始する。欠測・非finite・範囲外は送信前に拒否する。
+原版のconstructorからの既知のunit初期値と、実際に受信した属性のsourceは区別する。
+1.16.1にはscale属性がなく、寸法は1、変更sequenceは`None`。
+
+[scale操作の契約と検証](common-player-scale.md)を参照。
+単発の採掘・到達距離・有限pathや乗車操作のscale制限は、この拡張の対象に含めない。
 
 `Client::survival()`の`start_control`・`set_controls_for`・`request_ground_jump`・`stop_control_for`・`control_record`は、
 キーを押し続ける操作を1.16.1と1.21.11で同じ型で扱う（`voxrig::client::control`）。
@@ -84,7 +92,7 @@ flight.stop_control_for(owner.session_id).await?;
 Creativeはブロックに衝突し、Spectatorは原版のnoPhysicsでブロックを通過する。
 旧版の箱中心による座標丸めと、最新版の直接座標加算をそれぞれ使う。
 
-`ControlRecord.kind`は`ground`または`flight`。`flight_parameters`は最後にモデルが使った
+`ControlRecord.kind`は`ground`、`flight`または`glide`。`flight_parameters`は最後にモデルが使った
 受信速度とそのordinalであり、現在のabilitiesやサーバーの承認を表さない。
 `ControlFrame.flying`もモデルの結果である。
 モード変更、飛行解除、権限喪失は旧ownerを終了し、同じtick内に復元されても再開しない。
@@ -320,3 +328,19 @@ python3 -B scripts/run_climbing_control.py --accept-eula
 [検証記録](evidence/climbing-vehicle-control-20261008.json)へ保存した。
 既存の公式jarを使う場合は`--jars /absolute/path/to/downloads`、別のCargo targetを使う場合は
 `--binary /absolute/path/to/climbing_control_probe`を指定できる。jarのSHA-1を検証する。
+
+## 生物接触の操作への統合
+
+通常scaleのplayer / cow / pig / zombieの完全な受信履歴を操作ownerへ結び付ける。
+[生物接触owner](common-entity-owners.md)と[特殊dispatchの範囲](common-entity-dispatch.md)を参照。
+補正・履歴不足・未検証入力ではモデルを破棄し、古い起点から自動再開しない。
+ボートの失敗時は同じ健康な実乗車の受信境界に限りneutral/paddle解除を一度だけ試み、
+予測位置を再送しない。`failure_release`はintent・完全送信・拒否/不確実性を保持する。
+
+## Elytraの滑空
+
+`PlayerControl::start_glide_control(Controls)`は実装備・実flagを使う独立owner。
+開始writeは受理ではなく、owner停止も物理的な滑空終了ではない。
+操作・終端停止・未対応boostと証拠は[Elytra滑空](common-glide-control.md)を参照。
+
+追加姿勢の有限な一覧と未対応のsleep/Riptide操作は[姿勢の対応範囲](common-posture-coverage.md)を参照。

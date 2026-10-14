@@ -329,6 +329,8 @@ pub struct PlayerObservation {
     /// server reports an item in use, `None` when it reports none. Absent until the first
     /// flags packet in this world; a sent use request is never shown here.
     pub using_item: Option<ObservedValue<Option<super::Hand>>>,
+    /// Own received shared fall-flying flag; absent before its actual packet.
+    pub fall_flying: Option<ObservedValue<bool>>,
     /// Own native entity ID in this world, from the login or respawn handshake.
     pub entity_id: Option<i32>,
     /// Received attributes by 1.21.11 name (`minecraft:attack_speed`; 1.16.1 keys are
@@ -422,6 +424,8 @@ pub(crate) struct LegacyReceipts {
     pub abilities: Option<ObservedValue<u8>>,
     pub pending_dispatch: bool,
     pub using_item: Option<ObservedValue<Option<super::Hand>>>,
+    /// Own received shared fall-flying flag; absent before its actual packet.
+    pub fall_flying: Option<ObservedValue<bool>>,
     pub attributes: std::collections::BTreeMap<String, ObservedValue<super::PlayerAttribute>>,
     pub effects: std::collections::BTreeMap<String, ObservedValue<super::PlayerEffect>>,
     pub air_supply: Option<ObservedValue<i32>>,

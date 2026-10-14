@@ -1,0 +1,10388 @@
+[
+  {
+    "name": "scale_0.125_flat",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_wall",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        9,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_step",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        1,
+        5,
+        "minecraft:stone_slab[type=bottom,waterlogged=false]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_narrow",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        3,
+        -1,
+        9,
+        12,
+        "minecraft:stone"
+      ],
+      [
+        1,
+        1,
+        3,
+        2,
+        9,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_low_ceiling",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        2,
+        3,
+        4,
+        2,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_crouch",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_jump",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_sprint",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.125_water",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      3,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        10,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": false
+  },
+  {
+    "name": "scale_0.125_flight",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.125
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      }
+    ],
+    "on_ground": false,
+    "game_mode": "creative",
+    "flight": true
+  },
+  {
+    "name": "scale_0.25_flat",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_wall",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        9,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_step",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        1,
+        5,
+        "minecraft:stone_slab[type=bottom,waterlogged=false]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_narrow",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        3,
+        -1,
+        9,
+        12,
+        "minecraft:stone"
+      ],
+      [
+        1,
+        1,
+        3,
+        2,
+        9,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_low_ceiling",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        2,
+        3,
+        4,
+        2,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_crouch",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_jump",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_sprint",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.25_water",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      3,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        10,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": false
+  },
+  {
+    "name": "scale_0.25_flight",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      }
+    ],
+    "on_ground": false,
+    "game_mode": "creative",
+    "flight": true
+  },
+  {
+    "name": "scale_0.5_flat",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_wall",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        9,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_step",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        1,
+        5,
+        "minecraft:stone_slab[type=bottom,waterlogged=false]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_narrow",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        3,
+        -1,
+        9,
+        12,
+        "minecraft:stone"
+      ],
+      [
+        1,
+        1,
+        3,
+        2,
+        9,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_low_ceiling",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        2,
+        3,
+        4,
+        2,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_crouch",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_jump",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_sprint",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_0.5_water",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      3,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        10,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": false
+  },
+  {
+    "name": "scale_0.5_flight",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.5
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      }
+    ],
+    "on_ground": false,
+    "game_mode": "creative",
+    "flight": true
+  },
+  {
+    "name": "scale_1_flat",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_wall",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        9,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_step",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        1,
+        5,
+        "minecraft:stone_slab[type=bottom,waterlogged=false]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_narrow",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        3,
+        -1,
+        9,
+        12,
+        "minecraft:stone"
+      ],
+      [
+        1,
+        1,
+        3,
+        2,
+        9,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_low_ceiling",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        2,
+        3,
+        4,
+        2,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_crouch",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_jump",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_sprint",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_1_water",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      3,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        10,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": false
+  },
+  {
+    "name": "scale_1_flight",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      }
+    ],
+    "on_ground": false,
+    "game_mode": "creative",
+    "flight": true
+  },
+  {
+    "name": "scale_2_flat",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_wall",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        9,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_step",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        1,
+        5,
+        "minecraft:stone_slab[type=bottom,waterlogged=false]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_narrow",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        3,
+        -1,
+        9,
+        12,
+        "minecraft:stone"
+      ],
+      [
+        1,
+        1,
+        3,
+        2,
+        9,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_low_ceiling",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        2,
+        3,
+        4,
+        2,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_crouch",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_jump",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_sprint",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_2_water",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      3,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        10,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": false
+  },
+  {
+    "name": "scale_2_flight",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      }
+    ],
+    "on_ground": false,
+    "game_mode": "creative",
+    "flight": true
+  },
+  {
+    "name": "scale_4_flat",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_wall",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        9,
+        4,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_step",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        1,
+        4,
+        4,
+        1,
+        5,
+        "minecraft:stone_slab[type=bottom,waterlogged=false]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_narrow",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -2,
+        1,
+        3,
+        -1,
+        9,
+        12,
+        "minecraft:stone"
+      ],
+      [
+        1,
+        1,
+        3,
+        2,
+        9,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_low_ceiling",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -4,
+        2,
+        3,
+        4,
+        2,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_crouch",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sneak": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_jump",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_sprint",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "scale_4_water",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      3,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ],
+      [
+        -8,
+        1,
+        -8,
+        8,
+        10,
+        8,
+        "minecraft:water[level=0]"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": false
+  },
+  {
+    "name": "scale_4_flight",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 4
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true,
+        "strafe": 1
+      }
+    ],
+    "on_ground": false,
+    "game_mode": "creative",
+    "flight": true
+  },
+  {
+    "name": "scale_modifier_0.25_ADD_VALUE",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_VALUE"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_1_ADD_VALUE",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_VALUE"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_2_ADD_VALUE",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_VALUE"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_0.25_ADD_MULTIPLIED_BASE",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_BASE"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_1_ADD_MULTIPLIED_BASE",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_BASE"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_2_ADD_MULTIPLIED_BASE",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_BASE"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_0.25_ADD_MULTIPLIED_TOTAL",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 0.25
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_TOTAL"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_1_ADD_MULTIPLIED_TOTAL",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 1
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_TOTAL"
+      }
+    ]
+  },
+  {
+    "name": "scale_modifier_2_ADD_MULTIPLIED_TOTAL",
+    "versions": [
+      "1.21.11"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "attributes": {
+      "minecraft:scale": 2
+    },
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true,
+    "attribute_modifiers": [
+      {
+        "attribute": "minecraft:scale",
+        "id": "voxrig:scale_qualification",
+        "amount": 0.5,
+        "operation": "ADD_MULTIPLIED_TOTAL"
+      }
+    ]
+  },
+  {
+    "name": "legacy_unit_flat",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      },
+      {
+        "forward": 1,
+        "yaw": 0
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "legacy_unit_sprint",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "sprint": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "legacy_unit_jump",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      1,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": true
+  },
+  {
+    "name": "legacy_unit_flight",
+    "versions": [
+      "1.16.1"
+    ],
+    "start": [
+      0.5,
+      5,
+      0.5
+    ],
+    "blocks": [
+      [
+        -16,
+        0,
+        -16,
+        16,
+        0,
+        16,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      },
+      {
+        "forward": 1,
+        "yaw": 0,
+        "jump": true
+      }
+    ],
+    "on_ground": false,
+    "game_mode": "creative",
+    "flight": true
+  }
+]

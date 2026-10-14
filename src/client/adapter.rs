@@ -262,6 +262,11 @@ pub(crate) trait PathMotionOps {
 
 /// Continuous control: held keys and per-tick client physics.
 pub(crate) trait ControlOps {
+    async fn start_glide_control(
+        &self,
+        mode: GameMode,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord>;
     async fn start_control(&self, mode: GameMode) -> Result<super::control::ControlRecord>;
     async fn start_flight_control(
         &self,

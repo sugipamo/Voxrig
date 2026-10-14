@@ -66,7 +66,7 @@ pub struct EntityObservation {
     pub scale_attribute_unavailable_sequence: Option<u64>,
 }
 
-/// One received entity-data value. Integer, float, boolean, string and pose serializers are
+/// One received entity-data value. Scalar, pose and block-position serializers are
 /// decoded; any other serializer keeps only its native kind.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum EntityDataValue {
@@ -85,6 +85,11 @@ pub enum EntityDataValue {
     /// Original Pose serializer value. Its number is version-specific; use
     /// EntityObservation::pose for a common name. Unknown IDs remain raw.
     Pose(i32),
+    /// Original packed block position, with signed coordinates.
+    BlockPosition(crate::client::BlockPos),
+    /// Original optional block position. `None` is an explicit empty receipt,
+    /// distinct from a metadata index that has not been received.
+    OptionalBlockPosition(Option<crate::client::BlockPos>),
     /// Another serializer, by native serializer ID.
     Other(i32),
 }
@@ -136,6 +141,7 @@ impl SpawnLedger {
         mut attribute: crate::client::control::ReceivedAttribute,
         sequence: u64,
     ) {
+        self.history_scale(native_id, &attribute);
         if let Some(spawn) = self.0.get_mut(&native_id) {
             // Bound retained allocation as well as entry counts. A valid but
             // unmodeled new receipt must not leave an older unit scale usable.
@@ -174,6 +180,8 @@ impl SpawnLedger {
         complete: bool,
         sequence: u64,
     ) {
+        let entries = entries.into_iter().collect::<Vec<_>>();
+        self.history_metadata(native_id, &entries, complete);
         if let Some(spawn) = self.0.get_mut(&native_id) {
             spawn.extra.metadata_truncated |= !complete;
             for (index, value) in entries {
@@ -187,22 +195,26 @@ impl SpawnLedger {
             }
         }
     }
-    /// Record one received equipment slot.
+    /// Record supported equipment entries from one native packet.
     pub(crate) fn receive_equipment(
         &mut self,
         native_id: i32,
-        slot: EquipmentSlot,
-        item: SlotKnowledge,
+        entries: impl IntoIterator<Item = (EquipmentSlot, SlotKnowledge)>,
+        complete: bool,
         sequence: u64,
     ) {
+        let entries = entries.into_iter().collect::<Vec<_>>();
+        self.history_equipment(native_id, &entries, complete);
         if let Some(spawn) = self.0.get_mut(&native_id) {
-            spawn.extra.equipment.insert(
-                slot,
-                ObservedValue {
-                    value: item,
-                    source: crate::client::ValueSource::Received { sequence },
-                },
-            );
+            for (slot, item) in entries {
+                spawn.extra.equipment.insert(
+                    slot,
+                    ObservedValue {
+                        value: item,
+                        source: crate::client::ValueSource::Received { sequence },
+                    },
+                );
+            }
         }
     }
     /// Namespaced type name of a live spawn, when resolved.
@@ -336,7 +348,7 @@ mod tests {
             )
             .unwrap();
         ledger.receive_health(7, 4.5, 5);
-        ledger.receive_equipment(7, EquipmentSlot::Saddle, SlotKnowledge::Empty, 6);
+        ledger.receive_equipment(7, [(EquipmentSlot::Saddle, SlotKnowledge::Empty)], true, 6);
         ledger.receive_health(99, 1.0, 7); // Unknown entities are ignored.
         let all = ledger.capture_all(version, session, 8);
         assert_eq!(all.entities.len(), 1);

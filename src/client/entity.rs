@@ -7,6 +7,15 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod contact;
+pub(crate) mod contact_tick;
+pub(crate) mod owned_contacts;
+pub use owned_contacts::{EntityContactFrame, EntityContactSample};
+mod query;
+pub use query::{
+    LivingContactIndex, LivingContactIndexedBody, LivingContactKind, LivingContactQuery,
+    LivingContactQueryUnavailable, MAX_LIVING_CONTACT_INDEX_BODIES,
+    MAX_LIVING_CONTACT_INDEX_CHUNKS, MAX_LIVING_CONTACT_QUERY_CHUNKS,
+};
 mod data;
 pub use contact::{
     LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
@@ -15,8 +24,21 @@ pub use contact::{
 };
 mod geometry;
 mod interpolation;
+mod packet_model;
+mod replay;
+pub use replay::{LivingEntityPacketReplay, LivingReplayFrame, LivingReplayUnavailable};
+mod tick_order;
+pub use packet_model::{
+    LivingMotionPacket, LivingPacketFrame, LivingPacketGuards, LivingPacketModel,
+    LivingPacketUnavailable,
+};
+pub use tick_order::{
+    LivingEntityTickOrder, LivingTickBody, LivingTickDispatch, LivingTickInstruction,
+    LivingTickUnavailable, MAX_LIVING_TICK_BODIES,
+};
 mod pose;
 mod push;
+mod sleeping;
 pub use geometry::{
     EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
     EntityScaleReading,
@@ -30,16 +52,22 @@ pub use push::{
     LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable,
     LivingPushBody, model_living_pair_push,
 };
+pub use sleeping::EntitySleepingReading;
+#[cfg(test)]
+pub(crate) use sleeping::original_position_packets;
 mod history;
 mod motion;
 pub use history::{
-    EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
-    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+    EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
+    EntityHistoryRecord, EntityHistoryValue, EntityMetadataEntry, MAX_ENTITY_HISTORY_BYTES,
+    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS, MAX_ENTITY_HISTORY_VALUE_BYTES,
 };
 mod parts;
 mod state;
 pub use data::{EntityDataField, EntityDataReading, EntityDataSource};
-pub use motion::{EntityMotionObservation, EntityPosition, EntityPositionCorrection};
+pub use motion::{
+    EntityMotionObservation, EntityMotionPacket, EntityPosition, EntityPositionCorrection,
+};
 pub(crate) use motion::{NativeMotion, NativeSpawnMotion};
 pub use parts::{
     EntityPartEvidence, EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation,
@@ -351,3 +379,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod schedule_tests;

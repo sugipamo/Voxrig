@@ -83,11 +83,10 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             }
         }
         ids::play_clientbound::ENTITY_EQUIPMENT => {
-            let (entity, slots) = equipment(payload);
-            for (slot, item) in slots {
+            if let Some((entity, slots, complete)) = equipment(payload) {
                 state
                     .entities
-                    .receive_equipment(entity, slot, item, state.sequence);
+                    .receive_equipment(entity, slots, complete, state.sequence);
             }
         }
         ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES => {
@@ -149,6 +148,24 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
             3 => r.f32().ok().map(V::Float),
             4 => r.string().ok().map(V::String),
             8 => r.bool().ok().map(V::Bool),
+            10 => r.take(8).ok().map(|bytes| {
+                V::BlockPosition(crate::client::BlockPos::unpack(u64::from_be_bytes(
+                    bytes.try_into().expect("eight bytes"),
+                )))
+            }),
+            // The original optional-position codec uses Netty readBoolean:
+            // any nonzero byte means present. Keep this local to this codec.
+            11 => (|| -> anyhow::Result<V> {
+                let value = if r.u8()? != 0 {
+                    Some(crate::client::BlockPos::unpack(u64::from_be_bytes(
+                        r.take(8)?.try_into()?,
+                    )))
+                } else {
+                    None
+                };
+                Ok(V::OptionalBlockPosition(value))
+            })()
+            .ok(),
             20 => r.varint().ok().map(V::Pose),
             _ => super::players::skip_metadata(&mut r, kind)
                 .ok()
@@ -197,17 +214,16 @@ fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
 }
 
 /// Equipment entries up to the first one that cannot be decoded.
-fn equipment(
-    payload: &[u8],
-) -> (
+type DecodedEquipment = (
     i32,
     Vec<(crate::client::EquipmentSlot, crate::client::SlotKnowledge)>,
-) {
+    bool,
+);
+fn equipment(payload: &[u8]) -> Option<DecodedEquipment> {
     let mut r = Reader::new(payload);
     let mut slots = Vec::new();
-    let Ok(entity) = r.varint() else {
-        return (-1, slots);
-    };
+    let entity = r.varint().ok().filter(|id| *id >= 0)?;
+    let mut complete = false;
     for _ in 0..16 {
         let Ok(raw) = r.u8() else { break };
         let Some(slot) = crate::client::EquipmentSlot::from_native(
@@ -223,10 +239,11 @@ fn equipment(
             .unwrap_or(crate::client::SlotKnowledge::Unavailable);
         slots.push((slot, item));
         if raw & 0x80 == 0 {
+            complete = r.end().is_ok();
             break;
         }
     }
-    (entity, slots)
+    Some((entity, slots, complete))
 }
 
 fn angle(r: &mut Reader<'_>) -> anyhow::Result<f32> {
@@ -334,7 +351,91 @@ fn coordinates(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
 #[cfg(test)]
 mod common_metadata_tests {
     use super::*;
+    #[test]
+    fn original_position_codecs_preserve_values_and_boundaries() {
+        use crate::client::EntityDataValue as V;
+        for (packet, value) in
+            crate::client::entity::original_position_packets(crate::MinecraftVersion::Java1_21_11)
+        {
+            let (_, entries, complete) = common_metadata(&packet).unwrap();
+            assert!(complete);
+            assert_eq!(entries, [(30, value.clone()), (31, V::Byte(42))]);
+            if matches!(value, V::OptionalBlockPosition(Some(_))) {
+                let mut nonzero = packet.clone();
+                nonzero[3] = 255;
+                assert_eq!(common_metadata(&nonzero).unwrap().1, entries);
+            }
+            for length in 3..packet.len() - 4 {
+                let (_, entries, complete) = common_metadata(&packet[..length]).unwrap();
+                assert!(entries.is_empty() && !complete);
+            }
+            let mut trailing = packet.clone();
+            trailing.push(0);
+            assert!(!common_metadata(&trailing).unwrap().2);
+        }
+    }
+
     use crate::client::EntityDataValue as V;
+
+    #[test]
+    fn partial_equipment_receipts_keep_a_single_ordered_packet_boundary() {
+        use crate::client::{
+            EntityHistoryKind as K, EntityHistoryValue as H, EquipmentSlot as S, SessionStamp,
+            SlotKnowledge,
+        };
+        let version = crate::MinecraftVersion::Java1_21_11;
+        let mut state = State::default();
+        let cases: &[(&[u8], bool, &[S])] = &[
+            (&[7, 0x85, 0, 5, 0], true, &[S::Head, S::Head]),
+            (&[7, 5, 0, 1], false, &[S::Head]),
+            (&[7, 0x80, 0, 99, 0], false, &[S::MainHand]),
+            (&[7, 0x80, 0, 5, 1], false, &[S::MainHand]),
+            (&[7], false, &[]),
+        ];
+        for (n, (payload, _, _)) in cases.iter().enumerate() {
+            state.sequence = n as u64 + 1;
+            state.entities.history_context(version, 0, state.sequence);
+            receive(&mut state, ids::play_clientbound::ENTITY_EQUIPMENT, payload).unwrap();
+        }
+        // An unparseable ID cannot create a fabricated native_id=-1 receipt.
+        receive(&mut state, ids::play_clientbound::ENTITY_EQUIPMENT, &[]).unwrap();
+        let page = state
+            .entities
+            .history_after(
+                SessionStamp {
+                    version,
+                    connection_id: 9,
+                    world_generation: 0,
+                },
+                state.sequence,
+                None,
+                10,
+            )
+            .unwrap();
+        assert_eq!(page.records.len(), cases.len());
+        for (n, (record, (_, expected_complete, expected_slots))) in
+            page.records.iter().zip(cases).enumerate()
+        {
+            assert_eq!(record.receive_sequence, n as u64 + 1);
+            let K::Equipment {
+                native_id,
+                entity,
+                entries: H::Retained { value },
+                complete,
+            } = &record.kind
+            else {
+                panic!()
+            };
+            assert_eq!(*native_id, 7);
+            assert!(entity.is_none());
+            assert_eq!(complete, expected_complete);
+            assert_eq!(
+                value.iter().map(|v| v.slot).collect::<Vec<_>>(),
+                *expected_slots
+            );
+            assert!(value.iter().all(|v| v.value == SlotKnowledge::Empty));
+        }
+    }
 
     #[test]
     fn plain_values_decode_and_unknown_serializers_stop_the_entry_list() {

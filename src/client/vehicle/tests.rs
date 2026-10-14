@@ -288,6 +288,7 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
         };
         let player = PlayerObservation {
             using_item: None,
+            fall_flying: None,
             entity_id: None,
             attributes: Default::default(),
             effects: Default::default(),
@@ -371,6 +372,32 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
             None,
         )
         .unwrap();
+        let mut failed = record.clone();
+        failed.inspection("contact gap");
+        let packets = control::failure_release(&mut failed, Ok((player.clone(), vehicle.clone())));
+        assert_eq!(
+            packets,
+            vec![control::payload(version, control::VehicleInput::default())]
+        );
+        assert!(failed.failure_release.as_ref().unwrap().attempted);
+        assert!(!failed.failure_release.as_ref().unwrap().sent);
+        assert!(
+            control::failure_release(&mut failed, Ok((player.clone(), vehicle.clone()))).is_empty()
+        );
+        control::finish_failure_release(
+            &mut failed,
+            Err(crate::client::inventory::unavailable(
+                "partial neutral write",
+            )),
+        );
+        assert_eq!(failed.requires_inspection.as_deref(), Some("contact gap"));
+        assert!(!failed.failure_release.as_ref().unwrap().sent);
+        let mut wrong = record.clone();
+        wrong.inspection("changed world");
+        let mut changed = player.clone();
+        changed.session.world_generation += 1;
+        assert!(control::failure_release(&mut wrong, Ok((changed, vehicle.clone()))).is_empty());
+        assert!(!wrong.failure_release.as_ref().unwrap().attempted);
         // Even an unchanged mount is no longer a valid prediction context
         // after the original server corrects vehicle motion.
         let mut corrected_record = record.clone();
@@ -551,6 +578,7 @@ fn boat_velocity_fixture(
     };
     let player = PlayerObservation {
         using_item: None,
+        fall_flying: None,
         entity_id: None,
         attributes: Default::default(),
         effects: Default::default(),
@@ -590,6 +618,7 @@ fn boat_velocity_fixture(
     let motion = EntityMotionObservation {
         entity: spawns.capture(session, 12).entities.remove(0),
         receive_sequence: 12,
+        packet: None,
         position: Some(received(
             EntityPosition {
                 position: [0.5, 65., 2.5],

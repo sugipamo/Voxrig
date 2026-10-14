@@ -1097,6 +1097,15 @@ pub(super) fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> 
 pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Result<bool> {
     use ids::play_clientbound as input;
     if survival::receive(state, id, payload)? {
+        if id == input::ENTITY_METADATA {
+            if let Some((value, sequence)) = state.operations.local_player.fall_flying {
+                if sequence == state.sequence {
+                    if let Some(owner) = &mut state.control.session {
+                        owner.observe_gliding(value, sequence);
+                    }
+                }
+            }
+        }
         if id == input::ENTITY_UPDATE_ATTRIBUTES {
             if let Some(scale) = state.operations.local_player.scale {
                 if matches!(scale.basis, ValueBasis::Received { sequence } if sequence == state.sequence)
@@ -1276,6 +1285,12 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         state.control.observe_abilities(payload[0], state.sequence);
     }
     state.operations = next;
+    if matches!(
+        id,
+        input::WINDOW_ITEMS | input::SET_SLOT | input::SET_PLAYER_INVENTORY
+    ) {
+        continuous::observe_glide_equipment(state);
+    }
     mining::mining_inventory_received(state);
     Ok(true)
 }
@@ -1450,6 +1465,10 @@ pub(super) fn common_player_in_state(
             .local_player
             .using_item
             .map(|u| api::received(u.hand, u.receive_sequence)),
+        fall_flying: native
+            .local_player
+            .fall_flying
+            .map(|(v, s)| api::received(v, s)),
         entity_id: native.local_player.entity_id,
         attributes: native
             .local_player
