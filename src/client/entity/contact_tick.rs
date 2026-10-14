@@ -384,6 +384,7 @@ mod tests {
         ))
         .unwrap();
         let mut stages = 0;
+        let mut pushed_slots = [[[false; 2]; 2]; 2];
         for (name, version) in [
             ("1.16.1", MinecraftVersion::Java1_16_1),
             ("1.21.11", MinecraftVersion::Java1_21_11),
@@ -539,6 +540,7 @@ mod tests {
                                     },
                                 ));
                             }
+                            "baby" => apply_sheep_baby(&mut world, id, a),
                             "sleep" => apply_sleep(&mut world, id, &a["position"]),
                             "local" | "freeze" => {}
                             "unticking" | "reticking" => {
@@ -561,6 +563,36 @@ mod tests {
                         .iter()
                         .find(|t| t["dispatch"] == "player_tick")
                         .unwrap();
+                    if stage == 0 && seed >= 16 {
+                        let actors = step["ticks"].as_array().unwrap();
+                        let own_slot = actors
+                            .iter()
+                            .position(|t| t["dispatch"] == "player_tick")
+                            .unwrap();
+                        let spawn = first["actions"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .find(|a| a["op"] == "spawn")
+                            .unwrap();
+                        let bounds = &spawn["pose"]["bounds"];
+                        let own_bounds = &spawn_player["pose"]["bounds"];
+                        assert!((0..3).all(|i| bounds[i].as_f64().unwrap()
+                            < own_bounds[i + 3].as_f64().unwrap()
+                            && bounds[i + 3].as_f64().unwrap() > own_bounds[i].as_f64().unwrap()));
+                        let v = usize::from(version == MinecraftVersion::Java1_21_11);
+                        let species = usize::from(seed >= 20);
+                        if own_slot > 0
+                            && velocity(&player_tick["before"]) != velocity(&spawn_player["pose"])
+                        {
+                            pushed_slots[v][species][0] = true;
+                        }
+                        if own_slot + 1 < actors.len()
+                            && velocity(&step["local_after"]) != velocity(&player_tick["after"])
+                        {
+                            pushed_slots[v][species][1] = true;
+                        }
+                    }
                     world
                         .tick(
                             &mut local,
@@ -628,6 +660,11 @@ mod tests {
                         )
                         .unwrap();
                     own.velocity = local.push.velocity;
+                    assert_vector(
+                        local.push.velocity,
+                        velocity(&step["local_after"]),
+                        &context,
+                    );
                     for state in step["states"].as_array().unwrap() {
                         let body = &world.bodies[&state["key"].as_u64().unwrap()];
                         assert_vector(
@@ -641,7 +678,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(stages, 384);
+        assert_eq!(stages, 576);
+        assert_eq!(pushed_slots, [[[true; 2]; 2]; 2]);
     }
 
     #[test]
@@ -804,6 +842,7 @@ mod tests {
                                     },
                                 ));
                             }
+                            "baby" => apply_sheep_baby(&mut world, id, a),
                             "sleep" => apply_sleep(&mut world, id, &a["position"]),
                             "local" => {}
                             "unticking" | "reticking" => {
@@ -918,7 +957,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(stages, 384);
+        assert_eq!(stages, 576);
     }
     fn update_received_geometry(world: &mut ContactTickWorld, key: u64) {
         let b = &world.bodies[&key];
@@ -970,6 +1009,35 @@ mod tests {
             );
             assert_eq!(x["versions"][v]["original_client_jar_sha1"], jar);
         }
+    }
+
+    fn apply_sheep_baby(world: &mut ContactTickWorld, id: i32, action: &Value) {
+        let b = world
+            .bodies
+            .values_mut()
+            .find(|b| b.native_id == id)
+            .unwrap();
+        let factor = if action["value"].as_bool().unwrap() {
+            0.5
+        } else {
+            1.
+        };
+        b.width = 0.9 * factor;
+        b.height = 1.3 * factor;
+        // Legacy refreshDimensions temporarily anchors a growing box at its
+        // old minimum; original aiStep/setPos rebuilds it before contact.
+        // Compare native dimension extents at the metadata boundary.
+        for (axis, expected) in [
+            (0, f64::from(b.width)),
+            (1, f64::from(b.height)),
+            (2, f64::from(b.width)),
+        ] {
+            let extent = action["bounds"][axis + 3].as_f64().unwrap()
+                - action["bounds"][axis].as_f64().unwrap();
+            assert!((extent - expected).abs() < 1e-12);
+        }
+        let key = b.key;
+        update_received_geometry(world, key);
     }
 
     fn apply_sleep(world: &mut ContactTickWorld, id: i32, position: &Value) {

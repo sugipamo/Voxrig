@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "versions": {
+    "1.16.1": {
+      "original_client_jar_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
+      "client_mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5",
+      "types": {
+        "sheep": {
+          "aiStep": "net.minecraft.world.entity.animal.Sheep",
+          "pushEntities": "net.minecraft.world.entity.LivingEntity",
+          "doPush": "net.minecraft.world.entity.LivingEntity",
+          "push": "net.minecraft.world.entity.LivingEntity",
+          "isPushable": "net.minecraft.world.entity.LivingEntity",
+          "getDimensions": "net.minecraft.world.entity.LivingEntity",
+          "getDefaultDimensions": null,
+          "getAgeScale": null,
+          "isBaby": "net.minecraft.world.entity.AgableMob",
+          "onSyncedDataUpdated": "net.minecraft.world.entity.AgableMob"
+        },
+        "creeper": {
+          "aiStep": "net.minecraft.world.entity.monster.Monster",
+          "pushEntities": "net.minecraft.world.entity.LivingEntity",
+          "doPush": "net.minecraft.world.entity.LivingEntity",
+          "push": "net.minecraft.world.entity.LivingEntity",
+          "isPushable": "net.minecraft.world.entity.LivingEntity",
+          "getDimensions": "net.minecraft.world.entity.LivingEntity",
+          "getDefaultDimensions": null,
+          "getAgeScale": null,
+          "isBaby": "net.minecraft.world.entity.LivingEntity",
+          "onSyncedDataUpdated": "net.minecraft.world.entity.LivingEntity"
+        }
+      },
+      "sheep_baby_metadata": [
+        "AgableMob",
+        "DATA_BABY_ID",
+        15,
+        "bool",
+        false
+      ],
+      "entity_data_sha256": "601d0fad5425ac8ec45008ae3933e8f599f5b69880dee6e498f8f56609946f6f"
+    },
+    "1.21.11": {
+      "original_client_jar_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
+      "client_mappings_sha1": "031a68bebf55d824f66d6573d8c752f0e1bf232a",
+      "types": {
+        "sheep": {
+          "aiStep": "net.minecraft.world.entity.animal.sheep.Sheep",
+          "pushEntities": "net.minecraft.world.entity.LivingEntity",
+          "doPush": "net.minecraft.world.entity.LivingEntity",
+          "push": "net.minecraft.world.entity.LivingEntity",
+          "isPushable": "net.minecraft.world.entity.LivingEntity",
+          "getDimensions": "net.minecraft.world.entity.LivingEntity",
+          "getDefaultDimensions": "net.minecraft.world.entity.LivingEntity",
+          "getAgeScale": "net.minecraft.world.entity.LivingEntity",
+          "isBaby": "net.minecraft.world.entity.AgeableMob",
+          "onSyncedDataUpdated": "net.minecraft.world.entity.AgeableMob"
+        },
+        "creeper": {
+          "aiStep": "net.minecraft.world.entity.monster.Monster",
+          "pushEntities": "net.minecraft.world.entity.LivingEntity",
+          "doPush": "net.minecraft.world.entity.LivingEntity",
+          "push": "net.minecraft.world.entity.LivingEntity",
+          "isPushable": "net.minecraft.world.entity.LivingEntity",
+          "getDimensions": "net.minecraft.world.entity.LivingEntity",
+          "getDefaultDimensions": "net.minecraft.world.entity.LivingEntity",
+          "getAgeScale": "net.minecraft.world.entity.LivingEntity",
+          "isBaby": "net.minecraft.world.entity.LivingEntity",
+          "onSyncedDataUpdated": "net.minecraft.world.entity.LivingEntity"
+        }
+      },
+      "sheep_baby_metadata": [
+        "AgeableMob",
+        "DATA_BABY_ID",
+        16,
+        "bool",
+        false
+      ],
+      "entity_data_sha256": "5ddf0eaae58e16e0f2b80165eb131586f716c0c74d563090dfc2caf6a8a0ce32"
+    }
+  },
+  "numerical_oracle": {
+    "fixture_sha256": "b7052bc4d1d201aba6348913947074369baffd8bf3db34c72465f1c7d72e176c",
+    "runner_sha256": "1bd7e1692092eb6d7ec4883cf905bacf920f752c32b44c325e7235050eff0747",
+    "schedules": 96,
+    "stages": 1152,
+    "authority": "Unchanged official client packet handlers, original AI-step/interpolation/push, original Player.aiStep neutral travel and mounted Boat.tick in real ClientLevel runtime dispatch. Headless allocation omits graphics constructors/audio delivery; ClientLevel reads original registered chunks, light and environment attributes. Modern section visibility and own player mode/input guards are explicit. Passenger rideTick and graphics LocalPlayer input preprocessing are isolated. These are explicit owned numerical ticks, not a native clock, full NPC baseTick/fluid/AI, server-current motion or acceptance.",
+    "provenance": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "server_mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "original_client_jar_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
+        "client_mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5",
+        "original_output_sha256": "8ca9d028cb43b58e85bfe62ba77bf5c95034783a26e0230670bc7774e6ea3507",
+        "harness_sha256": "44dd4fe44d5c9a854248f3644d5cb5ffe211a8af95d10825fe1b43dcbd6c1762"
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "server_mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "original_client_jar_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
+        "client_mappings_sha1": "031a68bebf55d824f66d6573d8c752f0e1bf232a",
+        "original_output_sha256": "e9b30dcfbeaf8f6dc18caf48f138db169f72f8ac3df1338a8b635d9fa338b6a0",
+        "harness_sha256": "63e717f6c1fcdffcf67af6247cd56377ff9d8c9992fbf777032e383edf6aaea7"
+      }
+    }
+  },
+  "runner_sha256": "0cc6b426805091f2aa62215805efbc8b266eec7f6eb7ae6d51ce6e5fa763aa8d"
+}

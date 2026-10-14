@@ -1,6 +1,6 @@
 # 徒歩・ボートの生物接触モデル
 
-共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、player / cow / pig / zombie の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
+共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、player / cow / pig / zombie / sheep / creeper の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
 
 ## モデルの開始点
 
@@ -55,7 +55,7 @@ crammingのサーバー側判定・damage・RNGは計算・送信しない。多
 
 `entity_owner_oracle.json.gz` は、未変更の公式client JARを先に読み込む自作headless harnessの数値結果。実際のClientLevel、LocalPlayer、Cow/Pig/Zombie/RemotePlayer、乗員を持つ原版Boat、packet handler、元のchunk/entity storageを使う。描画constructor、audio送出、passenger rideTick、LocalPlayerのGUI入力前処理は切り離し、その境界をfixtureにも記載する。
 
-両版64スケジュール・768段階で、徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
+両版96スケジュール・1152段階で、徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
 
 実接続は同じ共通Clientと固定バイナリを両版公式serverで使い、実際の元packet、spawn寿命、独立RCON、停止/下車を保存する。強制下車と未検証dispatchの2場面を別runで検証し、入力解除の一度だけの送信と後続予測frameの停止を確認する。結果とSDK・バイナリ・元JARの対応は[検証記録](evidence/common-entity-owners-20261012.json)に保持する。
 
@@ -64,3 +64,15 @@ owner oracleのown travel比較は記録したloaded stone worldを対象とし�
 
 自分のunit Elytra滑空は専用ownerで[資格化](common-glide-control.md)した。
 他生物の滑空、追加姿勢やgliderを接触モデルへ一般化していない。
+
+## Sheep / Creeper の追加監査（2026-10-14）
+
+両版の監査対象に Sheep / Creeper を追加した。通常scaleの Sheep は幅 `0.9f`・
+高さ `1.3f`、baby はそれぞれ `0.5f` 倍で、受信した ageable metadata の変更を
+既存の reducer で反映する。Creeper は幅 `0.6f`・高さ `1.7f`。
+公開 API・公開 geometry API の対象範囲は変更しない。
+
+追加の原版入力hash、継承先、metadata、数値oracleの範囲・再実行手順は
+[dispatch の追加監査](common-entity-dispatch.md)と
+[監査記録](evidence/sheep-creeper-contact-20261014.json)に記載する。
+他の未監査speciesへの global refusal は継続する。
