@@ -358,7 +358,15 @@ impl Bot {
             .as_ref()
             .is_some_and(|run| !run.record.status.is_continuation_candidate())
     }
+    pub(super) async fn interrupt_common_posture(&self, pose: i32, receipt: u64) {
+        self.common_click_posture_changed(pose, receipt).await;
+        self.interrupt_common_motion_inner("native posture changed during finite motion", false)
+            .await;
+    }
     pub(super) async fn interrupt_common_motion(&self, problem: &str) {
+        self.interrupt_common_motion_inner(problem, true).await;
+    }
+    async fn interrupt_common_motion_inner(&self, problem: &str, clicks: bool) {
         if let Some(o) = super::lock_packet_state(&self.common_container_open)
             .await
             .as_mut()
@@ -372,16 +380,23 @@ impl Bot {
         {
             r.inspection(problem);
         }
-        self.interrupt_common_motion_operations(problem).await;
+        self.interrupt_common_motion_operations_inner(problem, clicks)
+            .await;
     }
     // Position packets revalidate stationary containers against actual values
     // after decoding. Finite movement and other operations still retain every
     // native correction as an interruption, including an identical refresh.
     pub(super) async fn interrupt_common_motion_operations(&self, problem: &str) {
+        self.interrupt_common_motion_operations_inner(problem, true)
+            .await;
+    }
+    async fn interrupt_common_motion_operations_inner(&self, problem: &str, clicks: bool) {
         self.interrupt_common_mining(problem).await;
         self.interrupt_common_placement(problem).await;
         self.interrupt_common_inventory_swap(problem).await;
-        self.interrupt_common_inventory_click(problem).await;
+        if clicks {
+            self.interrupt_common_inventory_click(problem).await;
+        }
         self.interrupt_common_crafting_take(problem).await;
         self.interrupt_common_recipe_placement(problem).await;
         self.interrupt_common_inventory_transfer(problem).await;
@@ -1138,6 +1153,45 @@ impl crate::client::adapter::PathMotionOps for Bot {
 pub(super) mod tests {
     use super::*;
     use crate::client::adapter::PathMotionOps;
+    #[tokio::test]
+    async fn posture_metadata_still_retires_owned_movement() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client
+            .survival()
+            .start_predicted_path(
+                &[SurvivalControl {
+                    yaw: 0.0,
+                    input: Default::default(),
+                }; 2],
+            )
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x13);
+        bot.apply_packet(0x44, vec![42, 6, 18, 2, 255])
+            .await
+            .unwrap();
+        let stopped = client.survival().motion_record().await.unwrap().unwrap();
+        assert_eq!(stopped.status, MotionStatus::RequiresInspection);
+        assert!(
+            client
+                .survival()
+                .start_predicted_path(&[SurvivalControl {
+                    yaw: 0.0,
+                    input: Default::default()
+                }])
+                .await
+                .is_err()
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
     #[test]
     fn dry_terrain_standing_accepts_slab_support_and_refuses_embedded_body_or_water() {
         let mut terrain = crate::NativeBlockState {

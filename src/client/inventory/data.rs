@@ -328,6 +328,15 @@ impl ItemContext {
         };
         Ok(Some((*slot, allowed)))
     }
+    /// Legacy receipts use the immutable admission registry, not a later cache owner.
+    pub(crate) fn classify_captured(
+        &self,
+        actual: &ObservedValue<SlotKnowledge>,
+        before: &ObservedValue<SlotKnowledge>,
+        after: &SlotKnowledge,
+    ) -> Result<(bool, bool)> {
+        self.classify(actual, before, after, &self.owner)
+    }
     pub(crate) fn classify(
         &self,
         actual: &ObservedValue<SlotKnowledge>,
