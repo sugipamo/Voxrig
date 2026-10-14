@@ -94,10 +94,3 @@ impl Bot {
         ))
     }
 }
-
-impl crate::client::adapter::DigOps for Bot {
-    async fn own_on_ground(&self) -> Result<bool> {
-        // A running control session writes its predicted ground flag here too.
-        Ok(self.player.lock().await.on_ground)
-    }
-}

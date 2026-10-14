@@ -33,8 +33,8 @@ impl Bot {
         &self,
         id: contract::CraftingTakeId,
         revision: u64,
+        _gate: tokio::sync::OwnedMutexGuard<()>,
     ) -> Result<CraftingTakeRecord> {
-        let _gate = self.coherent_state_gate.lock().await;
         let result = async {
             let record = super::lock_packet_state(&self.common_crafting_take)
                 .await
@@ -231,7 +231,7 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
         grid: &contract::ReceivedCrafting,
         destination: CraftingResultDestination,
     ) -> Result<CraftingTakeRecord> {
-        let gate = self.coherent_state_gate.lock().await;
+        let gate = self.coherent_state_gate.clone().lock_owned().await;
         self.common_motion_admission().await?;
         if let CraftingSource::Table { screen } = grid.source() {
             if super::lock_packet_state(&self.common_container_close)
@@ -287,9 +287,10 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
         let (reply, result) = tokio::sync::oneshot::channel();
         let bot = self.clone_internal();
         tokio::spawn(async move {
-            let _ = reply.send(bot.common_crafting_send_owned(id, revision).await);
+            // Transfer the original admission lock to the connection owner:
+            // queued receipts cannot change the predecessor between reservation and I/O.
+            let _ = reply.send(bot.common_crafting_send_owned(id, revision, gate).await);
         });
-        drop(gate);
         result
             .await
             .map_err(|_| unavailable("crafting owner result unavailable"))?

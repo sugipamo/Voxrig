@@ -684,6 +684,7 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
     let (peer, _) = listener.accept().await.unwrap();
     let (reader, writer) = client.into_split();
     let session = Arc::new(Session {
+        operational_dig: Arc::default(),
         id: crate::connection::next_connection_id(),
         started: Instant::now(),
         writer: Mutex::new(Writer {

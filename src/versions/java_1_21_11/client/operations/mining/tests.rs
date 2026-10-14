@@ -687,6 +687,7 @@ impl Fixture {
         let (peer, _) = listener.accept().await.unwrap();
         let (reader, writer) = stream.into_split();
         let session = Arc::new(Session {
+            operational_dig: Arc::default(),
             id,
             started: Instant::now(),
             writer: Mutex::new(Writer {
@@ -1619,7 +1620,7 @@ async fn motion_waiting_on_writer_retains_attempt_and_close_never_releases_const
         .unwrap();
     // The actor now owns a state lock while waiting on the writer. Releasing a
     // stopped session cannot turn the retained attempt into a successful send.
-    tokio::time::sleep(Duration::from_millis(20)).await;
+    wait_motion_writer_blocked(&mover).await;
     mover.session.stop();
     drop(writer);
     timeout(Duration::from_secs(1), async {
@@ -1643,6 +1644,105 @@ async fn motion_waiting_on_writer_retains_attempt_and_close_never_releases_const
     assert!(mover.api.standing_context().await.is_err());
     observer.stop().await;
     mover.stop().await;
+}
+
+async fn wait_motion_writer_blocked(fixture: &Fixture) {
+    // These fixtures use a current-thread runtime with no pending incoming
+    // packets. The motion owner does not yield between acquiring state and
+    // retaining its first attempt before waiting on the held writer lock.
+    timeout(Duration::from_secs(5), async {
+        while fixture.session.state.try_lock().is_ok() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("motion owner did not reach the writer gate");
+}
+
+#[tokio::test]
+async fn operational_abort_write_failure_is_unconfirmed_and_retains_original_cause() {
+    use crate::client::{DigCleanupStatus, adapter::DigOps};
+    use tokio::io::AsyncWriteExt;
+    for break_writer in [false, true] {
+        let mut f = Fixture::new().await;
+        f.change(TARGET, &native("dirt")).await;
+        let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+        let original = f.api.dig_snapshot(TARGET).await.unwrap().player.session;
+        let owned = client.clone();
+        let task = tokio::spawn(async move {
+            owned
+                .survival()
+                .dig(TARGET, crate::client::BlockFace::Up)
+                .await
+        });
+        let (id, start) = timeout(Duration::from_secs(5), read_packet(&mut f.peer, None))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+        assert_eq!(start[0], 0);
+        // A changed hand rejects FINISH before I/O. ABORT then exercises the
+        // real TCP writer, rather than inheriting an earlier FINISH write error.
+        f.session
+            .state
+            .lock()
+            .await
+            .operations
+            .selected_hotbar
+            .as_mut()
+            .unwrap()
+            .slot = 1;
+        if break_writer {
+            f.session
+                .writer
+                .lock()
+                .await
+                .stream
+                .shutdown()
+                .await
+                .unwrap();
+        }
+        let error = timeout(Duration::from_secs(5), task)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        let cleanup = client.survival().dig_cleanup_record().unwrap();
+        assert_eq!(cleanup.session, original);
+        assert_eq!(cleanup.target, TARGET);
+        assert!(
+            cleanup
+                .reason
+                .contains("selected hand or timing prerequisites changed")
+        );
+        if break_writer {
+            assert_eq!(error.kind(), ErrorKind::OperationUnconfirmed);
+            assert_eq!(cleanup.status, DigCleanupStatus::Failed);
+            assert!(cleanup.reason.contains("ABORT failed"));
+            assert!(
+                format!("{:#}", error.diagnostic())
+                    .contains("selected hand or timing prerequisites changed")
+            );
+            assert_eq!(
+                f.session.interrupted_packet.load(Ordering::Acquire),
+                ids::play_serverbound::BLOCK_DIG
+            );
+            assert!(read_packet(&mut f.peer, None).await.is_err());
+        } else {
+            assert_eq!(error.kind(), ErrorKind::State);
+            assert_eq!(cleanup.status, DigCleanupStatus::Aborted);
+            let (id, abort) = read_packet(&mut f.peer, None).await.unwrap();
+            assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+            assert_eq!(abort[0], 1);
+            assert_eq!(&abort[1..10], &start[1..10]);
+        }
+        assert!(client.survival().mining_record().await.unwrap().is_none());
+        f.stop().await;
+        assert_eq!(
+            client.survival().dig_cleanup_record().unwrap().status,
+            cleanup.status
+        );
+    }
 }
 
 #[tokio::test]
@@ -2386,4 +2486,123 @@ async fn common_tool_mining_keeps_received_removal_before_later_durability() {
     assert!(removed.inventory_change.is_none() && !removed.continuation_validated);
     assert!(client.survival().select_hotbar(1).await.is_err());
     f.stop().await;
+}
+
+#[tokio::test]
+async fn operational_finish_rechecks_the_original_world_mode_hand_and_target_at_dispatch() {
+    use crate::client::{
+        adapter::DigOps,
+        operational_dig::{Action, Dispatch},
+    };
+    for change in ["world", "mode", "hand", "target"] {
+        let mut f = Fixture::new().await;
+        let initial = f.api.dig_snapshot(TARGET).await.unwrap();
+        let mut gate = f.session.state.lock().await;
+        let owner = f.api.clone();
+        let sending = tokio::spawn(async move {
+            owner
+                .dig_dispatch(
+                    &initial,
+                    TARGET,
+                    crate::client::BlockFace::Up,
+                    Action::Finish,
+                    &AtomicBool::new(false),
+                )
+                .await
+        });
+        tokio::task::yield_now().await;
+        assert!(!sending.is_finished());
+        match change {
+            "world" => gate.loading.generation += 1,
+            "mode" => gate.operations.game_mode = Some(GameMode::Creative),
+            "hand" => gate.operations.selected_hotbar.as_mut().unwrap().slot = 1,
+            "target" => gate
+                .world
+                .seed_replay_cell(TARGET, state_id(&native("dirt")).unwrap()),
+            _ => unreachable!(),
+        }
+        drop(gate);
+        let result = sending.await.unwrap();
+        if change == "target" {
+            assert!(matches!(result, Ok(Dispatch::Changed(_))));
+        } else {
+            assert!(result.is_err(), "{change}");
+        }
+        assert!(
+            tokio::time::timeout(
+                std::time::Duration::from_millis(30),
+                read_packet(&mut f.peer, None)
+            )
+            .await
+            .is_err()
+        );
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn operational_cancel_is_owned_once_and_does_not_abort_a_replacement_world() {
+    for world_changed in [false, true] {
+        let mut f = Fixture::new().await;
+        let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+        let owned = client.clone();
+        let task = tokio::spawn(async move {
+            owned
+                .survival()
+                .dig(TARGET, crate::client::BlockFace::Up)
+                .await
+        });
+        let (id, start) =
+            tokio::time::timeout(Duration::from_secs(2), read_packet(&mut f.peer, None))
+                .await
+                .unwrap()
+                .unwrap();
+        assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+        assert_eq!(start[0], 0);
+        let refused = client
+            .survival()
+            .start_mining(TARGET, crate::client::BlockFace::Up)
+            .await
+            .unwrap_err();
+        assert!(refused.to_string().contains("operational dig"));
+        if world_changed {
+            f.session.state.lock().await.loading.generation += 1;
+        }
+        task.abort();
+        let _ = task.await;
+        if !world_changed {
+            let (id, abort) =
+                tokio::time::timeout(Duration::from_secs(2), read_packet(&mut f.peer, None))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+            assert_eq!(abort[0], 1);
+            assert_eq!(&abort[1..10], &start[1..10]);
+        }
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if client.survival().dig_cleanup_record().is_some_and(|r| {
+                    r.status
+                        == if world_changed {
+                            crate::client::DigCleanupStatus::ContextChanged
+                        } else {
+                            crate::client::DigCleanupStatus::Aborted
+                        }
+                }) {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        assert!(client.survival().mining_record().await.unwrap().is_none());
+        f.stop().await;
+    }
 }

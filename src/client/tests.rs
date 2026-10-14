@@ -1450,13 +1450,26 @@ pub(crate) async fn common_pickup_complete_scenario(
     client: &Client,
     id: inventory::InventoryClickId,
 ) -> inventory::InventoryClickRecord {
-    let record = client
-        .survival()
-        .inventory_click_record()
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(record.id, id);
+    // Inspection deliberately returns promptly when the coherent writer gate
+    // is busy. Received receipts need not have been reconciled on the first poll.
+    let record = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let record = client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(record.id, id);
+            assert!(record.requires_inspection.is_none(), "{record:#?}");
+            if record.stage == inventory::InventoryClickStage::ObservedClicked {
+                break record;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("received click receipts were not reconciled");
     assert_eq!(
         record.stage,
         inventory::InventoryClickStage::ObservedClicked,

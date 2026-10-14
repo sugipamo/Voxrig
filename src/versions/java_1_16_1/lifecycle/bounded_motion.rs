@@ -93,6 +93,7 @@ pub(super) enum MotionCommand {
         slot: u16,
         button: u8,
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+        processing_resync: bool,
         reply: oneshot::Sender<crate::Result<()>>,
     },
     InventoryTransfer {
@@ -989,6 +990,7 @@ impl MotionGate {
                 slot,
                 button,
                 comparison,
+                processing_resync,
                 reply,
             } => {
                 let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
@@ -1011,11 +1013,19 @@ impl MotionGate {
                         }
                         || slot >= 4096
                         || button > 1
-                        || comparison.as_ref().is_some_and(|s| {
-                            !crate::client::inventory::transfer_policy::legacy_comparison_supported(
-                                s,
-                            )
-                        })
+                        || if processing_resync {
+                            result_take.is_some() || *window <= 0 || slot > 1
+                                || comparison.as_ref().is_none_or(|s| {
+                                    if s.count != i8::MAX { return true; }
+                                    let mut probe = s.clone();
+                                    probe.count = 1;
+                                    !crate::client::inventory::transfer_policy::legacy_comparison_supported(&probe)
+                                })
+                        } else {
+                            comparison.as_ref().is_some_and(|s| {
+                                !crate::client::inventory::transfer_policy::legacy_comparison_supported(s)
+                            })
+                        }
                     {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
@@ -1396,6 +1406,27 @@ impl ConnectionActor {
         button: u8,
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
     ) -> crate::Result<()> {
+        self.inventory_click_with_resync(run_id, slot, button, comparison, false)
+            .await
+    }
+    pub(crate) async fn bounded_processing_click(
+        &self,
+        run_id: u64,
+        slot: u16,
+        button: u8,
+        comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+    ) -> crate::Result<()> {
+        self.inventory_click_with_resync(run_id, slot, button, comparison, true)
+            .await
+    }
+    async fn inventory_click_with_resync(
+        &self,
+        run_id: u64,
+        slot: u16,
+        button: u8,
+        comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+        processing_resync: bool,
+    ) -> crate::Result<()> {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::Motion(MotionCommand::InventoryClick {
@@ -1403,6 +1434,7 @@ impl ConnectionActor {
                 slot,
                 button,
                 comparison,
+                processing_resync,
                 reply,
             }))
             .await

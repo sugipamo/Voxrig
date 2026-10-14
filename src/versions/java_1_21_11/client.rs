@@ -263,6 +263,7 @@ struct LoginIdentity {
     server: crate::Server,
 }
 struct Session {
+    operational_dig: Arc<crate::client::operational_dig::Coordinator>,
     id: u64,
     started: Instant,
     writer: Mutex<Writer>,
@@ -495,6 +496,7 @@ impl Bot {
             }
         };
         let session = Arc::new(Session {
+            operational_dig: Arc::default(),
             id: crate::connection::next_connection_id(),
             started: Instant::now(),
             writer: Mutex::new(Writer {

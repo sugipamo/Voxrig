@@ -509,6 +509,11 @@ impl Bot {
 impl crate::client::adapter::MiningOps for Bot {
     async fn start_mining(&self, target: [i32; 3], face: crate::BlockFace) -> Result<MiningRecord> {
         let gate = self.coherent_state_gate.lock().await;
+        if self.operational_dig.active() {
+            return Err(mining::unavailable(
+                "operational dig owns this connection; no replacement mining admitted",
+            ));
+        }
         self.common_motion_admission().await?;
         let revision = self
             .connection

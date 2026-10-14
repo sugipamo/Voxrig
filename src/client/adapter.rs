@@ -89,9 +89,16 @@ pub(crate) trait CoreOps {
 
 /// Facts the dig timing needs that only the adapter knows.
 pub(crate) trait DigOps {
-    /// The client's own ground flag: a running control session's frame, else the
-    /// adapter's own-player state.
-    async fn own_on_ground(&self) -> Result<bool>;
+    fn dig_coordinator(&self) -> std::sync::Arc<super::operational_dig::Coordinator>;
+    async fn dig_snapshot(&self, target: [i32; 3]) -> Result<super::operational_dig::Inputs>;
+    async fn dig_dispatch(
+        &self,
+        initial: &super::operational_dig::Inputs,
+        target: [i32; 3],
+        face: super::BlockFace,
+        action: super::operational_dig::Action,
+        cancelled: &std::sync::atomic::AtomicBool,
+    ) -> Result<super::operational_dig::Dispatch>;
 }
 
 /// Whole loaded chunk columns.

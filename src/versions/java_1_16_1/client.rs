@@ -8,6 +8,7 @@ mod common_control;
 mod common_crafting;
 mod common_entity_motion;
 mod common_entity_parts;
+mod operational_dig;
 pub(crate) use common_entity_parts::derive_entity_parts;
 mod common_flight;
 mod common_inventory;
@@ -1104,6 +1105,7 @@ pub struct Bot {
     common_player_list: Arc<Mutex<crate::client::ui::player_list::PlayerListLedger>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     common_control: Arc<Mutex<common_control::ContinuousControl>>,
+    operational_dig: Arc<crate::client::operational_dig::Coordinator>,
     /// Latest received own velocity (packet ordinal, value).
     own_velocity_receipt: Arc<Mutex<Option<VelocityReceipt>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
@@ -1226,6 +1228,7 @@ impl Bot {
             common_player_list: self.common_player_list.clone(),
             common_motion: self.common_motion.clone(),
             common_control: self.common_control.clone(),
+            operational_dig: self.operational_dig.clone(),
             own_velocity_receipt: self.own_velocity_receipt.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
@@ -1418,6 +1421,7 @@ impl Bot {
             common_player_list: Arc::new(Mutex::new(Default::default())),
             common_motion: Arc::new(Mutex::new(None)),
             common_control: Arc::default(),
+            operational_dig: Arc::default(),
             own_velocity_receipt: Arc::default(),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
@@ -4470,6 +4474,9 @@ impl Bot {
         let mut sneaking = false;
         while !self.stopped.load(Ordering::Acquire) {
             let scheduled = ticker.tick().await;
+            // Input sampling, posture writes and movement share the same gate
+            // as mode/world changes and selected-owner cleanup.
+            let _coherent_state = self.coherent_state_gate.lock().await;
             if self.common_native_physics_paused().await {
                 continue;
             }
@@ -4525,7 +4532,7 @@ impl Bot {
             jump_held = control.jump;
             let tick_started = std::time::Instant::now();
             if self
-                .physics_tick_with_fraction(control, jump, movement_fraction)
+                .physics_tick_with_fraction_unlocked(control, jump, movement_fraction)
                 .await
                 .is_err()
             {
@@ -4543,6 +4550,7 @@ impl Bot {
         self.physics_tick_with_fraction(control, jump, 1.0).await
     }
 
+    #[cfg(test)]
     async fn physics_tick_with_fraction(
         &self,
         control: ControlState,
@@ -4550,6 +4558,17 @@ impl Bot {
         movement_fraction: f64,
     ) -> Result<()> {
         let _coherent_state = self.coherent_state_gate.lock().await;
+        self.physics_tick_with_fraction_unlocked(control, jump, movement_fraction)
+            .await
+    }
+
+    // Caller owns coherent_state_gate, including native input sampling.
+    async fn physics_tick_with_fraction_unlocked(
+        &self,
+        control: ControlState,
+        jump: bool,
+        movement_fraction: f64,
+    ) -> Result<()> {
         // Respawn keeps compatibility coordinates until the new own-position
         // packet. New chunks alone cannot make that preceding-world pose valid.
         if !*self.positioned.lock().await {

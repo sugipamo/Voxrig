@@ -102,6 +102,16 @@ impl Bot {
         flight_owner: Option<u64>,
     ) -> Result<Option<i32>> {
         let _gate = self.coherent_state_gate.lock().await;
+        self.execute_common_unlocked(mode, action, flight_owner)
+            .await
+    }
+    // The caller owns coherent_state_gate across validation and complete dispatch.
+    pub(super) async fn execute_common_unlocked(
+        &self,
+        mode: api::GameMode,
+        action: Action<'_>,
+        flight_owner: Option<u64>,
+    ) -> Result<Option<i32>> {
         self.common_motion_admission_inner(flight_owner.is_some())
             .await?;
         if let Some(attempt) = flight_owner {

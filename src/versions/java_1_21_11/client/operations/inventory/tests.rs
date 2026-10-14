@@ -1121,6 +1121,7 @@ impl CommonFixture {
         let mut state = baseline();
         state.phase = Phase::Play;
         let session = Arc::new(Session {
+            operational_dig: Arc::default(),
             id: 42,
             started: Instant::now(),
             writer: Mutex::new(Writer {
@@ -1690,6 +1691,7 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
     let mut state = baseline();
     state.phase = Phase::Play;
     let session = Arc::new(Session {
+        operational_dig: Arc::default(),
         id: 42,
         started: Instant::now(),
         writer: Mutex::new(Writer {

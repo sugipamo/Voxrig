@@ -202,3 +202,8 @@ native clockの自動割当て、一般speciesと追加姿勢/乗り物は実装
 原版56場面1,792tickと両版公式接続を照合し、boost・水中・非unit・custom gliderは未対応。
 
 追加姿勢は[全25poseの分類](common-posture-coverage.md)、追加mountは[版・seat・authorityの分類](common-mount-coverage.md)で具体的な実装issueへ分割した。#93/#94の調査完了は追加機能の完成ではなく、#103〜#111の実装と#44が残る。
+
+## 利用側の運用採掘
+
+単発診断用の #61 の元接続の継続制約は変更せず、運用採掘は接続所有の `Survival::dig` を使用します。
+中断送信を完了できない場合は `OperationUnconfirmed` と元の cleanup 記録を保持します。

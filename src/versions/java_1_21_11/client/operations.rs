@@ -3,6 +3,7 @@
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
 pub(super) mod container;
+mod operational_dig;
 use crate::client::adapter::FlightOps;
 pub(super) mod continuous;
 mod flight;
@@ -1997,22 +1998,5 @@ impl crate::client::adapter::ChunkOps for Operations {
             sky_light: light.sky,
             block_light: light.block,
         }))
-    }
-}
-
-impl crate::client::adapter::DigOps for Operations {
-    async fn own_on_ground(&self) -> Result<bool> {
-        let mut state = self.bot.session.state.lock().await;
-        if let Some(frame) = state
-            .control
-            .session
-            .as_ref()
-            .filter(|s| s.running())
-            .and_then(|s| s.frame.as_ref())
-        {
-            return Ok(frame.on_ground);
-        }
-        let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        Ok(survival::context(&mut state, self.bot.session.id, tick)?.on_ground)
     }
 }
