@@ -80,6 +80,66 @@ pub(crate) struct OwnedContacts {
     native_keys: BTreeMap<i32, u64>,
     own_glide: bool,
 }
+/// Project only proven bootstrap no-ops. All stateful instructions (including
+/// refusals and membership mutations) retain their receipt order. In particular,
+/// motion and metadata are never replaced by latest-state spawn observations.
+pub(super) fn bootstrap_instruction(
+    mut record: super::EntityHistoryRecord,
+) -> Option<super::EntityHistoryRecord> {
+    match &mut record.kind {
+        EntityHistoryKind::Status { entity: None, .. }
+        | EntityHistoryKind::Animation { entity: None, .. }
+        | EntityHistoryKind::OwnPositionCorrection { .. }
+        | EntityHistoryKind::Equipment {
+            complete: true,
+            entries: EntityHistoryValue::Retained { .. },
+            ..
+        } => return None,
+        EntityHistoryKind::Metadata {
+            entries: EntityHistoryValue::Retained { value },
+            complete: true,
+            ..
+        } => {
+            let fields = [
+                EntityDataField::Health,
+                EntityDataField::Baby,
+                EntityDataField::SleepingPosition,
+                EntityDataField::LivingFlags,
+            ];
+            let table = record.session.version.table();
+            value.retain(|entry| {
+                entry.index == 6
+                    || [
+                        "minecraft:player",
+                        "minecraft:cow",
+                        "minecraft:pig",
+                        "minecraft:zombie",
+                    ]
+                    .iter()
+                    .any(|name| {
+                        table.entity_data(name).iter().any(|row| {
+                            row.index == entry.index
+                                && fields.iter().any(|field| {
+                                    field.official_names().iter().any(|&(owner, name)| {
+                                        row.owner == owner && row.field == name
+                                    })
+                                })
+                        })
+                    })
+            });
+            if value.is_empty() {
+                return None;
+            }
+        }
+        _ => {}
+    }
+    Some(record)
+}
+
+pub(super) fn checkpoint_unavailable() -> crate::Error {
+    failure("contact bootstrap checkpoint budget exhausted")
+}
+
 impl OwnedContacts {
     pub(crate) fn has_bodies(&self) -> bool {
         !self.world.bodies.is_empty()
@@ -549,8 +609,15 @@ impl OwnedContacts {
             .into_iter()
             .map(|e| e.id)
             .collect::<Vec<_>>();
+        let mut checkpoint = if bootstrap {
+            let (records, boundary) = ledger.contact_checkpoint(self.session)?;
+            self.cursor = Some(boundary);
+            Some(records)
+        } else {
+            None
+        };
         loop {
-            let page = ledger.history_after(
+            let mut page = ledger.history_after(
                 self.session,
                 sequence,
                 self.cursor,
@@ -562,8 +629,13 @@ impl OwnedContacts {
             if page.session != self.session {
                 return Err(failure("contact world changed"));
             }
+            if let Some(seed) = checkpoint.take() {
+                // One reduction stream, checkpoint through B followed strictly by
+                // B+1..tail. The immutable ledger borrow is the receipt fence.
+                page.records.splice(0..0, seed);
+            }
             records += page.records.len();
-            if records > MAX_ENTITY_HISTORY_RECORDS {
+            if records > MAX_ENTITY_HISTORY_RECORDS * if bootstrap { 2 } else { 1 } {
                 return Err(failure("contact history drain budget"));
             }
             for record in &page.records {
@@ -1248,6 +1320,172 @@ mod tests {
         );
         (ledger, session)
     }
+    fn numerical_state(model: &OwnedContacts) -> serde_json::Value {
+        serde_json::json!({
+            "bodies": model.world.bodies.iter().map(|(key, body)|
+                (key, body.motion.frame(), body.velocity, body.width, body.height)
+            ).collect::<Vec<_>>(),
+            "keys": model.native_keys,
+            "order": format!("{:?}", model.world.order),
+            "spatial": format!("{:?}", model.world.spatial),
+        })
+    }
+
+    #[test]
+    fn fresh_ground_and_glide_bootstrap_survive_count_and_byte_eviction() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for payload in [0, 60_000] {
+                let (mut ledger, session) = receipts(version);
+                ledger.history_context(version, 3, 2);
+                ledger.receive_motion(
+                    version,
+                    7,
+                    NativeMotion::Relative {
+                        delta: [512, 0, -128],
+                        rotation: Some([8., 16.]),
+                        ground: true,
+                    },
+                    2,
+                );
+                ledger.receive_metadata(7, [(6, EntityDataValue::Pose(0))], true, 2);
+                let complete = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                let expected = numerical_state(&complete);
+                let count = if payload == 0 {
+                    MAX_ENTITY_HISTORY_RECORDS + 4
+                } else {
+                    180
+                };
+                for sequence in 3..count as u64 + 3 {
+                    ledger.history_context(version, 3, sequence);
+                    if payload == 0 {
+                        ledger.history_signal(500, None, Some(0));
+                    } else {
+                        ledger.receive_metadata(
+                            500,
+                            [(250, EntityDataValue::String("x".repeat(payload)))],
+                            true,
+                            sequence,
+                        );
+                    }
+                }
+                let page = ledger
+                    .history_after(session, count as u64 + 2, None, 1)
+                    .unwrap();
+                assert!(page.gap.is_some());
+                for glide in [false, true] {
+                    let fresh = OwnedContacts::new_scoped(
+                        session,
+                        11,
+                        99,
+                        &ledger,
+                        count as u64 + 2,
+                        None,
+                        glide,
+                    )
+                    .unwrap();
+                    assert_eq!(numerical_state(&fresh), expected);
+                    assert_eq!(fresh.tick, 0);
+                    assert_eq!(fresh.origin, page.latest_cursor.ordinal());
+                    assert_eq!(fresh.cursor, Some(page.latest_cursor));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn checkpoint_replay_preserves_boat_scope_and_retired_map_history() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            // Grow and shrink the legacy map, then reuse native IDs. The fresh
+            // reducer must preserve these mutations rather than sort survivors.
+            for sequence in 2..=45 {
+                ledger.history_context(version, 3, sequence);
+                let id = 100 + sequence as i32;
+                ledger
+                    .insert(
+                        version,
+                        NativeSpawn {
+                            id,
+                            uuid: Some([2; 16]),
+                            type_id: None,
+                            dedicated_type_name: Some("cow"),
+                            position: [2., 65., 2.],
+                            living: Some(true),
+                        },
+                        sequence,
+                        128,
+                    )
+                    .unwrap();
+                ledger.initialize_motion(
+                    id,
+                    NativeSpawnMotion {
+                        position: Some([2., 65., 2.]),
+                        rotation: Some([0.; 2]),
+                        head_yaw: Some(0.),
+                        velocity: Some([0.; 3]),
+                    },
+                    sequence,
+                );
+            }
+            for id in 102..=145 {
+                ledger.remove(id);
+            }
+            ledger.history_context(version, 3, 46);
+            ledger
+                .insert(
+                    version,
+                    NativeSpawn {
+                        id: 102,
+                        uuid: Some([3; 16]),
+                        type_id: None,
+                        dedicated_type_name: Some(if version == V::Java1_16_1 {
+                            "boat"
+                        } else {
+                            "oak_boat"
+                        }),
+                        position: [2., 65., 2.],
+                        living: Some(false),
+                    },
+                    46,
+                    128,
+                )
+                .unwrap();
+            ledger.initialize_motion(
+                102,
+                NativeSpawnMotion {
+                    position: Some([2., 65., 2.]),
+                    rotation: Some([0.; 2]),
+                    head_yaw: Some(0.),
+                    velocity: Some([0.; 3]),
+                },
+                46,
+            );
+            let scope = BoatScope {
+                entity: ledger.identity(session, 102).unwrap(),
+                passengers: vec![99],
+                ignored: Vec::new(),
+            };
+            let complete =
+                OwnedContacts::new_scoped(session, 10, 99, &ledger, 46, Some(scope.clone()), false)
+                    .unwrap();
+            for sequence in 47..=MAX_ENTITY_HISTORY_RECORDS as u64 + 150 {
+                ledger.history_context(version, 3, sequence);
+                ledger.history_signal(500, Some(0), None);
+            }
+            let fresh = OwnedContacts::new_scoped(
+                session,
+                11,
+                99,
+                &ledger,
+                MAX_ENTITY_HISTORY_RECORDS as u64 + 150,
+                Some(scope),
+                false,
+            )
+            .unwrap();
+            assert_eq!(numerical_state(&fresh), numerical_state(&complete));
+        }
+    }
+
     #[test]
     fn incomplete_receipt_rolls_back_motion_and_irreversibly_discards_the_owner() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
@@ -1295,6 +1533,16 @@ mod tests {
                     .is_err()
             );
             assert!(!model.valid);
+            assert!(
+                OwnedContacts::new(
+                    session,
+                    14,
+                    99,
+                    &ledger,
+                    MAX_ENTITY_HISTORY_RECORDS as u64 + 3
+                )
+                .is_ok()
+            );
         }
     }
     #[test]

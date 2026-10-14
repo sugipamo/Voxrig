@@ -157,3 +157,24 @@ cargo test --locked --lib entity_history --features native
 
 元packetの一度だけの適用と版ごとのentity更新順は、
 [明示的なモデルschedule](common-entity-schedule.md)を参照。
+
+## Internal contact admission checkpoint
+
+Fresh movement owners use a connection-local eviction-boundary checkpoint plus the
+retained suffix, captured under the admission receipt lock. The checkpoint is a
+bounded, ordered bootstrap reducer program: proven no-op receipts and metadata
+fields unused by supported contact dispatch are omitted; stateful instructions,
+original lifetimes, provenance, refusals, and map membership mutations keep their
+original order. Admission and suffix replay use the same contact reducer. This is
+receipt-derived state, never an existing owner's ticked simulation or a latest
+spawn snapshot. The declared origin is the captured tail and model tick starts at
+zero. Ground, held flight and boat scopes still qualify at admission.
+
+The checkpoint has a separate 8192-instruction / 8 MiB accounted-byte budget.
+Exhaustion explicitly refuses admission with `contact bootstrap checkpoint budget
+exhausted`; it never silently skips state. A world change supersedes the old-world
+checkpoint. This program representation can exhaust its budget under sustained
+stateful traffic; numerical reducer-state compaction is not implemented.
+Public history remains bounded and reports every eviction gap. Existing owners
+continue using their original cursors, and a lagging owner is irreversibly
+invalidated on a gap. The internal checkpoint does not repair public history.
