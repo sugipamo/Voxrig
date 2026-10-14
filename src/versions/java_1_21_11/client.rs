@@ -186,6 +186,9 @@ impl State {
             bail!("cannot apply packets after a failed receive");
         }
         self.sequence += 1;
+        if let Some(own) = self.operations.local_player.entity_id {
+            self.entities.contact_local_player(own);
+        }
         self.entities.history_context(
             MinecraftVersion::Java1_21_11,
             self.loading.generation,
@@ -1011,6 +1014,7 @@ fn apply_play(
             state.context.world_view.simulation_distance =
                 Some(crate::client::received(simulation_distance, state.sequence));
             state.operations.local_player = operations::LocalPlayerState::spawned(entity_id);
+            state.entities.contact_local_player(entity_id);
         }
         input::RESPAWN => {
             let mut entry = read_spawn_info(&mut r)?;

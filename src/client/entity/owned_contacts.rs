@@ -79,68 +79,230 @@ pub(crate) struct OwnedContacts {
     boat: Option<BoatScope>,
     native_keys: BTreeMap<i32, u64>,
     own_glide: bool,
+    checkpoint_errors: Vec<(Option<EntityId>, String)>,
 }
-/// Project only proven bootstrap no-ops. All stateful instructions (including
-/// refusals and membership mutations) retain their receipt order. In particular,
-/// motion and metadata are never replaced by latest-state spawn observations.
-pub(super) fn bootstrap_instruction(
-    mut record: super::EntityHistoryRecord,
-) -> Option<super::EntityHistoryRecord> {
-    match &mut record.kind {
-        EntityHistoryKind::Status { entity: None, .. }
-        | EntityHistoryKind::Animation { entity: None, .. }
-        | EntityHistoryKind::OwnPositionCorrection { .. }
-        | EntityHistoryKind::Equipment {
-            complete: true,
-            entries: EntityHistoryValue::Retained { .. },
-            ..
-        } => return None,
-        EntityHistoryKind::Metadata {
-            entries: EntityHistoryValue::Retained { value },
-            complete: true,
-            ..
-        } => {
-            let fields = [
-                EntityDataField::Health,
-                EntityDataField::Baby,
-                EntityDataField::SleepingPosition,
-                EntityDataField::LivingFlags,
-            ];
-            let table = record.session.version.table();
-            value.retain(|entry| {
-                entry.index == 6
-                    || [
-                        "minecraft:player",
-                        "minecraft:cow",
-                        "minecraft:pig",
-                        "minecraft:zombie",
-                    ]
-                    .iter()
-                    .any(|name| {
-                        table.entity_data(name).iter().any(|row| {
-                            row.index == entry.index
-                                && fields.iter().any(|field| {
-                                    field.official_names().iter().any(|&(owner, name)| {
-                                        row.owner == owner && row.field == name
-                                    })
-                                })
-                        })
+/// Unticked numerical receipt reducer at the public eviction boundary. Storage
+/// follows active lifetimes and native map capacity, rather than receipt count.
+#[derive(Clone, Debug)]
+pub(super) struct ContactCheckpoint {
+    model: OwnedContacts,
+    own_metadata: BTreeMap<u8, EntityDataValue>,
+    errors: BTreeMap<i32, (Option<EntityId>, String)>,
+    global_error: Option<String>,
+    own_id: i32,
+}
+impl ContactCheckpoint {
+    pub(super) fn new(session: SessionStamp, own_id: i32) -> Result<Self> {
+        Ok(Self {
+            model: OwnedContacts::empty(session, own_id)?,
+            own_metadata: BTreeMap::new(),
+            errors: BTreeMap::new(),
+            global_error: None,
+            own_id,
+        })
+    }
+
+    pub(super) fn advance(&mut self, record: super::EntityHistoryRecord) {
+        // World/order failures cannot be repaired by later receipt deltas.
+        // Keep the bounded refusal until the world checkpoint is superseded.
+        if self.global_error.is_some() {
+            return;
+        }
+        match &record.kind {
+            EntityHistoryKind::Spawn(m) => {
+                self.errors.remove(&m.entity.id.native_id());
+            }
+            EntityHistoryKind::Removed { native_id, .. } => {
+                self.errors.remove(native_id);
+            }
+            _ => {}
+        }
+        let fresh = self.model.fresh;
+        if let Err(error) = self
+            .model
+            .reduce_record(&record, true, None, &mut self.own_metadata)
+        {
+            // Even an unavailable numerical spawn contributes native map order.
+            // A later boat scope may legitimately ignore this body's geometry.
+            if let EntityHistoryKind::Spawn(m) = &record.kind {
+                if self.model.world.order.body(self.model.fresh).is_none()
+                    || self.model.fresh == fresh
+                {
+                    if self.model.fresh == fresh {
+                        let Some(next) = fresh.checked_add(1) else {
+                            self.global_error.get_or_insert_with(|| error.to_string());
+                            return;
+                        };
+                        self.model.fresh = next;
+                    }
+                    let key = self.model.fresh;
+                    if let Err(order_error) = self
+                        .model
+                        .world
+                        .admit(tick_body(key, m.entity.id.native_id(), false), None)
+                    {
+                        self.global_error
+                            .get_or_insert_with(|| order_error.to_string());
+                    }
+                }
+                self.model
+                    .native_keys
+                    .insert(m.entity.id.native_id(), self.model.fresh);
+                if m.entity.type_name.is_none()
+                    || m.entity.id.session() != record.session
+                    || m.entity.id.spawn_sequence() != record.receive_sequence
+                {
+                    self.global_error.get_or_insert_with(|| error.to_string());
+                }
+            }
+            if matches!(
+                record.kind,
+                EntityHistoryKind::Passengers {
+                    passengers: EntityHistoryValue::RetentionLimit,
+                    ..
+                }
+            ) {
+                self.global_error.get_or_insert_with(|| error.to_string());
+            }
+            let affected = match &record.kind {
+                EntityHistoryKind::Spawn(m) | EntityHistoryKind::Motion(m) => {
+                    vec![(m.entity.id.native_id(), Some(m.entity.id))]
+                }
+                EntityHistoryKind::Metadata {
+                    native_id, entity, ..
+                }
+                | EntityHistoryKind::Equipment {
+                    native_id, entity, ..
+                }
+                | EntityHistoryKind::Scale {
+                    native_id, entity, ..
+                }
+                | EntityHistoryKind::Status {
+                    native_id, entity, ..
+                }
+                | EntityHistoryKind::Animation {
+                    native_id, entity, ..
+                } => vec![(*native_id, *entity)],
+                EntityHistoryKind::Passengers {
+                    entity, passengers, ..
+                } => self
+                    .model
+                    .inputs
+                    .values()
+                    .filter(|input| {
+                        Some(input.entity) == *entity
+                            || match passengers {
+                                EntityHistoryValue::Retained { value } => {
+                                    value.iter().any(|(_, id)| *id == Some(input.entity))
+                                }
+                                EntityHistoryValue::RetentionLimit => true,
+                            }
                     })
-            });
-            if value.is_empty() {
-                return None;
+                    .map(|input| (input.entity.native_id(), Some(input.entity)))
+                    .collect(),
+                _ => vec![(self.own_id, None)],
+            };
+            for (native_id, entity) in affected {
+                self.errors
+                    .entry(native_id)
+                    .or_insert((entity, error.to_string()));
             }
         }
-        _ => {}
     }
-    Some(record)
-}
 
-pub(super) fn checkpoint_unavailable() -> crate::Error {
-    failure("contact bootstrap checkpoint budget exhausted")
+    fn seed(
+        &self,
+        target: &mut OwnedContacts,
+        surviving: &[EntityId],
+        own_metadata: &mut BTreeMap<u8, EntityDataValue>,
+    ) -> Result<()> {
+        let own = target.world.order.body(1).unwrap().native_id;
+        if self.model.world.order.body(1).map(|b| b.native_id) != Some(own) {
+            return Err(failure("contact checkpoint local player changed"));
+        }
+        target.world = self.model.world.clone();
+        target.inputs = self.model.inputs.clone();
+        for input in target.inputs.values_mut() {
+            input.entity.session.connection_id = target.session.connection_id;
+        }
+        target.native_keys = self.model.native_keys.clone();
+        target.fresh = self.model.fresh;
+        if let Some(scope) = &target.boat {
+            for id in &scope.ignored {
+                if let Some(&key) = target.native_keys.get(&id.native_id()) {
+                    target
+                        .world
+                        .order
+                        .bootstrap_placeholder(key)
+                        .map_err(failure)?;
+                }
+            }
+        }
+        let discard = target
+            .inputs
+            .iter()
+            .filter(|(_, input)| {
+                !surviving.contains(&input.entity)
+                    || target
+                        .boat
+                        .as_ref()
+                        .is_some_and(|scope| scope.ignored.contains(&input.entity))
+            })
+            .map(|(&key, _)| key)
+            .collect::<Vec<_>>();
+        for key in discard {
+            target
+                .world
+                .order
+                .bootstrap_placeholder(key)
+                .map_err(failure)?;
+            target.inputs.remove(&key);
+            target.world.bodies.remove(&key);
+            target.world.spatial.remove(key).map_err(failure)?;
+        }
+        target.checkpoint_errors = self
+            .errors
+            .values()
+            .map(|(entity, error)| {
+                (
+                    entity.map(|mut id| {
+                        id.session.connection_id = target.session.connection_id;
+                        id
+                    }),
+                    error.clone(),
+                )
+            })
+            .collect();
+        if let Some(error) = &self.global_error {
+            target.checkpoint_errors.push((None, error.clone()));
+        }
+        *own_metadata = self.own_metadata.clone();
+        Ok(())
+    }
 }
 
 impl OwnedContacts {
+    fn empty(session: SessionStamp, own_native_id: i32) -> Result<Self> {
+        let mut model = Self {
+            world: ContactTickWorld::new(session.version, 1),
+            session,
+            owner: 0,
+            cursor: None,
+            fresh: 1,
+            inputs: BTreeMap::new(),
+            origin: 0,
+            tick: 0,
+            receive_sequence: 0,
+            valid: true,
+            boat: None,
+            native_keys: BTreeMap::from([(own_native_id, 1)]),
+            own_glide: false,
+            checkpoint_errors: Vec::new(),
+        };
+        model.world.admit(tick_body(1, own_native_id, true), None)?;
+        Ok(model)
+    }
+
     pub(crate) fn has_bodies(&self) -> bool {
         !self.world.bodies.is_empty()
     }
@@ -512,22 +674,10 @@ impl OwnedContacts {
         boat: Option<BoatScope>,
         own_glide: bool,
     ) -> Result<Self> {
-        let mut model = Self {
-            world: ContactTickWorld::new(session.version, 1),
-            session,
-            owner,
-            cursor: None,
-            fresh: 1,
-            inputs: BTreeMap::new(),
-            origin: 0,
-            tick: 0,
-            receive_sequence,
-            valid: true,
-            boat,
-            native_keys: BTreeMap::from([(own_native_id, 1)]),
-            own_glide,
-        };
-        model.world.admit(tick_body(1, own_native_id, true), None)?;
+        let mut model = Self::empty(session, own_native_id)?;
+        model.owner = owner;
+        model.boat = boat;
+        model.own_glide = own_glide;
         model.drain(ledger, receive_sequence, true)?;
         model.origin = model.cursor.map_or(0, EntityHistoryCursor::ordinal);
         if let Some(scope) = &model.boat {
@@ -596,12 +746,6 @@ impl OwnedContacts {
 
     fn drain(&mut self, ledger: &SpawnLedger, sequence: u64, bootstrap: bool) -> Result<()> {
         let mut records = 0;
-        let own_id = self
-            .world
-            .order
-            .body(self.world.own_key)
-            .ok_or_else(|| failure("own contact lifetime missing"))?
-            .native_id;
         let mut own_metadata = BTreeMap::new();
         let surviving = ledger
             .capture(self.session, sequence)
@@ -609,15 +753,18 @@ impl OwnedContacts {
             .into_iter()
             .map(|e| e.id)
             .collect::<Vec<_>>();
-        let mut checkpoint = if bootstrap {
-            let (records, boundary) = ledger.contact_checkpoint(self.session)?;
+        if bootstrap {
+            let (checkpoint, boundary) = ledger.contact_checkpoint(self.session)?;
+            if ledger.contact_checkpoint_required() {
+                return Err(failure("contact checkpoint local player missing"));
+            }
+            if let Some(checkpoint) = checkpoint {
+                checkpoint.seed(self, &surviving, &mut own_metadata)?;
+            }
             self.cursor = Some(boundary);
-            Some(records)
-        } else {
-            None
-        };
+        }
         loop {
-            let mut page = ledger.history_after(
+            let page = ledger.history_after(
                 self.session,
                 sequence,
                 self.cursor,
@@ -629,324 +776,12 @@ impl OwnedContacts {
             if page.session != self.session {
                 return Err(failure("contact world changed"));
             }
-            if let Some(seed) = checkpoint.take() {
-                // One reduction stream, checkpoint through B followed strictly by
-                // B+1..tail. The immutable ledger borrow is the receipt fence.
-                page.records.splice(0..0, seed);
-            }
             records += page.records.len();
-            if records > MAX_ENTITY_HISTORY_RECORDS * if bootstrap { 2 } else { 1 } {
+            if records > MAX_ENTITY_HISTORY_RECORDS {
                 return Err(failure("contact history drain budget"));
             }
             for record in &page.records {
-                // A new owner's numerical constructor origin belongs to its
-                // current world. Earlier worlds never supply current bodies.
-                if record.session != self.session {
-                    if bootstrap {
-                        continue;
-                    }
-                    return Err(failure("contact record lifetime changed"));
-                }
-                let ordinal = record.ordinal;
-                match &record.kind {
-                    EntityHistoryKind::Spawn(m) => {
-                        let id = m.entity.id;
-                        let old = self
-                            .world
-                            .bodies
-                            .iter()
-                            .filter(|(_, body)| body.native_id == id.native_id())
-                            .map(|(&key, _)| key)
-                            .collect::<Vec<_>>();
-                        for key in old {
-                            self.world.bodies.remove(&key);
-                            self.inputs.remove(&key);
-                            self.world.spatial.remove(key).map_err(failure)?;
-                        }
-                        if id.session() != self.session
-                            || id.spawn_sequence() != record.receive_sequence
-                        {
-                            return Err(failure("contact spawn provenance"));
-                        }
-                        let Some(name) = m.entity.type_name.as_deref() else {
-                            return Err(failure("unknown contact entity type"));
-                        };
-                        if (bootstrap && !surviving.contains(&id))
-                            || !matches!(
-                                name,
-                                "minecraft:player"
-                                    | "minecraft:cow"
-                                    | "minecraft:pig"
-                                    | "minecraft:zombie"
-                            )
-                            || self.boat.as_ref().is_some_and(|b| b.ignored.contains(&id))
-                        {
-                            // Current unqualified dispatch is refused below. A
-                            // removed old body still contributes map capacity.
-                            self.fresh = self
-                                .fresh
-                                .checked_add(1)
-                                .ok_or_else(|| failure("contact lifetime exhausted"))?;
-                            self.world
-                                .admit(tick_body(self.fresh, id.native_id(), false), None)?;
-                            self.native_keys.insert(id.native_id(), self.fresh);
-                            continue;
-                        }
-                        let p = m
-                            .position
-                            .as_ref()
-                            .ok_or_else(|| failure("contact spawn position missing"))?;
-                        let r = m
-                            .rotation
-                            .as_ref()
-                            .ok_or_else(|| failure("contact spawn rotation missing"))?;
-                        for source in [p.source, r.source] {
-                            if source
-                                != (crate::client::ValueSource::Received {
-                                    sequence: record.receive_sequence,
-                                })
-                            {
-                                return Err(failure("contact spawn receipt source"));
-                            }
-                        }
-                        self.fresh = self
-                            .fresh
-                            .checked_add(1)
-                            .ok_or_else(|| failure("contact lifetime exhausted"))?;
-                        let dimensions = super::geometry::shape(
-                            self.session.version,
-                            name,
-                            EntityPose::Standing,
-                            1.,
-                            1.,
-                        );
-                        let body = ContactTickBody::new(
-                            self.session.version,
-                            (self.fresh, id.native_id()),
-                            if name == "minecraft:player" {
-                                ContactDispatch::RemotePlayer
-                            } else {
-                                ContactDispatch::InheritedLiving
-                            },
-                            LivingInterpolationPose {
-                                position: p.value.position,
-                                rotation: r.value,
-                            },
-                            m.velocity.as_ref().map_or([0.; 3], |v| v.value),
-                            ordinal,
-                            [dimensions.0, dimensions.1],
-                        )?;
-                        self.world.admit(
-                            tick_body(self.fresh, id.native_id(), name == "minecraft:player"),
-                            Some(body),
-                        )?;
-                        self.native_keys.insert(id.native_id(), self.fresh);
-                        self.inputs.insert(
-                            self.fresh,
-                            Inputs {
-                                entity: id,
-                                name: name.to_owned(),
-                                uuid: m.entity.uuid,
-                                alive: true,
-                                pose: EntityPose::Standing,
-                                spectator: false,
-                                baby: 1.,
-                            },
-                        );
-                    }
-                    EntityHistoryKind::Motion(m) => {
-                        if let Some(body) = self
-                            .world
-                            .bodies
-                            .values_mut()
-                            .find(|b| b.native_id == m.entity.id.native_id())
-                        {
-                            if self.inputs[&body.key].entity != m.entity.id {
-                                return Err(failure("contact motion spawn changed"));
-                            }
-                            let packet = m
-                                .packet
-                                .as_ref()
-                                .ok_or_else(|| failure("contact operation missing"))?;
-                            if packet.source
-                                != (crate::client::ValueSource::Received {
-                                    sequence: record.receive_sequence,
-                                })
-                            {
-                                return Err(failure("contact motion provenance"));
-                            }
-                            body.apply(
-                                self.session.version,
-                                ordinal,
-                                packet
-                                    .value
-                                    .living_packet(self.session.version)
-                                    .map_err(failure)?,
-                            )?;
-                            let contact = body.contact();
-                            if self.session.version == crate::MinecraftVersion::Java1_16_1 {
-                                self.world
-                                    .spatial
-                                    .set_bounds_in_listed_section(body.key, contact.bounds)
-                                    .map_err(failure)?;
-                            } else {
-                                super::contact_tick::index_geometry(
-                                    &mut self.world.spatial,
-                                    body.key,
-                                    contact.push.position,
-                                    contact.bounds,
-                                )?;
-                            }
-                        }
-                    }
-                    EntityHistoryKind::Removed { native_id, .. } => {
-                        self.world
-                            .order
-                            .remove_membership(*native_id)
-                            .map_err(failure)?;
-                        if let Some(key) = self.native_keys.remove(native_id) {
-                            self.world.spatial.remove(key).map_err(failure)?;
-                        }
-                        let keys = self
-                            .world
-                            .bodies
-                            .iter()
-                            .filter(|(_, b)| b.native_id == *native_id)
-                            .map(|(&k, _)| k)
-                            .collect::<Vec<_>>();
-                        for key in keys {
-                            self.world.bodies.remove(&key);
-                            self.inputs.remove(&key);
-                        }
-                    }
-                    EntityHistoryKind::Metadata {
-                        native_id,
-                        entity,
-                        entries,
-                        complete,
-                    } => {
-                        if *native_id == own_id {
-                            let EntityHistoryValue::Retained { value } = entries else {
-                                return Err(failure("own contact metadata gap"));
-                            };
-                            if !complete {
-                                return Err(failure("own contact metadata partial decode"));
-                            }
-                            for entry in value {
-                                if bootstrap {
-                                    own_metadata.insert(entry.index, entry.value.clone());
-                                } else {
-                                    self.own_metadata(entry.index, &entry.value)?;
-                                }
-                            }
-                            continue;
-                        }
-                        let Some(entity) = entity else {
-                            continue;
-                        };
-                        let Some(key) = self
-                            .inputs
-                            .iter()
-                            .find(|(_, i)| i.entity == *entity)
-                            .map(|(&k, _)| k)
-                        else {
-                            continue;
-                        };
-                        let EntityHistoryValue::Retained { value } = entries else {
-                            return Err(failure("contact metadata retention gap"));
-                        };
-                        if !complete {
-                            return Err(failure("contact metadata partial decode"));
-                        }
-                        for entry in value {
-                            self.metadata(key, entry.index, &entry.value)?;
-                        }
-                    }
-                    EntityHistoryKind::Scale {
-                        entity: Some(entity),
-                        attribute,
-                        ..
-                    } if self.inputs.values().any(|i| i.entity == *entity) => {
-                        let EntityHistoryValue::Retained { value } = attribute else {
-                            return Err(failure("contact scale retention gap"));
-                        };
-                        if value.modifiers.len() > 16
-                            || !value.base.is_finite()
-                            || value.modifiers.iter().any(|m| !m.amount.is_finite())
-                        {
-                            return Err(failure("contact scale unavailable"));
-                        }
-                        let modifiers = value.modifiers.iter().collect::<Vec<_>>();
-                        let scale = crate::client::physics::attribute_value(
-                            self.session.version,
-                            value.base,
-                            &modifiers,
-                        )
-                        .clamp(0.0625, 16.) as f32;
-                        if scale != 1. {
-                            return Err(failure("contact entity requires unit scale"));
-                        }
-                    }
-                    EntityHistoryKind::Equipment {
-                        entity: Some(entity),
-                        entries,
-                        complete,
-                        ..
-                    } if self.inputs.values().any(|i| i.entity == *entity) => {
-                        if !complete || matches!(entries, EntityHistoryValue::RetentionLimit) {
-                            return Err(failure("contact equipment input unavailable"));
-                        }
-                    }
-                    EntityHistoryKind::Status {
-                        entity: Some(entity),
-                        ..
-                    }
-                    | EntityHistoryKind::Animation {
-                        entity: Some(entity),
-                        ..
-                    } if self.inputs.values().any(|i| i.entity == *entity) => {
-                        return Err(failure("unqualified contact status/animation dispatch"));
-                    }
-                    EntityHistoryKind::Passengers {
-                        entity, passengers, ..
-                    } => {
-                        let EntityHistoryValue::Retained { value } = passengers else {
-                            return Err(failure("contact passenger history unavailable"));
-                        };
-                        if let Some(scope) = &self.boat {
-                            if *entity == Some(scope.entity) {
-                                if !bootstrap
-                                    && value.iter().map(|(id, _)| *id).collect::<Vec<_>>()
-                                        != scope.passengers
-                                {
-                                    return Err(failure("boat contact passenger fence changed"));
-                                }
-                                if value.iter().all(|(id, entity)| {
-                                    scope.passengers.contains(id)
-                                        && (self.native_keys.get(id) == Some(&1)
-                                            || entity.is_some_and(|id| scope.ignored.contains(&id)))
-                                }) {
-                                    continue;
-                                }
-                            }
-                        }
-                        if self.inputs.values().any(|i| {
-                            Some(i.entity) == *entity
-                                || value.iter().any(|(_, id)| *id == Some(i.entity))
-                        }) {
-                            return Err(failure(
-                                "living passenger travel requires a separate contact origin",
-                            ));
-                        }
-                    }
-                    EntityHistoryKind::OwnPositionCorrection { .. } if !bootstrap => {
-                        return Err(failure("own correction discarded contact origin"));
-                    }
-                    EntityHistoryKind::WorldChanged { .. } if !bootstrap => {
-                        return Err(failure("world change discarded contact origin"));
-                    }
-                    _ => {}
-                }
+                self.reduce_record(record, bootstrap, Some(&surviving), &mut own_metadata)?;
             }
             self.cursor = Some(page.next_cursor);
             if !page.has_more {
@@ -956,6 +791,23 @@ impl OwnedContacts {
         for (index, value) in own_metadata {
             self.own_metadata(index, &value)?;
         }
+        for (entity, error) in &self.checkpoint_errors {
+            if entity.is_none()
+                || entity.is_some_and(|id| {
+                    surviving.contains(&id)
+                        && !self
+                            .boat
+                            .as_ref()
+                            .is_some_and(|scope| scope.ignored.contains(&id))
+                })
+            {
+                return Err(crate::Error::new(
+                    crate::ErrorKind::Unsupported,
+                    anyhow::anyhow!("{error}"),
+                ));
+            }
+        }
+        self.checkpoint_errors.clear();
         // Every surviving body must have a qualified runtime dispatch. No
         // default box or received target is promoted to current contact state.
         let surviving = ledger.capture(self.session, sequence);
@@ -1022,6 +874,350 @@ impl OwnedContacts {
             }
         }
         Ok(())
+    }
+
+    fn reduce_record(
+        &mut self,
+        record: &super::EntityHistoryRecord,
+        bootstrap: bool,
+        surviving: Option<&[EntityId]>,
+        own_metadata: &mut BTreeMap<u8, EntityDataValue>,
+    ) -> Result<()> {
+        let own_id = self
+            .world
+            .order
+            .body(self.world.own_key)
+            .ok_or_else(|| failure("own contact lifetime missing"))?
+            .native_id;
+        // A new owner's numerical constructor origin belongs to its
+        // current world. Earlier worlds never supply current bodies.
+        if record.session != self.session {
+            if bootstrap {
+                return Ok(());
+            }
+            return Err(failure("contact record lifetime changed"));
+        }
+        let ordinal = record.ordinal;
+        match &record.kind {
+            EntityHistoryKind::Spawn(m) => {
+                let id = m.entity.id;
+                let old = self
+                    .world
+                    .bodies
+                    .iter()
+                    .filter(|(_, body)| body.native_id == id.native_id())
+                    .map(|(&key, _)| key)
+                    .collect::<Vec<_>>();
+                for key in old {
+                    self.world.bodies.remove(&key);
+                    self.inputs.remove(&key);
+                    self.world.spatial.remove(key).map_err(failure)?;
+                }
+                if id.session() != self.session || id.spawn_sequence() != record.receive_sequence {
+                    return Err(failure("contact spawn provenance"));
+                }
+                let Some(name) = m.entity.type_name.as_deref() else {
+                    return Err(failure("unknown contact entity type"));
+                };
+                if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
+                    || !matches!(
+                        name,
+                        "minecraft:player" | "minecraft:cow" | "minecraft:pig" | "minecraft:zombie"
+                    )
+                    || self.boat.as_ref().is_some_and(|b| b.ignored.contains(&id))
+                {
+                    // Current unqualified dispatch is refused below. A
+                    // removed old body still contributes map capacity.
+                    self.fresh = self
+                        .fresh
+                        .checked_add(1)
+                        .ok_or_else(|| failure("contact lifetime exhausted"))?;
+                    self.world
+                        .admit(tick_body(self.fresh, id.native_id(), false), None)?;
+                    self.native_keys.insert(id.native_id(), self.fresh);
+                    return Ok(());
+                }
+                let p = m
+                    .position
+                    .as_ref()
+                    .ok_or_else(|| failure("contact spawn position missing"))?;
+                let r = m
+                    .rotation
+                    .as_ref()
+                    .ok_or_else(|| failure("contact spawn rotation missing"))?;
+                for source in [p.source, r.source] {
+                    if source
+                        != (crate::client::ValueSource::Received {
+                            sequence: record.receive_sequence,
+                        })
+                    {
+                        return Err(failure("contact spawn receipt source"));
+                    }
+                }
+                self.fresh = self
+                    .fresh
+                    .checked_add(1)
+                    .ok_or_else(|| failure("contact lifetime exhausted"))?;
+                let dimensions = super::geometry::shape(
+                    self.session.version,
+                    name,
+                    EntityPose::Standing,
+                    1.,
+                    1.,
+                );
+                let body = ContactTickBody::new(
+                    self.session.version,
+                    (self.fresh, id.native_id()),
+                    if name == "minecraft:player" {
+                        ContactDispatch::RemotePlayer
+                    } else {
+                        ContactDispatch::InheritedLiving
+                    },
+                    LivingInterpolationPose {
+                        position: p.value.position,
+                        rotation: r.value,
+                    },
+                    m.velocity.as_ref().map_or([0.; 3], |v| v.value),
+                    ordinal,
+                    [dimensions.0, dimensions.1],
+                )?;
+                self.world.admit(
+                    tick_body(self.fresh, id.native_id(), name == "minecraft:player"),
+                    Some(body),
+                )?;
+                self.native_keys.insert(id.native_id(), self.fresh);
+                self.inputs.insert(
+                    self.fresh,
+                    Inputs {
+                        entity: id,
+                        name: name.to_owned(),
+                        uuid: m.entity.uuid,
+                        alive: true,
+                        pose: EntityPose::Standing,
+                        spectator: false,
+                        baby: 1.,
+                    },
+                );
+            }
+            EntityHistoryKind::Motion(m) => {
+                if let Some(body) = self
+                    .world
+                    .bodies
+                    .values_mut()
+                    .find(|b| b.native_id == m.entity.id.native_id())
+                {
+                    if self.inputs[&body.key].entity != m.entity.id {
+                        return Err(failure("contact motion spawn changed"));
+                    }
+                    let packet = m
+                        .packet
+                        .as_ref()
+                        .ok_or_else(|| failure("contact operation missing"))?;
+                    if packet.source
+                        != (crate::client::ValueSource::Received {
+                            sequence: record.receive_sequence,
+                        })
+                    {
+                        return Err(failure("contact motion provenance"));
+                    }
+                    body.apply(
+                        self.session.version,
+                        ordinal,
+                        packet
+                            .value
+                            .living_packet(self.session.version)
+                            .map_err(failure)?,
+                    )?;
+                    let contact = body.contact();
+                    if self.session.version == crate::MinecraftVersion::Java1_16_1 {
+                        self.world
+                            .spatial
+                            .set_bounds_in_listed_section(body.key, contact.bounds)
+                            .map_err(failure)?;
+                    } else {
+                        super::contact_tick::index_geometry(
+                            &mut self.world.spatial,
+                            body.key,
+                            contact.push.position,
+                            contact.bounds,
+                        )?;
+                    }
+                }
+            }
+            EntityHistoryKind::Removed { native_id, .. } => {
+                self.world
+                    .order
+                    .remove_membership(*native_id)
+                    .map_err(failure)?;
+                if let Some(key) = self.native_keys.remove(native_id) {
+                    self.world.spatial.remove(key).map_err(failure)?;
+                }
+                let keys = self
+                    .world
+                    .bodies
+                    .iter()
+                    .filter(|(_, b)| b.native_id == *native_id)
+                    .map(|(&k, _)| k)
+                    .collect::<Vec<_>>();
+                for key in keys {
+                    self.world.bodies.remove(&key);
+                    self.inputs.remove(&key);
+                }
+            }
+            EntityHistoryKind::Metadata {
+                native_id,
+                entity,
+                entries,
+                complete,
+            } => {
+                if *native_id == own_id {
+                    let EntityHistoryValue::Retained { value } = entries else {
+                        return Err(failure("own contact metadata gap"));
+                    };
+                    if !complete {
+                        return Err(failure("own contact metadata partial decode"));
+                    }
+                    for entry in value {
+                        if bootstrap {
+                            if self.own_metadata_index(entry.index) {
+                                own_metadata.insert(entry.index, entry.value.clone());
+                            }
+                        } else {
+                            self.own_metadata(entry.index, &entry.value)?;
+                        }
+                    }
+                    return Ok(());
+                }
+                let Some(entity) = entity else {
+                    return Ok(());
+                };
+                let Some(key) = self
+                    .inputs
+                    .iter()
+                    .find(|(_, i)| i.entity == *entity)
+                    .map(|(&k, _)| k)
+                else {
+                    return Ok(());
+                };
+                let EntityHistoryValue::Retained { value } = entries else {
+                    return Err(failure("contact metadata retention gap"));
+                };
+                if !complete {
+                    return Err(failure("contact metadata partial decode"));
+                }
+                for entry in value {
+                    self.metadata(key, entry.index, &entry.value)?;
+                }
+            }
+            EntityHistoryKind::Scale {
+                entity: Some(entity),
+                attribute,
+                ..
+            } if self.inputs.values().any(|i| i.entity == *entity) => {
+                let EntityHistoryValue::Retained { value } = attribute else {
+                    return Err(failure("contact scale retention gap"));
+                };
+                if value.modifiers.len() > 16
+                    || !value.base.is_finite()
+                    || value.modifiers.iter().any(|m| !m.amount.is_finite())
+                {
+                    return Err(failure("contact scale unavailable"));
+                }
+                let modifiers = value.modifiers.iter().collect::<Vec<_>>();
+                let scale = crate::client::physics::attribute_value(
+                    self.session.version,
+                    value.base,
+                    &modifiers,
+                )
+                .clamp(0.0625, 16.) as f32;
+                if scale != 1. {
+                    return Err(failure("contact entity requires unit scale"));
+                }
+            }
+            EntityHistoryKind::Equipment {
+                entity: Some(entity),
+                entries,
+                complete,
+                ..
+            } if self.inputs.values().any(|i| i.entity == *entity) => {
+                if !complete || matches!(entries, EntityHistoryValue::RetentionLimit) {
+                    return Err(failure("contact equipment input unavailable"));
+                }
+            }
+            EntityHistoryKind::Status {
+                entity: Some(entity),
+                ..
+            }
+            | EntityHistoryKind::Animation {
+                entity: Some(entity),
+                ..
+            } if self.inputs.values().any(|i| i.entity == *entity) => {
+                return Err(failure("unqualified contact status/animation dispatch"));
+            }
+            EntityHistoryKind::Passengers {
+                entity, passengers, ..
+            } => {
+                let EntityHistoryValue::Retained { value } = passengers else {
+                    return Err(failure("contact passenger history unavailable"));
+                };
+                if let Some(scope) = &self.boat {
+                    if *entity == Some(scope.entity) {
+                        if !bootstrap
+                            && value.iter().map(|(id, _)| *id).collect::<Vec<_>>()
+                                != scope.passengers
+                        {
+                            return Err(failure("boat contact passenger fence changed"));
+                        }
+                        if value.iter().all(|(id, entity)| {
+                            scope.passengers.contains(id)
+                                && (self.native_keys.get(id) == Some(&1)
+                                    || entity.is_some_and(|id| scope.ignored.contains(&id)))
+                        }) {
+                            return Ok(());
+                        }
+                    }
+                }
+                if self.inputs.values().any(|i| {
+                    Some(i.entity) == *entity || value.iter().any(|(_, id)| *id == Some(i.entity))
+                }) {
+                    return Err(failure(
+                        "living passenger travel requires a separate contact origin",
+                    ));
+                }
+            }
+            EntityHistoryKind::OwnPositionCorrection { .. } if !bootstrap => {
+                return Err(failure("own correction discarded contact origin"));
+            }
+            EntityHistoryKind::WorldChanged { .. } if !bootstrap => {
+                return Err(failure("world change discarded contact origin"));
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn own_metadata_index(&self, index: u8) -> bool {
+        index == 6
+            || self
+                .session
+                .version
+                .table()
+                .entity_data("minecraft:player")
+                .iter()
+                .any(|row| {
+                    row.index == index
+                        && [
+                            EntityDataField::SleepingPosition,
+                            EntityDataField::LivingFlags,
+                        ]
+                        .iter()
+                        .any(|field| {
+                            field
+                                .official_names()
+                                .iter()
+                                .any(|&(owner, name)| row.owner == owner && row.field == name)
+                        })
+                })
     }
 
     fn own_metadata(&self, index: u8, value: &EntityDataValue) -> Result<()> {
@@ -1292,6 +1488,7 @@ mod tests {
             world_generation: 3,
         };
         let mut ledger = SpawnLedger::default();
+        ledger.contact_local_player(99);
         ledger.history_context(version, 3, 1);
         ledger
             .insert(
@@ -1329,6 +1526,79 @@ mod tests {
             "order": format!("{:?}", model.world.order),
             "spatial": format!("{:?}", model.world.spatial),
         })
+    }
+
+    #[test]
+    fn sustained_meaningful_traffic_compacts_numerically_before_fresh_admission() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            let mut complete = OwnedContacts::new(session, 10, 99, &ledger, 1).unwrap();
+            let end = 8 * MAX_ENTITY_HISTORY_RECORDS as u64;
+            for sequence in 2..=end {
+                ledger.history_context(version, 3, sequence);
+                ledger.receive_motion(
+                    version,
+                    7,
+                    NativeMotion::Relative {
+                        delta: [if sequence % 2 == 0 { 128 } else { -64 }, 0, 32],
+                        rotation: Some([(sequence % 360) as f32, 12.]),
+                        ground: true,
+                    },
+                    sequence,
+                );
+                ledger.receive_metadata(
+                    7,
+                    [(6, EntityDataValue::Pose((sequence % 2) as i32))],
+                    true,
+                    sequence,
+                );
+                complete.refresh(10, &ledger, sequence).unwrap();
+            }
+            let checkpoint = ledger.contact_checkpoint(session).unwrap().0.unwrap();
+            assert_eq!(checkpoint.model.inputs.len(), 1);
+            assert_eq!(checkpoint.model.world.bodies.len(), 1);
+            assert!(checkpoint.errors.is_empty());
+            assert!(checkpoint.global_error.is_none());
+            let public = ledger.history_after(session, end, None, 1).unwrap();
+            assert!(public.gap.unwrap().dropped_through > 8 * MAX_ENTITY_HISTORY_RECORDS as u64);
+            let mut models = Vec::new();
+            for glide in [false, true] {
+                let fresh =
+                    OwnedContacts::new_scoped(session, 11, 99, &ledger, end, None, glide).unwrap();
+                assert_eq!(numerical_state(&fresh), numerical_state(&complete));
+                assert_eq!(fresh.origin, public.latest_cursor.ordinal());
+                assert_eq!(fresh.cursor, Some(public.latest_cursor));
+                assert_eq!(fresh.tick, 0);
+                models.push(fresh);
+            }
+            ledger.history_context(version, 3, end + 1);
+            ledger.receive_motion(version, 7, NativeMotion::HeadYaw(45.), end + 1);
+            complete.refresh(10, &ledger, end + 1).unwrap();
+            for mut fresh in models {
+                fresh.refresh(11, &ledger, end + 1).unwrap();
+                assert_eq!(numerical_state(&fresh), numerical_state(&complete));
+            }
+        }
+    }
+
+    #[test]
+    fn evicted_partial_metadata_refuses_survivor_but_not_retired_lifetime() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.receive_metadata(7, [(6, EntityDataValue::Pose(0))], false, 1);
+            for sequence in 2..=2 * MAX_ENTITY_HISTORY_RECORDS as u64 {
+                ledger.history_context(version, 3, sequence);
+                ledger.receive_motion(version, 7, NativeMotion::HeadYaw(0.), sequence);
+            }
+            assert!(
+                OwnedContacts::new(session, 11, 99, &ledger, 16384)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("partial decode")
+            );
+            ledger.remove(7);
+            assert!(OwnedContacts::new(session, 12, 99, &ledger, 16384).is_ok());
+        }
     }
 
     #[test]
@@ -1460,10 +1730,35 @@ mod tests {
                 },
                 46,
             );
+            ledger
+                .insert(
+                    version,
+                    NativeSpawn {
+                        id: 8,
+                        uuid: Some([4; 16]),
+                        type_id: None,
+                        dedicated_type_name: Some("player"),
+                        position: [2., 65., 2.],
+                        living: Some(true),
+                    },
+                    46,
+                    128,
+                )
+                .unwrap();
+            ledger.initialize_motion(
+                8,
+                NativeSpawnMotion {
+                    position: Some([2., 65., 2.]),
+                    rotation: Some([0.; 2]),
+                    head_yaw: Some(0.),
+                    velocity: Some([0.; 3]),
+                },
+                46,
+            );
             let scope = BoatScope {
                 entity: ledger.identity(session, 102).unwrap(),
-                passengers: vec![99],
-                ignored: Vec::new(),
+                passengers: vec![99, 8],
+                ignored: vec![ledger.identity(session, 8).unwrap()],
             };
             let complete =
                 OwnedContacts::new_scoped(session, 10, 99, &ledger, 46, Some(scope.clone()), false)

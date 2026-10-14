@@ -189,47 +189,14 @@ pub struct EntityHistory {
     pub gap: Option<EntityHistoryGap>,
 }
 
-/// Bounded bootstrap reducer program. It retains only instructions observable by
-/// fresh contact admission, never a ticked owner's simulation. Instructions keep
-/// their original order/provenance and use the same reducer as the retained tail.
-#[derive(Default)]
-struct ContactCheckpoint {
-    records: Vec<EntityHistoryRecord>,
-    bytes: usize,
-    unavailable: bool,
-}
-impl ContactCheckpoint {
-    fn advance(&mut self, record: EntityHistoryRecord) {
-        if matches!(record.kind, EntityHistoryKind::WorldChanged { .. }) {
-            *self = Self::default();
-            return;
-        }
-        if self.unavailable {
-            return;
-        }
-        let Some(record) = owned_contacts::bootstrap_instruction(record) else {
-            return;
-        };
-        let bytes = record_bytes(&record.kind);
-        if self.records.len() == MAX_ENTITY_HISTORY_RECORDS
-            || self.bytes.saturating_add(bytes) > MAX_ENTITY_HISTORY_BYTES
-        {
-            self.records.clear();
-            self.bytes = 0;
-            self.unavailable = true;
-            return;
-        }
-        self.bytes += bytes;
-        self.records.push(record);
-    }
-}
-
 pub(crate) struct HistoryLedger {
     records: VecDeque<(EntityHistoryRecord, usize)>,
     bytes: usize,
     next: u64,
     dropped_through: u64,
-    checkpoint: ContactCheckpoint,
+    checkpoint: Option<owned_contacts::ContactCheckpoint>,
+    local_player: Option<i32>,
+    checkpoint_missing: bool,
     started: Instant,
     pub(super) context: Option<(MinecraftVersion, u64, u64)>,
 }
@@ -240,7 +207,9 @@ impl Default for HistoryLedger {
             bytes: 0,
             next: 0,
             dropped_through: 0,
-            checkpoint: ContactCheckpoint::default(),
+            checkpoint: None,
+            local_player: None,
+            checkpoint_missing: false,
             started: Instant::now(),
             context: None,
         }
@@ -261,7 +230,8 @@ impl HistoryLedger {
         };
         if matches!(kind, EntityHistoryKind::WorldChanged { .. }) {
             // Old worlds cannot qualify bodies in a fresh current-world origin.
-            self.checkpoint = ContactCheckpoint::default();
+            self.checkpoint = None;
+            self.checkpoint_missing = false;
         }
         self.next += 1;
         let receive_sequence = self.context.unwrap().2;
@@ -285,8 +255,21 @@ impl HistoryLedger {
             self.dropped_through = record.ordinal;
             if self.context.is_some_and(|(version, generation, _)| {
                 record.session.version == version && record.session.world_generation == generation
-            }) {
-                self.checkpoint.advance(record);
+            }) && !matches!(record.kind, EntityHistoryKind::WorldChanged { .. })
+            {
+                if self.checkpoint.is_none() {
+                    if let Some(own) = self.local_player {
+                        self.checkpoint = Some(
+                            owned_contacts::ContactCheckpoint::new(record.session, own)
+                                .expect("empty contact reducer"),
+                        );
+                    } else {
+                        self.checkpoint_missing = true;
+                    }
+                }
+                if let Some(checkpoint) = &mut self.checkpoint {
+                    checkpoint.advance(record);
+                }
             }
         }
     }
@@ -618,21 +601,23 @@ impl SpawnLedger {
         self.1
             .record(EntityHistoryKind::OwnPositionCorrection { pose, velocity });
     }
-    /// Called under the receipt lock used for admission. The boundary and program
-    /// cannot race the retained suffix or the surviving lifetime observation.
-    pub(crate) fn contact_checkpoint(
+    /// Configure the local map member before any receipt can be evicted.
+    pub(crate) fn contact_local_player(&mut self, native_id: i32) {
+        self.1.local_player = Some(native_id);
+    }
+    pub(super) fn contact_checkpoint_required(&self) -> bool {
+        self.1.checkpoint_missing
+    }
+    /// Captured with the retained suffix under the admission receipt lock.
+    pub(super) fn contact_checkpoint(
         &self,
         session: SessionStamp,
-    ) -> Result<(Vec<EntityHistoryRecord>, EntityHistoryCursor)> {
-        if self.1.checkpoint.unavailable {
-            return Err(owned_contacts::checkpoint_unavailable());
-        }
-        let mut records = self.1.checkpoint.records.clone();
-        for record in &mut records {
-            stamp_record(record, session);
-        }
+    ) -> Result<(
+        Option<owned_contacts::ContactCheckpoint>,
+        EntityHistoryCursor,
+    )> {
         Ok((
-            records,
+            self.1.checkpoint.clone(),
             EntityHistoryCursor {
                 version: session.version,
                 connection_id: session.connection_id,
@@ -1012,7 +997,7 @@ mod tests {
         }
     }
     #[test]
-    fn checkpoint_boundary_and_paged_suffix_cover_each_stateful_receipt_once() {
+    fn checkpoint_boundary_and_paged_suffix_are_contiguous() {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
             let mut ledger = SpawnLedger::default();
             let session = session(version, 0);
@@ -1026,8 +1011,8 @@ mod tests {
             }
             let (seed, boundary) = ledger.contact_checkpoint(session).unwrap();
             assert_eq!(boundary.ordinal(), ledger.1.dropped_through);
-            assert_eq!(seed.len() as u64, boundary.ordinal());
-            let mut ordinals = seed.iter().map(|r| r.ordinal).collect::<Vec<_>>();
+            assert!(seed.is_none());
+            let mut ordinals = Vec::new();
             let mut cursor = boundary;
             loop {
                 let page = ledger
@@ -1041,34 +1026,48 @@ mod tests {
                     break;
                 }
             }
-            assert_eq!(ordinals, (1..=ledger.1.next).collect::<Vec<_>>());
+            assert_eq!(
+                ordinals,
+                (boundary.ordinal() + 1..=ledger.1.next).collect::<Vec<_>>()
+            );
             ledger.history_context(version, 0, 10243);
             ledger.1.record(EntityHistoryKind::Removed {
                 native_id: 78,
                 entity: None,
             });
             let (seed, boundary) = ledger.contact_checkpoint(session).unwrap();
-            assert_eq!(seed.last().unwrap().ordinal, boundary.ordinal());
+            assert!(seed.is_none());
             assert_eq!(boundary.ordinal(), ledger.1.dropped_through);
         }
     }
 
     #[test]
-    fn checkpoint_budget_is_explicit_and_world_change_recovers() {
+    fn numerical_checkpoint_does_not_exhaust_and_world_change_resets() {
         let version = MinecraftVersion::Java1_16_1;
         let mut ledger = SpawnLedger::default();
-        for sequence in 1..=2 * MAX_ENTITY_HISTORY_RECORDS as u64 + 1 {
+        ledger.contact_local_player(99);
+        for sequence in 1..=8 * MAX_ENTITY_HISTORY_RECORDS as u64 + 1 {
             ledger.history_context(version, 0, sequence);
             ledger.1.record(EntityHistoryKind::Removed {
                 native_id: 7,
                 entity: None,
             });
         }
-        let error = ledger.contact_checkpoint(session(version, 0)).unwrap_err();
-        assert!(error.to_string().contains("checkpoint budget exhausted"));
-        assert!(ledger.1.checkpoint.records.is_empty());
+        assert!(
+            ledger
+                .contact_checkpoint(session(version, 0))
+                .unwrap()
+                .0
+                .is_some()
+        );
         ledger.history_context(version, 1, 20000);
-        assert!(ledger.contact_checkpoint(session(version, 1)).is_ok());
+        assert!(
+            ledger
+                .contact_checkpoint(session(version, 1))
+                .unwrap()
+                .0
+                .is_none()
+        );
         assert!(
             ledger
                 .history_after(session(version, 1), 20000, None, 1)
