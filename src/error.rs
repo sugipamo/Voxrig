@@ -61,7 +61,19 @@ impl Error {
         &self.source
     }
 
+    /// Structured movement refusal, retained through the diagnostic error chain.
+    pub fn movement_refusal(&self) -> Option<&crate::MovementRefusal> {
+        self.source.downcast_ref::<crate::MovementRefusal>()
+    }
+
     fn classify(source: &anyhow::Error) -> ErrorKind {
+        if let Some(refusal) = source.downcast_ref::<crate::MovementRefusal>() {
+            return if matches!(refusal, crate::MovementRefusal::Unsupported { .. }) {
+                ErrorKind::Unsupported
+            } else {
+                ErrorKind::State
+            };
+        }
         let message = format!("{source:#}").to_ascii_lowercase();
         if message.contains("timed out") || message.contains("timeout") {
             ErrorKind::Timeout
@@ -147,6 +159,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn movement_detail_survives_anyhow_context() {
+        let detail = crate::MovementRefusal::permanent("packet timed out".into());
+        let error = Error::from(anyhow::Error::new(detail.clone()).context("movement stopped"));
+        assert_eq!(error.kind(), ErrorKind::State);
+        assert_eq!(error.movement_refusal(), Some(&detail));
+    }
 
     #[test]
     fn classification_is_stable_for_common_boundaries() {

@@ -87,6 +87,8 @@ pub enum VehicleControlStage {
 /// One finite mounted-input run. No control ACK or native position is inferred.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct VehicleControlRecord {
+    /// Structured contact refusal retained alongside the first failure reason.
+    pub movement_refusal: Option<crate::MovementRefusal>,
     /// Original owned identity.
     pub id: VehicleControlId,
     /// Required actual game mode.
@@ -189,6 +191,7 @@ pub(crate) fn prepare(
         .map_or(Some(1), |r| r.id.attempt.checked_add(1))
         .ok_or_else(|| unavailable("vehicle control IDs exhausted"))?;
     Ok(VehicleControlRecord {
+        movement_refusal: None,
         id: VehicleControlId { mount, attempt },
         mode,
         initial: player,
@@ -451,19 +454,25 @@ pub(crate) fn contact_step(
     input: VehicleInput,
     block_at: &mut impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
 ) -> Result<(Option<super::BoatCollisionSample>, Option<BoatFrame>)> {
-    let Some(boat) = &record.boat_motion else {
-        return Ok((None, None));
-    };
-    let mut contacts = boat
-        .contacts
-        .clone()
-        .ok_or_else(|| unavailable("boat contact owner not admitted"))?;
-    contacts.refresh(record.id.attempt(), ledger, vehicle.receive_sequence)?;
-    contacts.teams(social.0, social.1)?;
-    let (sample, frame) =
-        contacts.tick_boat(record, vehicle, ledger, relations, input, block_at)?;
-    record.boat_motion.as_mut().unwrap().contacts = Some(contacts);
-    Ok((Some(sample), Some(frame)))
+    let result: Result<_> = (|| {
+        let Some(boat) = &record.boat_motion else {
+            return Ok((None, None));
+        };
+        let mut contacts = boat
+            .contacts
+            .clone()
+            .ok_or_else(|| unavailable("boat contact owner not admitted"))?;
+        contacts.refresh(record.id.attempt(), ledger, vehicle.receive_sequence)?;
+        contacts.teams(social.0, social.1, crate::MovementOwnerState::Invalidated)?;
+        let (sample, frame) =
+            contacts.tick_boat(record, vehicle, ledger, relations, input, block_at)?;
+        record.boat_motion.as_mut().unwrap().contacts = Some(contacts);
+        Ok((Some(sample), Some(frame)))
+    })();
+    if let Err(error) = &result {
+        record.movement_refusal = error.movement_refusal().cloned();
+    }
+    result
 }
 
 pub(crate) fn boat_packets(

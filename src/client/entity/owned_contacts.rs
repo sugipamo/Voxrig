@@ -3,10 +3,10 @@ use super::{
     EntityDataField, EntityDataValue, EntityHistoryCursor, EntityHistoryKind, EntityHistoryValue,
     EntityId, EntityPose, LivingInterpolationPose, LivingTickBody, MAX_ENTITY_HISTORY_READ,
     MAX_ENTITY_HISTORY_RECORDS, SpawnLedger,
-    contact_tick::{ContactDispatch, ContactTickBody, ContactTickWorld, failure},
+    contact_tick::{ContactDispatch, ContactTickBody, ContactTickWorld},
 };
 use crate::{
-    Result,
+    MovementOwnerState, MovementPacketTrigger, MovementRefusal, Result,
     client::{
         SessionStamp,
         ui::{PlayerListObservation, TeamsObservation},
@@ -79,16 +79,16 @@ pub(crate) struct OwnedContacts {
     boat: Option<BoatScope>,
     native_keys: BTreeMap<i32, u64>,
     own_glide: bool,
-    checkpoint_errors: Vec<(Option<EntityId>, String)>,
+    checkpoint_errors: Vec<(Option<EntityId>, MovementRefusal)>,
 }
 /// Unticked numerical receipt reducer at the public eviction boundary. Storage
 /// follows active lifetimes and native map capacity, rather than receipt count.
 #[derive(Clone, Debug)]
 pub(super) struct ContactCheckpoint {
     model: OwnedContacts,
-    own_metadata: BTreeMap<u8, EntityDataValue>,
-    errors: BTreeMap<i32, (Option<EntityId>, String)>,
-    global_error: Option<String>,
+    own_metadata: BTreeMap<u8, (EntityDataValue, super::EntityHistoryRecord)>,
+    errors: BTreeMap<i32, (Option<EntityId>, MovementRefusal)>,
+    global_error: Option<MovementRefusal>,
     own_id: i32,
 }
 impl ContactCheckpoint {
@@ -130,7 +130,7 @@ impl ContactCheckpoint {
                 {
                     if self.model.fresh == fresh {
                         let Some(next) = fresh.checked_add(1) else {
-                            self.global_error.get_or_insert_with(|| error.to_string());
+                            self.global_error.get_or_insert_with(|| refusal(&error));
                             return;
                         };
                         self.model.fresh = next;
@@ -142,7 +142,7 @@ impl ContactCheckpoint {
                         .admit(tick_body(key, m.entity.id.native_id(), false), None)
                     {
                         self.global_error
-                            .get_or_insert_with(|| order_error.to_string());
+                            .get_or_insert_with(|| refusal(&order_error));
                     }
                 }
                 self.model
@@ -152,7 +152,7 @@ impl ContactCheckpoint {
                     || m.entity.id.session() != record.session
                     || m.entity.id.spawn_sequence() != record.receive_sequence
                 {
-                    self.global_error.get_or_insert_with(|| error.to_string());
+                    self.global_error.get_or_insert_with(|| refusal(&error));
                 }
             }
             if matches!(
@@ -162,7 +162,7 @@ impl ContactCheckpoint {
                     ..
                 }
             ) {
-                self.global_error.get_or_insert_with(|| error.to_string());
+                self.global_error.get_or_insert_with(|| refusal(&error));
             }
             let affected = match &record.kind {
                 EntityHistoryKind::Spawn(m) | EntityHistoryKind::Motion(m) => {
@@ -205,7 +205,7 @@ impl ContactCheckpoint {
             for (native_id, entity) in affected {
                 self.errors
                     .entry(native_id)
-                    .or_insert((entity, error.to_string()));
+                    .or_insert((entity, refusal(&error)));
             }
         }
     }
@@ -214,7 +214,7 @@ impl ContactCheckpoint {
         &self,
         target: &mut OwnedContacts,
         surviving: &[EntityId],
-        own_metadata: &mut BTreeMap<u8, EntityDataValue>,
+        own_metadata: &mut BTreeMap<u8, (EntityDataValue, super::EntityHistoryRecord)>,
     ) -> Result<()> {
         let own = target.world.order.body(1).unwrap().native_id;
         if self.model.world.order.body(1).map(|b| b.native_id) != Some(own) {
@@ -269,7 +269,13 @@ impl ContactCheckpoint {
                         id.session.connection_id = target.session.connection_id;
                         id
                     }),
-                    error.clone(),
+                    {
+                        let mut error = error.clone();
+                        if let Some(id) = &mut error.context_mut().entity {
+                            id.session.connection_id = target.session.connection_id;
+                        }
+                        error
+                    },
                 )
             })
             .collect();
@@ -278,6 +284,49 @@ impl ContactCheckpoint {
         }
         *own_metadata = self.own_metadata.clone();
         Ok(())
+    }
+}
+
+// Local failures are classified at their construction site, never from Display text.
+fn refusal(error: &crate::Error) -> MovementRefusal {
+    error.movement_refusal().cloned().unwrap_or_else(|| {
+        let mut value = MovementRefusal::permanent(error.to_string());
+        if error.kind() == crate::ErrorKind::Unsupported {
+            value = MovementRefusal::Unsupported {
+                context: value.context().clone(),
+            };
+        }
+        value
+    })
+}
+fn failure(reason: impl std::fmt::Debug) -> crate::Error {
+    MovementRefusal::permanent(format!("entity contact model unavailable: {reason:?}")).into_error()
+}
+fn unsupported(reason: impl std::fmt::Debug) -> crate::Error {
+    let context = refusal(&failure(reason)).context().clone();
+    MovementRefusal::Unsupported { context }.into_error()
+}
+fn transient(reason: impl std::fmt::Debug) -> crate::Error {
+    let context = refusal(&failure(reason)).context().clone();
+    MovementRefusal::Transient { context }.into_error()
+}
+fn entity_failure(error: crate::Error, input: &Inputs) -> crate::Error {
+    let mut value = refusal(&error);
+    let c = value.context_mut();
+    c.entity = Some(input.entity);
+    c.native_entity_id = Some(input.entity.native_id());
+    c.entity_type = Some(input.name.clone());
+    value.into_error()
+}
+// Audited native handlers in both versions: see docs/contact-packet-audit.md.
+fn harmless_packet(name: &str, kind: &EntityHistoryKind) -> bool {
+    match kind {
+        EntityHistoryKind::Status { status: 10, .. } => name == "minecraft:sheep",
+        EntityHistoryKind::Status { status: 35, .. }
+        | EntityHistoryKind::Animation {
+            animation: 4 | 5, ..
+        } => true,
+        _ => false,
     }
 }
 
@@ -308,6 +357,19 @@ impl OwnedContacts {
     }
 
     pub(crate) fn tick_boat(
+        &mut self,
+        record: &crate::client::VehicleControlRecord,
+        vehicle: &crate::client::VehicleObservation,
+        ledger: &SpawnLedger,
+        relations: &crate::client::vehicle::PassengerLedger,
+        input: crate::client::VehicleInput,
+        block_at: &mut impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
+    ) -> Result<(crate::client::BoatCollisionSample, crate::client::BoatFrame)> {
+        self.tick_boat_inner(record, vehicle, ledger, relations, input, block_at)
+            .map_err(|error| self.annotate(error, MovementOwnerState::Invalidated))
+    }
+
+    fn tick_boat_inner(
         &mut self,
         record: &crate::client::VehicleControlRecord,
         vehicle: &crate::client::VehicleObservation,
@@ -495,6 +557,29 @@ impl OwnedContacts {
         Option<crate::client::control::GroundJumpOutcome>,
         EntityContactFrame,
     )> {
+        self.tick_player_inner(
+            body,
+            environment,
+            controls,
+            ground_requested,
+            own_team,
+            block_at,
+        )
+        .map_err(|error| self.annotate(error, MovementOwnerState::Invalidated))
+    }
+
+    fn tick_player_inner(
+        &mut self,
+        body: &mut crate::client::physics::Body,
+        environment: &crate::client::physics::Environment,
+        controls: crate::client::control::Controls,
+        ground_requested: bool,
+        own_team: Option<&(String, crate::client::ui::TeamCollision)>,
+        block_at: &mut impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
+    ) -> Result<(
+        Option<crate::client::control::GroundJumpOutcome>,
+        EntityContactFrame,
+    )> {
         use crate::client::{LivingContactBody, LivingPushBody, physics};
         let version = self.session.version;
         let read = std::cell::RefCell::new(block_at);
@@ -626,43 +711,53 @@ impl OwnedContacts {
         record: &crate::client::VehicleControlRecord,
         ledger: &SpawnLedger,
     ) -> Result<Self> {
-        let mount = record.id.mount();
-        let entity = mount
-            .vehicle()
-            .ok_or_else(|| failure("boat contact spawn missing"))?;
-        let own = record
-            .vehicle
-            .player_native_id
-            .ok_or_else(|| failure("boat contact player missing"))?;
-        let passengers = record
-            .vehicle
-            .passengers
-            .as_ref()
-            .ok_or_else(|| failure("boat contact passengers missing"))?
-            .value
-            .clone();
-        let ignored = passengers
-            .iter()
-            .filter(|&&id| id != own)
-            .map(|&id| {
-                ledger
-                    .identity(mount.session(), id)
-                    .ok_or_else(|| failure("boat contact passenger lifetime missing"))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        Self::new_scoped(
-            mount.session(),
-            record.id.attempt(),
-            own,
-            ledger,
-            record.initial.receive_sequence,
-            Some(BoatScope {
-                entity,
-                passengers,
-                ignored,
-            }),
-            false,
-        )
+        let result = (|| {
+            let mount = record.id.mount();
+            let entity = mount
+                .vehicle()
+                .ok_or_else(|| failure("boat contact spawn missing"))?;
+            let own = record
+                .vehicle
+                .player_native_id
+                .ok_or_else(|| failure("boat contact player missing"))?;
+            let passengers = record
+                .vehicle
+                .passengers
+                .as_ref()
+                .ok_or_else(|| failure("boat contact passengers missing"))?
+                .value
+                .clone();
+            let ignored = passengers
+                .iter()
+                .filter(|&&id| id != own)
+                .map(|&id| {
+                    ledger
+                        .identity(mount.session(), id)
+                        .ok_or_else(|| failure("boat contact passenger lifetime missing"))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Self::new_scoped(
+                mount.session(),
+                record.id.attempt(),
+                own,
+                ledger,
+                record.initial.receive_sequence,
+                Some(BoatScope {
+                    entity,
+                    passengers,
+                    ignored,
+                }),
+                false,
+            )
+        })();
+        result.map_err(|error| {
+            let mut value = refusal(&error);
+            let c = value.context_mut();
+            c.session = Some(record.id.mount().session());
+            c.owner_id = Some(record.id.attempt());
+            c.owner_state = MovementOwnerState::NotAdmitted;
+            value.into_error()
+        })
     }
 
     fn new_scoped(
@@ -674,49 +769,59 @@ impl OwnedContacts {
         boat: Option<BoatScope>,
         own_glide: bool,
     ) -> Result<Self> {
-        let mut model = Self::empty(session, own_native_id)?;
-        model.owner = owner;
-        model.boat = boat;
-        model.own_glide = own_glide;
-        model.drain(ledger, receive_sequence, true)?;
-        model.origin = model.cursor.map_or(0, EntityHistoryCursor::ordinal);
-        if let Some(scope) = &model.boat {
-            let root = *model
-                .native_keys
-                .get(&scope.entity.native_id())
-                .ok_or_else(|| failure("boat contact root history missing"))?;
-            let children = scope
-                .passengers
-                .iter()
-                .map(|id| {
-                    model
-                        .native_keys
-                        .get(id)
-                        .copied()
-                        .ok_or_else(|| failure("boat contact child history missing"))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            let mut parent = model
-                .world
-                .order
-                .body(root)
-                .ok_or_else(|| failure("boat contact root retired"))?
-                .clone();
-            parent.passengers = children.clone();
-            parent.player_passengers = 1;
-            model.world.order.update(parent).map_err(failure)?;
-            for key in children {
-                let mut child = model
+        let result = (|| {
+            let mut model = Self::empty(session, own_native_id)?;
+            model.owner = owner;
+            model.boat = boat;
+            model.own_glide = own_glide;
+            model.drain(ledger, receive_sequence, true)?;
+            model.origin = model.cursor.map_or(0, EntityHistoryCursor::ordinal);
+            if let Some(scope) = &model.boat {
+                let root = *model
+                    .native_keys
+                    .get(&scope.entity.native_id())
+                    .ok_or_else(|| failure("boat contact root history missing"))?;
+                let children = scope
+                    .passengers
+                    .iter()
+                    .map(|id| {
+                        model
+                            .native_keys
+                            .get(id)
+                            .copied()
+                            .ok_or_else(|| failure("boat contact child history missing"))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let mut parent = model
                     .world
                     .order
-                    .body(key)
-                    .ok_or_else(|| failure("boat contact child retired"))?
+                    .body(root)
+                    .ok_or_else(|| failure("boat contact root retired"))?
                     .clone();
-                child.passenger_of = Some(root);
-                model.world.order.update(child).map_err(failure)?;
+                parent.passengers = children.clone();
+                parent.player_passengers = 1;
+                model.world.order.update(parent).map_err(failure)?;
+                for key in children {
+                    let mut child = model
+                        .world
+                        .order
+                        .body(key)
+                        .ok_or_else(|| failure("boat contact child retired"))?
+                        .clone();
+                    child.passenger_of = Some(root);
+                    model.world.order.update(child).map_err(failure)?;
+                }
             }
-        }
-        Ok(model)
+            Ok(model)
+        })();
+        result.map_err(|error| {
+            let mut value = refusal(&error);
+            let c = value.context_mut();
+            c.session = Some(session);
+            c.owner_id = Some(owner);
+            c.owner_state = MovementOwnerState::NotAdmitted;
+            value.into_error()
+        })
     }
 
     pub(crate) fn refresh(
@@ -725,26 +830,43 @@ impl OwnedContacts {
         ledger: &SpawnLedger,
         sequence: u64,
     ) -> Result<()> {
-        if !self.valid || owner != self.owner {
-            self.valid = false;
-            self.world.order.invalidate();
-            return Err(failure("discarded contact owner"));
-        }
-        let mut next = self.clone();
-        match next.drain(ledger, sequence, false) {
-            Ok(()) => {
-                *self = next;
-                Ok(())
-            }
-            Err(error) => {
+        let result = (|| {
+            if !self.valid || owner != self.owner {
                 self.valid = false;
                 self.world.order.invalidate();
-                Err(error)
+                return Err(failure("discarded contact owner"));
             }
-        }
+            let mut next = self.clone();
+            match next.drain(ledger, sequence, false) {
+                Ok(()) => {
+                    *self = next;
+                    Ok(())
+                }
+                Err(error) => {
+                    self.valid = false;
+                    self.world.order.invalidate();
+                    Err(error)
+                }
+            }
+        })();
+        result.map_err(|error| self.annotate(error, MovementOwnerState::Invalidated))
     }
 
     fn drain(&mut self, ledger: &SpawnLedger, sequence: u64, bootstrap: bool) -> Result<()> {
+        self.drain_inner(ledger, sequence, bootstrap)
+            .map_err(|error| {
+                self.annotate(
+                    error,
+                    if bootstrap {
+                        MovementOwnerState::NotAdmitted
+                    } else {
+                        MovementOwnerState::Invalidated
+                    },
+                )
+            })
+    }
+
+    fn drain_inner(&mut self, ledger: &SpawnLedger, sequence: u64, bootstrap: bool) -> Result<()> {
         let mut records = 0;
         let mut own_metadata = BTreeMap::new();
         let surviving = ledger
@@ -788,8 +910,26 @@ impl OwnedContacts {
                 break;
             }
         }
-        for (index, value) in own_metadata {
-            self.own_metadata(index, &value)?;
+        for (index, (value, source)) in own_metadata {
+            self.own_metadata(index, &value).map_err(|error| {
+                let mut value = refusal(&error);
+                let c = value.context_mut();
+                c.packet = Some(MovementPacketTrigger {
+                    packet_type: "Metadata".into(),
+                    opcode: 0,
+                });
+                c.receive_sequence = Some(source.receive_sequence);
+                c.record_ordinal = Some(source.ordinal);
+                if let EntityHistoryKind::Metadata {
+                    native_id, entity, ..
+                } = source.kind
+                {
+                    c.native_entity_id = Some(native_id);
+                    c.entity = entity;
+                }
+                c.entity_type = Some("minecraft:player".into());
+                value.into_error()
+            })?;
         }
         for (entity, error) in &self.checkpoint_errors {
             if entity.is_none()
@@ -801,10 +941,7 @@ impl OwnedContacts {
                             .is_some_and(|scope| scope.ignored.contains(&id))
                 })
             {
-                return Err(crate::Error::new(
-                    crate::ErrorKind::Unsupported,
-                    anyhow::anyhow!("{error}"),
-                ));
+                return Err(error.clone().into_error());
             }
         }
         self.checkpoint_errors.clear();
@@ -821,10 +958,20 @@ impl OwnedContacts {
                             .is_some_and(crate::client::vehicle::collision::rigid)
                 })
             {
-                return Err(failure(format!(
+                let mut value = refusal(&unsupported(format!(
                     "unqualified contact dispatch: {:?}",
                     spawn.type_name
                 )));
+                let context = value.context_mut();
+                context.entity = Some(spawn.id);
+                context.native_entity_id = Some(spawn.id.native_id());
+                context.entity_type = spawn.type_name;
+                context.packet = Some(MovementPacketTrigger {
+                    packet_type: "Spawn".into(),
+                    opcode: 0,
+                });
+                context.receive_sequence = Some(spawn.id.spawn_sequence());
+                return Err(value.into_error());
             }
         }
         self.receive_sequence = sequence;
@@ -876,12 +1023,106 @@ impl OwnedContacts {
         Ok(())
     }
 
+    fn annotate(&self, error: crate::Error, state: MovementOwnerState) -> crate::Error {
+        let mut value = refusal(&error);
+        let context = value.context_mut();
+        context.session = Some(self.session);
+        context.owner_id = (self.owner != 0).then_some(self.owner);
+        context.owner_state = state;
+        context.model_tick = Some(self.tick);
+        value.into_error()
+    }
+
     fn reduce_record(
         &mut self,
         record: &super::EntityHistoryRecord,
         bootstrap: bool,
         surviving: Option<&[EntityId]>,
-        own_metadata: &mut BTreeMap<u8, EntityDataValue>,
+        own_metadata: &mut BTreeMap<u8, (EntityDataValue, super::EntityHistoryRecord)>,
+    ) -> Result<()> {
+        self.reduce_record_inner(record, bootstrap, surviving, own_metadata)
+            .map_err(|error| {
+                let mut value = refusal(&error);
+                let c = value.context_mut();
+                let (entity, native, packet, opcode) = match &record.kind {
+                    EntityHistoryKind::Spawn(m) => {
+                        (Some(m.entity.id), Some(m.entity.id.native_id()), "Spawn", 0)
+                    }
+                    EntityHistoryKind::Motion(m) => (
+                        Some(m.entity.id),
+                        Some(m.entity.id.native_id()),
+                        "Motion",
+                        0,
+                    ),
+                    EntityHistoryKind::Status {
+                        entity,
+                        native_id,
+                        status,
+                    } => (*entity, Some(*native_id), "Status", i32::from(*status)),
+                    EntityHistoryKind::Animation {
+                        entity,
+                        native_id,
+                        animation,
+                    } => (
+                        *entity,
+                        Some(*native_id),
+                        "Animation",
+                        i32::from(*animation),
+                    ),
+                    EntityHistoryKind::Metadata {
+                        entity, native_id, ..
+                    } => (*entity, Some(*native_id), "Metadata", 0),
+                    EntityHistoryKind::Equipment {
+                        entity, native_id, ..
+                    } => (*entity, Some(*native_id), "Equipment", 0),
+                    EntityHistoryKind::Scale {
+                        entity, native_id, ..
+                    } => (*entity, Some(*native_id), "Scale", 0),
+                    EntityHistoryKind::Passengers {
+                        entity, native_id, ..
+                    } => (*entity, Some(*native_id), "Passengers", 0),
+                    EntityHistoryKind::Removed { entity, native_id } => {
+                        (*entity, Some(*native_id), "Removed", 0)
+                    }
+                    EntityHistoryKind::WorldChanged { .. } => (None, None, "WorldChanged", 0),
+                    EntityHistoryKind::OwnPositionCorrection { .. } => {
+                        (None, None, "OwnPositionCorrection", 0)
+                    }
+                };
+                c.session = Some(record.session);
+                c.entity = entity;
+                c.native_entity_id = native;
+                c.entity_type = match &record.kind {
+                    EntityHistoryKind::Metadata { native_id, .. }
+                        if self.native_keys.get(native_id) == Some(&1) =>
+                    {
+                        Some("minecraft:player".into())
+                    }
+                    EntityHistoryKind::Spawn(m) | EntityHistoryKind::Motion(m) => {
+                        m.entity.type_name.clone()
+                    }
+                    _ => self
+                        .inputs
+                        .values()
+                        .find(|i| Some(i.entity) == entity)
+                        .map(|i| i.name.clone()),
+                };
+                c.packet = Some(MovementPacketTrigger {
+                    packet_type: packet.into(),
+                    opcode,
+                });
+                c.receive_sequence = Some(record.receive_sequence);
+                c.record_ordinal = Some(record.ordinal);
+                value.into_error()
+            })
+    }
+
+    fn reduce_record_inner(
+        &mut self,
+        record: &super::EntityHistoryRecord,
+        bootstrap: bool,
+        surviving: Option<&[EntityId]>,
+        own_metadata: &mut BTreeMap<u8, (EntityDataValue, super::EntityHistoryRecord)>,
     ) -> Result<()> {
         let own_id = self
             .world
@@ -917,7 +1158,7 @@ impl OwnedContacts {
                     return Err(failure("contact spawn provenance"));
                 }
                 let Some(name) = m.entity.type_name.as_deref() else {
-                    return Err(failure("unknown contact entity type"));
+                    return Err(unsupported("unknown contact entity type"));
                 };
                 if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
                     || !matches!(
@@ -1085,7 +1326,19 @@ impl OwnedContacts {
                     for entry in value {
                         if bootstrap {
                             if self.own_metadata_index(entry.index) {
-                                own_metadata.insert(entry.index, entry.value.clone());
+                                let source = super::EntityHistoryRecord {
+                                    session: record.session,
+                                    ordinal: record.ordinal,
+                                    receive_sequence: record.receive_sequence,
+                                    applied_after: record.applied_after,
+                                    kind: EntityHistoryKind::Metadata {
+                                        native_id: *native_id,
+                                        entity: *entity,
+                                        entries: EntityHistoryValue::Retained { value: Vec::new() },
+                                        complete: true,
+                                    },
+                                };
+                                own_metadata.insert(entry.index, (entry.value.clone(), source));
                             }
                         } else {
                             self.own_metadata(entry.index, &entry.value)?;
@@ -1136,7 +1389,7 @@ impl OwnedContacts {
                 )
                 .clamp(0.0625, 16.) as f32;
                 if scale != 1. {
-                    return Err(failure("contact entity requires unit scale"));
+                    return Err(unsupported("contact entity requires unit scale"));
                 }
             }
             EntityHistoryKind::Equipment {
@@ -1157,7 +1410,15 @@ impl OwnedContacts {
                 entity: Some(entity),
                 ..
             } if self.inputs.values().any(|i| i.entity == *entity) => {
-                return Err(failure("unqualified contact status/animation dispatch"));
+                let name = &self
+                    .inputs
+                    .values()
+                    .find(|i| i.entity == *entity)
+                    .unwrap()
+                    .name;
+                if !harmless_packet(name, &record.kind) {
+                    return Err(unsupported("unqualified contact status/animation dispatch"));
+                }
             }
             EntityHistoryKind::Passengers {
                 entity, passengers, ..
@@ -1185,7 +1446,7 @@ impl OwnedContacts {
                 if self.inputs.values().any(|i| {
                     Some(i.entity) == *entity || value.iter().any(|(_, id)| *id == Some(i.entity))
                 }) {
-                    return Err(failure(
+                    return Err(unsupported(
                         "living passenger travel requires a separate contact origin",
                     ));
                 }
@@ -1241,7 +1502,7 @@ impl OwnedContacts {
         };
         if index == 6 {
             let EntityDataValue::Pose(id) = value else {
-                return Err(failure("own contact pose unavailable"));
+                return Err(unsupported("own contact pose unavailable"));
             };
             let pose = EntityPose::from_native(self.session.version, *id);
             if !matches!(
@@ -1249,18 +1510,20 @@ impl OwnedContacts {
                 Some(EntityPose::Standing | EntityPose::Crouching | EntityPose::Swimming)
             ) && !(self.own_glide && pose == Some(EntityPose::FallFlying))
             {
-                return Err(failure(
+                return Err(unsupported(
                     "own posture outside ground/held flight contact model",
                 ));
             }
         } else if Some(index) == field(EntityDataField::SleepingPosition) {
             if !matches!(value, EntityDataValue::OptionalBlockPosition(None)) {
-                return Err(failure("own sleep requires separate movement owner"));
+                return Err(unsupported("own sleep requires separate movement owner"));
             }
         } else if Some(index) == field(EntityDataField::LivingFlags)
             && value.as_i64().is_none_or(|flags| flags & 4 != 0)
         {
-            return Err(failure("own spin attack requires separate movement owner"));
+            return Err(unsupported(
+                "own spin attack requires separate movement owner",
+            ));
         }
         Ok(())
     }
@@ -1283,10 +1546,10 @@ impl OwnedContacts {
         };
         if index == 6 {
             let EntityDataValue::Pose(id) = value else {
-                return Err(failure("unknown contact pose serializer"));
+                return Err(unsupported("unknown contact pose serializer"));
             };
             input.pose = EntityPose::from_native(self.session.version, *id)
-                .ok_or_else(|| failure("unknown contact pose"))?;
+                .ok_or_else(|| unsupported("unknown contact pose"))?;
             let dimensions = super::geometry::shape(
                 self.session.version,
                 &input.name,
@@ -1298,15 +1561,15 @@ impl OwnedContacts {
             body.height = dimensions.1;
         } else if Some(index) == field(EntityDataField::Health) {
             let EntityDataValue::Float(health) = value else {
-                return Err(failure("unknown contact health"));
+                return Err(unsupported("unknown contact health"));
             };
             if !health.is_finite() {
-                return Err(failure("nonfinite contact health"));
+                return Err(unsupported("nonfinite contact health"));
             }
             input.alive = *health > 0.;
         } else if Some(index) == field(EntityDataField::Baby) {
             let EntityDataValue::Bool(baby) = value else {
-                return Err(failure("unknown contact baby data"));
+                return Err(unsupported("unknown contact baby data"));
             };
             input.baby = if *baby { 0.5 } else { 1. };
             let dimensions = super::geometry::shape(
@@ -1320,7 +1583,7 @@ impl OwnedContacts {
             body.height = dimensions.1;
         } else if Some(index) == field(EntityDataField::SleepingPosition) {
             let EntityDataValue::OptionalBlockPosition(position) = value else {
-                return Err(failure("unknown contact sleeping position"));
+                return Err(unsupported("unknown contact sleeping position"));
             };
             body.sleeping = position.is_some();
             if let Some(position) = position {
@@ -1334,10 +1597,10 @@ impl OwnedContacts {
             }
         } else if Some(index) == field(EntityDataField::LivingFlags) {
             let Some(flags) = value.as_i64() else {
-                return Err(failure("unknown contact living flags"));
+                return Err(unsupported("unknown contact living flags"));
             };
             if flags & 4 != 0 {
-                return Err(failure("spin attack contact dispatch unqualified"));
+                return Err(unsupported("spin attack contact dispatch unqualified"));
             }
         }
         let contact = body.contact();
@@ -1362,35 +1625,49 @@ impl OwnedContacts {
         &mut self,
         teams: &TeamsObservation,
         profiles: &PlayerListObservation,
+        owner_state: MovementOwnerState,
     ) -> Result<()> {
-        if teams.session != self.session || profiles.session != self.session {
-            return Err(failure("contact team/profile world"));
-        }
-        for (&key, input) in &mut self.inputs {
-            let uuid = input
-                .uuid
-                .ok_or_else(|| failure("contact scoreboard UUID missing"))?;
-            let holder = if input.name == "minecraft:player" {
-                // Original RemotePlayer requires a registered profile. Use the
-                // actual retained UUID/name, never the configured bot name.
-                let profile = profiles
-                    .entries
-                    .iter()
-                    .find(|p| p.uuid == uuid)
-                    .ok_or_else(|| failure("remote player contact profile missing"))?;
-                let mode = profile
-                    .game_mode
-                    .as_ref()
-                    .and_then(|mode| mode.value)
-                    .ok_or_else(|| failure("remote player contact game mode missing"))?;
-                input.spectator = mode == crate::client::GameMode::Spectator;
-                profile.profile.value.name.clone()
-            } else {
-                uuid_holder(uuid)
-            };
-            self.world.bodies.get_mut(&key).unwrap().team = team(teams, &holder);
-        }
-        Ok(())
+        let result = (|| {
+            if teams.session != self.session || profiles.session != self.session {
+                return Err(failure("contact team/profile world"));
+            }
+            for (&key, input) in &mut self.inputs {
+                let uuid = input.uuid.ok_or_else(|| {
+                    entity_failure(failure("contact scoreboard UUID missing"), input)
+                })?;
+                let holder = if input.name == "minecraft:player" {
+                    // Original RemotePlayer requires a registered profile. Use the
+                    // actual retained UUID/name, never the configured bot name.
+                    let profile = profiles
+                        .entries
+                        .iter()
+                        .find(|p| p.uuid == uuid)
+                        .ok_or_else(|| {
+                            entity_failure(
+                                transient("remote player contact profile missing"),
+                                input,
+                            )
+                        })?;
+                    let mode = profile
+                        .game_mode
+                        .as_ref()
+                        .and_then(|mode| mode.value)
+                        .ok_or_else(|| {
+                            entity_failure(
+                                transient("remote player contact game mode missing"),
+                                input,
+                            )
+                        })?;
+                    input.spectator = mode == crate::client::GameMode::Spectator;
+                    profile.profile.value.name.clone()
+                } else {
+                    uuid_holder(uuid)
+                };
+                self.world.bodies.get_mut(&key).unwrap().team = team(teams, &holder);
+            }
+            Ok(())
+        })();
+        result.map_err(|error| self.annotate(error, owner_state))
     }
 
     pub(crate) fn frame(&mut self, pair_calls: usize) -> EntityContactFrame {
@@ -1534,6 +1811,154 @@ mod tests {
     }
 
     #[test]
+    fn audited_signals_preserve_contacts_and_history_at_every_replay_boundary() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            // Use the same original spawn and numeric receipt state, changing only species.
+            // Reinsert to establish a real sheep lifetime.
+            ledger.remove(7);
+            ledger.history_context(version, 3, 2);
+            ledger
+                .insert(
+                    version,
+                    NativeSpawn {
+                        id: 7,
+                        uuid: Some([2; 16]),
+                        type_id: None,
+                        dedicated_type_name: Some("sheep"),
+                        position: [0.9, 65., 0.5],
+                        living: Some(true),
+                    },
+                    2,
+                    16,
+                )
+                .unwrap();
+            ledger.initialize_motion(
+                7,
+                NativeSpawnMotion {
+                    position: Some([0.9, 65., 0.5]),
+                    rotation: Some([0.; 2]),
+                    head_yaw: Some(0.),
+                    velocity: Some([0.; 3]),
+                },
+                2,
+            );
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            let baseline = numerical_state(&model);
+            for (sequence, status, animation) in [
+                (3, Some(10), None),
+                (4, Some(35), None),
+                (5, None, Some(4)),
+                (6, None, Some(5)),
+            ] {
+                ledger.history_context(version, 3, sequence);
+                ledger.history_signal(7, status, animation);
+                model.refresh(10, &ledger, sequence).unwrap();
+                assert_eq!(numerical_state(&model), baseline);
+                let fresh = OwnedContacts::new(session, 11, 99, &ledger, sequence).unwrap();
+                assert_eq!(numerical_state(&fresh), baseline);
+            }
+            let history = ledger
+                .history_after(session, 6, None, MAX_ENTITY_HISTORY_READ)
+                .unwrap();
+            assert_eq!(
+                history
+                    .records
+                    .iter()
+                    .filter(|r| matches!(
+                        r.kind,
+                        EntityHistoryKind::Status { .. } | EntityHistoryKind::Animation { .. }
+                    ))
+                    .count(),
+                4
+            );
+            // Exercise the exact eviction checkpoint reducer, not just the retained suffix.
+            let mut checkpoint = ContactCheckpoint::new(session, 99).unwrap();
+            for record in history.records {
+                checkpoint.advance(record);
+            }
+            assert!(checkpoint.errors.is_empty());
+            assert!(checkpoint.global_error.is_none());
+            assert_eq!(numerical_state(&checkpoint.model), baseline);
+        }
+    }
+
+    #[test]
+    fn unaudited_signals_are_typed_and_survive_checkpoint_replay() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            // Includes death, wake-up, unknown values, and sheep-only status on a cow.
+            for (status, animation, kind, opcode) in [
+                (Some(3), None, "Status", 3),
+                (Some(10), None, "Status", 10),
+                (Some(127), None, "Status", 127),
+                (None, Some(2), "Animation", 2),
+                (None, Some(255), "Animation", 255),
+            ] {
+                let (mut ledger, session) = receipts(version);
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 1).unwrap();
+                let entity = model.inputs.values().next().unwrap().entity;
+                ledger.history_context(version, 3, 2);
+                ledger.history_signal(7, status, animation);
+                let error = model.refresh(10, &ledger, 2).unwrap_err();
+                let detail = error.movement_refusal().unwrap();
+                assert!(matches!(detail, MovementRefusal::Unsupported { .. }));
+                let c = detail.context();
+                assert_eq!(c.owner_state, MovementOwnerState::Invalidated);
+                assert_eq!(c.owner_id, Some(10));
+                assert_eq!(c.entity, Some(entity));
+                assert_eq!(c.native_entity_id, Some(7));
+                assert_eq!(c.entity_type.as_deref(), Some("minecraft:cow"));
+                assert_eq!(
+                    c.packet,
+                    Some(MovementPacketTrigger {
+                        packet_type: kind.into(),
+                        opcode
+                    })
+                );
+                assert_eq!(c.receive_sequence, Some(2));
+                assert!(!model.valid);
+                let admission = OwnedContacts::new(session, 11, 99, &ledger, 2).unwrap_err();
+                assert_eq!(
+                    admission.movement_refusal().unwrap().context().owner_state,
+                    MovementOwnerState::NotAdmitted
+                );
+                let mut checkpoint = ContactCheckpoint::new(session, 99).unwrap();
+                for record in ledger
+                    .history_after(session, 2, None, MAX_ENTITY_HISTORY_READ)
+                    .unwrap()
+                    .records
+                {
+                    checkpoint.advance(record);
+                }
+                let saved = &checkpoint.errors[&7].1;
+                assert_eq!(saved.context().packet, c.packet);
+                assert_eq!(saved.context().entity, Some(entity));
+                let mut target = OwnedContacts::empty(session, 99).unwrap();
+                checkpoint
+                    .seed(&mut target, &[entity], &mut BTreeMap::new())
+                    .unwrap();
+                assert_eq!(target.checkpoint_errors[0].1.context().packet, c.packet);
+            }
+        }
+    }
+
+    #[test]
+    fn refusal_classes_do_not_depend_on_reason_text() {
+        assert!(matches!(
+            failure("unsupported packet timed out").movement_refusal(),
+            Some(MovementRefusal::Permanent { .. })
+        ));
+        assert!(matches!(
+            transient("missing profile").movement_refusal(),
+            Some(MovementRefusal::Transient { .. })
+        ));
+        assert!(matches!(
+            unsupported("unknown hook").movement_refusal(),
+            Some(MovementRefusal::Unsupported { .. })
+        ));
+    }
+
+    #[test]
     fn sheep_and_creeper_admission_and_sheep_age_receipts() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in ["sheep", "creeper"] {
@@ -1668,11 +2093,22 @@ mod tests {
                 ledger.history_context(version, 3, sequence);
                 ledger.receive_motion(version, 7, NativeMotion::HeadYaw(0.), sequence);
             }
-            assert!(
-                OwnedContacts::new(session, 11, 99, &ledger, 16384)
-                    .unwrap_err()
-                    .to_string()
-                    .contains("partial decode")
+            let error = OwnedContacts::new(session, 11, 99, &ledger, 16384).unwrap_err();
+            assert!(error.to_string().contains("partial decode"));
+            let detail = error.movement_refusal().unwrap();
+            assert!(matches!(detail, MovementRefusal::Permanent { .. }));
+            assert_eq!(
+                detail.context().entity_type.as_deref(),
+                Some("minecraft:cow")
+            );
+            assert_eq!(detail.context().native_entity_id, Some(7));
+            assert_eq!(
+                detail.context().owner_state,
+                MovementOwnerState::NotAdmitted
+            );
+            assert_eq!(
+                detail.context().packet.as_ref().unwrap().packet_type,
+                "Metadata"
             );
             ledger.remove(7);
             assert!(OwnedContacts::new(session, 12, 99, &ledger, 16384).is_ok());
@@ -1925,7 +2361,21 @@ mod tests {
             let mut model = OwnedContacts::new(session, 11, 99, &ledger, 1).unwrap();
             ledger.history_context(version, 3, 2);
             ledger.receive_metadata(99, [(6, EntityDataValue::Pose(2))], true, 2);
-            assert!(model.refresh(11, &ledger, 2).is_err());
+            let error = model.refresh(11, &ledger, 2).unwrap_err();
+            assert!(matches!(
+                error.movement_refusal(),
+                Some(MovementRefusal::Unsupported { .. })
+            ));
+            assert_eq!(
+                error.movement_refusal().unwrap().context().native_entity_id,
+                Some(99)
+            );
+            let admission = OwnedContacts::new(session, 12, 99, &ledger, 2).unwrap_err();
+            let c = admission.movement_refusal().unwrap().context();
+            assert_eq!(c.packet.as_ref().unwrap().packet_type, "Metadata");
+            assert_eq!(c.native_entity_id, Some(99));
+            assert_eq!(c.entity_type.as_deref(), Some("minecraft:player"));
+            assert_eq!(c.owner_state, MovementOwnerState::NotAdmitted);
             ledger.receive_metadata(99, [(6, EntityDataValue::Pose(0))], true, 3);
             // A new explicit model sees the final own pose, not the older sleep.
             let mut fresh = OwnedContacts::new(session, 12, 99, &ledger, 3).unwrap();

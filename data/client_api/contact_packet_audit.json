@@ -1,0 +1,30 @@
+{
+  "1.16.1": {
+    "original_client_sha1": "c9abbe8ee4fa490751ca70635340b7cf00db83ff",
+    "mappings_sha1": "ddf517a4f6750f4c15189de4e03246ae1f916cf5",
+    "javap_method_sha256": {
+      "net.minecraft.client.particle.ParticleEngine.createTrackingEmitter": "288666a19ba2df1dd75103fbf1b5bda7b4fb6174de79d0c34b38bd6a9689613b",
+      "net.minecraft.client.particle.TrackingEmitter.tick": "e8d4a4e68768ce634a829d8e7afae4f8bd17956e1db963105bd03c89fe1a9d3a",
+      "net.minecraft.client.multiplayer.ClientPacketListener.handleAnimate": "991a75a7e948ce18d9daba8cd8c6d09544dbb6f12909ebcd977af2b6ef6da163",
+      "net.minecraft.client.multiplayer.ClientPacketListener.handleEntityEvent": "f7473f52d433e3bddfb3576e38d88cfa50f9250a9fdca10ef9ed398d837a7ebc",
+      "net.minecraft.world.entity.animal.Sheep.handleEntityEvent": "648d724e49c6a53918b98c45c0094f8fa7bbea300ff13536b6ceb7e637ed1743",
+      "net.minecraft.world.entity.animal.Sheep.aiStep": "cec7ae2bdfcdebcfd042bbf4d59436d2b390649c1e0b4309dc0856e80c3698af",
+      "net.minecraft.world.entity.animal.Sheep.getHeadEatPositionScale": "6094e69203675eeee518c3e42364f868b6198b51dc7433305e2c3a6863634b3a",
+      "net.minecraft.world.entity.animal.Sheep.getHeadEatAngleScale": "6e00fe8749cfac4c5f445734d658edff52bbfee22b1dcca9dbc181f7f99a392d"
+    }
+  },
+  "1.21.11": {
+    "original_client_sha1": "ba2df812c2d12e0219c489c4cd9a5e1f0760f5bd",
+    "mappings_sha1": "031a68bebf55d824f66d6573d8c752f0e1bf232a",
+    "javap_method_sha256": {
+      "net.minecraft.client.particle.ParticleEngine.createTrackingEmitter": "730a5a9356427a5ebe608d36459a5c9921585e4d9e87c86cb9b1369f13f5f17f",
+      "net.minecraft.client.particle.TrackingEmitter.tick": "2e9b8aae4f12d344cb39f12066c92251b8103fb800af658ae72a8008eba52532",
+      "net.minecraft.client.multiplayer.ClientPacketListener.handleAnimate": "86c6156dab78f2abb0a7a9b42c120b7cdcf31bfc0a33093de90205eb369336b6",
+      "net.minecraft.client.multiplayer.ClientPacketListener.handleEntityEvent": "899f47c69b6cfea501cc6b923c0690c4f0f4656a3f486ca716395865a0ad7153",
+      "net.minecraft.world.entity.animal.sheep.Sheep.handleEntityEvent": "5dec0c8465208f25f02cd708cb62955a54d033c328e1aed81d0db9443f61811c",
+      "net.minecraft.world.entity.animal.sheep.Sheep.aiStep": "cc9a33c33a874b5474ca99386f370718fb1aa2683f20976e78d1d547f48d9359",
+      "net.minecraft.world.entity.animal.sheep.Sheep.getHeadEatPositionScale": "7099e03d4840d0b266b773b11bef3b797dfcd93c7063b9d7188201325e8afa65",
+      "net.minecraft.world.entity.animal.sheep.Sheep.getHeadEatAngleScale": "d653a3c40ef339309c3184ecf4ef09d0821802f0b1416ce527d45a2535f603a7"
+    }
+  }
+}
