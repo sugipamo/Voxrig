@@ -1381,6 +1381,92 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn ordinary_pickup_complete_receipts_survive_later_source_updates_before_inspection() {
+        use contract::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let record = client
+            .survival()
+            .click_inventory(Source::Player, 9, Button::Left)
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x09);
+        ack(&bot, record.send.legacy_action.unwrap(), false).await;
+        assert_eq!(packets.recv().await.unwrap().0, 0x07);
+        slot(&bot, 9, &record.prediction.source.value, false).await;
+        let mut cursor = vec![255, 255, 255];
+        write_slot(
+            &mut cursor,
+            Some(&ItemStack {
+                item_id: crate::item_id("stone").unwrap(),
+                count: 3,
+                nbt: None,
+            }),
+        );
+        bot.apply_packet(0x16, cursor).await.unwrap();
+        // No record polling between the complete click and this item pickup.
+        let definition = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+            .item("minecraft:oak_planks")
+            .unwrap();
+        let later = api::SlotKnowledge::Item {
+            item: api::ItemStack {
+                id: definition.id,
+                name: definition.name,
+                count: 2,
+                data: api::ItemData::Default,
+            },
+        };
+        slot(&bot, 9, &later, false).await;
+        let complete = client
+            .survival()
+            .inventory_click_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(complete.stage, Stage::ObservedClicked);
+        assert!(complete.requires_inspection.is_none());
+        assert_eq!(
+            complete.source_receipt.as_ref().unwrap().value,
+            api::SlotKnowledge::Empty
+        );
+        assert_eq!(
+            complete.cursor_receipt.as_ref().unwrap().value,
+            record.prediction.cursor.value
+        );
+        assert_eq!(
+            client.player_state().await.unwrap().inventory.slots[9]
+                .as_ref()
+                .unwrap()
+                .value,
+            later
+        );
+        assert!(
+            packets.try_recv().is_err(),
+            "completion must not replay a click"
+        );
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            Stage::ObservedClicked
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn ordinary_pickup_cancelled_caller_keeps_owned_write_and_record_is_prompt_behind_writer()
     {
         use contract::{
