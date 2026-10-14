@@ -174,6 +174,21 @@ impl LivingEntityTickOrder {
         self.collect();
         Ok(true)
     }
+    /// Project an unticked checkpoint body into a scope that ignores its
+    /// living dispatch. Membership, probe slots and lifetime keys stay intact.
+    pub(super) fn bootstrap_placeholder(&mut self, key: u64) -> Result<(), LivingTickUnavailable> {
+        self.can_mutate()?;
+        if self.iterator.is_some() || self.current.is_some() || self.frozen {
+            return Err(LivingTickUnavailable::InconsistentIdentity);
+        }
+        let body = self
+            .bodies
+            .get_mut(&key)
+            .ok_or(LivingTickUnavailable::InconsistentIdentity)?;
+        body.player = false;
+        Ok(())
+    }
+
     /// Read a retained numerical body (including modern snapshot retirees).
     pub fn body(&self, key: u64) -> Option<&LivingTickBody> {
         self.bodies.get(&key)

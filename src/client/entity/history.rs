@@ -194,6 +194,9 @@ pub(crate) struct HistoryLedger {
     bytes: usize,
     next: u64,
     dropped_through: u64,
+    checkpoint: Option<owned_contacts::ContactCheckpoint>,
+    local_player: Option<i32>,
+    checkpoint_missing: bool,
     started: Instant,
     pub(super) context: Option<(MinecraftVersion, u64, u64)>,
 }
@@ -204,6 +207,9 @@ impl Default for HistoryLedger {
             bytes: 0,
             next: 0,
             dropped_through: 0,
+            checkpoint: None,
+            local_player: None,
+            checkpoint_missing: false,
             started: Instant::now(),
             context: None,
         }
@@ -222,6 +228,11 @@ impl HistoryLedger {
         let Some(session) = self.stamp() else {
             return;
         };
+        if matches!(kind, EntityHistoryKind::WorldChanged { .. }) {
+            // Old worlds cannot qualify bodies in a fresh current-world origin.
+            self.checkpoint = None;
+            self.checkpoint_missing = false;
+        }
         self.next += 1;
         let receive_sequence = self.context.unwrap().2;
         let bytes = record_bytes(&kind);
@@ -242,6 +253,24 @@ impl HistoryLedger {
             let (record, bytes) = self.records.pop_front().unwrap();
             self.bytes -= bytes;
             self.dropped_through = record.ordinal;
+            if self.context.is_some_and(|(version, generation, _)| {
+                record.session.version == version && record.session.world_generation == generation
+            }) && !matches!(record.kind, EntityHistoryKind::WorldChanged { .. })
+            {
+                if self.checkpoint.is_none() {
+                    if let Some(own) = self.local_player {
+                        self.checkpoint = Some(
+                            owned_contacts::ContactCheckpoint::new(record.session, own)
+                                .expect("empty contact reducer"),
+                        );
+                    } else {
+                        self.checkpoint_missing = true;
+                    }
+                }
+                if let Some(checkpoint) = &mut self.checkpoint {
+                    checkpoint.advance(record);
+                }
+            }
         }
     }
     fn after(
@@ -273,35 +302,7 @@ impl HistoryLedger {
             .take(maximum)
             .cloned()
             .map(|(mut r, _)| {
-                r.session.connection_id = session.connection_id;
-                match &mut r.kind {
-                    EntityHistoryKind::Spawn(m) | EntityHistoryKind::Motion(m) => {
-                        m.entity.id.session.connection_id = session.connection_id
-                    }
-                    EntityHistoryKind::Status { entity, .. }
-                    | EntityHistoryKind::Animation { entity, .. }
-                    | EntityHistoryKind::Removed { entity, .. }
-                    | EntityHistoryKind::Metadata { entity, .. }
-                    | EntityHistoryKind::Equipment { entity, .. }
-                    | EntityHistoryKind::Scale { entity, .. }
-                    | EntityHistoryKind::Passengers { entity, .. } => {
-                        if let Some(id) = entity {
-                            id.session.connection_id = session.connection_id;
-                        }
-                    }
-                    _ => {}
-                }
-                if let EntityHistoryKind::Passengers {
-                    passengers: EntityHistoryValue::Retained { value },
-                    ..
-                } = &mut r.kind
-                {
-                    for (_, id) in value {
-                        if let Some(id) = id {
-                            id.session.connection_id = session.connection_id;
-                        }
-                    }
-                }
+                stamp_record(&mut r, session);
                 r
             })
             .collect();
@@ -324,6 +325,38 @@ impl HistoryLedger {
                 dropped_through: self.dropped_through,
             }),
         })
+    }
+}
+
+fn stamp_record(r: &mut EntityHistoryRecord, session: SessionStamp) {
+    r.session.connection_id = session.connection_id;
+    match &mut r.kind {
+        EntityHistoryKind::Spawn(m) | EntityHistoryKind::Motion(m) => {
+            m.entity.id.session.connection_id = session.connection_id
+        }
+        EntityHistoryKind::Status { entity, .. }
+        | EntityHistoryKind::Animation { entity, .. }
+        | EntityHistoryKind::Removed { entity, .. }
+        | EntityHistoryKind::Metadata { entity, .. }
+        | EntityHistoryKind::Equipment { entity, .. }
+        | EntityHistoryKind::Scale { entity, .. }
+        | EntityHistoryKind::Passengers { entity, .. } => {
+            if let Some(id) = entity {
+                id.session.connection_id = session.connection_id;
+            }
+        }
+        _ => {}
+    }
+    if let EntityHistoryKind::Passengers {
+        passengers: EntityHistoryValue::Retained { value },
+        ..
+    } = &mut r.kind
+    {
+        for (_, id) in value {
+            if let Some(id) = id {
+                id.session.connection_id = session.connection_id;
+            }
+        }
     }
 }
 
@@ -567,6 +600,30 @@ impl SpawnLedger {
     ) {
         self.1
             .record(EntityHistoryKind::OwnPositionCorrection { pose, velocity });
+    }
+    /// Configure the local map member before any receipt can be evicted.
+    pub(crate) fn contact_local_player(&mut self, native_id: i32) {
+        self.1.local_player = Some(native_id);
+    }
+    pub(super) fn contact_checkpoint_required(&self) -> bool {
+        self.1.checkpoint_missing
+    }
+    /// Captured with the retained suffix under the admission receipt lock.
+    pub(super) fn contact_checkpoint(
+        &self,
+        session: SessionStamp,
+    ) -> Result<(
+        Option<owned_contacts::ContactCheckpoint>,
+        EntityHistoryCursor,
+    )> {
+        Ok((
+            self.1.checkpoint.clone(),
+            EntityHistoryCursor {
+                version: session.version,
+                connection_id: session.connection_id,
+                ordinal: self.1.dropped_through,
+            },
+        ))
     }
     pub(crate) fn history_after(
         &self,
@@ -939,6 +996,87 @@ mod tests {
             assert_eq!(continuation.records[0].ordinal, page.records[0].ordinal + 1);
         }
     }
+    #[test]
+    fn checkpoint_boundary_and_paged_suffix_are_contiguous() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut ledger = SpawnLedger::default();
+            let session = session(version, 0);
+            for sequence in 1..=MAX_ENTITY_HISTORY_RECORDS as u64 + 2050 {
+                ledger.history_context(version, 0, sequence);
+                // Removals retain native-map mutation effects even without a spawn.
+                ledger.1.record(EntityHistoryKind::Removed {
+                    native_id: 77,
+                    entity: None,
+                });
+            }
+            let (seed, boundary) = ledger.contact_checkpoint(session).unwrap();
+            assert_eq!(boundary.ordinal(), ledger.1.dropped_through);
+            assert!(seed.is_none());
+            let mut ordinals = Vec::new();
+            let mut cursor = boundary;
+            loop {
+                let page = ledger
+                    .history_after(session, 10242, Some(cursor), 1024)
+                    .unwrap();
+                assert!(page.gap.is_none());
+                assert_eq!(page.records[0].ordinal, cursor.ordinal() + 1);
+                ordinals.extend(page.records.iter().map(|r| r.ordinal));
+                cursor = page.next_cursor;
+                if !page.has_more {
+                    break;
+                }
+            }
+            assert_eq!(
+                ordinals,
+                (boundary.ordinal() + 1..=ledger.1.next).collect::<Vec<_>>()
+            );
+            ledger.history_context(version, 0, 10243);
+            ledger.1.record(EntityHistoryKind::Removed {
+                native_id: 78,
+                entity: None,
+            });
+            let (seed, boundary) = ledger.contact_checkpoint(session).unwrap();
+            assert!(seed.is_none());
+            assert_eq!(boundary.ordinal(), ledger.1.dropped_through);
+        }
+    }
+
+    #[test]
+    fn numerical_checkpoint_does_not_exhaust_and_world_change_resets() {
+        let version = MinecraftVersion::Java1_16_1;
+        let mut ledger = SpawnLedger::default();
+        ledger.contact_local_player(99);
+        for sequence in 1..=8 * MAX_ENTITY_HISTORY_RECORDS as u64 + 1 {
+            ledger.history_context(version, 0, sequence);
+            ledger.1.record(EntityHistoryKind::Removed {
+                native_id: 7,
+                entity: None,
+            });
+        }
+        assert!(
+            ledger
+                .contact_checkpoint(session(version, 0))
+                .unwrap()
+                .0
+                .is_some()
+        );
+        ledger.history_context(version, 1, 20000);
+        assert!(
+            ledger
+                .contact_checkpoint(session(version, 1))
+                .unwrap()
+                .0
+                .is_none()
+        );
+        assert!(
+            ledger
+                .history_after(session(version, 1), 20000, None, 1)
+                .unwrap()
+                .gap
+                .is_some()
+        );
+    }
+
     #[test]
     fn entity_history_preserves_missing_fields_and_rejects_foreign_cursors() {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {

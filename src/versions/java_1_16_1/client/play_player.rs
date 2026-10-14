@@ -96,6 +96,7 @@ impl Bot {
             receipts.ground_source = None;
             receipts.rotation_source = None;
             receipts.entities.clear();
+            receipts.entities.contact_local_player(join.entity_id);
             receipts.vehicles.clear();
             receipts.registries = registries;
             receipts.recipes = Default::default();

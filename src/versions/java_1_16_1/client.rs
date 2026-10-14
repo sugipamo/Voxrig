@@ -5028,9 +5028,13 @@ impl Bot {
                 local_player_basis,
             );
         }
+        let contact_player = self.player.lock().await.entity_id;
         {
             let mut receipts = self.common_receipts.lock().await;
             let generation = receipts.generation;
+            if let Some(own) = contact_player {
+                receipts.entities.contact_local_player(own);
+            }
             receipts.entities.history_context(
                 crate::MinecraftVersion::Java1_16_1,
                 generation,
