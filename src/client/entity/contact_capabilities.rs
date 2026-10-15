@@ -284,7 +284,9 @@ pub(super) fn check_peers<'a>(
 ) -> Result<()> {
     for remote in world.bodies.values() {
         let frame = remote.motion.frame().interpolation;
-        let mut query = remote.contact().bounds;
+        // A legacy metadata refresh may leave an anchored box until the next
+        // setPos; enclose both that current box and its recentered placement.
+        let mut query = hull(remote.contact().bounds, remote.centered_bounds());
         for t in frame
             .target
             .map(|p| p.position)
@@ -363,8 +365,13 @@ mod tests {
                 }
             }
             for name in ["spider", "cave_spider"] {
-                for (method, owner) in v["types"][name].as_object().unwrap() {
-                    assert_eq!(owner, &previous["versions"][version]["types"][name][method]);
+                for (method, owner) in previous["versions"][version]["types"][name]
+                    .as_object()
+                    .unwrap()
+                {
+                    if !matches!(method.as_str(), "audit" | "classifications") {
+                        assert_eq!(v["types"][name].get(method), Some(owner));
+                    }
                 }
                 assert_eq!(
                     v["types"][name]["pushEntities"],
@@ -473,10 +480,18 @@ mod tests {
     #[test]
     fn generated_policy_is_bound_to_original_class_and_metadata_evidence() {
         let evidence: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../docs/evidence/contact-capabilities-20261014.json"
+            "../../../docs/evidence/contact-capabilities-20261015.json"
         ))
         .unwrap();
         for (key, bytes) in [
+            (
+                "numerical_oracle_sha256",
+                &include_bytes!("../../../data/client_api/entity_owner_oracle.json.gz")[..],
+            ),
+            (
+                "numerical_runner_sha256",
+                &include_bytes!("../../../scripts/run_entity_owner_oracle.py")[..],
+            ),
             (
                 "generator_sha256",
                 &include_bytes!("../../../scripts/audit_contact_capabilities.py")[..],
@@ -537,8 +552,22 @@ mod tests {
                 }
                 if c.modeled() {
                     assert!(
-                        ["cow", "pig", "zombie", "sheep", "creeper", "player"]
-                            .contains(&name.as_str())
+                        [
+                            "cow",
+                            "pig",
+                            "zombie",
+                            "sheep",
+                            "creeper",
+                            "player",
+                            "rabbit",
+                            "ocelot",
+                            "villager",
+                            "wandering_trader",
+                            "mooshroom",
+                            "silverfish",
+                            "giant"
+                        ]
+                        .contains(&name.as_str())
                     );
                 }
             }

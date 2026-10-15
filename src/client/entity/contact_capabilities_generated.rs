@@ -25,8 +25,19 @@ pub(super) fn lookup(version: MinecraftVersion, name: &str) -> Capabilities {
                 status: Classification::ProvenIrrelevant,
                 animation: Classification::ProvenIrrelevant,
             },
-            "minecraft:cow" | "minecraft:creeper" | "minecraft:pig" | "minecraft:player"
-            | "minecraft:sheep" | "minecraft:zombie" => Capabilities {
+            "minecraft:cow"
+            | "minecraft:creeper"
+            | "minecraft:giant"
+            | "minecraft:mooshroom"
+            | "minecraft:ocelot"
+            | "minecraft:pig"
+            | "minecraft:player"
+            | "minecraft:rabbit"
+            | "minecraft:sheep"
+            | "minecraft:silverfish"
+            | "minecraft:villager"
+            | "minecraft:wandering_trader"
+            | "minecraft:zombie" => Capabilities {
                 walking: Classification::Qualified,
                 incoming: Classification::Qualified,
                 solid: Classification::ProvenIrrelevant,
@@ -59,8 +70,19 @@ pub(super) fn lookup(version: MinecraftVersion, name: &str) -> Capabilities {
                 status: Classification::ProvenIrrelevant,
                 animation: Classification::ProvenIrrelevant,
             },
-            "minecraft:cow" | "minecraft:creeper" | "minecraft:pig" | "minecraft:player"
-            | "minecraft:sheep" | "minecraft:zombie" => Capabilities {
+            "minecraft:cow"
+            | "minecraft:creeper"
+            | "minecraft:giant"
+            | "minecraft:mooshroom"
+            | "minecraft:ocelot"
+            | "minecraft:pig"
+            | "minecraft:player"
+            | "minecraft:rabbit"
+            | "minecraft:sheep"
+            | "minecraft:silverfish"
+            | "minecraft:villager"
+            | "minecraft:wandering_trader"
+            | "minecraft:zombie" => Capabilities {
                 walking: Classification::Qualified,
                 incoming: Classification::Qualified,
                 solid: Classification::ProvenIrrelevant,

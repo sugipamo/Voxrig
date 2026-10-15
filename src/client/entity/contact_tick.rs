@@ -29,6 +29,9 @@ pub(crate) struct ContactTickBody {
     pub team: Option<(String, crate::client::ui::TeamCollision)>,
     velocity_target: [f64; 3],
     velocity_steps: u8,
+    // Legacy refreshDimensions anchors a nonshrinking box at its old minimum
+    // until an original setPos (interpolation or received bed placement).
+    refreshed_bounds: Option<Aabb>,
 }
 impl ContactTickBody {
     pub(crate) fn new(
@@ -53,6 +56,7 @@ impl ContactTickBody {
             team: None,
             velocity_target: [0.; 3],
             velocity_steps: 0,
+            refreshed_bounds: None,
         })
     }
 
@@ -94,9 +98,46 @@ impl ContactTickBody {
         Ok(())
     }
 
-    pub(crate) fn contact(&self) -> LivingContactBody {
+    pub(crate) fn refresh_dimensions(&mut self, version: MinecraftVersion, dimensions: [f32; 2]) {
+        let old_bounds = self.contact().bounds;
+        let old_width = self.width;
+        [self.width, self.height] = dimensions;
+        self.refreshed_bounds =
+            if version == MinecraftVersion::Java1_16_1 && self.width >= old_width {
+                Some(Aabb {
+                    min_x: old_bounds.min_x,
+                    min_y: old_bounds.min_y,
+                    min_z: old_bounds.min_z,
+                    max_x: old_bounds.min_x + f64::from(self.width),
+                    max_y: old_bounds.min_y + f64::from(self.height),
+                    max_z: old_bounds.min_z + f64::from(self.width),
+                })
+            } else {
+                None
+            };
+    }
+
+    pub(crate) fn set_model_pose(&mut self, pose: LivingInterpolationPose) -> Result<()> {
+        self.motion.set_model_pose(pose).map_err(failure)?;
+        self.refreshed_bounds = None;
+        Ok(())
+    }
+
+    pub(crate) fn centered_bounds(&self) -> Aabb {
         let position = self.motion.frame().interpolation.pose.position;
         let half = f64::from(self.width / 2.);
+        Aabb {
+            min_x: position[0] - half,
+            min_y: position[1],
+            min_z: position[2] - half,
+            max_x: position[0] + half,
+            max_y: position[1] + f64::from(self.height),
+            max_z: position[2] + half,
+        }
+    }
+
+    pub(crate) fn contact(&self) -> LivingContactBody {
+        let position = self.motion.frame().interpolation.pose.position;
         LivingContactBody {
             push: LivingPushBody {
                 position,
@@ -106,14 +147,9 @@ impl ContactTickBody {
                 vehicle: false,
                 pushable: self.pushable,
             },
-            bounds: Aabb {
-                min_x: position[0] - half,
-                min_y: position[1],
-                min_z: position[2] - half,
-                max_x: position[0] + half,
-                max_y: position[1] + f64::from(self.height),
-                max_z: position[2] + half,
-            },
+            bounds: self
+                .refreshed_bounds
+                .unwrap_or_else(|| self.centered_bounds()),
             sleeping: self.sleeping,
             legacy_pushthrough: 0.,
             team: self.team.as_ref().map(|t| t.1),
@@ -123,6 +159,9 @@ impl ContactTickBody {
     fn ai_step(&mut self, version: MinecraftVersion, collision_free: Option<bool>) -> Result<()> {
         let interpolating = self.motion.frame().interpolation.remaining_steps != 0;
         self.motion.step(collision_free).map_err(failure)?;
+        if interpolating {
+            self.refreshed_bounds = None;
+        }
         if self.dispatch == ContactDispatch::RemotePlayer {
             if self.velocity_steps != 0 {
                 for (current, target) in self.velocity.iter_mut().zip(self.velocity_target) {
@@ -378,7 +417,8 @@ mod tests {
     }
 
     // Raw oracle rows also contain WIP species that were never qualified.
-    // In particular, legacy horse sleeping geometry does not match this lane.
+    // Horse still lacks a complete hook/variant proof after the shared legacy
+    // dimension-refresh correction; matching a raw scene would not qualify it.
     // Admission refusals for unmodeled types are tested in owned_contacts;
     // numerical equality is asserted only for the declared qualified lane.
     fn qualified_scene(version: MinecraftVersion, row: &Value) -> bool {
@@ -565,7 +605,9 @@ mod tests {
                                     },
                                 ));
                             }
-                            "baby" => apply_sheep_baby(&mut world, id, a),
+                            "variant" => assert_variant_geometry(&world, id, a),
+                            "pose_metadata" => apply_pose_metadata(&mut world, id, a),
+                            "baby" => apply_ageable_baby(&mut world, id, a),
                             "sleep" => apply_sleep(&mut world, id, &a["position"]),
                             "local" | "freeze" => {}
                             "unticking" | "reticking" => {
@@ -698,12 +740,13 @@ mod tests {
                             &context,
                         );
                         assert_vector(body.velocity, velocity(&state["pose"]), &context);
+                        assert_bounds(body.contact().bounds, &state["pose"], &context);
                     }
                     stages += 1;
                 }
             }
         }
-        assert_eq!((stages, unmodeled_stages), (576, 1104));
+        assert_eq!((stages, unmodeled_stages), (1248, 672));
         assert_eq!(pushed_slots, [[[true; 2]; 2]; 2]);
     }
 
@@ -872,7 +915,9 @@ mod tests {
                                     },
                                 ));
                             }
-                            "baby" => apply_sheep_baby(&mut world, id, a),
+                            "variant" => assert_variant_geometry(&world, id, a),
+                            "pose_metadata" => apply_pose_metadata(&mut world, id, a),
+                            "baby" => apply_ageable_baby(&mut world, id, a),
                             "sleep" => apply_sleep(&mut world, id, &a["position"]),
                             "local" => {}
                             "unticking" | "reticking" => {
@@ -972,6 +1017,13 @@ mod tests {
                     assert_vector(frame.velocity, velocity(&expected["after"]), &context);
                     seed = frame;
                     for state in step["states"].as_array().unwrap() {
+                        assert_bounds(
+                            world.bodies[&state["key"].as_u64().unwrap()]
+                                .contact()
+                                .bounds,
+                            &state["pose"],
+                            &context,
+                        );
                         assert_vector(
                             world.bodies[&state["key"].as_u64().unwrap()]
                                 .motion
@@ -987,7 +1039,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!((stages, unmodeled_stages), (576, 1104));
+        assert_eq!((stages, unmodeled_stages), (1248, 672));
     }
     fn update_received_geometry(world: &mut ContactTickWorld, key: u64) {
         let b = &world.bodies[&key];
@@ -1039,7 +1091,7 @@ mod tests {
             );
             assert_eq!(x["versions"][v]["original_client_jar_sha1"], jar);
             let policy: Value = serde_json::from_str(include_str!(
-                "../../../docs/evidence/contact-capabilities-20261014.json"
+                "../../../docs/evidence/contact-capabilities-20261015.json"
             ))
             .unwrap();
             let types = x["versions"][v]["results"]
@@ -1081,7 +1133,72 @@ mod tests {
         }
     }
 
-    fn apply_sheep_baby(world: &mut ContactTickWorld, id: i32, action: &Value) {
+    fn assert_bounds(actual: Aabb, expected: &Value, context: &str) {
+        let original = std::array::from_fn::<_, 6, _>(|i| {
+            f64::from_bits(
+                u64::from_str_radix(expected["bounds_bits"][i].as_str().unwrap(), 16).unwrap(),
+            )
+        });
+        let actual = [
+            actual.min_x,
+            actual.min_y,
+            actual.min_z,
+            actual.max_x,
+            actual.max_y,
+            actual.max_z,
+        ];
+        assert_eq!(
+            actual.map(f64::to_bits),
+            original.map(f64::to_bits),
+            "{context}"
+        );
+    }
+
+    fn apply_pose_metadata(world: &mut ContactTickWorld, id: i32, action: &Value) {
+        let b = world
+            .bodies
+            .values_mut()
+            .find(|b| b.native_id == id)
+            .unwrap();
+        // Pose changes occur after the oracle's baby -> adult transition.
+        let dimensions = super::super::geometry::shape(
+            world.version,
+            action["type_name"].as_str().unwrap(),
+            super::super::EntityPose::from_native(
+                world.version,
+                action["native_pose"].as_i64().unwrap() as i32,
+            )
+            .unwrap(),
+            1.,
+            1.,
+        );
+        b.refresh_dimensions(world.version, [dimensions.0, dimensions.1]);
+        for (axis, expected) in [(0, b.width), (1, b.height), (2, b.width)] {
+            let extent = action["pose"]["bounds"][axis + 3].as_f64().unwrap()
+                - action["pose"]["bounds"][axis].as_f64().unwrap();
+            assert!((extent - f64::from(expected)).abs() < 1e-12);
+        }
+        let key = b.key;
+        update_received_geometry(world, key);
+    }
+
+    fn assert_variant_geometry(world: &ContactTickWorld, id: i32, action: &Value) {
+        let b = world.bodies.values().find(|b| b.native_id == id).unwrap();
+        // Species metadata is numerically inert in the audited lane. Compare
+        // the unchanged SDK body with the original packet callback boundary.
+        assert_vector(
+            b.motion.frame().interpolation.pose.position,
+            pose(&action["pose"]).position,
+            "species variant packet position",
+        );
+        assert_bounds(
+            b.contact().bounds,
+            &action["pose"],
+            "species variant packet bounds",
+        );
+    }
+
+    fn apply_ageable_baby(world: &mut ContactTickWorld, id: i32, action: &Value) {
         let b = world
             .bodies
             .values_mut()
@@ -1092,8 +1209,14 @@ mod tests {
         } else {
             1.
         };
-        b.width = 0.9 * factor;
-        b.height = 1.3 * factor;
+        let dimensions = super::super::geometry::shape(
+            world.version,
+            action["type_name"].as_str().unwrap_or("minecraft:sheep"),
+            super::super::EntityPose::Standing,
+            factor,
+            1.,
+        );
+        b.refresh_dimensions(world.version, [dimensions.0, dimensions.1]);
         // Legacy refreshDimensions temporarily anchors a growing box at its
         // old minimum; original aiStep/setPos rebuilds it before contact.
         // Compare native dimension extents at the metadata boundary.
@@ -1124,7 +1247,7 @@ mod tests {
                 position[1].as_f64().unwrap() + 0.6875,
                 position[2].as_f64().unwrap() + 0.5,
             ];
-            b.motion.set_model_pose(pose).unwrap();
+            b.set_model_pose(pose).unwrap();
             let contact = b.contact();
             if world.version == MinecraftVersion::Java1_16_1 {
                 world

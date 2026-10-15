@@ -1687,8 +1687,7 @@ impl OwnedContacts {
                 input.baby,
                 1.,
             );
-            body.width = dimensions.0;
-            body.height = dimensions.1;
+            body.refresh_dimensions(self.session.version, [dimensions.0, dimensions.1]);
         } else if Some(index) == field(EntityDataField::Health) {
             let EntityDataValue::Float(health) = value else {
                 return Err(unsupported("unknown contact health"));
@@ -1709,8 +1708,7 @@ impl OwnedContacts {
                 input.baby,
                 1.,
             );
-            body.width = dimensions.0;
-            body.height = dimensions.1;
+            body.refresh_dimensions(self.session.version, [dimensions.0, dimensions.1]);
         } else if Some(index) == field(EntityDataField::SleepingPosition) {
             let EntityDataValue::OptionalBlockPosition(position) = value else {
                 return Err(unsupported("unknown contact sleeping position"));
@@ -1723,7 +1721,7 @@ impl OwnedContacts {
                     f64::from(position.y) + 0.6875,
                     f64::from(position.z) + 0.5,
                 ];
-                body.motion.set_model_pose(pose).map_err(failure)?;
+                body.set_model_pose(pose)?;
             }
         } else if Some(index) == field(EntityDataField::LivingFlags) {
             let Some(flags) = value.as_i64() else {
@@ -2157,7 +2155,7 @@ mod tests {
             let remote = model.world.bodies.values_mut().next().unwrap();
             let mut pose = remote.motion.frame().interpolation.pose;
             pose.position = [600., 65., 0.];
-            remote.motion.set_model_pose(pose).unwrap();
+            remote.set_model_pose(pose).unwrap();
             let error = player_step(
                 &mut model.clone(),
                 &mut crate::client::physics::Body::new([0., 65., 0.]),
@@ -2188,7 +2186,7 @@ mod tests {
                     .unwrap();
                 // Sleeping-position metadata can separately displace model feet.
                 pose.position = [450., 65., 0.];
-                remote.motion.set_model_pose(pose).unwrap();
+                remote.set_model_pose(pose).unwrap();
                 // target~=8, previous=0, current=450 -> shifted target~=458.
                 // This body is outside the ordinary [8,450] interpolation hull.
                 extra(&mut ledger, version, "spider", [456., 65., 0.], true, 3);
@@ -2508,6 +2506,36 @@ mod tests {
                 "item",
                 "arrow",
                 "cat",
+                "chicken",
+                "llama",
+                "trader_llama",
+                "wolf",
+                "fox",
+                "iron_golem",
+                "donkey",
+                "mule",
+                "skeleton_horse",
+                "zombie_horse",
+                "panda",
+                "polar_bear",
+                "dolphin",
+                "turtle",
+                "bee",
+                "endermite",
+                "enderman",
+                "witch",
+                "vindicator",
+                "pillager",
+                "evoker",
+                "ravager",
+                "drowned",
+                "husk",
+                "zombified_piglin",
+                "zombie_villager",
+                "snow_golem",
+                "skeleton",
+                "stray",
+                "wither_skeleton",
             ] {
                 for position in [[0., 65., 0.], [600., 65., 0.]] {
                     let (mut ledger, session) = receipts(version);
@@ -2935,6 +2963,290 @@ mod tests {
                 } else {
                     assert_eq!(adult, (0.6, 1.7));
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn ordinary_mob_admission_and_age_receipts() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for name in [
+                "rabbit",
+                "ocelot",
+                "villager",
+                "wandering_trader",
+                "mooshroom",
+                "silverfish",
+                "giant",
+            ] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                ledger.history_context(version, 3, 2);
+                ledger
+                    .insert(
+                        version,
+                        NativeSpawn {
+                            id: 7,
+                            uuid: Some([2; 16]),
+                            type_id: None,
+                            dedicated_type_name: Some(name),
+                            position: [0.9, 65., 0.5],
+                            living: Some(true),
+                        },
+                        2,
+                        16,
+                    )
+                    .unwrap();
+                ledger.initialize_motion(
+                    7,
+                    NativeSpawnMotion {
+                        position: Some([0.9, 65., 0.5]),
+                        rotation: Some([0.; 2]),
+                        head_yaw: Some(0.),
+                        velocity: Some([0.; 3]),
+                    },
+                    2,
+                );
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                let body = model.world.bodies.values().next().unwrap();
+                assert_eq!(body.dispatch, ContactDispatch::InheritedLiving);
+                let adult = (body.width, body.height);
+                if !matches!(name, "silverfish" | "giant") {
+                    let index = version
+                        .table()
+                        .entity_data(&format!("minecraft:{name}"))
+                        .iter()
+                        .find(|r| {
+                            EntityDataField::Baby
+                                .official_names()
+                                .iter()
+                                .any(|&(owner, field)| r.owner == owner && r.field == field)
+                        })
+                        .unwrap()
+                        .index;
+                    for (sequence, baby) in [(3, true), (4, false)] {
+                        ledger.history_context(version, 3, sequence);
+                        ledger.receive_metadata(
+                            7,
+                            [(index, EntityDataValue::Bool(baby))],
+                            true,
+                            sequence,
+                        );
+                        model.refresh(10, &ledger, sequence).unwrap();
+                        let body = model.world.bodies.values().next().unwrap();
+                        let factor = if baby { 0.5 } else { 1. };
+                        assert_eq!(
+                            (body.width, body.height),
+                            (adult.0 * factor, adult.1 * factor)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ordinary_mob_species_metadata_and_packet_guards() {
+        let fixture: serde_json::Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/entity_owner_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        for (version, key) in [(V::Java1_16_1, "1.16.1"), (V::Java1_21_11, "1.21.11")] {
+            for name in [
+                "rabbit",
+                "ocelot",
+                "villager",
+                "wandering_trader",
+                "mooshroom",
+                "silverfish",
+                "giant",
+            ] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(&mut ledger, version, name, [0.9, 65., 0.5], true, 2);
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                let baseline = numerical_state(&model);
+                let mut sequence = 2;
+                let mut variants = 0;
+                for action in fixture["versions"][key]["results"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .flat_map(|row| row["steps"].as_array().unwrap())
+                    .flat_map(|step| step["actions"].as_array().unwrap())
+                    .filter(|a| {
+                        a["op"] == "variant" && a["type_name"] == format!("minecraft:{name}")
+                    })
+                {
+                    let alternate = action["alternate"].as_bool().unwrap();
+                    let value = match name {
+                        "rabbit" => EntityDataValue::Int(if alternate { 99 } else { 0 }),
+                        "ocelot" => EntityDataValue::Bool(alternate),
+                        "mooshroom" if version == V::Java1_16_1 => {
+                            EntityDataValue::String(if alternate { "brown" } else { "red" }.into())
+                        }
+                        "mooshroom" => EntityDataValue::Int(i32::from(alternate)),
+                        "villager" => {
+                            EntityDataValue::Other(action["serializer"].as_i64().unwrap() as i32)
+                        }
+                        _ => unreachable!(),
+                    };
+                    sequence += 1;
+                    ledger.history_context(version, 3, sequence);
+                    ledger.receive_metadata(
+                        8,
+                        [(action["index"].as_u64().unwrap() as u8, value)],
+                        true,
+                        sequence,
+                    );
+                    model.refresh(10, &ledger, sequence).unwrap();
+                    assert_eq!(numerical_state(&model), baseline, "{key} {name}");
+                    variants += 1;
+                }
+                assert_eq!(
+                    variants,
+                    if matches!(name, "rabbit" | "ocelot" | "mooshroom" | "villager") {
+                        16
+                    } else {
+                        0
+                    }
+                );
+                for (status, animation) in [(Some(35), None), (None, Some(4)), (None, Some(5))] {
+                    sequence += 1;
+                    ledger.history_context(version, 3, sequence);
+                    ledger.history_signal(8, status, animation);
+                    model.refresh(10, &ledger, sequence).unwrap();
+                    assert_eq!(numerical_state(&model), baseline);
+                    let fresh = OwnedContacts::new(session, 11, 99, &ledger, sequence).unwrap();
+                    assert_eq!(numerical_state(&fresh), baseline);
+                }
+                for (status, animation, packet, opcode) in [
+                    (Some(127), None, "Status", 127),
+                    (None, Some(255), "Animation", 255),
+                ] {
+                    let (mut ledger, session) = receipts(version);
+                    ledger.remove(7);
+                    extra(&mut ledger, version, name, [0.9, 65., 0.5], true, 2);
+                    let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                    ledger.history_context(version, 3, sequence + 1);
+                    ledger.history_signal(8, status, animation);
+                    let error = model.refresh(10, &ledger, sequence + 1).unwrap_err();
+                    let refusal = error.movement_refusal().unwrap();
+                    assert!(matches!(refusal, MovementRefusal::Unsupported { .. }));
+                    let context = refusal.context();
+                    assert_eq!(
+                        context.entity,
+                        Some(model.inputs.values().next().unwrap().entity)
+                    );
+                    assert_eq!(context.native_entity_id, Some(8));
+                    assert_eq!(
+                        context.entity_type.as_deref(),
+                        Some(format!("minecraft:{name}").as_str())
+                    );
+                    assert_eq!(context.receive_sequence, Some(sequence + 1));
+                    assert_eq!(context.packet.as_ref().unwrap().packet_type, packet);
+                    assert_eq!(context.packet.as_ref().unwrap().opcode, opcode);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ordinary_dimension_refresh_survives_receipts_checkpoint_and_no_lerp_ticks() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for name in [
+                "rabbit",
+                "ocelot",
+                "villager",
+                "wandering_trader",
+                "mooshroom",
+                "silverfish",
+                "giant",
+            ] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(&mut ledger, version, name, [0.9, 65., 0.5], true, 2);
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                for (sequence, pose) in [(3, 2), (4, 0)] {
+                    ledger.history_context(version, 3, sequence);
+                    ledger.receive_metadata(8, [(6, EntityDataValue::Pose(pose))], true, sequence);
+                    model.refresh(10, &ledger, sequence).unwrap();
+                }
+                let bounds = model.world.bodies.values().next().unwrap().contact().bounds;
+                let centered = model
+                    .world
+                    .bodies
+                    .values()
+                    .next()
+                    .unwrap()
+                    .centered_bounds();
+                if version == V::Java1_16_1 {
+                    assert_ne!(bounds, centered, "{name}");
+                } else {
+                    assert_eq!(bounds, centered, "{name}");
+                }
+                ledger.history_context(version, 3, 5);
+                ledger.receive_motion(version, 8, NativeMotion::Velocity([0.125, -0.25, 0.375]), 5);
+                model.refresh(10, &ledger, 5).unwrap();
+                assert_eq!(
+                    model.world.bodies.values().next().unwrap().contact().bounds,
+                    bounds
+                );
+                let fresh = OwnedContacts::new(session, 11, 99, &ledger, 5).unwrap();
+                assert_eq!(
+                    fresh.world.bodies.values().next().unwrap().contact().bounds,
+                    bounds
+                );
+                let mut checkpoint = ContactCheckpoint::new(session, 99).unwrap();
+                for record in ledger
+                    .history_after(session, 5, None, MAX_ENTITY_HISTORY_READ)
+                    .unwrap()
+                    .records
+                {
+                    checkpoint.advance(record);
+                }
+                assert!(checkpoint.errors.is_empty());
+                assert!(checkpoint.global_error.is_none());
+                assert_eq!(
+                    checkpoint
+                        .model
+                        .world
+                        .bodies
+                        .values()
+                        .next()
+                        .unwrap()
+                        .contact()
+                        .bounds,
+                    bounds
+                );
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([600., 65., 0.]),
+                )
+                .unwrap();
+                assert_eq!(
+                    model.world.bodies.values().next().unwrap().contact().bounds,
+                    bounds
+                );
+                ledger.history_context(version, 3, 6);
+                ledger.receive_motion(
+                    version,
+                    8,
+                    NativeMotion::Relative {
+                        delta: [512, 0, 0],
+                        rotation: None,
+                        ground: false,
+                    },
+                    6,
+                );
+                model.refresh(10, &ledger, 6).unwrap();
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([600., 65., 0.]),
+                )
+                .unwrap();
+                let body = model.world.bodies.values().next().unwrap();
+                assert_eq!(body.contact().bounds, body.centered_bounds());
             }
         }
     }

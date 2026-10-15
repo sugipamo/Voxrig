@@ -55,7 +55,7 @@ crammingのサーバー側判定・damage・RNGは計算・送信しない。多
 
 `entity_owner_oracle.json.gz` は、未変更の公式client JARを先に読み込む自作headless harnessの数値結果。実際のClientLevel、LocalPlayer、Cow/Pig/Zombie/RemotePlayer、乗員を持つ原版Boat、packet handler、元のchunk/entity storageを使う。描画constructor、audio送出、passenger rideTick、LocalPlayerのGUI入力前処理は切り離し、その境界をfixtureにも記載する。
 
-原版 fixture は両版280スケジュール・3360段階を保持し、SDKでは資格化した96スケジュール・1152段階で徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。未資格speciesの記録を通常livingの数値保証に含めない。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
+原版 fixture は両版320スケジュール・3840段階を保持し、SDKでは資格化した208スケジュール・2496段階で徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。未資格speciesの記録を通常livingの数値保証に含めない。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
 
 実接続は同じ共通Clientと固定バイナリを両版公式serverで使い、実際の元packet、spawn寿命、独立RCON、停止/下車を保存する。強制下車と未検証dispatchの2場面を別runで検証し、入力解除の一度だけの送信と後続予測frameの停止を確認する。結果とSDK・バイナリ・元JARの対応は[検証記録](evidence/common-entity-owners-20261012.json)に保持する。
 
@@ -113,3 +113,38 @@ metadata / scale / equipment / status / animation / mount は未証明 hook の�
 失効状態を保持する。拒否には entity lifetime / native ID / type と原因 packet を保持する。
 失敗 staged frame は保持・送信せず、従来の入力解除を維持する。
 履歴・provenance の破損は Permanent、受信 profile / game mode 不足は Transient のまま。
+
+
+## Step D: ordinary mob qualification (2026-10-15)
+
+The private owned contact lane additionally qualifies Rabbit, Ocelot, Villager,
+WanderingTrader, Mooshroom, Silverfish and Giant in **both 1.16.1 and 1.21.11**.
+Cow/Pig/Zombie/Sheep/Creeper/RemotePlayer retain their numerical regressions.
+The public geometry API and owner origin, history, unit-scale, packet and mount
+guards are unchanged. This does not qualify complete NPC ticks or server AI.
+
+[The capability audit](contact-capability-audit.md#step-d-ordinary-mob-review)
+records each accepted type's original owners/side effects and every reviewed
+rejected type's blocker, with [dated evidence](evidence/contact-capabilities-20261015.json)
+and reproducible original-client oracle commands. In particular Chicken changes
+falling velocity and has modern custom baby geometry; Cat/Wolf resolve owner
+teams differently by version; Fox sleeping flags and horse-family geometry
+need additional modeled state. They remain unqualified. All other unclosed
+reviews likewise retain Unknown (Horse's prior partial outgoing annotation
+still admits nothing). No ancestry or reason-string dispatch is used.
+
+The fixture has 320 schedules / 3,840 stages. Exact SDK comparison covers 208
+qualified schedules / 2,496 stages, split equally between walking and boat;
+the 1,344 unqualified raw stages are excluded from numerical claims. Baby/adult
+and species-variant inputs are tested where applicable. Typed Unsupported
+refusals retain spawn lifetime/native ID/type/packet provenance for unqualified
+species near and far. Only the existing audited Spider/CaveSpider Step B proof
+can permit an unqualified lifetime when all relevant envelopes miss; Step D
+adds no distance exemption.
+
+Legacy dimension-refresh boxes retain their original minimum on equal/growing
+width until a real position placement; modern refresh recenters immediately.
+This state is private and checkpointed. Exact raw bounds and boat comparisons
+cover sleeping/standing transitions, including legacy Silverfish seed 49 stage 7.
+Step B's existing peer hull now also encloses the next recentered placement;
+no unqualified provider or callback gains an envelope exemption.

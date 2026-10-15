@@ -1,10 +1,10 @@
 # 接触dispatchの対応範囲
 
-徒歩・held flight・ボートへの[生物接触の統合](common-entity-owners.md)は、版別 private capability table が資格化した通常scaleの inherited-living / RemotePlayer を対象にする。#92、2026-10-14追加監査と生成した method-owner evidence に基づく有限の範囲で、全speciesの移動対応を意味しない。両版の未変更公式client JARの継承先・原版callbackを確認し、公開するのは以下の解釈と資格化した数値結果である。
+徒歩・held flight・ボートへの[生物接触の統合](common-entity-owners.md)は、版別 private capability table が資格化した通常scaleの inherited-living / RemotePlayer を対象にする。#92、2026-10-14/15追加監査と生成した method-owner evidence に基づく有限の範囲で、全speciesの移動対応を意味しない。両版の未変更公式client JARの継承先・原版callbackを確認し、公開するのは以下の解釈と資格化した数値結果である。
 
 | 種類・入口 | Java 1.16.1 / 1.21.11の扱い | 共通ownerの境界 |
 | --- | --- | --- |
-| Cow / Pig / Zombie / Sheep / Creeper | 原版のliving AI-step、pushEntities / doPush / pushと元worldのlocal-player候補選択 | 完全な履歴・述語・地形が揃う通常scaleを実装。AI/travelや完全なbaseTickは対象外 |
+| Cow / Pig / Zombie / Sheep / Creeper / Rabbit / Ocelot / Villager / WanderingTrader / Mooshroom / Silverfish / Giant | 原版のliving AI-step、pushEntities / doPush / pushと元worldのlocal-player候補選択 | 完全な履歴・述語・地形が揃う通常scaleを実装。AI/travelや完全なbaseTickは対象外 |
 | RemotePlayer | constructorのnoPhysics。modernの速度受信は3段階のlerpMotion | 実profile/game modeが必要。通常pushからlocalへ速度を足さない |
 | LocalPlayer | 原版のliving pushはfirst receiverのsleeping、同じvehicle、noPhysics等を検査 | 数値ownerの現在のfeet/速度と、実際のown metadata・profile・mountを使う |
 | 自分のBoat / AbstractBoat | 普通のliving pushとsolid collisionは別の入口 | 原版tick slotのliving model box、元のspatial順、spectatorと実passenger除外。車両の固有pushは流用しない |
@@ -13,7 +13,7 @@
 | Bat | isPushable=false、doPush / pushEntitiesはno-op | walking / boat selector から除外。通常Cowへの読み替えをせず、private table でこの lane の除外を証明する |
 | Slime / MagmaCube | Slime.pushは継承pushの後にIronGolem向け固有damage dispatch。MagmaCubeはこの入口を継承 | 拒否。size/overrideは[#98](https://github.com/sugipamo/Voxrig/issues/98)、元のgeometry観測は #40 |
 | Shulker | pushはno-op。modernのcanBeCollidedWithはaliveに従う。開閉による動的処理は通常pairと別 | 拒否。接触hookは[#99](https://github.com/sugipamo/Voxrig/issues/99)、元のgeometry観測は #40 |
-| その他のspecies / 未知serializer | この監査・owner oracleの対象外 | Unknown / BoundedUnknown は距離にかかわらず typed Unsupported として拒否 |
+| その他のspecies / 未知serializer | Step D の未資格化理由は追加監査表を参照。未監査hookは補完しない | Unknown / BoundedUnknown は typed Unsupported。Step B の独立した有限証明がある場合のみ非交差を許可 |
 
 ## 述語の時点と不足
 
@@ -25,7 +25,7 @@ vehicle除外は実受信の乗員関係に結び付ける。own boatの乗員�
 
 ## 多数接触とサーバー所有処理
 
-原版の候補順・更新順・浮動小数点の積算順と、SDKの保持上限は別の条件である。原版 fixture は両版280 schedule / 3360 stageを保持する。SDKとの数値比較は資格化した96 schedule / 1152 stage（walking / boat 各576）で、8 / 25 / 50 / 100体の混在・自分の前後のslotを含む。残る未資格speciesを通常livingとして比較・admitしない。productionの固定上限（tick listの256 active / 512 retained、ボートの32衝突候補・120入力）は、超過を切り捨てず拒否する。
+原版の候補順・更新順・浮動小数点の積算順と、SDKの保持上限は別の条件である。原版 fixture は両版320 schedule / 3840 stageを保持する。SDKとの数値比較は資格化した208 schedule / 2496 stage（walking / boat 各1248）で、8 / 25 / 50 / 100体の混在・自分の前後のslotを含む。残る未資格speciesを通常livingとして比較・admitしない。productionの固定上限（tick listの256 active / 512 retained、ボートの32衝突候補・120入力）は、超過を切り捨てず拒否する。
 
 crammingのサーバー側damage/RNG、mob AI、攻撃、server travelをクライアント予測から確定・送信しない。通常の操作統合に必要なRemotePlayerのnoPhysics、sleep callback、passenger除外とboat固有selectorは実装済みだが、species全般の対応は個別issueが残る。追加姿勢は #93、追加の乗り物は #94、観測/codecは #40へ分ける。
 
@@ -47,8 +47,8 @@ push override として代用しない。
 通常scaleの Sheep は幅 `0.9f`・高さ `1.3f`、baby はそれぞれ `0.5f` 倍。
 Creeper は幅 `0.6f`・高さ `1.7f`。既存の private admission と baby metadata
 reducer を使い、公開 geometry API の対象範囲は変更しない。
-原版 fixture は両版280 schedule / 3360 stageを保持する。資格化した96 schedule /
-1152 stageのSDK比較で、実際に重なる個体、own movement の前後の native slot、
+原版 fixture は両版320 schedule / 3840 stageを保持する。資格化した208 schedule /
+2496 stageのSDK比較で、実際に重なる個体、own movement の前後の native slot、
 baby→adult metadata、push 後の local 速度、既存の補間・team・sleep・boat geometry を検査する。
 
 再実行は `scripts/run_entity_owner_oracle.py` の既存引数を使い、その work と
@@ -91,3 +91,38 @@ world 境界で再評価する。checkpoint は累積 hull と失効原因 packe
 原版 numerical fixture は既存六種類の own前後slot・baby metadata、補間・team・sleep・
 boat geometry と Bat / ArmorStand exclusion を引き続き検査する。
 追加 species の envelope 証明は数値 body や全 callback の資格化ではない。
+
+
+## Step D: ordinary mob qualification (2026-10-15)
+
+The private owned contact lane additionally qualifies Rabbit, Ocelot, Villager,
+WanderingTrader, Mooshroom, Silverfish and Giant in **both 1.16.1 and 1.21.11**.
+Cow/Pig/Zombie/Sheep/Creeper/RemotePlayer retain their numerical regressions.
+The public geometry API and owner origin, history, unit-scale, packet and mount
+guards are unchanged. This does not qualify complete NPC ticks or server AI.
+
+[The capability audit](contact-capability-audit.md#step-d-ordinary-mob-review)
+records each accepted type's original owners/side effects and every reviewed
+rejected type's blocker, with [dated evidence](evidence/contact-capabilities-20261015.json)
+and reproducible original-client oracle commands. In particular Chicken changes
+falling velocity and has modern custom baby geometry; Cat/Wolf resolve owner
+teams differently by version; Fox sleeping flags and horse-family geometry
+need additional modeled state. They remain unqualified. All other unclosed
+reviews likewise retain Unknown (Horse's prior partial outgoing annotation
+still admits nothing). No ancestry or reason-string dispatch is used.
+
+The fixture has 320 schedules / 3,840 stages. Exact SDK comparison covers 208
+qualified schedules / 2,496 stages, split equally between walking and boat;
+the 1,344 unqualified raw stages are excluded from numerical claims. Baby/adult
+and species-variant inputs are tested where applicable. Typed Unsupported
+refusals retain spawn lifetime/native ID/type/packet provenance for unqualified
+species near and far. Only the existing audited Spider/CaveSpider Step B proof
+can permit an unqualified lifetime when all relevant envelopes miss; Step D
+adds no distance exemption.
+
+Legacy dimension-refresh boxes retain their original minimum on equal/growing
+width until a real position placement; modern refresh recenters immediately.
+This state is private and checkpointed. Exact raw bounds and boat comparisons
+cover sleeping/standing transitions, including legacy Silverfish seed 49 stage 7.
+Step B's existing peer hull now also encloses the next recentered placement;
+no unqualified provider or callback gains an envelope exemption.

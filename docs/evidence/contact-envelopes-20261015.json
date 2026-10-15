@@ -38,7 +38,12 @@
           "onClimbable": "net.minecraft.world.entity.monster.Spider",
           "isAlive": "net.minecraft.world.entity.LivingEntity",
           "isSleeping": "net.minecraft.world.entity.LivingEntity",
-          "isEffectiveAi": "net.minecraft.world.entity.Mob"
+          "isEffectiveAi": "net.minecraft.world.entity.Mob",
+          "getTeam": "net.minecraft.world.entity.Entity",
+          "getScale": "net.minecraft.world.entity.LivingEntity",
+          "getInterpolation": null,
+          "moveOrInterpolateTo": null,
+          "refreshDimensions": "net.minecraft.world.entity.Entity"
         },
         "cave_spider": {
           "class_name": "net.minecraft.world.entity.monster.CaveSpider",
@@ -63,7 +68,12 @@
           "onClimbable": "net.minecraft.world.entity.monster.Spider",
           "isAlive": "net.minecraft.world.entity.LivingEntity",
           "isSleeping": "net.minecraft.world.entity.LivingEntity",
-          "isEffectiveAi": "net.minecraft.world.entity.Mob"
+          "isEffectiveAi": "net.minecraft.world.entity.Mob",
+          "getTeam": "net.minecraft.world.entity.Entity",
+          "getScale": "net.minecraft.world.entity.LivingEntity",
+          "getInterpolation": null,
+          "moveOrInterpolateTo": null,
+          "refreshDimensions": "net.minecraft.world.entity.Entity"
         }
       },
       "method_sha256": {
@@ -1136,7 +1146,12 @@
           "onClimbable": "net.minecraft.world.entity.monster.spider.Spider",
           "isAlive": "net.minecraft.world.entity.LivingEntity",
           "isSleeping": "net.minecraft.world.entity.LivingEntity",
-          "isEffectiveAi": "net.minecraft.world.entity.Mob"
+          "isEffectiveAi": "net.minecraft.world.entity.Mob",
+          "getTeam": "net.minecraft.world.entity.Entity",
+          "getScale": "net.minecraft.world.entity.LivingEntity",
+          "getInterpolation": "net.minecraft.world.entity.LivingEntity",
+          "moveOrInterpolateTo": "net.minecraft.world.entity.Entity",
+          "refreshDimensions": "net.minecraft.world.entity.Entity"
         },
         "cave_spider": {
           "class_name": "net.minecraft.world.entity.monster.spider.CaveSpider",
@@ -1161,7 +1176,12 @@
           "onClimbable": "net.minecraft.world.entity.monster.spider.Spider",
           "isAlive": "net.minecraft.world.entity.LivingEntity",
           "isSleeping": "net.minecraft.world.entity.LivingEntity",
-          "isEffectiveAi": "net.minecraft.world.entity.Mob"
+          "isEffectiveAi": "net.minecraft.world.entity.Mob",
+          "getTeam": "net.minecraft.world.entity.Entity",
+          "getScale": "net.minecraft.world.entity.LivingEntity",
+          "getInterpolation": "net.minecraft.world.entity.LivingEntity",
+          "moveOrInterpolateTo": "net.minecraft.world.entity.Entity",
+          "refreshDimensions": "net.minecraft.world.entity.Entity"
         }
       },
       "method_sha256": {
@@ -2765,21 +2785,21 @@
   },
   "source_sha256": {
     "scripts/audit_contact_envelopes.py": "8a721bf1e420d6be60e663357799098791ebda082aef3e46ec84586dbd329e23",
-    "docs/contact-envelope-audit.md": "947e6026fe62d7ac50db92e29a5e6594e774c614f6c4f025a4c262b120f61f36",
+    "docs/contact-envelope-audit.md": "e39d36844221504b8075dc11941da1008c9e8f293ee6bc99a0f23d5b77da007c",
     "docs/evidence/contact-capabilities-20261014.json": "5351aa666739f9037172230b0e878250b83f9c0100bf07cbcd573f968925123c",
-    "src/client/entity/contact_capabilities.rs": "c3a8bdf9496a1109731db7374832df4f521f3c57441b46afcd1b751794f2c7fd",
-    "src/client/entity/owned_contacts.rs": "191ce3fb7c3f70061833f2502849348bc5f023ef1621a7f362207bac7e7f1000",
+    "src/client/entity/contact_capabilities.rs": "e225b6422fbbbd083c0fb47ab27118adf5c919587439a5d339a8ceec754baf38",
+    "src/client/entity/owned_contacts.rs": "d1e17cf42d37c44b3ed531bfec1e83b6cbb2e6b338490566140fecda4e468a00",
     "src/client/entity/interpolation.rs": "544b89eb52f6937ba0c32e50b91f2f513eebfb143b6b734ace1f168c88d489ed",
     "src/client/entity/packet_model.rs": "e7a20e77971f4b62f5e4cf01f9182acf8727c23f03c4b09de088c7161bbdb2e9",
-    "src/client/entity/contact_tick.rs": "b13fcf4d08b853b5d830e82c8d97b759d9c1c458079f254f0cd77af5a3476bb4",
+    "src/client/entity/contact_tick.rs": "b962cfec3f3ae933d3a05cdb860fc750136a56330dcf942a6b7eb1ee4880f64d",
     "src/client/entity/contact.rs": "916af07d2057fab781085dc451ee770d9deff81e1f81737e0ffbe6c666f7134e",
     "src/client/physics/mod.rs": "5bc9fbe0f0288706c019eb8522974895d74b8a70d38c38f842a389c7e451107e",
     "src/client/physics/boat.rs": "86fd1e61e234d16f3f00027092d470cffb2c046ac8732654b8d7666bcdaedefe",
     "src/client/vehicle/collision.rs": "5acb4d11f6680286524ee66e9067744a344412610aa5575416e0e474ed3db7e1",
     "src/client/vehicle/tests.rs": "3b4402aa1b6ad9322ca27c3ba39bf904ce2310761e06cb6be2a6ecc21ae6c1b2",
     "src/client/control.rs": "a47ff8111da70e532a93bc57616a8c923a53081dfa617730cf5d0a119a50eb02",
-    "docs/common-entity-owners.md": "617ed816c18910e01e6776be541cce8ee086a6385fa831acda1baa26d0c11c2c",
-    "docs/common-entity-dispatch.md": "f6293e4d17e993244e64c10c9d6f97855bbdd7912ec395cbc117bde6987a0d22",
+    "docs/common-entity-owners.md": "d8b00dc78854cfcb14caf6150123041d4d05db7d7399d11af367b6a83ebe8174",
+    "docs/common-entity-dispatch.md": "b7fa89490ee2dbcf7201273eddc6fd48b3b5e74f5f7bfbb7f2502ef371745241",
     "data/client_api/entity_dimensions_oracle.json.gz": "f250e421e4d27d47e3aab530ef445dcec2fb680c4ee86f565d62cf1b91ec81f4",
     "data/entities.json": "5d50e5f819001980262faebd3984dff05cfb1c2e6101ec02d3a6ae4f34687cf7",
     "data/java_1_21_11/entity_dimensions.json": "556e7e28aabd7383ae5ebe87fe7226c211a8afd28ab9d7de54e69f14e4e54250",
