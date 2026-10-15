@@ -3,8 +3,6 @@ use super::{
     EntityHistoryKind, EntityId, LivingInterpolationPose, LivingPacketGuards, LivingPacketModel,
 };
 use crate::{MinecraftVersion, MovementPacketTrigger, MovementRefusal, Result, client::Aabb};
-#[path = "contact_capabilities_generated.rs"]
-mod generated;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Classification {
@@ -25,7 +23,7 @@ pub(super) struct Capabilities {
     pub animation: Classification,
 }
 impl Capabilities {
-    const UNKNOWN: Self = Self {
+    pub(super) const UNKNOWN: Self = Self {
         walking: Classification::Unknown,
         incoming: Classification::Unknown,
         solid: Classification::Unknown,
@@ -43,7 +41,7 @@ impl Capabilities {
     }
 }
 pub(super) fn capabilities(version: MinecraftVersion, name: &str) -> Capabilities {
-    generated::lookup(version, name)
+    super::contact_policy::capabilities(version, name)
 }
 
 /// Step A's finite packet proof, used only on an audited callback lane.
@@ -52,18 +50,7 @@ pub(super) fn harmless_packet(
     name: &str,
     kind: &EntityHistoryKind,
 ) -> bool {
-    let policy = capabilities(version, name);
-    match kind {
-        EntityHistoryKind::Status { status, .. }
-            if policy.status == Classification::BoundedUnknown =>
-        {
-            *status == 35 || (*status == 10 && name == "minecraft:sheep")
-        }
-        EntityHistoryKind::Animation {
-            animation: 4 | 5, ..
-        } => policy.animation == Classification::BoundedUnknown,
-        _ => false,
-    }
+    super::contact_policy::harmless_packet(version, name, kind)
 }
 
 /// Native slots for excluded/unqualified bodies. A separate, finite proof is
@@ -478,7 +465,7 @@ mod tests {
         }
     }
     #[test]
-    fn generated_policy_is_bound_to_original_class_and_metadata_evidence() {
+    fn policy_is_bound_to_original_class_and_metadata_evidence() {
         let evidence: serde_json::Value = serde_json::from_str(include_str!(
             "../../../docs/evidence/contact-capabilities-20261015.json"
         ))
@@ -498,7 +485,7 @@ mod tests {
             ),
             (
                 "generated_sha256",
-                &include_bytes!("contact_capabilities_generated.rs")[..],
+                &include_bytes!("contact_policy/frozen_capabilities.rs")[..],
             ),
             (
                 "audit_sha256",

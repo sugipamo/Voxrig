@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Generate private owner contact capabilities from verified original clients.
+"""Audit const-table contact capabilities against verified original clients.
 
 Rebuild remapped originals from hash-verified Mojang clients and mappings,
 then export method owners and bytecode fingerprints (never method bodies).
+Policy comes from a private Rust test export; this script never emits Rust.
+--check compares checked-in evidence classifications with that export.
 Explicit side-effect reviews are in docs/contact-capability-audit.md.
 Unreviewed species remain unknown even when method owners match.
 """
@@ -63,9 +65,8 @@ def audit(jar):
 
 # Explicit reviewed lanes only. Owner equality is evidence to inspect, never
 # a qualification rule. See docs/contact-capability-audit.md for side effects.
-PASSIVE_QUALIFIED = {'chicken', 'rabbit', 'ocelot', 'villager', 'wandering_trader',
+ORDINARY_MOB_REVIEW = {'chicken', 'rabbit', 'ocelot', 'villager', 'wandering_trader',
                      'mooshroom', 'silverfish', 'giant'}
-QUALIFIED = {'player', 'cow', 'pig', 'zombie', 'sheep', 'creeper'} | PASSIVE_QUALIFIED
 # Reviewed failures are fingerprinted as well; see the per-type blockers.
 PASSIVE_UNKNOWN = {
     'llama': 'AbstractHorse client stand/eating geometry and llama size/strength/passenger hooks are not modeled.',
@@ -100,34 +101,41 @@ PASSIVE_UNKNOWN = {
     'stray': 'Skeleton ancestry/conversion hooks lack full variant numerical coverage in both versions.',
     'wither_skeleton': 'Skeleton ancestry/item-use hooks lack full variant numerical coverage in both versions.',
 }
-IRRELEVANT = {'bat', 'armor_stand'}
-LANES = ['walking', 'incoming', 'solid', 'geometry', 'metadata', 'status', 'animation']
 
 
-def classify(version, name, row, metadata):
-    result = dict.fromkeys(LANES, 'Unknown')
-    if name in QUALIFIED:
-        result.update(walking='Qualified', incoming='Qualified',
-                      solid='ProvenIrrelevant', geometry='Qualified',
-                      metadata='Qualified', status='BoundedUnknown', animation='BoundedUnknown')
-    elif name in IRRELEVANT:
-        # Geometry itself is not modeled. Unconditional contact exclusions
-        # survive geometry/metadata changes in the declared owner lane.
-        result.update(walking='ProvenIrrelevant', incoming='ProvenIrrelevant',
-                      solid='ProvenIrrelevant', metadata='ProvenIrrelevant',
-                      status='ProvenIrrelevant', animation='ProvenIrrelevant')
-    elif name in {'horse', 'spider', 'cave_spider', 'ghast'}:
-        # Partial WIP ownership evidence only: bounds of effects NOT proven.
-        # This classification authorizes no envelope exemption.
-        result['walking'] = 'BoundedUnknown'
-    return result
+def table_policy():
+    """Read constants through Rust, without parsing Rust or adding SDK API."""
+    output = subprocess.check_output([
+        'cargo', 'test', '--locked', '--lib', '-j1',
+        'client::entity::contact_policy::audit::export_contact_capability_policy',
+        '--', '--exact', '--nocapture', '--test-threads=1',
+    ], cwd=ROOT, text=True)
+    marker = 'CONTACT_CAPABILITY_POLICY='
+    exports = [line.split(marker, 1)[1] for line in output.splitlines() if marker in line]
+    if len(exports) != 1:
+        raise ValueError('expected exactly one Rust const-table export')
+    return json.loads(exports[0])
 
 
-def fingerprints(jar, rows):
+def check_evidence(policy, evidence):
+    observed = {version: {name: row['classifications'] for name, row in v['types'].items()}
+                for version, v in evidence['versions'].items()}
+    if policy != observed:
+        raise ValueError('audit evidence classifications/entity sets differ from const table')
+    print(f"const-table audit: {sum(len(types) for types in policy.values())} versioned entities match")
+
+
+def reviewed_types(policy):
+    # This selects evidence inputs; only the Rust table owns qualifications.
+    return {name for name, effects in policy.items()
+            if effects['walking'] in {'Qualified', 'ProvenIrrelevant'}}
+
+
+def fingerprints(jar, rows, policy):
     # Bind every method body in every ancestor of the explicit reviewed classes,
     # including constructors, tick wrappers, overloads and synthetic callbacks.
     classes = set()
-    todo = {rows[n]['class_name'] for n in QUALIFIED | IRRELEVANT | PASSIVE_UNKNOWN.keys() if n in rows}
+    todo = {rows[n]['class_name'] for n in reviewed_types(policy) | PASSIVE_UNKNOWN.keys() if n in rows}
     todo.add('net.minecraft.world.entity.EntityType')
     todo.add(rows['boat' if 'boat' in rows else 'oak_boat']['class_name'])
     todo.update({'net.minecraft.world.level.EntityGetter',
@@ -154,15 +162,19 @@ def fingerprints(jar, rows):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--downloads', type=Path, required=True)
-    parser.add_argument('--work', type=Path, required=True)
+    parser.add_argument('--downloads', type=Path)
+    parser.add_argument('--work', type=Path)
     parser.add_argument('--output', type=Path, default=ROOT / 'docs/evidence/contact-capabilities-20261015.json')
+    parser.add_argument('--check', action='store_true',
+                        help='compare recorded evidence with the Rust table; no original jars needed')
     args = parser.parse_args()
+    if not args.check and (args.downloads is None or args.work is None):
+        parser.error('--downloads and --work are required unless --check is used')
+    policy = table_policy()
+    if args.check:
+        check_evidence(policy, json.loads(args.output.read_text()))
+        return
     result = {'schema': 2, 'scope': 'Step D; audited ordinary mob extension; Step B envelope policy unchanged', 'versions': {}}
-    rust = ['// Generated by scripts/audit_contact_capabilities.py; private owner policy.',
-            'use super::{Capabilities, Classification};', 'use crate::MinecraftVersion;',
-            'pub(super) fn lookup(version: MinecraftVersion, name: &str) -> Capabilities {',
-            '    match version {']
     for version, (jar_sha, mapping_sha) in CLIENT.items():
         assert digest(args.downloads / f'{version}-client.jar', 'sha1') == jar_sha
         assert digest(args.downloads / f'{version}-client-mappings.txt', 'sha1') == mapping_sha
@@ -175,7 +187,9 @@ def main():
             str(args.downloads / f'{version}-client.jar'), '--out-jar', str(named),
             '--srg-in', str(args.downloads / f'{version}-client-mappings.txt')], stdout=subprocess.DEVNULL)
         rows = audit(named)
-        for name in PASSIVE_QUALIFIED:
+        if set(rows) != set(policy[version]):
+            raise ValueError(f'{version}: original-client entity set differs from const table')
+        for name in ORDINARY_MOB_REVIEW:
             row = rows[name]
             if name == 'chicken':
                 assert row['aiStep'] == ('net.minecraft.world.entity.animal.Chicken'
@@ -196,42 +210,24 @@ def main():
                 assert row['getInterpolation'] == LIVING
                 assert row['moveOrInterpolateTo'] == 'net.minecraft.world.entity.Entity'
         metadata_path = ROOT / 'data/client_api' / f'entity_data-{version}.json'
-        metadata = json.loads(metadata_path.read_text())['entities']
         for name, row in rows.items():
-            row['classifications'] = classify(version, name, row, metadata.get('minecraft:' + name, []))
-            row['audit'] = 'reviewed-owner-lane' if name in QUALIFIED | IRRELEVANT else 'unqualified'
+            row['classifications'] = policy[version][name]
+            row['audit'] = 'reviewed-owner-lane' if name in reviewed_types(policy[version]) else 'unqualified'
             if name in PASSIVE_UNKNOWN:
                 row['qualification_blocker'] = PASSIVE_UNKNOWN[name]
-            elif name in PASSIVE_QUALIFIED:
+            elif name in ORDINARY_MOB_REVIEW:
                 row['qualification_review'] = 'docs/contact-capability-audit.md#step-d-ordinary-mob-review'
         result['versions'][version] = dict(original_client_jar_sha1=jar_sha,
             client_mappings_sha1=mapping_sha, entity_data_sha256=digest(metadata_path),
-            method_sha256=fingerprints(args.work / version / 'named.jar', rows), types=rows)
-        variant = 'Java' + version.replace('.', '_')
-        rust.append(f'        MinecraftVersion::{variant} => match name {{')
-        groups = {}
-        for name, row in rows.items():
-            values = tuple(row['classifications'][lane] for lane in LANES)
-            if set(values) != {'Unknown'}:
-                groups.setdefault(values, []).append(name)
-        for values, names in sorted(groups.items()):
-            for i, name in enumerate(sorted(names)):
-                rust.append(f'            {"" if i == 0 else "| "}"minecraft:{name}"')
-            rust.append('                => Capabilities {')
-            for lane, value in zip(LANES, values):
-                rust.append(f'                    {lane}: Classification::{value},')
-            rust.append('                },')
-        rust.extend(['            _ => Capabilities::UNKNOWN,', '        },'])
-    rust.extend(['    }', '}', ''])
-    output = ROOT / 'src/client/entity/contact_capabilities_generated.rs'
-    output.write_text('\n'.join(rust))
-    subprocess.check_call(['rustfmt', '--edition', '2024', str(output)])
+            method_sha256=fingerprints(args.work / version / 'named.jar', rows, policy[version]), types=rows)
+    check_evidence(policy, result)
     result['generator_sha256'] = digest(Path(__file__))
     result['audit_sha256'] = digest(ROOT / 'docs/contact-capability-audit.md')
     result['numerical_oracle_sha256'] = digest(ROOT / 'data/client_api/entity_owner_oracle.json.gz')
     result['numerical_runner_sha256'] = digest(ROOT / 'scripts/run_entity_owner_oracle.py')
     result['packet_audit_sha256'] = digest(ROOT / 'data/client_api/contact_packet_audit.json')
-    result['generated_sha256'] = digest(output)
+    # Schema-2 historical binding: frozen pre-migration decision source, never generated.
+    result['generated_sha256'] = digest(ROOT / 'src/client/entity/contact_policy/frozen_capabilities.rs')
     args.output.write_text(json.dumps(result, indent=2) + '\n')
 
 

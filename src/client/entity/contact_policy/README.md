@@ -1,8 +1,11 @@
-# Contact policy shadow (migration step 2)
+# Contact policy (migration step 3)
 
-Production still reads `contact_capabilities`, `owned_contacts`, `geometry`, and
-vehicle collision code. These private constants are compiled and validated on
-normal builds, but only tests read their decisions. No public API or runtime
+Production `contact_capabilities` remains the compatibility facade and reads
+capability classifications and harmless Status/Animation decisions from this
+const table. The shared predicates use the OwnedWalking observation column;
+this does not add lane admission. Unresolved/version-absent names return all
+Unknown/false. Locality, dispatch, geometry, metadata, team, identity, and vehicle
+sampling still read their existing code (steps 4a/4b). No public API or runtime
 configuration is added. Wolf remains Unknown.
 
 `table.rs` implements option B: named effect fields, normalized policy profiles,
@@ -57,11 +60,14 @@ expanded packet booleans are retained only in tests (10,941 bytes).
 
 ## Test-time guarantees and limits
 
-`baseline.rs` compares all 4,814,040 present keys directly with the existing
-production capability and packet functions. A second rendering from the shadow
-constants compares byte-for-byte with the unchanged step-1 golden, including
-spawn dispatch, modeled status, and default-pose/far-query locality. The original
-production rendering and representative typed refusal checks remain in place.
+`baseline.rs` compares all 4,814,040 present keys with production and the frozen
+pre-step-3 capability match and harmless-packet allowlist. The match is moved
+byte-for-byte to test-only `frozen_capabilities.rs`; its historical evidence hash
+is unchanged. Both the production and table renderings still compare byte-for-byte
+with the unchanged step-1 golden, including spawn dispatch, modeled status, and
+default-pose/far-query locality. Separate tests compare unresolved and absent names
+against the frozen source for every Status/Animation opcode. Representative typed
+refusal checks remain in place.
 
 Additional tests check public geometry through the real `derived_geometry`
 function for every present pair, rigid vehicle classification against the real
@@ -80,6 +86,32 @@ fixture tests remain independent checks. Scenario IDs identify existing proof
 families, not a generated replacement for the fixed regression corpus. Static
 metadata selectors refer to the existing reducer, with no copied numeric indices.
 
-The development exporter is deferred: step 2 uses the in-memory golden rendering
-for a complete semantic comparison. No public exporter, runtime manifest reader,
-Python consumer migration, oracle regeneration, or policy digest is introduced.
+## Audit connection
+
+`python3 -B scripts/audit_contact_capabilities.py --check` runs the private
+`audit::export_contact_capability_policy` Rust test with `-j1` and
+`--test-threads=1`, reads its marked JSON stdout, and compares all seven evidence
+classifications and the complete version/entity sets in both directions. The
+ordinary Rust suite also performs this evidence/table comparison directly.
+This is development-only export, with no public exporter or runtime config.
+
+The Python auditor no longer owns qualification lists or emits Rust. When run
+with original `--downloads`/`--work` inputs, it takes required classifications
+and reviewed-type fingerprint inputs from the Rust export, checks original-client
+entity coverage, and retains the existing independent method-owner/fingerprint
+and review/blocker evidence collection. The fixed ordinary-mob review and blocker
+inputs remain for step 5. Its `--output` flag also selects the evidence for
+`--check`; check mode writes nothing.
+
+Schema-2 evidence field names are retained: `generator_sha256` binds the auditor
+script, while `generated_sha256` now binds the frozen historical match (same
+bytes/hash). The whole-source envelope binding of `contact_capabilities.rs` is
+updated because the facade delegates to the table and the evidence test includes
+the moved historical file. Envelope algorithms and bound semantic decisions are
+unchanged. No oracle artifacts, golden, original-client method hashes, or other
+source bindings change. Historical reproduction wording in the bound audit review
+predates this migration; use the commands above for the current check path.
+
+Java manifests, documentation generation, other Python consumers, and a broader
+selector/scenario export remain step 5 work. Existing fixtures and reviews remain
+independent evidence; table output is never a numerical oracle.

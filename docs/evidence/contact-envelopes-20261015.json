@@ -2787,7 +2787,7 @@
     "scripts/audit_contact_envelopes.py": "8a721bf1e420d6be60e663357799098791ebda082aef3e46ec84586dbd329e23",
     "docs/contact-envelope-audit.md": "e39d36844221504b8075dc11941da1008c9e8f293ee6bc99a0f23d5b77da007c",
     "docs/evidence/contact-capabilities-20261014.json": "5351aa666739f9037172230b0e878250b83f9c0100bf07cbcd573f968925123c",
-    "src/client/entity/contact_capabilities.rs": "ed483f4a71837da72c05716fd391f62cc19ced014360be751eeeacf75d27e371",
+    "src/client/entity/contact_capabilities.rs": "42fb2a93ccc407b883796ce781e9e90496313a685be343a1826831a447c88941",
     "src/client/entity/owned_contacts.rs": "947f4493f50c628f2dd8f6dd3fbdaaea42314ec785bad4d9ed9808f8fa3dc237",
     "src/client/entity/interpolation.rs": "544b89eb52f6937ba0c32e50b91f2f513eebfb143b6b734ace1f168c88d489ed",
     "src/client/entity/packet_model.rs": "e7a20e77971f4b62f5e4cf01f9182acf8727c23f03c4b09de088c7161bbdb2e9",

@@ -1,6 +1,8 @@
 mod policy_baseline {
     use crate::client::entity::contact_policy::key::*;
-    use crate::client::entity::contact_policy::{table, validate::EXPANDED_PACKETS};
+    use crate::client::entity::contact_policy::{
+        frozen_capabilities, table, validate::EXPANDED_PACKETS,
+    };
     use crate::client::entity::{
         NativeSpawn, NativeSpawnMotion, SpawnLedger, contact_capabilities,
         owned_contacts::OwnedContacts,
@@ -32,6 +34,23 @@ mod policy_baseline {
             }
             contact_capabilities::Classification::BoundedUnknown => table::Class::BoundedUnknown,
             contact_capabilities::Classification::Unknown => table::Class::Unknown,
+        }
+    }
+
+    // Frozen pre-step-3 allowlist. Do not replace with table-derived expectations.
+    fn frozen_harmless_packet(version: V, name: &str, kind: &EntityHistoryKind) -> bool {
+        use contact_capabilities::Classification;
+        let policy = frozen_capabilities::lookup(version, name);
+        match kind {
+            EntityHistoryKind::Status { status, .. }
+                if policy.status == Classification::BoundedUnknown =>
+            {
+                *status == 35 || (*status == 10 && name == "minecraft:sheep")
+            }
+            EntityHistoryKind::Animation {
+                animation: 4 | 5, ..
+            } => policy.animation == Classification::BoundedUnknown,
+            _ => false,
         }
     }
 
@@ -141,6 +160,44 @@ mod policy_baseline {
     }
 
     #[test]
+    fn unresolved_and_absent_names_preserve_frozen_refusals() {
+        for version in VERSIONS {
+            for name in EntityType::ALL.iter().map(|entity| entity.name()).chain([
+                "",
+                "cow",
+                "minecraft:missing",
+                "other:cow",
+                "minecraft:Cow",
+            ]) {
+                assert_eq!(
+                    contact_capabilities::capabilities(version, name),
+                    frozen_capabilities::lookup(version, name)
+                );
+                for packet in PacketKey::ALL {
+                    let kind = match packet {
+                        PacketKey::Status(status) => EntityHistoryKind::Status {
+                            native_id: -1,
+                            entity: None,
+                            status,
+                        },
+                        PacketKey::Animation(animation) => EntityHistoryKind::Animation {
+                            native_id: -1,
+                            entity: None,
+                            animation,
+                        },
+                        _ => continue,
+                    };
+                    assert_eq!(
+                        contact_capabilities::harmless_packet(version, name, &kind),
+                        frozen_harmless_packet(version, name, &kind),
+                        "{version:?}/{name}/{packet:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn frozen_contact_policy_baseline() {
         let mut out = String::from(
             "contact-policy-baseline-v1\n\
@@ -236,6 +293,7 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                         let mut classification = None;
                         let harmless = runs(PacketKey::ALL.into_iter().map(|packet| {
                             let caps = contact_capabilities::capabilities(version, name);
+                            assert_eq!(caps, frozen_capabilities::lookup(version, name));
                             let class = match effect {
                                 Effect::WalkingPush => caps.walking,
                                 Effect::IncomingPush => caps.incoming,
@@ -320,6 +378,7 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                             count += 1;
                             let production =
                                 contact_capabilities::harmless_packet(version, name, &kind);
+                            assert_eq!(production, frozen_harmless_packet(version, name, &kind));
                             assert_eq!(
                                 profile.effects.get(effect),
                                 production_class(class),
