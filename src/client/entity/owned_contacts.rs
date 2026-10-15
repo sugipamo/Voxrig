@@ -400,6 +400,7 @@ impl OwnedContacts {
         }
         let deferred = &self.deferred;
         contact_capabilities::check(deferred.values(), boat_query(seed.bounds), true)?;
+        contact_capabilities::check_peers(deferred.values(), &self.world, true)?;
         let own_bounds = std::cell::RefCell::new(seed.bounds);
         let fixed = ledger
             .capture(self.session, self.receive_sequence)
@@ -432,9 +433,16 @@ impl OwnedContacts {
                 ])
             })
             .collect::<Result<Vec<_>>>()?;
+        for bounds in &fixed {
+            contact_capabilities::check(deferred.values(), boat_query(*bounds), true)?;
+        }
         let version = self.session.version;
         let inputs = &self.inputs;
-        let read = std::cell::RefCell::new(block_at);
+        let mut guarded_blocks = |p: [i32; 3]| {
+            contact_capabilities::check(deferred.values(), contact_capabilities::cell(p), true)?;
+            block_at(p)
+        };
+        let read = std::cell::RefCell::new(&mut guarded_blocks);
         let origin = self.origin;
         let applied = self.cursor.map_or(0, EntityHistoryCursor::ordinal);
         let tick = self.tick + 1;
@@ -468,6 +476,7 @@ impl OwnedContacts {
                     relations,
                     self.receive_sequence,
                     Some(&living),
+                    &deferred.values().map(|b| b.entity).collect::<Vec<_>>(),
                 )?
                 .ok_or_else(|| failure("missing boat collision sample"))?;
                 // The complete retained model owns entity membership. Terrain is
@@ -594,7 +603,12 @@ impl OwnedContacts {
         let version = self.session.version;
         let deferred = &self.deferred;
         contact_capabilities::check(deferred.values(), aabb(body.bounds), false)?;
-        let read = std::cell::RefCell::new(block_at);
+        contact_capabilities::check_peers(deferred.values(), &self.world, false)?;
+        let mut guarded_blocks = |p: [i32; 3]| {
+            contact_capabilities::check(deferred.values(), contact_capabilities::cell(p), false)?;
+            block_at(p)
+        };
+        let read = std::cell::RefCell::new(&mut guarded_blocks);
         let mut local = LivingContactBody {
             push: LivingPushBody {
                 position: body.position,
@@ -963,8 +977,8 @@ impl OwnedContacts {
             }
         }
         self.checkpoint_errors.clear();
-        // Excluded and unknown bodies keep native order. Unknown capabilities
-        // refuse at the movement boundary; distance never exempts them.
+        // Deferred bodies retain native order; only separately proven envelopes
+        // can establish irrelevance at the movement boundary.
         for spawn in ledger.capture(self.session, sequence).entities {
             if !self.inputs.values().any(|i| i.entity == spawn.id)
                 && !self.deferred.values().any(|i| i.entity == spawn.id)
@@ -1158,6 +1172,59 @@ impl OwnedContacts {
         }
         let ordinal = record.ordinal;
         match &record.kind {
+            EntityHistoryKind::Metadata {
+                native_id, entity, ..
+            }
+            | EntityHistoryKind::Equipment {
+                native_id, entity, ..
+            }
+            | EntityHistoryKind::Scale {
+                native_id, entity, ..
+            }
+            | EntityHistoryKind::Status {
+                native_id, entity, ..
+            }
+            | EntityHistoryKind::Animation {
+                native_id, entity, ..
+            } => {
+                let (packet, opcode) = match &record.kind {
+                    EntityHistoryKind::Metadata { .. } => ("Metadata", 0),
+                    EntityHistoryKind::Equipment { .. } => ("Equipment", 0),
+                    EntityHistoryKind::Scale { .. } => ("Scale", 0),
+                    EntityHistoryKind::Status { status, .. } => ("Status", i32::from(*status)),
+                    EntityHistoryKind::Animation { animation, .. } => {
+                        ("Animation", i32::from(*animation))
+                    }
+                    _ => unreachable!(),
+                };
+                if let Some(body) = self.deferred.get_mut(native_id) {
+                    if Some(body.entity) == *entity {
+                        body.invalidate(record, packet, opcode);
+                    }
+                }
+            }
+            EntityHistoryKind::Passengers {
+                native_id,
+                passengers,
+                ..
+            } => {
+                // Both the vehicle and its children can acquire passenger travel.
+                // Unknown/retention-limited membership removes all spatial proofs.
+                for (&id, body) in &mut self.deferred {
+                    let affected = match passengers {
+                        EntityHistoryValue::Retained { value } => {
+                            *native_id == id || value.iter().any(|(child, _)| *child == id)
+                        }
+                        EntityHistoryValue::RetentionLimit => true,
+                    };
+                    if affected {
+                        body.invalidate(record, "Passengers", 0);
+                    }
+                }
+            }
+            _ => {}
+        }
+        match &record.kind {
             EntityHistoryKind::Spawn(m) => {
                 let id = m.entity.id;
                 self.deferred.remove(&id.native_id());
@@ -1193,7 +1260,26 @@ impl OwnedContacts {
                     {
                         self.deferred.insert(
                             id.native_id(),
-                            DeferredContact::new(self.session.version, id, name, ordinal),
+                            DeferredContact::new(
+                                self.session.version,
+                                id,
+                                name,
+                                ordinal,
+                                m.position
+                                    .as_ref()
+                                    .zip(m.rotation.as_ref())
+                                    .and_then(|(p, r)| {
+                                        let source = crate::client::ValueSource::Received {
+                                            sequence: record.receive_sequence,
+                                        };
+                                        (p.source == source && r.source == source).then_some(
+                                            LivingInterpolationPose {
+                                                position: p.value.position,
+                                                rotation: r.value,
+                                            },
+                                        )
+                                    }),
+                            ),
                         );
                     }
                     self.fresh = self
@@ -1272,6 +1358,7 @@ impl OwnedContacts {
                     if body.entity != m.entity.id {
                         return Err(failure("deferred contact motion lifetime changed"));
                     }
+                    body.apply(record, m);
                 }
                 if let Some(body) = self
                     .world
@@ -1913,6 +2000,482 @@ mod tests {
             .map(|_| ())
     }
     #[test]
+    fn envelope_far_allow_and_near_refusal_preserve_slots_without_fabricated_samples() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for name in ["spider", "cave_spider"] {
+                for own_id in [1, 99, 1000] {
+                    let (mut ledger, session) = receipts(version);
+                    ledger.remove(7);
+                    extra(&mut ledger, version, name, [600., 65., 0.], true, 2);
+                    let mut model = OwnedContacts::new(session, 10, own_id, &ledger, 2).unwrap();
+                    let key = model.native_keys[&8];
+                    // Unknown geometry/predicate capabilities stay private and
+                    // unqualified; this separate proof only establishes absence.
+                    assert_eq!(
+                        model.deferred[&8].capabilities.geometry,
+                        contact_capabilities::Classification::Unknown
+                    );
+                    let high = crate::client::physics::Body::new([600., 70., 0.]);
+                    contact_capabilities::check(model.deferred.values(), aabb(high.bounds), false)
+                        .unwrap();
+                    assert!(
+                        contact_capabilities::check(
+                            model.deferred.values(),
+                            boat_query(high.bounds),
+                            true
+                        )
+                        .is_err()
+                    );
+                    let mut own = crate::client::physics::Body::new([0., 65., 0.]);
+                    for _ in 0..8 {
+                        player_step(&mut model, &mut own).unwrap();
+                    }
+                    assert!(model.world.order.body(key).is_some());
+                    assert!(model.frame(0).bodies.is_empty());
+                    contact_capabilities::check(
+                        model.deferred.values(),
+                        boat_query(own.bounds),
+                        true,
+                    )
+                    .unwrap();
+                    let error = player_step(
+                        &mut model,
+                        &mut crate::client::physics::Body::new([600., 65., 0.]),
+                    )
+                    .unwrap_err();
+                    assert!(matches!(
+                        error.movement_refusal(),
+                        Some(MovementRefusal::Unsupported { .. })
+                    ));
+                    assert_eq!(
+                        error.movement_refusal().unwrap().context().native_entity_id,
+                        Some(8)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn envelope_retains_interpolation_path_and_old_anchors_after_far_teleport() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "spider", [-100., 65., 0.], true, 2);
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            player_step(
+                &mut model,
+                &mut crate::client::physics::Body::new([0., 65., 0.]),
+            )
+            .unwrap();
+            ledger.history_context(version, 3, 3);
+            let packet = NativeMotion::Absolute {
+                position: [100., 65., 0.],
+                rotation: [0.; 2],
+                velocity: (version == V::Java1_21_11).then_some([0.; 3]),
+                ground: Some(false),
+                reset_base: true,
+            };
+            ledger.receive_motion(version, 8, packet, 3);
+            model.refresh(10, &ledger, 3).unwrap();
+            // Both endpoints are far; the complete path crosses the player.
+            assert!(
+                player_step(
+                    &mut model.clone(),
+                    &mut crate::client::physics::Body::new([0., 65., 0.])
+                )
+                .is_err()
+            );
+            assert!(
+                player_step(
+                    &mut model.clone(),
+                    &mut crate::client::physics::Body::new([-100., 65., 0.])
+                )
+                .is_err()
+            );
+            assert!(
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 100.])
+                )
+                .is_ok()
+            );
+        }
+    }
+
+    #[test]
+    fn envelope_checks_attempted_sweep_even_when_wall_clips_the_result() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "spider", [8., 65., 0.], true, 2);
+            let model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            let before = numerical_state(&model);
+            let mut own = crate::client::physics::Body::new([0., 65., 0.]);
+            own.velocity = [10., 0., 0.];
+            let error = model
+                .clone()
+                .tick_player(
+                    &mut own,
+                    &crate::client::physics::Environment::defaults(version),
+                    crate::client::control::Controls::default(),
+                    false,
+                    None,
+                    &mut |p| {
+                        Ok(crate::NativeBlockState {
+                            name: if p[0] == 2 {
+                                "minecraft:stone"
+                            } else {
+                                "minecraft:air"
+                            }
+                            .into(),
+                            properties: Default::default(),
+                        })
+                    },
+                )
+                .unwrap_err();
+            assert!(matches!(
+                error.movement_refusal(),
+                Some(MovementRefusal::Unsupported { .. })
+            ));
+            // The retained model is never replaced by this failed staged clone.
+            assert_eq!(numerical_state(&model), before);
+        }
+    }
+
+    #[test]
+    fn envelope_refuses_indirect_remote_overlap_and_shifted_interpolation_target() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            extra(&mut ledger, version, "spider", [600., 65., 0.], true, 2);
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            player_step(
+                &mut model.clone(),
+                &mut crate::client::physics::Body::new([0., 65., 0.]),
+            )
+            .unwrap();
+            let remote = model.world.bodies.values_mut().next().unwrap();
+            let mut pose = remote.motion.frame().interpolation.pose;
+            pose.position = [600., 65., 0.];
+            remote.motion.set_model_pose(pose).unwrap();
+            let error = player_step(
+                &mut model.clone(),
+                &mut crate::client::physics::Body::new([0., 65., 0.]),
+            )
+            .unwrap_err();
+            assert_eq!(
+                error.movement_refusal().unwrap().context().native_entity_id,
+                Some(8)
+            );
+            if version == V::Java1_21_11 {
+                let remote = model.world.bodies.values_mut().next().unwrap();
+                pose.position = [0., 65., 0.];
+                remote.motion = super::super::LivingPacketModel::new(version, pose, 1).unwrap();
+                remote
+                    .motion
+                    .apply(
+                        100,
+                        super::super::LivingMotionPacket::Relative {
+                            delta: [32767, 0, 0],
+                            rotation: None,
+                            ground: false,
+                        },
+                        super::super::LivingPacketGuards {
+                            local_authoritative: false,
+                            ticking: true,
+                        },
+                    )
+                    .unwrap();
+                // Sleeping-position metadata can separately displace model feet.
+                pose.position = [450., 65., 0.];
+                remote.motion.set_model_pose(pose).unwrap();
+                // target~=8, previous=0, current=450 -> shifted target~=458.
+                // This body is outside the ordinary [8,450] interpolation hull.
+                extra(&mut ledger, version, "spider", [456., 65., 0.], true, 3);
+                model.refresh(10, &ledger, 3).unwrap();
+                assert!(
+                    player_step(
+                        &mut model,
+                        &mut crate::client::physics::Body::new([0., 65., 0.])
+                    )
+                    .is_err()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn envelope_unproven_callbacks_revoke_locality_with_typed_packet_context() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for kind in [
+                "Metadata",
+                "Status",
+                "Animation",
+                "Passengers",
+                "Equipment",
+                "Scale",
+            ] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(&mut ledger, version, "spider", [600., 65., 0.], true, 2);
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 0.]),
+                )
+                .unwrap();
+                ledger.history_context(version, 3, 3);
+                let entity = Some(model.deferred[&8].entity);
+                let opcode = match kind {
+                    "Status" => 127,
+                    "Animation" => 255,
+                    _ => 0,
+                };
+                let record_kind = match kind {
+                    "Metadata" => EntityHistoryKind::Metadata {
+                        native_id: 8,
+                        entity,
+                        entries: EntityHistoryValue::Retained { value: vec![] },
+                        complete: true,
+                    },
+                    "Status" => EntityHistoryKind::Status {
+                        native_id: 8,
+                        entity,
+                        status: 127,
+                    },
+                    "Animation" => EntityHistoryKind::Animation {
+                        native_id: 8,
+                        entity,
+                        animation: 255,
+                    },
+                    "Passengers" => EntityHistoryKind::Passengers {
+                        native_id: 99,
+                        entity: None,
+                        passengers: EntityHistoryValue::Retained {
+                            value: vec![(8, entity)],
+                        },
+                    },
+                    "Equipment" => EntityHistoryKind::Equipment {
+                        native_id: 8,
+                        entity,
+                        entries: EntityHistoryValue::Retained { value: vec![] },
+                        complete: true,
+                    },
+                    "Scale" => EntityHistoryKind::Scale {
+                        native_id: 8,
+                        entity,
+                        attribute: EntityHistoryValue::RetentionLimit,
+                    },
+                    _ => unreachable!(),
+                };
+                let record = super::super::EntityHistoryRecord {
+                    session,
+                    ordinal: 100,
+                    receive_sequence: 3,
+                    applied_after: std::time::Duration::ZERO,
+                    kind: record_kind,
+                };
+                model
+                    .reduce_record(&record, false, None, &mut BTreeMap::new())
+                    .unwrap();
+                let error = player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 0.]),
+                )
+                .unwrap_err();
+                let detail = error.movement_refusal().unwrap();
+                assert!(matches!(detail, MovementRefusal::Unsupported { .. }));
+                let c = detail.context();
+                assert_eq!(c.entity, entity);
+                assert_eq!(c.entity_type.as_deref(), Some("minecraft:spider"));
+                assert_eq!(c.record_ordinal, Some(100));
+                assert_eq!(c.receive_sequence, Some(3));
+                assert_eq!(c.packet.as_ref().unwrap().packet_type, kind);
+                assert_eq!(c.packet.as_ref().unwrap().opcode, opcode);
+            }
+        }
+    }
+
+    #[test]
+    fn envelope_revocation_survives_checkpoint_and_unsupported_motion_stays_global() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for signal in [true, false] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(&mut ledger, version, "spider", [600., 65., 0.], true, 2);
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                ledger.history_context(version, 3, 3);
+                if signal {
+                    ledger.history_signal(8, Some(127), None);
+                } else {
+                    ledger.receive_motion(
+                        version,
+                        8,
+                        NativeMotion::Absolute {
+                            position: [600., 65., 0.],
+                            rotation: [0.; 2],
+                            velocity: None,
+                            ground: None,
+                            reset_base: false,
+                        },
+                        3,
+                    );
+                }
+                model.refresh(10, &ledger, 3).unwrap();
+                let expected = if signal { "Status" } else { "Motion" };
+                let error = player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 0.]),
+                )
+                .unwrap_err();
+                assert_eq!(
+                    error
+                        .movement_refusal()
+                        .unwrap()
+                        .context()
+                        .packet
+                        .as_ref()
+                        .unwrap()
+                        .packet_type,
+                    expected
+                );
+                for sequence in 4..MAX_ENTITY_HISTORY_RECORDS as u64 + 8 {
+                    ledger.history_context(version, 3, sequence);
+                    ledger.history_signal(500, None, Some(0));
+                }
+                let mut fresh = OwnedContacts::new(
+                    session,
+                    11,
+                    99,
+                    &ledger,
+                    MAX_ENTITY_HISTORY_RECORDS as u64 + 8,
+                )
+                .unwrap();
+                let error = player_step(
+                    &mut fresh,
+                    &mut crate::client::physics::Body::new([0., 65., 0.]),
+                )
+                .unwrap_err();
+                let detail = error.movement_refusal().unwrap();
+                assert!(matches!(detail, MovementRefusal::Unsupported { .. }));
+                assert_eq!(
+                    detail.context().packet.as_ref().unwrap().packet_type,
+                    expected
+                );
+                assert_eq!(detail.context().receive_sequence, Some(3));
+            }
+        }
+    }
+
+    #[test]
+    fn envelope_includes_world_boundary_clamped_placement_and_refuses_out_of_domain() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for sign in [-1., 1.] {
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                extra(
+                    &mut ledger,
+                    version,
+                    "spider",
+                    [sign * 31_000_000., 65., 0.],
+                    true,
+                    2,
+                );
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                for invalid_x in [f64::NAN, f64::INFINITY, 10.] {
+                    let mut query = aabb(crate::client::physics::Body::new([0., 65., 0.]).bounds);
+                    query.min_x = invalid_x; // 10 also makes min > max.
+                    let error = contact_capabilities::check(model.deferred.values(), query, false)
+                        .unwrap_err();
+                    assert!(matches!(
+                        error.movement_refusal(),
+                        Some(MovementRefusal::Unsupported { .. })
+                    ));
+                }
+
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 0.]),
+                )
+                .unwrap();
+                let error = player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([sign * 30_000_000., 65., 0.]),
+                )
+                .unwrap_err();
+                assert!(matches!(
+                    error.movement_refusal(),
+                    Some(MovementRefusal::Unsupported { .. })
+                ));
+                extra(
+                    &mut ledger,
+                    version,
+                    "spider",
+                    [sign * 32_000_001., 65., 0.],
+                    true,
+                    3,
+                );
+                model.refresh(10, &ledger, 3).unwrap();
+                assert!(
+                    player_step(
+                        &mut model,
+                        &mut crate::client::physics::Body::new([0., 65., 0.])
+                    )
+                    .is_err()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn envelope_replays_checkpoint_and_rechecks_removal_id_reuse_and_world() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "spider", [600., 65., 0.], true, 2);
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            let old = model.deferred[&8].entity;
+            for sequence in 3..MAX_ENTITY_HISTORY_RECORDS as u64 + 8 {
+                ledger.history_context(version, 3, sequence);
+                ledger.history_signal(500, None, Some(0));
+                if sequence % 64 == 0 {
+                    model.refresh(10, &ledger, sequence).unwrap();
+                }
+            }
+            let end = MAX_ENTITY_HISTORY_RECORDS as u64 + 8;
+            let mut fresh = OwnedContacts::new(session, 11, 99, &ledger, end).unwrap();
+            player_step(
+                &mut fresh,
+                &mut crate::client::physics::Body::new([0., 65., 0.]),
+            )
+            .unwrap();
+            // Live owners and new owners use the same checkpoint/suffix reducer.
+            model.refresh(10, &ledger, end).unwrap();
+            player_step(
+                &mut model,
+                &mut crate::client::physics::Body::new([0., 65., 0.]),
+            )
+            .unwrap();
+            ledger.remove(8);
+            model.refresh(10, &ledger, end).unwrap();
+            assert!(model.deferred.is_empty());
+            extra(&mut ledger, version, "spider", [0., 65., 0.], true, end + 1);
+            model.refresh(10, &ledger, end + 1).unwrap();
+            assert_ne!(model.deferred[&8].entity, old);
+            assert!(
+                player_step(
+                    &mut model,
+                    &mut crate::client::physics::Body::new([0., 65., 0.])
+                )
+                .is_err()
+            );
+            let mut wrong = session;
+            wrong.world_generation += 1;
+            assert!(OwnedContacts::new(wrong, 12, 99, &ledger, end + 1).is_err());
+        }
+    }
+
+    #[test]
     fn harmless_overlap_keeps_native_slots_without_motion_metadata_profiles_or_teams() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in ["bat", "armor_stand"] {
@@ -1935,10 +2498,9 @@ mod tests {
         }
     }
     #[test]
-    fn unknown_and_bounded_unknown_always_refuse_with_spawn_lifetime_context() {
+    fn unproven_unknown_and_bounded_unknown_refuse_with_spawn_lifetime_context() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in [
-                "spider",
                 "horse",
                 "slime",
                 "shulker",
@@ -2019,6 +2581,7 @@ mod tests {
     fn unknown_geometry_metadata_and_passengers_never_authorize_deferral() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for (name, motion) in [
+                ("spider", false),
                 ("horse", false),
                 ("slime", true),
                 ("shulker", true),

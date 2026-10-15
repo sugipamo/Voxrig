@@ -94,9 +94,22 @@ ArmorStand の rideable-minecart hook を walking / boat push に読み替えな
 Item / projectile を含む未監査 species は Unknown のまま拒否する。
 Status / animation の有限な例外は Step A の監査済み packet のみで、未知 opcode は拒否する。
 
-WIP の interpolation hull は非局所・間接作用を覆う証明がないため撤去した。
-Unknown / BoundedUnknown は距離にかかわらず typed Unsupported として送信前に拒否する。
-BoundedUnknown は監査済みの有限な部分があるという分類であり、空間的 envelope の証明ではない。
-Step B の relevance 機構は追加しない。除去・native ID 再利用・world / checkpoint 境界でも
-寿命を再評価し、未対応 spawn の entity lifetime / native ID / type / Spawn trigger を保持する。
+Step B は別の保守的 envelope 証明を追加する。
+[envelope の原版 owner 監査・規則・再生成手順](contact-envelope-audit.md)と
+[証拠](evidence/contact-envelopes-20261015.json)を参照。
+初期の有限証明は default / unmounted Spider・CaveSpider のみであり、
+Unknown / BoundedUnknown の分類自体を空間的保証と解釈しない。
+spawn・codec base・全補間 anchor・absolute endpoint の hull は縮めず、
+最大形状と作用範囲を含める。own 前後 slot、実際の swept / step-up query、boat selector、
+全 qualified remote の current / target / shifted target と固定 boat collider に交差しない
+場合だけ、その tick を許可する。全 remote との非交差は間接作用の最初の辺を除外する
+保守的条件であり、単なる own との近距離判定ではない。
+
+metadata / scale / equipment / status / animation / mount は未証明 hook の範囲を
+近傍と仮定せず有限証明を失わせ、typed Unsupported の全域拒否へ戻す。
+その寿命中の motion だけでは証明を復活させない。その他の未監査 species・hook、
+不明な位置・最大形状・非局所作用は距離によらず従来どおり全域拒否する。
+除去・native ID 再利用・world / checkpoint 境界で再評価し、checkpoint も hull と
+失効状態を保持する。拒否には entity lifetime / native ID / type と原因 packet を保持する。
+失敗 staged frame は保持・送信せず、従来の入力解除を維持する。
 履歴・provenance の破損は Permanent、受信 profile / game mode 不足は Transient のまま。

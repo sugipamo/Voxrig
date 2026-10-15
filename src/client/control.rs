@@ -1408,6 +1408,88 @@ mod tests {
     }
 
     #[test]
+    fn bounded_contact_allows_far_then_stops_a_failed_sweep_before_dispatch() {
+        use crate::client::{
+            SessionStamp,
+            entity::{NativeSpawn, NativeSpawnMotion, SpawnLedger, owned_contacts::OwnedContacts},
+        };
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut ledger = SpawnLedger::default();
+            ledger.contact_local_player(99);
+            ledger.history_context(version, 0, 1);
+            let stamp = SessionStamp {
+                version,
+                connection_id: 1,
+                world_generation: 0,
+            };
+            let start = received(Some((5, [0.5, 64., 0.5], Some([0.; 3]))), None);
+            let mut control = ControlSession::new(version, 8, [0.5, 64., 0.5], &start);
+            control.contacts = Some(OwnedContacts::new(stamp, 8, 99, &ledger, 1).unwrap());
+            let output = control.step(&start, &mut world(false)).unwrap().unwrap();
+            control.dispatched(&output);
+            ledger.history_context(version, 0, 2);
+            ledger
+                .insert(
+                    version,
+                    NativeSpawn {
+                        id: 8,
+                        uuid: None,
+                        type_id: None,
+                        dedicated_type_name: Some("spider"),
+                        position: [8., 64., 0.5],
+                        living: Some(true),
+                    },
+                    2,
+                    16,
+                )
+                .unwrap();
+            ledger.initialize_motion(
+                8,
+                NativeSpawnMotion {
+                    position: Some([8., 64., 0.5]),
+                    rotation: Some([0.; 2]),
+                    ..Default::default()
+                },
+                2,
+            );
+            control
+                .contacts
+                .as_mut()
+                .unwrap()
+                .refresh(8, &ledger, 2)
+                .unwrap();
+            // A stationary tick is unrelated and may produce a frame.
+            let output = control.step(&start, &mut world(false)).unwrap().unwrap();
+            control.dispatched(&output);
+            // The next attempted sweep intersects the deferred envelope. A
+            // failure inside physics must not replace either retained frame.
+            control.body.velocity = [10., 0., 0.];
+            let before = control.body.clone();
+            let previous_frame = control.frame.clone();
+            let previous_contacts = control.entity_contacts.clone();
+            let error = control.step(&start, &mut world(false)).unwrap_err();
+            let detail = error.movement_refusal().unwrap();
+            assert!(matches!(detail, crate::MovementRefusal::Unsupported { .. }));
+            assert_eq!(detail.context().native_entity_id, Some(8));
+            assert_eq!(
+                detail.context().entity_type.as_deref(),
+                Some("minecraft:spider")
+            );
+            assert_eq!(detail.context().entity.unwrap().spawn_sequence(), 2);
+            assert_eq!(
+                detail.context().packet.as_ref().unwrap().packet_type,
+                "Spawn"
+            );
+            assert_eq!(control.body, before);
+            assert_eq!(control.frame, previous_frame);
+            assert_eq!(control.dispatched_ticks, 2);
+            assert_eq!(control.entity_contacts, previous_contacts);
+            assert!(matches!(control.status, ControlStatus::Stopped { .. }));
+            assert!(control.contacts.is_none());
+        }
+    }
+
+    #[test]
     fn unsupported_terrain_pauses_without_output_and_resumes() {
         let version = MinecraftVersion::Java1_16_1;
         let start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
