@@ -3470,16 +3470,16 @@
           "moveOrInterpolateTo": null,
           "refreshDimensions": "net.minecraft.world.entity.Entity",
           "classifications": {
-            "walking": "Unknown",
-            "incoming": "Unknown",
-            "solid": "Unknown",
-            "geometry": "Unknown",
-            "metadata": "Unknown",
-            "status": "Unknown",
-            "animation": "Unknown"
+            "walking": "Qualified",
+            "incoming": "Qualified",
+            "solid": "ProvenIrrelevant",
+            "geometry": "Qualified",
+            "metadata": "Qualified",
+            "status": "BoundedUnknown",
+            "animation": "BoundedUnknown"
           },
-          "audit": "unqualified",
-          "qualification_blocker": "Client aiStep changes falling Y velocity; modern custom baby dimensions are not modeled."
+          "audit": "reviewed-owner-lane",
+          "qualification_review": "docs/contact-capability-audit.md#step-d-ordinary-mob-review"
         },
         "cod": {
           "class_name": "net.minecraft.world.entity.animal.Cod",
@@ -12065,16 +12065,16 @@
           "moveOrInterpolateTo": "net.minecraft.world.entity.Entity",
           "refreshDimensions": "net.minecraft.world.entity.Entity",
           "classifications": {
-            "walking": "Unknown",
-            "incoming": "Unknown",
-            "solid": "Unknown",
-            "geometry": "Unknown",
-            "metadata": "Unknown",
-            "status": "Unknown",
-            "animation": "Unknown"
+            "walking": "Qualified",
+            "incoming": "Qualified",
+            "solid": "ProvenIrrelevant",
+            "geometry": "Qualified",
+            "metadata": "Qualified",
+            "status": "BoundedUnknown",
+            "animation": "BoundedUnknown"
           },
-          "audit": "unqualified",
-          "qualification_blocker": "Client aiStep changes falling Y velocity; modern custom baby dimensions are not modeled."
+          "audit": "reviewed-owner-lane",
+          "qualification_review": "docs/contact-capability-audit.md#step-d-ordinary-mob-review"
         },
         "cod": {
           "class_name": "net.minecraft.world.entity.animal.fish.Cod",
@@ -17315,10 +17315,10 @@
       }
     }
   },
-  "generator_sha256": "e15bcc425c95fa7152d2ce0bd5b027e8bc1cd38c962680ac99f713dd8b89d6b9",
-  "audit_sha256": "52d02889e1ab463a3cfb6549c2ab06a0043f0a09ff1633e6fc49912f1b47d905",
-  "numerical_oracle_sha256": "4082999371fc5b51be3c65ec7a9d044d847384e3823360b964b7eef5e6ae2af2",
-  "numerical_runner_sha256": "de45927bdb85789b4631b30bb8447ed765c912c45baeed2fcb14ac10331b3569",
+  "generator_sha256": "1453f406ad7a8cebd022cb2d5db7e31d271fed18b23512f71b2655ce864335de",
+  "audit_sha256": "bba7880b978a54eecfeb6d11fc9540cf1211b5676f846622abf4d01c98675f4d",
+  "numerical_oracle_sha256": "7a53e4664503711ae277758e2b2da33378a7858d23ad3b2422809f8aceeea71e",
+  "numerical_runner_sha256": "1a5a6ccd2407c3da22074e0a838be102ac1cc92cb6d6bfb19e074371265f0892",
   "packet_audit_sha256": "71f2914eb5dc3211a975d9a935ca01fec2a8b92525dbff0cd803758fcd5d9474",
-  "generated_sha256": "c1ef89716aa4cb167cd2d931c952510afbf82116821b8e92d01bc687f37ecefb"
+  "generated_sha256": "f11540f61ddb6fda73716fd3c135a78e513f7844bbc68f50d7e18087de852484"
 }

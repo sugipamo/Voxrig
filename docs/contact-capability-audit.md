@@ -15,7 +15,7 @@ spatial bound or permission to skip a distant body. `Unknown` is the default.
 
 | Types (both versions) | Walking outgoing | Incoming pushability | Solid | Geometry | Metadata callback | Status | Animation |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Cow/Pig/Zombie/Sheep/Creeper/RemotePlayer + Step D seven | Qualified | Qualified | ProvenIrrelevant | Qualified | Qualified with existing guards | BoundedUnknown | BoundedUnknown |
+| Cow/Pig/Zombie/Sheep/Creeper/RemotePlayer + Step D seven + Chicken | Qualified | Qualified | ProvenIrrelevant | Qualified | Qualified with existing guards | BoundedUnknown | BoundedUnknown |
 | Bat/ArmorStand | ProvenIrrelevant | ProvenIrrelevant | ProvenIrrelevant | Unknown, unused | ProvenIrrelevant to this lane | ProvenIrrelevant to this lane | ProvenIrrelevant to this lane |
 | Horse/Spider/CaveSpider/Ghast | BoundedUnknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
 | All other registered types and unknown names | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
@@ -129,17 +129,35 @@ rejected candidates, and records each blocker in the dated evidence. Team
 ownership, dimension refresh, modern interpolation entry points and scale are
 also explicit owner columns. Matching inheritance alone is never promotion.
 
-Both versions qualify Rabbit, Ocelot, Villager, WanderingTrader, Mooshroom,
+Both versions qualify Chicken, Rabbit, Ocelot, Villager, WanderingTrader, Mooshroom,
 Silverfish and Giant. All inherit LivingEntity pair push, pushability and null
 legacy / false modern solid collision. None overrides getTeam: Entity's UUID
 scoreboard membership matches the existing reducer. None adds a contact impulse,
-passenger exception, client geometry variant or alternate interpolation path.
+passenger exception or alternate interpolation path. Chicken adds the reviewed
+aiStep tail and custom baby default-dimension owner described below.
 The complete constructors, wrappers and metadata callbacks were reviewed, not
 just push entry points. Existing unit-scale, equipment-completeness, spin-attack and mount guards remain
 in place; unaudited status/animation values still refuse.
 The existing Step A 35 and 4/5 handler proofs remain valid: status 35 and
 animations 4/5 are listener-owned; no subclass callback is dispatched.
 
+* Chicken: Animal/Ageable chain, followed by flap state and downward velocity
+  damping. After inherited living interpolation, 0.98 damping, 0.003 clamping
+  and pair pushes, airborne negative Y is multiplied by 0.6 (double) in both
+  clients. Received ground flags select this branch; constructor ground is false.
+  The private model retains flap, flapSpeed, oFlap, oFlapSpeed and flapping,
+  initialized to original constructor values (zero except flapping = 1).
+  Legacy flapSpeed addition and flapping decay use double intermediates then
+  float casts; modern uses float 0.3f/0.9f arithmetic. Flap accumulation uses
+  float arithmetic in both. Egg laying is server-only; modern nextFlap/flyDist
+  affects movement animation outside this isolated nontravel lane. Modern
+  chicken variant metadata selects appearance, without geometry/team/push
+  effects. Existing passenger guards exclude jockey/rider travel.
+  Legacy baby bounds scale registered dimensions by 0.5f. Modern
+  BABY_DIMENSIONS also scales CHICKEN dimensions by 0.5f and changes only eye
+  height to 0.2975f; width/height use the existing exact half-size arithmetic.
+  Sleeping dimensions retain inherited precedence in both clients. No public
+  geometry model or guarantee is extended.
 * Rabbit: Animal/Ageable chain followed by jump-animation timer changes. The
   client timer's setJumping(false) only changes jumping/sound state, with no
   authoritative travel. Jump control and variant 99 attack-goal changes are
@@ -169,11 +187,11 @@ animations 4/5 are listener-owned; no subclass callback is dispatched.
   attributes and walk-target overrides do not enter contact. LivingEntity
   isBaby is constant false; no baby/size variant is invented.
 
-For every new type, original EntityType dimensions and LivingEntity dimension
-owners supply the same arithmetic as the existing lane. Legacy ageables use
+For every new type, original EntityType dimensions and the reviewed dimension
+owners supply the same bounds arithmetic as the existing lane. Legacy ageables use
 getScale (half for baby) then Entity's registered dimensions; modern ageables
-use getAgeScale and default dimensions (the audited AbstractCow baby override
-for Mooshroom is described above), then unit attribute scale. Sleeping
+use getAgeScale and default dimensions (the audited baby overrides
+for Chicken and Mooshroom are described above), then unit attribute scale. Sleeping
 pose uses the inherited fixed dimensions. Other known nonplayer poses fall
 back to those same default dimensions. Each version is audited separately;
 no modern custom baby dimensions are copied to legacy or vice versa.
@@ -206,7 +224,6 @@ necessarily require different numerical arithmetic.
 
 | Type | Reason to remain unqualified |
 | --- | --- |
-| `chicken` | Client aiStep changes falling Y velocity; modern custom baby dimensions are not modeled. |
 | `llama` | AbstractHorse client stand/eating geometry and llama size/strength/passenger hooks are not modeled. |
 | `trader_llama` | Llama/AbstractHorse geometry and trader despawn/mount hooks are not closed. |
 | `wolf` | TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team. |
@@ -257,8 +274,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 scripts/audit_contact_envelopes.py \
 
 The last command refreshes Step B source bindings after Step D tests/docs change;
 it extends neither its providers nor its proof. All commands verify the original
-hashes and rebuild remaps. The original owner oracle now records 320 schedules /
-3,840 stages; the SDK compares 208 qualified schedules / 2,496 stages (1,248 each
+hashes and rebuild remaps. The original owner oracle now records 336 schedules /
+4,032 stages; the SDK compares 224 qualified schedules / 2,688 stages (1,344 each
 walking/boat), including all original six types. The remaining 1,344 raw stages
 are unqualified observations, not an SDK guarantee. The seven additions each
 have four schedules per version per scene with native order, interpolation,
@@ -270,3 +287,12 @@ velocity and bounds bits are compared without decimal parsing tolerance.
 Fixed-size Giant/Silverfish have no
 invented baby cases. Finite oracle cases supplement the owner review; they do
 not replace it or establish complete NPC ticks or an autonomous client clock.
+
+Chicken adds four schedules per version per scene without removing any prior
+case. Harness type names come directly from the original EntityType registry.
+All chicken walking stages compare raw velocity, position, bounds and five
+flap-state float bit patterns. Modern warm/cold variant packets also exercise
+the original synchronized-data handler. Boat stages compare geometry and flap
+state in the existing geometry-only lane. Cases include baby/adult refresh,
+sleeping/standing, ground transitions, falling/rising and clamp-boundary
+velocities, interpolation cancellation and unticking. No tolerances change.

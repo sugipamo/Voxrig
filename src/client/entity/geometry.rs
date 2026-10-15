@@ -238,6 +238,9 @@ pub(super) fn shape(
     }
     let (width, height) =
         super::state::dimensions(version, name).expect("qualified type dimensions");
+    // Chicken's modern BABY_DIMENSIONS scales its registered dimensions by
+    // 0.5f and changes eye height only; legacy uses the inherited age scale.
+    // Both therefore use this same width/height arithmetic in the private lane.
     // Preserve the two original float multiplications; combining the factors
     // changes the last bit for non-power-of-two scales.
     (

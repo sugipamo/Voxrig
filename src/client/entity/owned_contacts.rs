@@ -1324,6 +1324,8 @@ impl OwnedContacts {
                     (self.fresh, id.native_id()),
                     if name == "minecraft:player" {
                         ContactDispatch::RemotePlayer
+                    } else if name == "minecraft:chicken" {
+                        ContactDispatch::Chicken
                     } else {
                         ContactDispatch::InheritedLiving
                     },
@@ -2506,7 +2508,6 @@ mod tests {
                 "item",
                 "arrow",
                 "cat",
-                "chicken",
                 "llama",
                 "trader_llama",
                 "wolf",
@@ -2971,6 +2972,7 @@ mod tests {
     fn ordinary_mob_admission_and_age_receipts() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in [
+                "chicken",
                 "rabbit",
                 "ocelot",
                 "villager",
@@ -3009,7 +3011,14 @@ mod tests {
                 );
                 let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
                 let body = model.world.bodies.values().next().unwrap();
-                assert_eq!(body.dispatch, ContactDispatch::InheritedLiving);
+                assert_eq!(
+                    body.dispatch,
+                    if name == "chicken" {
+                        ContactDispatch::Chicken
+                    } else {
+                        ContactDispatch::InheritedLiving
+                    }
+                );
                 let adult = (body.width, body.height);
                 if !matches!(name, "silverfish" | "giant") {
                     let index = version
@@ -3053,6 +3062,7 @@ mod tests {
         .unwrap();
         for (version, key) in [(V::Java1_16_1, "1.16.1"), (V::Java1_21_11, "1.21.11")] {
             for name in [
+                "chicken",
                 "rabbit",
                 "ocelot",
                 "villager",
@@ -3086,7 +3096,7 @@ mod tests {
                             EntityDataValue::String(if alternate { "brown" } else { "red" }.into())
                         }
                         "mooshroom" => EntityDataValue::Int(i32::from(alternate)),
-                        "villager" => {
+                        "chicken" | "villager" => {
                             EntityDataValue::Other(action["serializer"].as_i64().unwrap() as i32)
                         }
                         _ => unreachable!(),
@@ -3105,7 +3115,9 @@ mod tests {
                 }
                 assert_eq!(
                     variants,
-                    if matches!(name, "rabbit" | "ocelot" | "mooshroom" | "villager") {
+                    if matches!(name, "rabbit" | "ocelot" | "mooshroom" | "villager")
+                        || (name == "chicken" && version == V::Java1_21_11)
+                    {
                         16
                     } else {
                         0
@@ -3155,6 +3167,7 @@ mod tests {
     fn ordinary_dimension_refresh_survives_receipts_checkpoint_and_no_lerp_ticks() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in [
+                "chicken",
                 "rabbit",
                 "ocelot",
                 "villager",

@@ -12,6 +12,16 @@ use std::collections::BTreeMap;
 pub(crate) enum ContactDispatch {
     InheritedLiving,
     RemotePlayer,
+    Chicken,
+}
+
+#[derive(Clone, Debug)]
+struct ChickenFlap {
+    flap: f32,
+    flap_speed: f32,
+    o_flap: f32,
+    o_flap_speed: f32,
+    flapping: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -32,6 +42,7 @@ pub(crate) struct ContactTickBody {
     // Legacy refreshDimensions anchors a nonshrinking box at its old minimum
     // until an original setPos (interpolation or received bed placement).
     refreshed_bounds: Option<Aabb>,
+    chicken: Option<ChickenFlap>,
 }
 impl ContactTickBody {
     pub(crate) fn new(
@@ -57,6 +68,13 @@ impl ContactTickBody {
             velocity_target: [0.; 3],
             velocity_steps: 0,
             refreshed_bounds: None,
+            chicken: (dispatch == ContactDispatch::Chicken).then_some(ChickenFlap {
+                flap: 0.,
+                flap_speed: 0.,
+                o_flap: 0.,
+                o_flap_speed: 0.,
+                flapping: 1.,
+            }),
         })
     }
 
@@ -156,6 +174,34 @@ impl ContactTickBody {
         }
     }
 
+    // Chicken.aiStep runs this after the inherited living step and pair pushes.
+    fn species_after_ai(&mut self, version: MinecraftVersion) {
+        let Some(state) = &mut self.chicken else {
+            return;
+        };
+        let ground = self.motion.frame().on_ground.unwrap_or(false);
+        state.o_flap = state.flap;
+        state.o_flap_speed = state.flap_speed;
+        state.flap_speed = if version == MinecraftVersion::Java1_16_1 {
+            (f64::from(state.flap_speed) + if ground { -1. } else { 4. } * 0.3) as f32
+        } else {
+            state.flap_speed + if ground { -1. } else { 4. } * 0.3_f32
+        }
+        .clamp(0., 1.);
+        if !ground && state.flapping < 1. {
+            state.flapping = 1.;
+        }
+        state.flapping = if version == MinecraftVersion::Java1_16_1 {
+            (f64::from(state.flapping) * 0.9) as f32
+        } else {
+            state.flapping * 0.9_f32
+        };
+        if !ground && self.velocity[1] < 0. {
+            self.velocity[1] *= 0.6;
+        }
+        state.flap += state.flapping * 2.;
+    }
+
     fn ai_step(&mut self, version: MinecraftVersion, collision_free: Option<bool>) -> Result<()> {
         let interpolating = self.motion.frame().interpolation.remaining_steps != 0;
         self.motion.step(collision_free).map_err(failure)?;
@@ -223,6 +269,7 @@ impl ContactTickWorld {
                 }
                 let collision = collision_free(body)?;
                 body.ai_step(self.version, collision)?;
+                body.species_after_ai(self.version);
                 predicates_after_ai(body)?;
                 index_body(&mut self.spatial, body)?;
             }
@@ -316,6 +363,7 @@ impl ContactTickWorld {
                 local.push.velocity = push.first_velocity;
                 admitted += 1;
             }
+            body.species_after_ai(self.version);
         }
         self.order.finish_tick().map_err(failure)?;
         if !travelled {
@@ -508,6 +556,8 @@ mod tests {
                                     (key, id),
                                     if player {
                                         ContactDispatch::RemotePlayer
+                                    } else if name == "minecraft:chicken" {
+                                        ContactDispatch::Chicken
                                     } else {
                                         ContactDispatch::InheritedLiving
                                     },
@@ -741,12 +791,13 @@ mod tests {
                         );
                         assert_vector(body.velocity, velocity(&state["pose"]), &context);
                         assert_bounds(body.contact().bounds, &state["pose"], &context);
+                        assert_chicken(body, &state["pose"], &context);
                     }
                     stages += 1;
                 }
             }
         }
-        assert_eq!((stages, unmodeled_stages), (1248, 672));
+        assert_eq!((stages, unmodeled_stages), (1344, 672));
         assert_eq!(pushed_slots, [[[true; 2]; 2]; 2]);
     }
 
@@ -812,6 +863,8 @@ mod tests {
                                                 (key, id),
                                                 if player {
                                                     ContactDispatch::RemotePlayer
+                                                } else if name == "minecraft:chicken" {
+                                                    ContactDispatch::Chicken
                                                 } else {
                                                     ContactDispatch::InheritedLiving
                                                 },
@@ -1017,6 +1070,8 @@ mod tests {
                     assert_vector(frame.velocity, velocity(&expected["after"]), &context);
                     seed = frame;
                     for state in step["states"].as_array().unwrap() {
+                        let body = &world.bodies[&state["key"].as_u64().unwrap()];
+                        assert_chicken(body, &state["pose"], &context);
                         assert_bounds(
                             world.bodies[&state["key"].as_u64().unwrap()]
                                 .contact()
@@ -1039,7 +1094,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!((stages, unmodeled_stages), (1248, 672));
+        assert_eq!((stages, unmodeled_stages), (1344, 672));
     }
     fn update_received_geometry(world: &mut ContactTickWorld, key: u64) {
         let b = &world.bodies[&key];
@@ -1130,6 +1185,24 @@ mod tests {
                 }
                 assert_vector(velocity(&row["before"]), velocity(&row["after"]), version);
             }
+        }
+    }
+
+    fn assert_chicken(body: &ContactTickBody, expected: &Value, context: &str) {
+        assert_eq!(
+            body.chicken.is_some(),
+            expected["chicken_bits"].is_array(),
+            "{context}"
+        );
+        if let Some(s) = &body.chicken {
+            let actual = [s.flap, s.flap_speed, s.o_flap, s.o_flap_speed, s.flapping];
+            let original: Vec<u32> = expected["chicken_bits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap() as u32)
+                .collect();
+            assert_eq!(actual.map(f32::to_bits).as_slice(), original, "{context}");
         }
     }
 
