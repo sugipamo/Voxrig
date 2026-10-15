@@ -1,4 +1,4 @@
-# Contact policy (migration step 4a)
+# Contact policy (migration step 4b)
 
 Production `contact_capabilities` remains the compatibility facade and reads
 capability classifications and harmless Status/Animation decisions from this
@@ -6,9 +6,10 @@ const table. The shared predicates use the OwnedWalking observation column;
 this does not add lane admission. Unresolved/version-absent names return all
 Unknown/false. Spawn/tick dispatch, owned shape, metadata handler, team holder,
 UUID/profile identity selection and public geometry now read semantics selectors
-through `selectors.rs`. Locality eligibility, envelopes, revocations, usage gates
-and vehicle sampling retain their existing implementations (step 4b). No public
-API or runtime configuration is added. Wolf remains Unknown.
+through `selectors.rs`. Locality eligibility, envelope selection, revocation sets
+and owned usage gates now read `locality.rs`. Dynamic proofs and vehicle sampling
+retain their existing implementations. No public API or runtime configuration
+is added. Wolf remains Unknown.
 
 `table.rs` implements option B: named effect fields, normalized policy profiles,
 explicit version/lane columns for every entity in the registry union, finite
@@ -98,8 +99,9 @@ Additional tests check public geometry through the real `derived_geometry`
 function for every present pair, rigid vehicle classification against the real
 predicate, numerical species/scenario and exclusion membership in the existing
 oracle, evidence artifact existence, and all 516 spider revocations for both
-species/versions through the existing receipt reducer and owner tick. Validator
-negative tests exercise missing rows/descriptors, duplicate keys, overlapping
+species/versions through the existing receipt reducer and owner tick. That corpus
+is now enumerated from the frozen old packet-family match, so removing a table
+key cannot remove a regression case. Validator negative tests exercise missing rows/descriptors, duplicate keys, overlapping
 packet expansions, and incompatible selectors. Registry JSON/name/ID/presence
 agreement is still the bidirectional test in `key.rs`, not a compiler guarantee.
 
@@ -143,3 +145,37 @@ Historical reproduction wording in the bound audit review predates this migratio
 Java manifests, documentation generation, other Python consumers, and a broader
 selector/scenario export remain step 5 work. Existing fixtures and reviews remain
 independent evidence; table output is never a numerical oracle.
+
+## Step 4b locality and usage reads
+
+`locality.rs` selects the existing DefaultSpiderEnvelope handler, applicable
+owned lanes/effects and revocation set from the const profiles. DeferredContact
+retains a small static policy value selected at construction with the same
+version/name as its capabilities. Its walking/boat relevance uses the corresponding
+lane's solid plus walking/incoming effect fields. Spawn admission reads modeled
+effects in the existing walking/glide/boat lane. The shared lane observations are
+unchanged; none grant public geometry or vehicle sampler admission.
+
+The original pose/dimension checks, packet provenance, lifetime matching,
+passenger membership, monotonic envelope arithmetic, interpolation endpoints,
+peer/query intersection and receipt invalidation remain in their original code.
+Invalid Motion provenance/codec application still invalidates the proof directly;
+it is a dynamic failure, separate from the static revoking packet set. No profile
+requirement is optional and no new proof domain is introduced.
+
+`frozen_locality.rs` preserves the old spider species expression, walking/boat
+relevance, modeled gate (using the independent frozen capability source), and
+revoking packet families. Tests compare table/production/old choices for every
+present and absent version/species pair and unresolved names, every packet key,
+walking/boat usage, glide admission, absent/present poses, and near/far queries.
+All 2,064 old spider revocation cases still execute through the real reducer and
+tick. Existing checkpoint, motion, lifetime, peer/query, passenger, boat and sweep
+regressions retain their independent expectations. The step-1 golden is untouched.
+
+Step 4b updates only the envelope evidence source hashes for
+`contact_capabilities.rs` and `owned_contacts.rs`: the former routes static choices
+through the facade and separates static revocation from dynamic Motion failure;
+the latter routes Spawn's modeled gate through the lane lookup. The old
+Capabilities::modeled predicate is now test-only, alongside its frozen consumers.
+Numerical oracle
+fixtures, original-client hashes and all other evidence values remain unchanged.

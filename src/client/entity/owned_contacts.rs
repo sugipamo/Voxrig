@@ -4,7 +4,7 @@ use super::{
     EntityId, EntityPose, LivingInterpolationPose, LivingTickBody, MAX_ENTITY_HISTORY_READ,
     MAX_ENTITY_HISTORY_RECORDS, SpawnLedger,
     contact_capabilities::{self, DeferredContact},
-    contact_policy::selectors as policy,
+    contact_policy::{locality, selectors as policy},
     contact_tick::{ContactDispatch, ContactTickBody, ContactTickWorld},
 };
 use crate::{
@@ -1248,7 +1248,11 @@ impl OwnedContacts {
                     return Err(unsupported("unknown contact entity type"));
                 };
                 if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
-                    || !contact_capabilities::capabilities(self.session.version, name).modeled()
+                    || !locality::modeled(
+                        self.session.version,
+                        name,
+                        locality::owned_lane(self.boat.is_some(), self.own_glide),
+                    )
                     || self.boat.as_ref().is_some_and(|b| b.ignored.contains(&id))
                 {
                     // Harmless and unresolved bodies keep their original slot.

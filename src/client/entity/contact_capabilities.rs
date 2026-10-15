@@ -1,4 +1,5 @@
 //! Private per-version evidence policy. Unclassified effects always refuse.
+use super::contact_policy::locality::DeferredPolicy;
 use super::{
     EntityHistoryKind, EntityId, LivingInterpolationPose, LivingPacketGuards, LivingPacketModel,
 };
@@ -32,6 +33,7 @@ impl Capabilities {
         status: Classification::Unknown,
         animation: Classification::Unknown,
     };
+    #[cfg(test)]
     pub fn modeled(self) -> bool {
         self.walking == Classification::Qualified
             && self.incoming == Classification::Qualified
@@ -61,6 +63,7 @@ pub(super) struct DeferredContact {
     pub entity: EntityId,
     pub capabilities: Capabilities,
     name: String,
+    policy: DeferredPolicy,
     ordinal: u64,
     sequence: u64,
     trigger: MovementPacketTrigger,
@@ -78,13 +81,8 @@ impl DeferredContact {
     ) -> Self {
         // Separate from Step C classification: Unknown never implies locality.
         let dimensions = version.table().entity_dimensions(name);
-        let motion = if matches!(
-            (version, name),
-            (
-                MinecraftVersion::Java1_16_1 | MinecraftVersion::Java1_21_11,
-                "minecraft:spider" | "minecraft:cave_spider"
-            )
-        ) {
+        let policy = DeferredPolicy::new(version, name);
+        let motion = if policy.envelope(false) {
             pose.and_then(|p| LivingPacketModel::new(version, p, ordinal).ok())
         } else {
             None
@@ -93,6 +91,7 @@ impl DeferredContact {
             entity,
             capabilities: capabilities(version, name),
             name: name.into(),
+            policy,
             ordinal,
             sequence: entity.spawn_sequence(),
             trigger: MovementPacketTrigger {
@@ -143,6 +142,16 @@ impl DeferredContact {
         self.envelope = Some(self.envelope.map_or(b, |a| hull(a, b)));
     }
     pub fn invalidate(&mut self, record: &super::EntityHistoryRecord, packet: &str, opcode: i32) {
+        if self
+            .policy
+            .revokes(super::contact_policy::key::PacketKey::from_history(
+                &record.kind,
+            ))
+        {
+            self.invalidate_proof(record, packet, opcode);
+        }
+    }
+    fn invalidate_proof(&mut self, record: &super::EntityHistoryRecord, packet: &str, opcode: i32) {
         if self.motion.take().is_some() {
             self.envelope = None;
             self.ordinal = record.ordinal;
@@ -185,7 +194,7 @@ impl DeferredContact {
             _ => false,
         };
         if !valid {
-            self.invalidate(record, "Motion", 0);
+            self.invalidate_proof(record, "Motion", 0);
             return;
         }
         // Include raw absolute endpoints too: legacy tiny-teleport suppression
@@ -200,12 +209,7 @@ impl DeferredContact {
         self.extend();
     }
     pub fn relevant(&self, boat: bool) -> bool {
-        self.capabilities.solid != Classification::ProvenIrrelevant
-            || if boat {
-                self.capabilities.incoming != Classification::ProvenIrrelevant
-            } else {
-                self.capabilities.walking != Classification::ProvenIrrelevant
-            }
+        self.policy.relevant(boat)
     }
     pub fn check(&self, query: Aabb, boat: bool) -> Result<()> {
         if self.relevant(boat) && self.envelope.is_none_or(|b| intersects(query, b)) {

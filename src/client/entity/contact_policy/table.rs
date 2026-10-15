@@ -1,4 +1,4 @@
-//! Option B declarations. Production reads capability, packet and semantics selectors.
+//! Option B declarations. Production reads capability, packet, semantics and locality choices.
 //!
 //! Capability and packet observations have exactly step 1's meaning: they are
 //! shared predicates, repeated across lanes/effects, not new admission claims.
