@@ -1,4 +1,4 @@
-//! Option B shadow declarations. No production consumer may read these yet.
+//! Option B declarations. Production reads capability and packet decisions.
 //!
 //! Capability and packet observations have exactly step 1's meaning: they are
 //! shared predicates, repeated across lanes/effects, not new admission claims.
