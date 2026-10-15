@@ -1,7 +1,8 @@
 mod policy_baseline {
     use crate::client::entity::contact_policy::key::*;
     use crate::client::entity::contact_policy::{
-        frozen_capabilities, frozen_selectors, table, validate::EXPANDED_PACKETS,
+        frozen_capabilities, frozen_locality, frozen_selectors, locality, table,
+        validate::EXPANDED_PACKETS,
     };
     use crate::client::entity::{
         NativeSpawn, NativeSpawnMotion, SpawnLedger, contact_capabilities,
@@ -546,6 +547,101 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
     }
 
     #[test]
+    fn locality_and_usage_match_independent_old_source() {
+        for version in VERSIONS {
+            // Includes present, absent and unresolved names. Expectations use
+            // the original species expression and independent capability match.
+            for name in EntityType::ALL.iter().map(|e| e.name()).chain([
+                "",
+                "spider",
+                "minecraft:missing",
+                "other:spider",
+                "minecraft:Spider",
+            ]) {
+                let policy = locality::DeferredPolicy::new(version, name);
+                let old_envelope = frozen_locality::envelope(version, name);
+                let (_, _, entity) = spawn(version, "minecraft:cow");
+                let far = Aabb {
+                    min_x: 100.,
+                    min_y: 65.,
+                    min_z: 100.,
+                    max_x: 101.,
+                    max_y: 67.,
+                    max_z: 101.,
+                };
+                for boat in [false, true] {
+                    let lane = locality::owned_lane(boat, false);
+                    let table_profile = EntityType::from_name(version, name)
+                        .map_or(table::PROFILES[table::ProfileId::Unknown as usize], |e| {
+                            table::lookup(version, e, lane)
+                        });
+                    let table_locality = table::LOCALITY_PROFILES[table_profile.locality as usize];
+                    assert_eq!(
+                        table_locality.handler == table::EnvelopeHandler::DeferredContact,
+                        old_envelope
+                    );
+                    assert_eq!(policy.envelope(boat), old_envelope);
+                    let old_relevant = frozen_locality::relevant(version, name, boat);
+                    assert_eq!(policy.relevant(boat), old_relevant);
+                    assert_eq!(
+                        table_profile.effects.modeled(),
+                        frozen_locality::modeled(version, name)
+                    );
+                    assert_eq!(
+                        locality::modeled(version, name, lane),
+                        frozen_locality::modeled(version, name)
+                    );
+                    for pose in [
+                        None,
+                        Some(LivingInterpolationPose {
+                            position: [0.9, 65., 0.5],
+                            rotation: [0.; 2],
+                        }),
+                    ] {
+                        let deferred = contact_capabilities::DeferredContact::new(
+                            version, entity, name, 2, pose,
+                        );
+                        assert_eq!(deferred.relevant(boat), old_relevant);
+                        assert_eq!(
+                            deferred.check(far, boat).is_ok(),
+                            !old_relevant || (old_envelope && pose.is_some())
+                        );
+                        let near = Aabb {
+                            min_x: 0.,
+                            max_x: 1.,
+                            min_z: 0.,
+                            max_z: 1.,
+                            ..far
+                        };
+                        assert_eq!(deferred.check(near, boat).is_ok(), !old_relevant);
+                    }
+                    for packet in PacketKey::ALL {
+                        let old = old_envelope && frozen_locality::revokes(packet);
+                        assert_eq!(
+                            table_locality.revokes.contains(&packet),
+                            old,
+                            "{version:?}/{name}/{lane:?}/{packet:?}"
+                        );
+                        assert_eq!(policy.revokes(packet), old);
+                    }
+                }
+                for (boat, glide, expected) in [
+                    (false, false, OwnerLane::OwnedWalking),
+                    (false, true, OwnerLane::OwnedGlide),
+                    (true, false, OwnerLane::OwnedBoat),
+                    (true, true, OwnerLane::OwnedBoat),
+                ] {
+                    assert_eq!(locality::owned_lane(boat, glide), expected);
+                    assert_eq!(
+                        locality::modeled(version, name, expected),
+                        frozen_locality::modeled(version, name)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn shadow_spider_revocations_match_current_reducer() {
         use crate::client::{
             control::Controls,
@@ -568,12 +664,19 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                 )
                 .map(|_| ())
         }
+        let mut revocations = 0;
         for version in VERSIONS {
             for entity in [EntityType::Spider, EntityType::CaveSpider] {
                 let profile = table::lookup(version, entity, OwnerLane::OwnedWalking);
                 let locality = table::LOCALITY_PROFILES[profile.locality as usize];
                 assert_eq!(locality.revokes.len(), 516);
-                for &packet in locality.revokes {
+                // Fixed old corpus: a missing table entry must not remove a case.
+                for packet in PacketKey::ALL
+                    .into_iter()
+                    .filter(|p| frozen_locality::revokes(*p))
+                {
+                    assert!(locality.revokes.contains(&packet));
+                    revocations += 1;
                     let (mut ledger, session, _) = spawn(version, entity.name());
                     let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
                     step(&mut model, version).unwrap();
@@ -610,9 +713,30 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                         ),
                         "{version:?}/{entity:?}/{packet:?}"
                     );
+                    let context = error.movement_refusal().unwrap().context();
+                    assert_eq!(context.native_entity_id, Some(7));
+                    assert_eq!(context.entity_type.as_deref(), Some(entity.name()));
+                    assert_eq!(context.receive_sequence, Some(3));
+                    let (packet_type, opcode) = match packet {
+                        PacketKey::Status(status) => ("Status", i32::from(status)),
+                        PacketKey::Animation(animation) => ("Animation", i32::from(animation)),
+                        PacketKey::Metadata => ("Metadata", 0),
+                        PacketKey::Equipment => ("Equipment", 0),
+                        PacketKey::Scale => ("Scale", 0),
+                        PacketKey::Passengers => ("Passengers", 0),
+                        _ => unreachable!(),
+                    };
+                    assert_eq!(
+                        context.packet,
+                        Some(MovementPacketTrigger {
+                            packet_type: packet_type.into(),
+                            opcode
+                        })
+                    );
                 }
             }
         }
+        assert_eq!(revocations, 2_064);
     }
 
     #[test]
