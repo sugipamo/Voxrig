@@ -115,13 +115,17 @@ impl Bot {
     ) -> Result<()> {
         let (entity_id, metadata) = parse_metadata(p)?;
         let (_, common, complete) = crate::versions::java_1_16_1::entity::common_metadata(p)?;
-        // The legacy decoder reads a packet to its end or fails it.
-        self.common_receipts.lock().await.entities.receive_metadata(
-            entity_id,
-            common,
-            complete,
-            packet_sequence,
-        );
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            if receipts.entities.type_name(entity_id) == Some("minecraft:wolf") {
+                if let Some(MetadataValue::OptionalUuid(owner)) = metadata.get(&17) {
+                    receipts.entities.contact_owner_receipt(*owner);
+                }
+            }
+            receipts
+                .entities
+                .receive_metadata(entity_id, common, complete, packet_sequence);
+        }
         if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
             if let Some(MetadataValue::Byte(flags)) = metadata.get(&0) {
                 let value = *flags as u8 & 128 != 0;

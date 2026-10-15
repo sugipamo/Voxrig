@@ -189,6 +189,10 @@ impl State {
         if let Some(own) = self.operations.local_player.entity_id {
             self.entities.contact_local_player(own);
         }
+        if let Some(identity) = &self.identity {
+            self.entities
+                .contact_identity(identity.uuid, identity.name.clone());
+        }
         self.entities.history_context(
             MinecraftVersion::Java1_21_11,
             self.loading.generation,

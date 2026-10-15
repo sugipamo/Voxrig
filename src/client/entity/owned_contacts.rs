@@ -56,6 +56,9 @@ struct Inputs {
     pose: EntityPose,
     spectator: bool,
     baby: f32,
+    tame: bool,
+    owner_uuid: Option<[u8; 16]>,
+    owner_known: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -81,6 +84,9 @@ pub(crate) struct OwnedContacts {
     boat: Option<BoatScope>,
     native_keys: BTreeMap<i32, u64>,
     own_glide: bool,
+    own_identity: Option<([u8; 16], String)>,
+    // Living bodies excluded from geometry can still be modern wolf owners.
+    other_team_owners: BTreeMap<i32, (EntityId, [u8; 16])>,
     checkpoint_errors: Vec<(Option<EntityId>, MovementRefusal)>,
 }
 /// Unticked numerical receipt reducer at the public eviction boundary. Storage
@@ -104,7 +110,11 @@ impl ContactCheckpoint {
         })
     }
 
-    pub(super) fn advance(&mut self, record: super::EntityHistoryRecord) {
+    pub(super) fn advance(
+        &mut self,
+        record: super::EntityHistoryRecord,
+        owner: Option<Option<[u8; 16]>>,
+    ) {
         // World/order failures cannot be repaired by later receipt deltas.
         // Keep the bounded refusal until the world checkpoint is superseded.
         if self.global_error.is_some() {
@@ -210,6 +220,7 @@ impl ContactCheckpoint {
                     .or_insert((entity, refusal(&error)));
             }
         }
+        self.model.apply_owner(&record, owner);
     }
 
     fn seed(
@@ -224,6 +235,13 @@ impl ContactCheckpoint {
         }
         target.world = self.model.world.clone();
         target.inputs = self.model.inputs.clone();
+        target.other_team_owners = self.model.other_team_owners.clone();
+        for (id, _) in target.other_team_owners.values_mut() {
+            id.session.connection_id = target.session.connection_id;
+        }
+        target
+            .other_team_owners
+            .retain(|_, (id, _)| surviving.contains(id));
         target.deferred = self.model.deferred.clone();
         for body in target.deferred.values_mut() {
             body.entity.session.connection_id = target.session.connection_id;
@@ -349,6 +367,8 @@ impl OwnedContacts {
             boat: None,
             native_keys: BTreeMap::from([(own_native_id, 1)]),
             own_glide: false,
+            own_identity: None,
+            other_team_owners: BTreeMap::new(),
             checkpoint_errors: Vec::new(),
         };
         model.world.admit(tick_body(1, own_native_id, true), None)?;
@@ -899,6 +919,7 @@ impl OwnedContacts {
     }
 
     fn drain_inner(&mut self, ledger: &SpawnLedger, sequence: u64, bootstrap: bool) -> Result<()> {
+        self.own_identity = ledger.1.contact_identity.clone();
         let mut records = 0;
         let mut own_metadata = BTreeMap::new();
         let surviving = ledger
@@ -936,6 +957,10 @@ impl OwnedContacts {
             }
             for record in &page.records {
                 self.reduce_record(record, bootstrap, Some(&surviving), &mut own_metadata)?;
+                self.apply_owner(
+                    record,
+                    ledger.1.contact_owners.get(&record.ordinal).copied(),
+                );
             }
             self.cursor = Some(page.next_cursor);
             if !page.has_more {
@@ -1228,6 +1253,7 @@ impl OwnedContacts {
             EntityHistoryKind::Spawn(m) => {
                 let id = m.entity.id;
                 self.deferred.remove(&id.native_id());
+                self.other_team_owners.remove(&id.native_id());
                 let old = self
                     .world
                     .bodies
@@ -1246,6 +1272,18 @@ impl OwnedContacts {
                 let Some(name) = m.entity.type_name.as_deref() else {
                     return Err(unsupported("unknown contact entity type"));
                 };
+                if matches!(
+                    name,
+                    "minecraft:bat"
+                        | "minecraft:armor_stand"
+                        | "minecraft:spider"
+                        | "minecraft:cave_spider"
+                ) && surviving.is_none_or(|ids| ids.contains(&id))
+                {
+                    if let Some(uuid) = m.entity.uuid {
+                        self.other_team_owners.insert(id.native_id(), (id, uuid));
+                    }
+                }
                 if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
                     || !contact_capabilities::capabilities(self.session.version, name).modeled()
                     || self.boat.as_ref().is_some_and(|b| b.ignored.contains(&id))
@@ -1324,6 +1362,8 @@ impl OwnedContacts {
                     (self.fresh, id.native_id()),
                     if name == "minecraft:player" {
                         ContactDispatch::RemotePlayer
+                    } else if name == "minecraft:wolf" {
+                        ContactDispatch::Wolf
                     } else if name == "minecraft:chicken" {
                         ContactDispatch::Chicken
                     } else {
@@ -1352,6 +1392,9 @@ impl OwnedContacts {
                         pose: EntityPose::Standing,
                         spectator: false,
                         baby: 1.,
+                        tame: false,
+                        owner_uuid: None,
+                        owner_known: true,
                     },
                 );
             }
@@ -1408,6 +1451,7 @@ impl OwnedContacts {
             }
             EntityHistoryKind::Removed { native_id, .. } => {
                 self.deferred.remove(native_id);
+                self.other_team_owners.remove(native_id);
                 self.world
                     .order
                     .remove_membership(*native_id)
@@ -1676,7 +1720,32 @@ impl OwnedContacts {
                 })
                 .map(|r| r.index)
         };
-        if index == 6 {
+        let species_field = |owner: &str, name: &str| {
+            table
+                .entity_data(&input.name)
+                .iter()
+                .find(|r| r.owner == owner && r.field == name)
+                .map(|r| r.index)
+        };
+        if input.name == "minecraft:wolf"
+            && Some(index) == species_field("TamableAnimal", "DATA_FLAGS_ID")
+        {
+            let EntityDataValue::Byte(flags) = value else {
+                return Err(unsupported("unknown wolf tame/sitting flags"));
+            };
+            input.tame = flags & 4 != 0;
+        } else if input.name == "minecraft:wolf"
+            && Some(index) == species_field("Wolf", "DATA_INTERESTED_ID")
+        {
+            let EntityDataValue::Bool(interested) = value else {
+                return Err(unsupported("unknown wolf interest"));
+            };
+            body.wolf_interest(*interested);
+        } else if input.name == "minecraft:wolf"
+            && Some(index) == species_field("TamableAnimal", "DATA_OWNERUUID_ID")
+        {
+            input.owner_known = false;
+        } else if index == 6 {
             let EntityDataValue::Pose(id) = value else {
                 return Err(unsupported("unknown contact pose serializer"));
             };
@@ -1698,6 +1767,7 @@ impl OwnedContacts {
                 return Err(unsupported("nonfinite contact health"));
             }
             input.alive = *health > 0.;
+            body.alive = input.alive;
         } else if Some(index) == field(EntityDataField::Baby) {
             let EntityDataValue::Bool(baby) = value else {
                 return Err(unsupported("unknown contact baby data"));
@@ -1751,6 +1821,81 @@ impl OwnedContacts {
         Ok(())
     }
 
+    fn apply_owner(
+        &mut self,
+        record: &super::EntityHistoryRecord,
+        owner: Option<Option<[u8; 16]>>,
+    ) {
+        if let (
+            EntityHistoryKind::Metadata {
+                entity: Some(id), ..
+            },
+            Some(owner),
+        ) = (&record.kind, owner)
+        {
+            if let Some(input) = self
+                .inputs
+                .values_mut()
+                .find(|i| i.entity == *id && i.name == "minecraft:wolf")
+            {
+                input.owner_uuid = owner;
+                input.owner_known = true;
+            }
+        }
+    }
+
+    fn wolf_team(
+        &self,
+        key: u64,
+        teams: &TeamsObservation,
+        base: &BTreeMap<u64, Option<(String, crate::client::ui::TeamCollision)>>,
+    ) -> Result<Option<(String, crate::client::ui::TeamCollision)>> {
+        let input = &self.inputs[&key];
+        let own = base[&key].clone();
+        let legacy = self.session.version == crate::MinecraftVersion::Java1_16_1;
+        if !input.tame || (!legacy && own.is_some()) {
+            return Ok(own);
+        }
+        let mut current = input;
+        let mut seen = vec![key];
+        loop {
+            if !current.owner_known {
+                return Err(entity_failure(
+                    unsupported("wolf owner metadata unavailable"),
+                    current,
+                ));
+            }
+            let Some(uuid) = current.owner_uuid else {
+                return Ok(if legacy { own } else { None });
+            };
+            if let Some((local_uuid, name)) = &self.own_identity {
+                if *local_uuid == uuid {
+                    return Ok(team(teams, name));
+                }
+            }
+            let Some((&next, owner)) = self
+                .inputs
+                .iter()
+                .find(|(_, i)| i.uuid == Some(uuid) && (!legacy || i.name == "minecraft:player"))
+            else {
+                if !legacy && self.other_team_owners.values().any(|(_, u)| *u == uuid) {
+                    return Ok(team(teams, &uuid_holder(uuid)));
+                }
+                return Ok(if legacy { own } else { None });
+            };
+            if legacy || owner.name != "minecraft:wolf" {
+                return Ok(base[&next].clone());
+            }
+            if seen.contains(&next) {
+                return Ok(None);
+            }
+            seen.push(next);
+            // OwnableEntity follows owner references regardless of tame flags;
+            // intermediate own teams are not consulted by getRootOwner.
+            current = owner;
+        }
+    }
+
     pub(crate) fn teams(
         &mut self,
         teams: &TeamsObservation,
@@ -1794,6 +1939,18 @@ impl OwnedContacts {
                     uuid_holder(uuid)
                 };
                 self.world.bodies.get_mut(&key).unwrap().team = team(teams, &holder);
+            }
+            let base = self
+                .world
+                .bodies
+                .iter()
+                .map(|(&k, b)| (k, b.team.clone()))
+                .collect::<BTreeMap<_, _>>();
+            for (&key, input) in &self.inputs {
+                if input.name == "minecraft:wolf" {
+                    self.world.bodies.get_mut(&key).unwrap().team =
+                        self.wolf_team(key, teams, &base)?;
+                }
             }
             Ok(())
         })();
@@ -2510,7 +2667,6 @@ mod tests {
                 "cat",
                 "llama",
                 "trader_llama",
-                "wolf",
                 "fox",
                 "iron_golem",
                 "donkey",
@@ -2812,7 +2968,7 @@ mod tests {
             // Exercise the exact eviction checkpoint reducer, not just the retained suffix.
             let mut checkpoint = ContactCheckpoint::new(session, 99).unwrap();
             for record in history.records {
-                checkpoint.advance(record);
+                checkpoint.advance(record, None);
             }
             assert!(checkpoint.errors.is_empty());
             assert!(checkpoint.global_error.is_none());
@@ -2865,7 +3021,7 @@ mod tests {
                     .unwrap()
                     .records
                 {
-                    checkpoint.advance(record);
+                    checkpoint.advance(record, None);
                 }
                 let saved = &checkpoint.errors[&7].1;
                 assert_eq!(saved.context().packet, c.packet);
@@ -2969,9 +3125,156 @@ mod tests {
     }
 
     #[test]
+    fn original_wolf_owner_team_precedence_and_cycles() {
+        let fixture: serde_json::Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/entity_owner_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        let uuid = |s: &str| {
+            u128::from_str_radix(&s.replace('-', ""), 16)
+                .unwrap()
+                .to_be_bytes()
+        };
+        for (version, name) in [(V::Java1_16_1, "1.16.1"), (V::Java1_21_11, "1.21.11")] {
+            let rows = fixture["versions"][name]["wolf_teams"].as_array().unwrap();
+            assert_eq!(rows.len(), 12);
+            for row in rows {
+                let scenario = row["scenario"].as_u64().unwrap();
+                let (mut ledger, session) = receipts(version);
+                ledger.remove(7);
+                for (id, kind, entity_uuid) in [
+                    (8, "wolf", 10_u128.to_be_bytes()),
+                    (9, "wolf", 11_u128.to_be_bytes()),
+                    (501, "player", ((1_u128 << 64) + 501).to_be_bytes()),
+                ] {
+                    ledger.history_context(version, 3, id as u64);
+                    ledger
+                        .insert(
+                            version,
+                            NativeSpawn {
+                                id,
+                                uuid: Some(entity_uuid),
+                                type_id: None,
+                                dedicated_type_name: Some(kind),
+                                position: [0., 65., 0.],
+                                living: Some(true),
+                            },
+                            id as u64,
+                            32,
+                        )
+                        .unwrap();
+                    ledger.initialize_motion(
+                        id,
+                        NativeSpawnMotion {
+                            position: Some([0., 65., 0.]),
+                            rotation: Some([0.; 2]),
+                            ..Default::default()
+                        },
+                        id as u64,
+                    );
+                }
+                let mut model = OwnedContacts::new(session, 10, 99, &ledger, 501).unwrap();
+                let a = model.native_keys[&8];
+                let b = model.native_keys[&9];
+                let p = model.native_keys[&501];
+                for (key, field, tame) in [
+                    (a, "owner", row["tame"].as_bool().unwrap()),
+                    (b, "parent_owner", row["parent_tame"].as_bool().unwrap()),
+                ] {
+                    let input = model.inputs.get_mut(&key).unwrap();
+                    input.tame = tame;
+                    input.owner_uuid = row[field].as_str().map(uuid);
+                }
+                let value = |prefix: &str| {
+                    Some((
+                        format!("{prefix}Wolf{scenario}"),
+                        crate::client::ui::TeamCollision::Always,
+                    ))
+                };
+                let base = BTreeMap::from([
+                    (
+                        a,
+                        if row["own_team"].as_bool().unwrap() {
+                            value("A")
+                        } else {
+                            None
+                        },
+                    ),
+                    (b, value("B")),
+                    (p, if scenario == 5 { None } else { value("P") }),
+                ]);
+                let teams = TeamsObservation {
+                    session,
+                    receive_sequence: 501,
+                    context_reset_sequence: None,
+                    last_update_sequence: None,
+                    teams: vec![],
+                };
+                let actual = model.wolf_team(a, &teams, &base).unwrap().map(|t| t.0);
+                assert_eq!(
+                    actual.as_deref(),
+                    row["result"].as_str(),
+                    "{name} {scenario}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn wolf_private_owner_receipts_survive_checkpoint_and_replacement() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            let (mut ledger, session) = receipts(version);
+            ledger.remove(7);
+            extra(&mut ledger, version, "wolf", [0., 65., 0.], true, 2);
+            let flags = if version == V::Java1_16_1 { 16 } else { 17 };
+            let owner = flags + 1;
+            let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+            for (sequence, reference) in [(3, Some([2; 16])), (4, None), (5, Some([3; 16]))] {
+                ledger.history_context(version, 3, sequence);
+                ledger.contact_owner_receipt(reference);
+                ledger.receive_metadata(
+                    8,
+                    [
+                        (flags, EntityDataValue::Byte(5)),
+                        (
+                            owner,
+                            EntityDataValue::Other(if version == V::Java1_16_1 { 12 } else { 13 }),
+                        ),
+                    ],
+                    true,
+                    sequence,
+                );
+                model.refresh(10, &ledger, sequence).unwrap();
+                let input = model.inputs.values().next().unwrap();
+                assert!(input.tame && input.owner_known);
+                assert_eq!(input.owner_uuid, reference);
+            }
+            // Force public suffix eviction; the private reducer consumes each
+            // owner sidecar with its original record before releasing it.
+            for sequence in 6..(MAX_ENTITY_HISTORY_RECORDS as u64 + 12) {
+                ledger.history_context(version, 3, sequence);
+                ledger.receive_metadata(8, [], true, sequence);
+            }
+            let fresh = OwnedContacts::new(
+                session,
+                11,
+                99,
+                &ledger,
+                MAX_ENTITY_HISTORY_RECORDS as u64 + 11,
+            )
+            .unwrap();
+            let input = fresh.inputs.values().next().unwrap();
+            assert!(input.tame && input.owner_known);
+            assert_eq!(input.owner_uuid, Some([3; 16]));
+            assert!(ledger.1.contact_owners.is_empty());
+        }
+    }
+
+    #[test]
     fn ordinary_mob_admission_and_age_receipts() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in [
+                "wolf",
                 "chicken",
                 "rabbit",
                 "ocelot",
@@ -3013,7 +3316,9 @@ mod tests {
                 let body = model.world.bodies.values().next().unwrap();
                 assert_eq!(
                     body.dispatch,
-                    if name == "chicken" {
+                    if name == "wolf" {
+                        ContactDispatch::Wolf
+                    } else if name == "chicken" {
                         ContactDispatch::Chicken
                     } else {
                         ContactDispatch::InheritedLiving
@@ -3062,6 +3367,7 @@ mod tests {
         .unwrap();
         for (version, key) in [(V::Java1_16_1, "1.16.1"), (V::Java1_21_11, "1.21.11")] {
             for name in [
+                "wolf",
                 "chicken",
                 "rabbit",
                 "ocelot",
@@ -3167,6 +3473,7 @@ mod tests {
     fn ordinary_dimension_refresh_survives_receipts_checkpoint_and_no_lerp_ticks() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in [
+                "wolf",
                 "chicken",
                 "rabbit",
                 "ocelot",
@@ -3216,7 +3523,7 @@ mod tests {
                     .unwrap()
                     .records
                 {
-                    checkpoint.advance(record);
+                    checkpoint.advance(record, None);
                 }
                 assert!(checkpoint.errors.is_empty());
                 assert!(checkpoint.global_error.is_none());

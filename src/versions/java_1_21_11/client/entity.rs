@@ -72,6 +72,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         // follow is left to the other receivers and records nothing here.
         ids::play_clientbound::ENTITY_METADATA => {
             if let Some((entity, values, complete)) = common_metadata(payload) {
+                if state.entities.type_name(entity) == Some("minecraft:wolf") {
+                    if let Some(owner) = contact_owner(payload) {
+                        state.entities.contact_owner_receipt(owner);
+                    }
+                }
                 state
                     .entities
                     .receive_metadata(entity, values, complete, state.sequence);
@@ -176,6 +181,32 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
         values.push((key, value));
     }
     Some((entity, values, complete))
+}
+
+// Preserve the original optional UUID privately; no public metadata variant changes.
+fn contact_owner(payload: &[u8]) -> Option<Option<[u8; 16]>> {
+    let mut r = Reader::new(payload);
+    r.varint().ok()?;
+    let mut owner = None;
+    loop {
+        let key = r.u8().ok()?;
+        if key == 255 {
+            return owner;
+        }
+        let kind = r.varint().ok()?;
+        if key == 18 && kind != 13 {
+            return None;
+        }
+        if key == 18 && kind == 13 {
+            owner = Some(if r.u8().ok()? != 0 {
+                Some(r.take(16).ok()?.try_into().ok()?)
+            } else {
+                None
+            });
+        } else if !super::players::skip_metadata(&mut r, kind).ok()? {
+            return None;
+        }
+    }
 }
 
 fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
@@ -350,6 +381,25 @@ fn coordinates(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
 
 #[cfg(test)]
 mod common_metadata_tests {
+    #[test]
+    fn private_wolf_owner_payload_keeps_public_other_and_final_receipt() {
+        use crate::client::EntityDataValue as V;
+        let mut packet = vec![8, 18, 13, 1];
+        packet.extend([2; 16]);
+        packet.push(255);
+        assert_eq!(super::contact_owner(&packet), Some(Some([2; 16])));
+        assert_eq!(
+            super::common_metadata(&packet).unwrap().1,
+            vec![(18, V::Other(13))]
+        );
+        packet.pop();
+        packet.extend([18, 13, 0, 255]);
+        assert_eq!(super::contact_owner(&packet), Some(None));
+        packet.truncate(19); // Truncated UUID must not become a default owner.
+        assert_eq!(super::contact_owner(&packet), None);
+        assert_eq!(super::contact_owner(&[8, 18, 1, 0, 255]), None);
+        assert_eq!(super::contact_owner(&[8, 255]), None);
+    }
     use super::*;
     #[test]
     fn original_position_codecs_preserve_values_and_boundaries() {

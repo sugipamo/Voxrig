@@ -238,6 +238,9 @@ pub(super) fn shape(
     }
     let (width, height) =
         super::state::dimensions(version, name).expect("qualified type dimensions");
+    // Wolf inherits the 0.5f age scale in BOTH originals: modern Wolf has no
+    // custom baby or sitting dimensions. Sitting is TamableAnimal metadata,
+    // independent of Entity pose; sleeping still uses the fixed box above.
     // Chicken's modern BABY_DIMENSIONS scales its registered dimensions by
     // 0.5f and changes eye height only; legacy uses the inherited age scale.
     // Both therefore use this same width/height arithmetic in the private lane.

@@ -13,6 +13,43 @@ pub(crate) enum ContactDispatch {
     InheritedLiving,
     RemotePlayer,
     Chicken,
+    Wolf,
+}
+
+#[derive(Clone, Debug, Default)]
+struct WolfAnimation {
+    interested: bool,
+    angle: f32,
+    old_angle: f32,
+    wet: bool,
+    shaking: bool,
+    shake: f32,
+    old_shake: f32,
+}
+impl WolfAnimation {
+    fn tick(&mut self, version: MinecraftVersion, wet_input: bool) {
+        self.old_angle = self.angle;
+        self.angle += (if self.interested { 1. } else { 0. } - self.angle) * 0.4_f32;
+        if wet_input {
+            self.wet = true;
+            if version == MinecraftVersion::Java1_16_1 {
+                self.cancel_shake();
+            }
+        } else if self.shaking {
+            // Original (isWet || isShaking) && isShaking has this same truth table.
+            self.old_shake = self.shake;
+            self.shake += 0.05_f32;
+            if self.old_shake >= 2. {
+                self.wet = false;
+                self.cancel_shake();
+            }
+        }
+    }
+    fn cancel_shake(&mut self) {
+        self.shaking = false;
+        self.shake = 0.;
+        self.old_shake = 0.;
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -35,6 +72,7 @@ pub(crate) struct ContactTickBody {
     pub width: f32,
     pub height: f32,
     pub sleeping: bool,
+    pub alive: bool,
     pub pushable: bool,
     pub team: Option<(String, crate::client::ui::TeamCollision)>,
     velocity_target: [f64; 3],
@@ -43,6 +81,7 @@ pub(crate) struct ContactTickBody {
     // until an original setPos (interpolation or received bed placement).
     refreshed_bounds: Option<Aabb>,
     chicken: Option<ChickenFlap>,
+    wolf: Option<WolfAnimation>,
 }
 impl ContactTickBody {
     pub(crate) fn new(
@@ -63,11 +102,13 @@ impl ContactTickBody {
             width: dimensions[0],
             height: dimensions[1],
             sleeping: false,
+            alive: true,
             pushable: true,
             team: None,
             velocity_target: [0.; 3],
             velocity_steps: 0,
             refreshed_bounds: None,
+            wolf: (dispatch == ContactDispatch::Wolf).then(WolfAnimation::default),
             chicken: (dispatch == ContactDispatch::Chicken).then_some(ChickenFlap {
                 flap: 0.,
                 flap_speed: 0.,
@@ -174,8 +215,21 @@ impl ContactTickBody {
         }
     }
 
-    // Chicken.aiStep runs this after the inherited living step and pair pushes.
+    pub(crate) fn wolf_interest(&mut self, interested: bool) {
+        if let Some(wolf) = &mut self.wolf {
+            wolf.interested = interested;
+        }
+    }
+
+    // Species wrappers run after the inherited living step and pair pushes.
+    // The owner isolates baseTick/fluid inputs. Wolf wet/shake fields cannot
+    // affect contacts; the full version-specific wrapper is oracle-checked below.
     fn species_after_ai(&mut self, version: MinecraftVersion) {
+        if self.alive {
+            if let Some(wolf) = &mut self.wolf {
+                wolf.tick(version, false);
+            }
+        }
         let Some(state) = &mut self.chicken else {
             return;
         };
@@ -556,6 +610,8 @@ mod tests {
                                     (key, id),
                                     if player {
                                         ContactDispatch::RemotePlayer
+                                    } else if name == "minecraft:wolf" {
+                                        ContactDispatch::Wolf
                                     } else if name == "minecraft:chicken" {
                                         ContactDispatch::Chicken
                                     } else {
@@ -654,6 +710,15 @@ mod tests {
                                         crate::client::ui::TeamCollision::Always
                                     },
                                 ));
+                            }
+                            "wolf_flags" => {
+                                let b = world
+                                    .bodies
+                                    .values_mut()
+                                    .find(|b| b.native_id == id)
+                                    .unwrap();
+                                b.wolf_interest(a["interested"].as_bool().unwrap());
+                                assert_bounds(b.contact().bounds, &a["pose"], &context);
                             }
                             "variant" => assert_variant_geometry(&world, id, a),
                             "pose_metadata" => apply_pose_metadata(&mut world, id, a),
@@ -797,7 +862,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!((stages, unmodeled_stages), (1344, 672));
+        assert_eq!((stages, unmodeled_stages), (1440, 672));
         assert_eq!(pushed_slots, [[[true; 2]; 2]; 2]);
     }
 
@@ -863,6 +928,8 @@ mod tests {
                                                 (key, id),
                                                 if player {
                                                     ContactDispatch::RemotePlayer
+                                                } else if name == "minecraft:wolf" {
+                                                    ContactDispatch::Wolf
                                                 } else if name == "minecraft:chicken" {
                                                     ContactDispatch::Chicken
                                                 } else {
@@ -967,6 +1034,15 @@ mod tests {
                                         crate::client::ui::TeamCollision::Always
                                     },
                                 ));
+                            }
+                            "wolf_flags" => {
+                                let b = world
+                                    .bodies
+                                    .values_mut()
+                                    .find(|b| b.native_id == id)
+                                    .unwrap();
+                                b.wolf_interest(a["interested"].as_bool().unwrap());
+                                assert_bounds(b.contact().bounds, &a["pose"], &context);
                             }
                             "variant" => assert_variant_geometry(&world, id, a),
                             "pose_metadata" => apply_pose_metadata(&mut world, id, a),
@@ -1094,7 +1170,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!((stages, unmodeled_stages), (1344, 672));
+        assert_eq!((stages, unmodeled_stages), (1440, 672));
     }
     fn update_received_geometry(world: &mut ContactTickWorld, key: u64) {
         let b = &world.bodies[&key];
@@ -1184,6 +1260,65 @@ mod tests {
                     assert_eq!(row["solid"], false);
                 }
                 assert_vector(velocity(&row["before"]), velocity(&row["after"]), version);
+            }
+        }
+    }
+
+    #[test]
+    fn original_wolf_tick_wrapper_states_have_no_contact_motion() {
+        let fixture: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/entity_owner_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        for (name, version) in [
+            ("1.16.1", MinecraftVersion::Java1_16_1),
+            ("1.21.11", MinecraftVersion::Java1_21_11),
+        ] {
+            let mut state = WolfAnimation::default();
+            let rows = fixture["versions"][name]["wolf_states"].as_array().unwrap();
+            assert_eq!(rows.len(), 80);
+            for (tick, row) in rows.iter().enumerate() {
+                match row["event"].as_i64().unwrap() {
+                    8 => {
+                        state.shaking = true;
+                        state.shake = 0.;
+                        state.old_shake = 0.;
+                    }
+                    56 => state.cancel_shake(),
+                    0 => {}
+                    _ => panic!("unknown wolf event"),
+                }
+                state.interested = row["interested"].as_bool().unwrap();
+                state.tick(version, row["wet_input"].as_bool().unwrap());
+                let expected: Vec<u32> = row["bits"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|n| n.as_u64().unwrap() as u32)
+                    .collect();
+                assert_eq!(
+                    [state.angle, state.old_angle, state.shake, state.old_shake]
+                        .map(f32::to_bits)
+                        .as_slice(),
+                    expected,
+                    "{name} tick {tick}"
+                );
+                assert_eq!(
+                    state.wet,
+                    row["wet"].as_bool().unwrap(),
+                    "{name} tick {tick}"
+                );
+                assert_eq!(
+                    state.shaking,
+                    row["shaking"].as_bool().unwrap(),
+                    "{name} tick {tick}"
+                );
+                for field in ["position_bits", "velocity_bits", "bounds_bits"] {
+                    assert_eq!(
+                        row["before"][field], row["after"][field],
+                        "{name} tick {tick} {field}"
+                    );
+                }
             }
         }
     }

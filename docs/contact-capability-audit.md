@@ -15,7 +15,7 @@ spatial bound or permission to skip a distant body. `Unknown` is the default.
 
 | Types (both versions) | Walking outgoing | Incoming pushability | Solid | Geometry | Metadata callback | Status | Animation |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Cow/Pig/Zombie/Sheep/Creeper/RemotePlayer + Step D seven + Chicken | Qualified | Qualified | ProvenIrrelevant | Qualified | Qualified with existing guards | BoundedUnknown | BoundedUnknown |
+| Cow/Pig/Zombie/Sheep/Creeper/RemotePlayer + Step D seven + Chicken/Wolf | Qualified | Qualified | ProvenIrrelevant | Qualified | Qualified with existing guards | BoundedUnknown | BoundedUnknown |
 | Bat/ArmorStand | ProvenIrrelevant | ProvenIrrelevant | ProvenIrrelevant | Unknown, unused | ProvenIrrelevant to this lane | ProvenIrrelevant to this lane | ProvenIrrelevant to this lane |
 | Horse/Spider/CaveSpider/Ghast | BoundedUnknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
 | All other registered types and unknown names | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
@@ -226,7 +226,6 @@ necessarily require different numerical arithmetic.
 | --- | --- |
 | `llama` | AbstractHorse client stand/eating geometry and llama size/strength/passenger hooks are not modeled. |
 | `trader_llama` | Llama/AbstractHorse geometry and trader despawn/mount hooks are not closed. |
-| `wolf` | TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team. |
 | `cat` | TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team. |
 | `fox` | Fox isSleeping reads species flags; reducer only handles LivingEntity sleeping-position metadata. |
 | `iron_golem` | Species doPush target/random branch needs separate side-effect closure and numerical coverage. |
@@ -296,3 +295,66 @@ the original synchronized-data handler. Boat stages compare geometry and flap
 state in the existing geometry-only lane. Cases include baby/adult refresh,
 sleeping/standing, ground transitions, falling/rising and clamp-boundary
 velocities, interpolation cancellation and unticking. No tolerances change.
+
+## Wolf qualification (Java 1.16.1 and 1.21.11)
+
+Wolf is qualified in the same private owned numerical lane as Chicken. Public
+sampled geometry models and complete-tick guarantees are unchanged. There is
+no Mineflayer compatibility path.
+
+* Both original Wolf.aiStep implementations delegate to TamableAnimal and the
+  existing LivingEntity interpolation/push chain. Starting a shake and updating
+  persistent anger are server guarded. Sitting flags do not suppress the client
+  living step, change its velocity, or refresh dimensions. There is no chicken
+  falling-velocity multiplier or other wolf-specific movement impulse.
+* Wolf.tick delegates first, returns when not alive, then copies and approaches
+  the interest angle with original float arithmetic `(target-angle)*0.4f`.
+  Wet/shaking state uses `shakeAnimO=shakeAnim; shakeAnim+=0.05f`, clearing both
+  counters and wet/shaking flags when the old counter reaches 2. Legacy wet input
+  is water/rain/bubble and immediately cancels shaking. Modern input is water/rain;
+  on the client it sets wet without cancelling the current shake. Event 8 starts
+  shaking; modern event 56 cancels it. Sound, particles and modern game events
+  have no position, velocity, dimension or contact-predicate writes. The state
+  reducer preserves these version differences; the numerical lane continues to
+  isolate inherited baseTick/fluid/environment simulation. Its private visual
+  fields are not exposed as received or graphical state. Status 8/56 remain
+  outside the existing admitted packet-status subset, so receipt replay refuses
+  them rather than promising a new callback guarantee.
+* Registered adult dimensions are `0.6f x 0.85f` in both versions. Both use the
+  inherited `0.5f` baby age scale: `0.3f x 0.425f`. Modern Wolf has no custom
+  baby-dimensions override. Preserve float age multiplication followed by float
+  scale multiplication; the existing owner requires unit scale. Sitting does
+  not change dimensions. LivingEntity sleeping pose still uses fixed `0.2f`
+  dimensions. Original legacy dimension-refresh anchoring remains in force.
+* Legacy TamableAnimal.getTeam checks a tamed wolf's loaded player owner first,
+  then falls back to its own UUID team. Modern checks the wolf's own team first,
+  then follows the root owner of a tamed wolf, returning null for missing roots
+  and cycles. Intermediate tame flags and teams do not interrupt root traversal.
+  Private optional-UUID receipts accompany the original public metadata record
+  through replay and checkpoint eviction; public `Other(serializer_id)` stays
+  unchanged. Loaded player profiles, received local identity, owner removal,
+  UUID lookup and retained original spawn lifetimes determine resolution. The
+  already excluded Bat/ArmorStand and bounded Spider/CaveSpider can supply a
+  UUID team without acquiring modeled geometry. Missing owner payloads refuse
+  when needed. Flags, interest, collar, anger and modern variant/sound metadata
+  add no other contact geometry effects. Existing serializer, metadata, scale,
+  passenger and history guards remain in force.
+
+The owner oracle adds eight wolf schedules per version (walking and boat),
+including baby/adult, sleeping/standing, sitting/interest, native slot changes,
+interpolation/velocity receipts and ordered pair effects. All existing schedules
+remain. Separate original Wolf.tick traces cover 80 wet/shake/interest ticks
+per version, including rewetting during a shake, cancellation, restarts and
+completion, checking float bits and unchanged position/velocity/bounds. Twelve
+original team configurations per version cover own/owner precedence, missing
+owners, untamed wolves, intermediate untamed owners, missing roots and cycles.
+Rust compares every added case without relaxed tolerances; geometry and visual
+state comparisons use exact bits. Private receipt replacement and eviction are
+also checked. Reproduce using the existing owner-oracle command below, then
+`cargo test --locked -j1 client::entity:: -- --test-threads=1`:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/run_entity_owner_oracle.py \
+  --downloads /path/to/downloads --client-downloads /path/to/downloads \
+  --work /path/to/wolf-owner
+```

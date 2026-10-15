@@ -191,6 +191,9 @@ pub struct EntityHistory {
 
 pub(crate) struct HistoryLedger {
     records: VecDeque<(EntityHistoryRecord, usize)>,
+    // Private contact inputs; public metadata continues to expose Other.
+    pub(super) contact_owners: std::collections::BTreeMap<u64, Option<[u8; 16]>>,
+    pub(super) contact_identity: Option<([u8; 16], String)>,
     bytes: usize,
     next: u64,
     dropped_through: u64,
@@ -204,6 +207,8 @@ impl Default for HistoryLedger {
     fn default() -> Self {
         Self {
             records: VecDeque::new(),
+            contact_owners: Default::default(),
+            contact_identity: None,
             bytes: 0,
             next: 0,
             dropped_through: 0,
@@ -235,7 +240,12 @@ impl HistoryLedger {
         }
         self.next += 1;
         let receive_sequence = self.context.unwrap().2;
-        let bytes = record_bytes(&kind);
+        let bytes = record_bytes(&kind)
+            + if self.contact_owners.contains_key(&self.next) {
+                std::mem::size_of::<(u64, Option<[u8; 16]>)>()
+            } else {
+                0
+            };
         self.bytes += bytes;
         self.records.push_back((
             EntityHistoryRecord {
@@ -252,6 +262,7 @@ impl HistoryLedger {
         {
             let (record, bytes) = self.records.pop_front().unwrap();
             self.bytes -= bytes;
+            let owner = self.contact_owners.remove(&record.ordinal);
             self.dropped_through = record.ordinal;
             if self.context.is_some_and(|(version, generation, _)| {
                 record.session.version == version && record.session.world_generation == generation
@@ -268,7 +279,7 @@ impl HistoryLedger {
                     }
                 }
                 if let Some(checkpoint) = &mut self.checkpoint {
-                    checkpoint.advance(record);
+                    checkpoint.advance(record, owner);
                 }
             }
         }
@@ -600,6 +611,15 @@ impl SpawnLedger {
     ) {
         self.1
             .record(EntityHistoryKind::OwnPositionCorrection { pose, velocity });
+    }
+    pub(crate) fn contact_identity(&mut self, uuid: [u8; 16], name: String) {
+        self.1.contact_identity = Some((uuid, name));
+    }
+    /// Attach an original optional-owner receipt to the next metadata record.
+    pub(crate) fn contact_owner_receipt(&mut self, owner: Option<[u8; 16]>) {
+        if self.1.context.is_some() {
+            self.1.contact_owners.insert(self.1.next + 1, owner);
+        }
     }
     /// Configure the local map member before any receipt can be evicted.
     pub(crate) fn contact_local_player(&mut self, native_id: i32) {

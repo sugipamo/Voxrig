@@ -559,6 +559,7 @@ mod tests {
                             "sheep",
                             "creeper",
                             "player",
+                            "wolf",
                             "chicken",
                             "rabbit",
                             "ocelot",

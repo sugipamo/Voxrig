@@ -5035,6 +5035,9 @@ impl Bot {
             if let Some(own) = contact_player {
                 receipts.entities.contact_local_player(own);
             }
+            receipts
+                .entities
+                .contact_identity(self.login_profile.uuid, self.login_profile.name.clone());
             receipts.entities.history_context(
                 crate::MinecraftVersion::Java1_16_1,
                 generation,
