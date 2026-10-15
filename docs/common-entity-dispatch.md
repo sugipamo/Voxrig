@@ -75,10 +75,19 @@ contact exclusion を ProvenIrrelevant とする。その他は Unknown また�
 部分監査の BoundedUnknown のまま拒否する。継承先が一致するだけでは資格化しない。
 Status / animation は Step A の有限な no-op 例外以外、typed Unsupported で拒否する。
 
-WIP の遠方 hull exemption は間接作用を覆う証明がないので撤去した。
-Unknown / BoundedUnknown は遠方でも拒否し、受信 target を current geometry としない。
+Step B の[有限 envelope 証明](contact-envelope-audit.md)は capability table と独立で、
+まず default / unmounted Spider・CaveSpider のみへ適用する。
+受信 target を current geometry とせず、spawn 以降の全補間 anchor・codec base・
+absolute endpoint を含む縮まない hull を使う。own 前後 slot・swept / step-up query・
+boat selector に加え、全 qualified remote の補間 / shifted target と固定 boat collider
+からの非交差を要求し、間接作用も除外する。証明できた tick だけ拒否を局所化する。
+Unknown hook は近傍限定と仮定しない。metadata / scale / equipment / status /
+animation / mount で有限証明を失えば、遠方でも typed Unsupported で拒否する。
+その他の Unknown / BoundedUnknown も証明不能時は従来の全域拒否を維持する。
+
 元の native slot と spawn lifetime を保持し、除去・再利用・metadata・乗員・checkpoint /
-world 境界でも未対応状態を消さない。Step B、公開 API / schema / 数値保証の拡張はない。
-原版 numerical fixture は sheep / creeper の overlap・own前後slot・baby metadata、
-既存の補間・team・sleep・boat geometry と Bat / ArmorStand exclusion を回帰検査する。
-WIP の追加 species の数値一致を、全 callback の資格化の証拠にはしない。
+world 境界で再評価する。checkpoint は累積 hull と失効原因 packet を保存する。
+失敗 staged frame の送信禁止と入力解除、公開 API / schema / 数値保証は変更しない。
+原版 numerical fixture は既存六種類の own前後slot・baby metadata、補間・team・sleep・
+boat geometry と Bat / ArmorStand exclusion を引き続き検査する。
+追加 species の envelope 証明は数値 body や全 callback の資格化ではない。

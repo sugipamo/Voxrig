@@ -100,6 +100,7 @@ pub(crate) fn sample_with_living(
     relations: &super::PassengerLedger,
     sequence: u64,
     living: Option<&[LivingBoatBody]>,
+    deferred: &[EntityId],
 ) -> Result<Option<BoatCollisionSample>> {
     let Some(boat) = &record.boat_motion else {
         return Ok(None);
@@ -129,7 +130,7 @@ pub(crate) fn sample_with_living(
         &passengers.value,
         &seed,
         ledger,
-        living,
+        (living, deferred),
     )?;
     Ok(Some(BoatCollisionSample {
         sampled_before_tick: record.dispatched_ticks + 1,
@@ -146,8 +147,9 @@ fn bodies(
     passengers: &[i32],
     seed: &super::BoatFrame,
     ledger: &SpawnLedger,
-    living: Option<&[LivingBoatBody]>,
+    contacts: (Option<&[LivingBoatBody]>, &[EntityId]),
 ) -> Result<Vec<BoatCollisionBody>> {
+    let (living, deferred) = contacts;
     let mut bodies = Vec::new();
     let query = crate::client::entity::owned_contacts::boat_query(seed.bounds);
     let nearby = |b: [f64; 6]| {
@@ -159,7 +161,13 @@ fn bodies(
             && b[5] > query.min_z
     };
     for spawn in ledger.capture(session, sequence).entities {
-        if spawn.id == own || passengers.contains(&spawn.id.native_id()) {
+        // The owned contact stage checks these exact lifetimes against all
+        // selectors, peers and swept queries before retaining any frame. Never
+        // fall back to a latest-target proximity guess for a deferred body.
+        if spawn.id == own
+            || passengers.contains(&spawn.id.native_id())
+            || deferred.contains(&spawn.id)
+        {
             continue;
         }
         let name = spawn
@@ -338,7 +346,7 @@ mod tests {
                 spawn(&mut ledger, version, 11, name, other, 2);
                 let own = ledger.identity(session, 10).unwrap();
                 let seed = super::super::BoatFrame::new(start, [0.; 2], [0.; 3]);
-                let old = bodies(session, 3, own, &[42], &seed, &ledger, None).unwrap();
+                let old = bodies(session, 3, own, &[42], &seed, &ledger, (None, &[])).unwrap();
                 let expected: [f64; 6] = std::array::from_fn(|i| {
                     result["collision_boxes"][0][i]
                         .as_str()
@@ -354,12 +362,12 @@ mod tests {
                 );
                 ledger.remove(11);
                 assert!(
-                    bodies(session, 4, own, &[42], &seed, &ledger, None)
+                    bodies(session, 4, own, &[42], &seed, &ledger, (None, &[]))
                         .unwrap()
                         .is_empty()
                 );
                 spawn(&mut ledger, version, 11, name, [1024.5, 101., 1029.], 5);
-                let fresh = bodies(session, 6, own, &[42], &seed, &ledger, None).unwrap();
+                let fresh = bodies(session, 6, own, &[42], &seed, &ledger, (None, &[])).unwrap();
                 assert_ne!(old[0].entity, fresh[0].entity);
                 assert_eq!(old[0].model_box, expected);
                 assert_eq!(
@@ -371,7 +379,7 @@ mod tests {
                     ValueSource::Received { sequence: 5 }
                 );
                 assert!(
-                    bodies(session, 6, own, &[42, 11], &seed, &ledger, None)
+                    bodies(session, 6, own, &[42, 11], &seed, &ledger, (None, &[]))
                         .unwrap()
                         .is_empty()
                 );
@@ -419,7 +427,7 @@ mod tests {
             },
             3,
         );
-        assert!(bodies(session, 3, own, &[42], &seed, &ledger, None).is_err());
+        assert!(bodies(session, 3, own, &[42], &seed, &ledger, (None, &[])).is_err());
         ledger.receive_motion(
             version,
             11,
@@ -432,7 +440,7 @@ mod tests {
             },
             4,
         );
-        assert!(bodies(session, 4, own, &[42], &seed, &ledger, None).is_ok());
+        assert!(bodies(session, 4, own, &[42], &seed, &ledger, (None, &[])).is_ok());
         spawn(
             &mut ledger,
             version,
@@ -441,7 +449,7 @@ mod tests {
             [0.5, 1., 2.],
             5,
         );
-        assert!(bodies(session, 5, own, &[42], &seed, &ledger, None).is_err());
+        assert!(bodies(session, 5, own, &[42], &seed, &ledger, (None, &[])).is_err());
         ledger.remove(12);
         for id in 100..132 {
             spawn(
@@ -453,10 +461,10 @@ mod tests {
                 6,
             );
         }
-        assert!(bodies(session, 6, own, &[42], &seed, &ledger, None).is_err());
+        assert!(bodies(session, 6, own, &[42], &seed, &ledger, (None, &[])).is_err());
         ledger.remove(131);
         assert_eq!(
-            bodies(session, 7, own, &[42], &seed, &ledger, None)
+            bodies(session, 7, own, &[42], &seed, &ledger, (None, &[]))
                 .unwrap()
                 .len(),
             MAX_BOAT_COLLISION_BODIES
