@@ -48,6 +48,7 @@ def main():
         extra += [member(cm,'net.minecraft.world.entity.LivingEntity','void doPush('),member(cm,'net.minecraft.world.entity.LivingEntity','void pushEntities() ->')]
         if not legacy:
             extra += [member(cm,'net.minecraft.client.multiplayer.ClientLevel',' clientLevelData ->')]
+        extra += [member(cm,'net.minecraft.world.entity.animal.Wolf' if legacy else 'net.minecraft.world.entity.animal.wolf.Wolf',' '+n+' ->') for n in ['interestedAngle','interestedAngleO','shakeAnim','shakeAnimO','isWet','isShaking']]
         assert digest(game.read_bytes(),'sha1')==CLIENT[version][0]
         assert digest(mapping.read_bytes(),'sha1')==CLIENT[version][1]
         named=work/'named.jar'
@@ -60,8 +61,8 @@ def main():
         (server/'server.properties').write_text(PROPERTIES.format(port=port,level_type='flat' if legacy else 'minecraft\\:flat'))
         output=work/'original-results.json'
         run(['java','-Xmx1G','--add-opens','java.base/java.lang=ALL-UNNAMED','-cp',os.pathsep.join(str(p) for p in [*cp,work/'harness.jar']),'voxrig.oracle.EntityTickOracle',str(output),*extra],server,work/'server.log')
-        rows=json.loads(output.read_text());assert len(rows)==(144 if legacy else 192);print(version,sum(len(r["steps"]) for r in rows),"stages",flush=True)
-        result['versions'][version]=dict(original_server_jar_sha1=sha,server_mappings_sha1=msha,original_client_jar_sha1=CLIENT[version][0],client_mappings_sha1=CLIENT[version][1],original_output_sha256=digest(output.read_bytes()),harness_sha256=digest(source.read_bytes()),exclusions=json.loads(Path(str(output)+".exclusions.json").read_text()),results=rows)
+        rows=json.loads(output.read_text());assert len(rows)==(152 if legacy else 200);print(version,sum(len(r["steps"]) for r in rows),"stages",flush=True)
+        result['versions'][version]=dict(original_server_jar_sha1=sha,server_mappings_sha1=msha,original_client_jar_sha1=CLIENT[version][0],client_mappings_sha1=CLIENT[version][1],original_output_sha256=digest(output.read_bytes()),harness_sha256=digest(source.read_bytes()),wolf_teams=json.loads(Path(str(output)+".wolf-teams.json").read_text()),wolf_states=json.loads(Path(str(output)+".wolf.json").read_text()),exclusions=json.loads(Path(str(output)+".exclusions.json").read_text()),results=rows)
     result['runner_sha256']=digest(Path(__file__).read_bytes())
     args.output.write_bytes(gzip.compress((json.dumps(result,separators=(',', ':'))+'\n').encode(),mtime=0))
     print('original entity packet/tick schedules:',sum(len(v['results']) for v in result['versions'].values()))

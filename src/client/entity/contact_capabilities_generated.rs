@@ -38,6 +38,7 @@ pub(super) fn lookup(version: MinecraftVersion, name: &str) -> Capabilities {
             | "minecraft:silverfish"
             | "minecraft:villager"
             | "minecraft:wandering_trader"
+            | "minecraft:wolf"
             | "minecraft:zombie" => Capabilities {
                 walking: Classification::Qualified,
                 incoming: Classification::Qualified,
@@ -84,6 +85,7 @@ pub(super) fn lookup(version: MinecraftVersion, name: &str) -> Capabilities {
             | "minecraft:silverfish"
             | "minecraft:villager"
             | "minecraft:wandering_trader"
+            | "minecraft:wolf"
             | "minecraft:zombie" => Capabilities {
                 walking: Classification::Qualified,
                 incoming: Classification::Qualified,

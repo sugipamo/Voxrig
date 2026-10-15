@@ -37,7 +37,10 @@ public final class EntityTickOracle {
     static ServerLevel registered;
     static Int2ObjectOpenHashMap<Entity> legacyMap;
     static Field data,steps;
+    static Map<UUID,LivingEntity> teamActors;
     static class ProbeClientLevel extends ClientLevel {
+        @Override public Player getPlayerByUUID(UUID id){if(teamActors!=null){LivingEntity e=teamActors.get(id);return e instanceof Player?(Player)e:null;}return super.getPlayerByUUID(id);}
+        @Override public void addParticle(net.minecraft.core.particles.ParticleOptions p,double x,double y,double z,double vx,double vy,double vz){}
         ProbeClientLevel(){super(null,null,null,null,null,4,null,null,false,0);}
         // Audio delivery only; the original movement/step callback still runs.
         @Override public void sendPacketToServer(net.minecraft.network.protocol.Packet<?> packet){}
@@ -106,6 +109,19 @@ public final class EntityTickOracle {
     }
     static class ContactVillager extends net.minecraft.world.entity.npc.Villager {
         ContactVillager(){super(EntityType.VILLAGER,client);}
+        @Override public void tick(){dispatch(this,()->super.aiStep());}
+    }
+    // Execute the unchanged Wolf.tick wrapper; inherited AI/travel/baseTick
+    // remain isolated exactly as the private numerical owner contract requires.
+    static class StateWolf extends net.minecraft.world.entity.animal.Wolf {
+        boolean wetInput;
+        StateWolf(){super(EntityType.WOLF,client);}
+        @Override public void aiStep(){}
+        @Override public void baseTick(){}
+        @Override public boolean isInWaterRainOrBubble(){return wetInput;}
+    }
+    static class ContactWolf extends net.minecraft.world.entity.animal.Wolf {
+        ContactWolf(){super(EntityType.WOLF,client);}
         @Override public void tick(){dispatch(this,()->super.aiStep());}
     }
     static class ContactChicken extends net.minecraft.world.entity.animal.Chicken {
@@ -188,7 +204,7 @@ public final class EntityTickOracle {
     }
     static double n(JsonObject p,int i){return p.getAsJsonArray("position").get(i).getAsDouble();}
     static float r(JsonObject p,int i){return p.getAsJsonArray("rotation").get(i).getAsFloat();}
-    static void spawn(int id,List<JsonObject> actions){LivingEntity e=switch(actorKind){case 17->new ContactChicken();case 15->new ContactRabbit();case 16->new ContactWanderingTrader();case 6->new ContactCat();case 7->new ContactDolphin();case 8->new ContactGiant();case 9->new ContactMooshroom();case 10->new ContactOcelot();case 11->new ContactPanda();case 12->new ContactSilverfish();case 13->new ContactVillager();case 14->new ContactHorse();case 4->new RemoteSheep();case 5->new RemoteCreeper();case 1->new RemotePig();case 2->new RemoteZombie();case 3->new RemoteActorPlayer(id);default->new RemoteCow();};int fresh=++lifetime;keys.put(e,fresh);e.setId(id);e.setPos(.1,65.2,boatMode?1.8:-.3);e.setDeltaMovement(.02,.0025,-.035);e.yRot=0;e.xRot=0;e.setPacketCoordinates(.1,65.2,boatMode?1.8:-.3);e.inChunk=true;e.xChunk=0;e.yChunk=4;e.zChunk=-1;byId.put(id,e);all.put(fresh,e);legacyMap.put(id,e);registered.getChunk(e.blockPosition()).addEntity(e);admitted.add(e);
+    static void spawn(int id,List<JsonObject> actions){LivingEntity e=switch(actorKind){case 18->new ContactWolf();case 17->new ContactChicken();case 15->new ContactRabbit();case 16->new ContactWanderingTrader();case 6->new ContactCat();case 7->new ContactDolphin();case 8->new ContactGiant();case 9->new ContactMooshroom();case 10->new ContactOcelot();case 11->new ContactPanda();case 12->new ContactSilverfish();case 13->new ContactVillager();case 14->new ContactHorse();case 4->new RemoteSheep();case 5->new RemoteCreeper();case 1->new RemotePig();case 2->new RemoteZombie();case 3->new RemoteActorPlayer(id);default->new RemoteCow();};int fresh=++lifetime;keys.put(e,fresh);e.setId(id);e.setPos(.1,65.2,boatMode?1.8:-.3);e.setDeltaMovement(.02,.0025,-.035);e.yRot=0;e.xRot=0;e.setPacketCoordinates(.1,65.2,boatMode?1.8:-.3);e.inChunk=true;e.xChunk=0;e.yChunk=4;e.zChunk=-1;byId.put(id,e);all.put(fresh,e);legacyMap.put(id,e);registered.getChunk(e.blockPosition()).addEntity(e);admitted.add(e);
         JsonObject a=new JsonObject();a.addProperty("op","spawn");a.addProperty("native_id",id);a.addProperty("key",key(e));a.addProperty("type_name",name(e));a.add("pose",pose(e));actions.add(a);
     }
     static JsonObject action(String op,int id){JsonObject a=new JsonObject();a.addProperty("op",op);a.addProperty("native_id",id);return a;}
@@ -241,6 +257,49 @@ public final class EntityTickOracle {
         double ox=e.getX(),oy=e.getY(),oz=e.getZ();float or=e.yRot,op=e.xRot;boolean ground=e.isOnGround();net.minecraft.world.phys.AABB oldBounds=e.getBoundingBox();
         e.setPos(x,y,z);e.yRot=yaw;e.xRot=pitch;e.setOnGround(true);ClientboundTeleportEntityPacket packet=new ClientboundTeleportEntityPacket(e);e.setPos(ox,oy,oz);e.yRot=or;e.xRot=op;e.setOnGround(ground);e.setBoundingBox(oldBounds);listener.handleTeleportEntity(packet);
     }
+    static void wolfOwner(net.minecraft.world.entity.animal.Wolf w,UUID owner,boolean tame){w.setOwnerUUID(owner);w.setTame(tame);}
+    static JsonArray wolfTeams(){
+        JsonArray rows=new JsonArray();
+        for(int scenario=0;scenario<12;scenario++){
+            teamActors=new LinkedHashMap<>();
+            ContactWolf a=new ContactWolf(),b=new ContactWolf();RemoteActorPlayer p=new RemoteActorPlayer(501);
+            a.setUUID(new UUID(0,10));b.setUUID(new UUID(0,11));
+            teamActors.put(a.getUUID(),a);teamActors.put(b.getUUID(),b);teamActors.put(p.getUUID(),p);
+            boolean tame=scenario!=0;UUID owner=scenario==1?null:scenario==2?new UUID(0,999):scenario<6?p.getUUID():b.getUUID();
+            UUID parentOwner=scenario==8?a.getUUID():scenario==9?b.getUUID():scenario==10?null:p.getUUID();
+            wolfOwner(a,owner,tame);wolfOwner(b,parentOwner,scenario!=7);
+            net.minecraft.world.scores.Scoreboard board=client.getScoreboard();
+            String suffix="Wolf"+scenario;
+            var at=board.addPlayerTeam("A"+suffix);var bt=board.addPlayerTeam("B"+suffix);var pt=board.addPlayerTeam("P"+suffix);
+            boolean own=scenario!=4 && scenario!=6 && scenario!=7 && scenario!=8 && scenario!=9 && scenario!=10 && scenario!=11;
+            if(own)board.addPlayerToTeam(a.getUUID().toString(),at);
+            board.addPlayerToTeam(b.getUUID().toString(),bt);
+            if(scenario!=5)board.addPlayerToTeam("Remote501",pt);
+            JsonObject r=new JsonObject();r.addProperty("scenario",scenario);r.addProperty("tame",tame);r.addProperty("own_team",own);r.addProperty("parent_tame",scenario!=7);
+            r.addProperty("owner",owner==null?null:owner.toString());r.addProperty("parent_owner",parentOwner==null?null:parentOwner.toString());
+            r.addProperty("result",a.getTeam()==null?null:a.getTeam().getName());rows.add(r);
+            if(own)board.removePlayerFromTeam(a.getUUID().toString(),at);board.removePlayerFromTeam(b.getUUID().toString(),bt);
+            if(scenario!=5)board.removePlayerFromTeam("Remote501",pt);
+        }
+        teamActors=null;return rows;
+    }
+    static JsonArray wolfStates(String[] args)throws Exception {
+        StateWolf w=new StateWolf();w.setPos(.1,65.2,-.3);w.setDeltaMovement(.02,-.3,-.035);
+        JsonArray rows=new JsonArray();
+        for(int tick=0;tick<80;tick++){
+            w.wetInput=tick<2 || tick==12 || tick==22;
+            w.setIsInterested(tick%7<4);w.setInSittingPose(tick%3==0);
+            int event=tick==2||tick==10||tick==23?8:0;
+            if(event!=0)w.handleEntityEvent((byte)event);
+            JsonObject r=new JsonObject();r.addProperty("wet_input",w.wetInput);r.addProperty("interested",tick%7<4);r.addProperty("event",event);
+            r.add("before",pose(w));w.tick();r.add("after",pose(w));
+            JsonArray bits=new JsonArray();for(int i=0;i<4;i++){Field f=net.minecraft.world.entity.animal.Wolf.class.getDeclaredField(args[args.length-6+i]);f.setAccessible(true);bits.add(Integer.toUnsignedLong(Float.floatToRawIntBits(f.getFloat(w))));}
+            r.add("bits",bits);
+            for(int i=4;i<6;i++){Field f=net.minecraft.world.entity.animal.Wolf.class.getDeclaredField(args[args.length-6+i]);f.setAccessible(true);r.addProperty(i==4?"wet":"shaking",f.getBoolean(w));}
+            rows.add(r);
+        }
+        return rows;
+    }
     static JsonObject evaluate(int seed,ServerLevel level,String[] args)throws Exception{
         controlledBoat=null;lifetime=0;keys=new IdentityHashMap<>();unticking=new HashSet<>();actorKind=seed<16?seed%4:seed<20?4:seed<24?5:6+(seed-24)/4;registered=level;byId=new LinkedHashMap<>();all=new LinkedHashMap<>();mutation=false;
         client=(ClientLevel)allocate(ProbeClientLevel.class);
@@ -261,8 +320,12 @@ public final class EntityTickOracle {
                         if(stage==0 && seed%2!=0){for(int i=0;i<count;i++)spawn(i==0?0:(i==1?primary:(seed==0&&i<5?new int[]{0,0,33,755,66}[i]:(i%2==0?-1:1)*(seed*257+i*37))),actions);}
             if(boatMode){boolean forward=stage<9;controlledBoat.setInput(false,false,forward,false);JsonObject a=action("boat_input",controlledBoat.getId());a.addProperty("forward",forward);actions.add(a);}
             LivingEntity e=byId.get(primary);
+            if(e instanceof ContactWolf w){
+                w.setInSittingPose(stage%3==0);w.setIsInterested(stage%2==0);
+                JsonObject a=action("wolf_flags",e.getId());a.addProperty("sitting",stage%3==0);a.addProperty("interested",stage%2==0);a.add("pose",pose(e));actions.add(a);
+            }
             if(stage==1||stage==3)variant(e,stage==1,actions);
-            if((actorKind==4 || e instanceof ContactChicken || e instanceof ContactRabbit || e instanceof ContactOcelot || e instanceof ContactVillager || e instanceof ContactWanderingTrader || e instanceof ContactMooshroom) && (stage==0||stage==2))baby(e,stage==0,actions,args);
+            if((actorKind==4 || e instanceof ContactWolf || e instanceof ContactChicken || e instanceof ContactRabbit || e instanceof ContactOcelot || e instanceof ContactVillager || e instanceof ContactWanderingTrader || e instanceof ContactMooshroom) && (stage==0||stage==2))baby(e,stage==0,actions,args);
             if(stage==1||stage==10){for(int i=0;i<2;i++){
                 JsonObject a=action("relative",primary);a.add("delta",new Gson().toJsonTree(new int[]{512,-128,-512}));a.add("rotation",new Gson().toJsonTree(new int[]{64,-32}));a.addProperty("ground",true);actions.add(a);
                 listener.handleMoveEntity(new ClientboundMoveEntityPacket.PosRot(primary,(short)512,(short)-128,(short)-512,(byte)64,(byte)-32,true));}}
@@ -270,8 +333,8 @@ public final class EntityTickOracle {
                 a=action("rotation",primary);a.add("rotation",new Gson().toJsonTree(new int[]{-64,32}));a.addProperty("ground",true);actions.add(a);listener.handleMoveEntity(new ClientboundMoveEntityPacket.Rot(primary,(byte)-64,(byte)32,true));}
             if(stage==3){teleport(e,seed%2==0?.001:.03125,actions);JsonObject a=action("cancel",primary);actions.add(a);cancelModel(e);}
             if(stage==2||stage==3){net.minecraft.world.scores.Scoreboard board=client.getScoreboard();net.minecraft.world.scores.PlayerTeam team=board.getPlayerTeam("OwnerContact");if(team==null)team=board.addPlayerTeam("OwnerContact");team.setCollisionRule(stage==2?net.minecraft.world.scores.Team.CollisionRule.NEVER:net.minecraft.world.scores.Team.CollisionRule.ALWAYS);board.addPlayerToTeam(e.getScoreboardName(),team);JsonObject a=action("team",primary);a.addProperty("rule",stage==2?"never":"always");actions.add(a);}
-            if((e instanceof ContactChicken || e instanceof ContactRabbit || e instanceof ContactOcelot || e instanceof ContactVillager || e instanceof ContactWanderingTrader || e instanceof ContactMooshroom || e instanceof ContactSilverfish || e instanceof ContactGiant) && stage==9){poseMetadata(e,true,actions);poseMetadata(e,false,actions);}
-            if((e instanceof ContactChicken || e instanceof ContactRabbit || e instanceof ContactOcelot || e instanceof ContactVillager || e instanceof ContactWanderingTrader || e instanceof ContactMooshroom || e instanceof ContactSilverfish || e instanceof ContactGiant) && (stage==4||stage==7))poseMetadata(e,stage==4,actions);
+            if((e instanceof ContactWolf || e instanceof ContactChicken || e instanceof ContactRabbit || e instanceof ContactOcelot || e instanceof ContactVillager || e instanceof ContactWanderingTrader || e instanceof ContactMooshroom || e instanceof ContactSilverfish || e instanceof ContactGiant) && stage==9){poseMetadata(e,true,actions);poseMetadata(e,false,actions);}
+            if((e instanceof ContactWolf || e instanceof ContactChicken || e instanceof ContactRabbit || e instanceof ContactOcelot || e instanceof ContactVillager || e instanceof ContactWanderingTrader || e instanceof ContactMooshroom || e instanceof ContactSilverfish || e instanceof ContactGiant) && (stage==4||stage==7))poseMetadata(e,stage==4,actions);
             if(stage==4||stage==7)sleep(e,stage==4,actions,args);
             if(stage==5){JsonObject a=action("local",primary);a.addProperty("value",false);actions.add(a);listener.handleMoveEntity(new ClientboundMoveEntityPacket.Pos(primary,(short)1,(short)0,(short)0,false));a=action("relative",primary);a.add("delta",new Gson().toJsonTree(new int[]{1,0,0}));a.addProperty("ground",false);actions.add(a);}
             if(stage==6){net.minecraft.world.phys.Vec3 velocity=new net.minecraft.world.phys.Vec3(.125,-.25,.375);listener.handleSetEntityMotion(new ClientboundSetEntityMotionPacket(primary,velocity));JsonObject a=action("velocity",primary);a.add("velocity",new Gson().toJsonTree(new double[]{.125,-.25,.375}));actions.add(a);}
@@ -314,7 +377,7 @@ public final class EntityTickOracle {
         net.minecraft.server.Main.main(new String[]{"--nogui"});MinecraftServer server=null;
         for(int i=0;i<120&&(server==null||server.getTickCount()<20);i++){Thread.sleep(500);if(server==null)server=findServer();}
         if(server==null)throw new IllegalStateException("not ready");MinecraftServer s=server;
-        JsonArray result=new JsonArray();s.executeBlocking(()->{for(int x=-16;x<=32;x++)for(int z=-16;z<=16;z++)s.overworld().setBlock(new net.minecraft.core.BlockPos(x,64,z),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),0);try{set(s.overworld(),Level.class,args[7],true);try{for(int scene=0;scene<2;scene++){boatMode=scene==1;for(int seed=0;seed<72;seed++)result.add(evaluate(seed,s.overworld(),args));}Files.writeString(Path.of(args[0]+".exclusions.json"),new Gson().toJson(exclusions(args))+"\n");}finally{set(s.overworld(),Level.class,args[7],false);}}catch(Exception e){throw new RuntimeException(e);}});
+        JsonArray result=new JsonArray();s.executeBlocking(()->{for(int x=-16;x<=32;x++)for(int z=-16;z<=16;z++)s.overworld().setBlock(new net.minecraft.core.BlockPos(x,64,z),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(),0);try{set(s.overworld(),Level.class,args[7],true);try{for(int scene=0;scene<2;scene++){boatMode=scene==1;for(int seed=0;seed<76;seed++)result.add(evaluate(seed,s.overworld(),args));}Files.writeString(Path.of(args[0]+".wolf-teams.json"),new Gson().toJson(wolfTeams())+"\n");Files.writeString(Path.of(args[0]+".wolf.json"),new Gson().toJson(wolfStates(args))+"\n");Files.writeString(Path.of(args[0]+".exclusions.json"),new Gson().toJson(exclusions(args))+"\n");}finally{set(s.overworld(),Level.class,args[7],false);}}catch(Exception e){throw new RuntimeException(e);}});
         Files.writeString(Path.of(args[0]),new Gson().toJson(result)+"\n");s.halt(false);System.exit(0);
     }catch(Throwable e){e.printStackTrace();System.exit(1);}}
 }

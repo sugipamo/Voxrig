@@ -7103,16 +7103,16 @@
           "moveOrInterpolateTo": null,
           "refreshDimensions": "net.minecraft.world.entity.Entity",
           "classifications": {
-            "walking": "Unknown",
-            "incoming": "Unknown",
-            "solid": "Unknown",
-            "geometry": "Unknown",
-            "metadata": "Unknown",
-            "status": "Unknown",
-            "animation": "Unknown"
+            "walking": "Qualified",
+            "incoming": "Qualified",
+            "solid": "ProvenIrrelevant",
+            "geometry": "Qualified",
+            "metadata": "Qualified",
+            "status": "BoundedUnknown",
+            "animation": "BoundedUnknown"
           },
-          "audit": "unqualified",
-          "qualification_blocker": "TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team."
+          "audit": "reviewed-owner-lane",
+          "qualification_review": "docs/contact-capability-audit.md#step-d-ordinary-mob-review"
         },
         "zoglin": {
           "class_name": "net.minecraft.world.entity.monster.Zoglin",
@@ -7978,6 +7978,32 @@
           "private boolean lambda$checkInsideBlocks$0(int, java.util.concurrent.atomic.AtomicInteger, boolean, net.minecraft.world.phys.Vec3, net.minecraft.world.phys.Vec3, it.unimi.dsi.fastutil.longs.LongSet, boolean, net.minecraft.world.phys.AABB, net.minecraft.world.entity.InsideBlockEffectApplier$StepBasedCollector, net.minecraft.core.BlockPos, int);": "a9dce43425a6975de37029f78a171123e7391bfeeab884e3ae5c55a685de0260",
           "static {};": "8d1feffe711315e3188d1be1ddf81bd880c2ecca9426db5dd284c4540dfad413"
         },
+        "net.minecraft.world.entity.EntityReference": {
+          "public static <Type extends net.minecraft.world.level.entity.UniquelyIdentifyable> com.mojang.serialization.Codec<net.minecraft.world.entity.EntityReference<Type>> codec();": "4969baf45de898dec0ee4e72e2881127934d1fc728985bb02b882cc91ca6e356",
+          "public static <Type extends net.minecraft.world.level.entity.UniquelyIdentifyable> net.minecraft.network.codec.StreamCodec<io.netty.buffer.ByteBuf, net.minecraft.world.entity.EntityReference<Type>> streamCodec();": "f5e4173cdff6daeb0c21b37c39fbe63fcacd3a260df107ac993efb631b093090",
+          "private net.minecraft.world.entity.EntityReference(StoredEntityType);": "f83e947505fc6b3cfd2c3199cd597a959c857cd19fa6112f4588590ec2970a71",
+          "private net.minecraft.world.entity.EntityReference(java.util.UUID);": "f1ac58af496cd0fa48fba63884af23d0bc1ea93e0868c62b95a076f04ff46b39",
+          "public static <T extends net.minecraft.world.level.entity.UniquelyIdentifyable> net.minecraft.world.entity.EntityReference<T> of(T);": "7815836746366fb2a43761a42946f73dcbeea6493c82ccd66622988f7b18a51f",
+          "public static <T extends net.minecraft.world.level.entity.UniquelyIdentifyable> net.minecraft.world.entity.EntityReference<T> of(java.util.UUID);": "ac1e1d2f14f4e0e78914f4756b2eec5d2c27801eaac787b92c9c07152976fe3c",
+          "public java.util.UUID getUUID();": "57665996526122897f3cdd1a188bbea1643192b87f16899cd050aa2aada5a788",
+          "public StoredEntityType getEntity(net.minecraft.world.level.entity.UUIDLookup<? extends net.minecraft.world.level.entity.UniquelyIdentifyable>, java.lang.Class<StoredEntityType>);": "46626a94d57ad0428ebea38f6812813e9b04163f5ac4cf3b4200b55a5de35ce4",
+          "public StoredEntityType getEntity(net.minecraft.world.level.Level, java.lang.Class<StoredEntityType>);": "45bdb1bc4dcd3960c2bf8a12c37b1ff94005c81085daaa40dc6ac9210c9295f7",
+          "private StoredEntityType resolve(net.minecraft.world.level.entity.UniquelyIdentifyable, java.lang.Class<StoredEntityType>);": "88e0f9864ca6b1cf6f1e2855ec8bb1d26adaecc5e6403190a54951d81fa58a2a",
+          "public boolean matches(StoredEntityType);": "f5a875e0f667e9ca39071c6efb4d9c1f7b6de8f0339b77aa99aa5f86a4d85039",
+          "public void store(net.minecraft.world.level.storage.ValueOutput, java.lang.String);": "6f9fe5660f8f1771b8f068deba6362ff1d1553dffca58e82e715492348e6057e",
+          "public static void store(net.minecraft.world.entity.EntityReference<?>, net.minecraft.world.level.storage.ValueOutput, java.lang.String);": "2e492a2a893cf3a2e0df24337800b2c60bc6a6baaa476a453a3e26031f13cf49",
+          "public static <StoredEntityType extends net.minecraft.world.level.entity.UniquelyIdentifyable> StoredEntityType get(net.minecraft.world.entity.EntityReference<StoredEntityType>, net.minecraft.world.level.Level, java.lang.Class<StoredEntityType>);": "1560bbcd216ad5b854f2e54d625e55de46a1311ecc306a4fabb11d65bb780e99",
+          "public static net.minecraft.world.entity.Entity getEntity(net.minecraft.world.entity.EntityReference<net.minecraft.world.entity.Entity>, net.minecraft.world.level.Level);": "93e9eb12ddc1130ba5d7057df4e2f1c4c585fcd99ef30ebbddc2e955a8b5a916",
+          "public static net.minecraft.world.entity.LivingEntity getLivingEntity(net.minecraft.world.entity.EntityReference<net.minecraft.world.entity.LivingEntity>, net.minecraft.world.level.Level);": "aba78c2d1800d58bf389f394d6d6ed9a6c65e449c52e0a0fc8bf3934e9c5c312",
+          "public static net.minecraft.world.entity.player.Player getPlayer(net.minecraft.world.entity.EntityReference<net.minecraft.world.entity.player.Player>, net.minecraft.world.level.Level);": "c1ed5d860e71eb3d24b3b43ed3a1e9bd297d584964a6be2c4db99cfc03cf9953",
+          "public static <StoredEntityType extends net.minecraft.world.level.entity.UniquelyIdentifyable> net.minecraft.world.entity.EntityReference<StoredEntityType> read(net.minecraft.world.level.storage.ValueInput, java.lang.String);": "c386d2b74dc708342529e9833d1f2897f887721865bbb96f161183c3f1a5d5f2",
+          "public static <StoredEntityType extends net.minecraft.world.level.entity.UniquelyIdentifyable> net.minecraft.world.entity.EntityReference<StoredEntityType> readWithOldOwnerConversion(net.minecraft.world.level.storage.ValueInput, java.lang.String, net.minecraft.world.level.Level);": "4d905b4d6e3af7164b3cf172d9d1a656242da5e80ed7530f0c9b63e2d1871c52",
+          "public boolean equals(java.lang.Object);": "4fbbda94eb74c28b4104eeb38c722d8fa27c8368e44dec7f57534783b36cc83e",
+          "public int hashCode();": "782ebcafe7e1d4dfbab4a9ed147ce11fcc6e7b2d9dfa224d6831184ce16f63c1",
+          "private static java.util.UUID lambda$readWithOldOwnerConversion$1(net.minecraft.world.level.Level, java.lang.String);": "4881a1fb07a62b9cbeaaf505f8ab0fbcff452050c6d17cc2c2ce33933fd78cc2",
+          "private static java.util.UUID lambda$getUUID$0(java.util.UUID);": "9845dcd9ac039c171ff833557edc9d61c269afc1ca2388056aed2951d9241822",
+          "static {};": "caf3b2b2bb62051e7a9a0effe753713c84b9967c090979e27f822a5ab1c980b2"
+        },
         "net.minecraft.world.entity.EntityType": {
           "private static <T extends net.minecraft.world.entity.Entity> net.minecraft.world.entity.EntityType<T> register(net.minecraft.resources.ResourceKey<net.minecraft.world.entity.EntityType<?>>, net.minecraft.world.entity.EntityType$Builder<T>);": "c3a785739ccc68de45136a051d4dd82d5414be8b6a33b5eb00e975e521e36358",
           "private static net.minecraft.resources.ResourceKey<net.minecraft.world.entity.EntityType<?>> vanillaEntityId(java.lang.String);": "6d67ddf551aa4115e9abc0eb3fdb26e963b8d5e5dcdbb7584a27e69bb2638ad6",
@@ -8632,6 +8658,10 @@
           "private static boolean lambda$dropPreservedEquipment$1(net.minecraft.world.item.ItemStack);": "346ff1f571bf0e19c6247c113bc31d6ec0f082bde7b12e07c843e17c3832ca13",
           "private static void lambda$addAdditionalSaveData$0(net.minecraft.world.level.storage.ValueOutput, net.minecraft.resources.ResourceKey);": "dbbb78a204e47e37b6268af24b70580aa91debb1539076580c49c417c4785dd6",
           "static {};": "cf76a8befa5b5d674317f26a9b6d9b76d9652c82e384b715b110fc56fd1f7d41"
+        },
+        "net.minecraft.world.entity.OwnableEntity": {
+          "public default net.minecraft.world.entity.LivingEntity getOwner();": "aaa6610b4c7d91df5225a0a26b43c96b8fc4bfb22b070955e4fdd3384590dba3",
+          "public default net.minecraft.world.entity.LivingEntity getRootOwner();": "86313edcd1a545454f272afcdbcc4f068253a8e209007ca591466f025b221b4c"
         },
         "net.minecraft.world.entity.PathfinderMob": {
           "protected net.minecraft.world.entity.PathfinderMob(net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.PathfinderMob>, net.minecraft.world.level.Level);": "307a4096b49a56773617def0dc990465261febd96332a8cd9960e526d828aaac",
@@ -16978,16 +17008,16 @@
           "moveOrInterpolateTo": "net.minecraft.world.entity.Entity",
           "refreshDimensions": "net.minecraft.world.entity.Entity",
           "classifications": {
-            "walking": "Unknown",
-            "incoming": "Unknown",
-            "solid": "Unknown",
-            "geometry": "Unknown",
-            "metadata": "Unknown",
-            "status": "Unknown",
-            "animation": "Unknown"
+            "walking": "Qualified",
+            "incoming": "Qualified",
+            "solid": "ProvenIrrelevant",
+            "geometry": "Qualified",
+            "metadata": "Qualified",
+            "status": "BoundedUnknown",
+            "animation": "BoundedUnknown"
           },
-          "audit": "unqualified",
-          "qualification_blocker": "TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team."
+          "audit": "reviewed-owner-lane",
+          "qualification_review": "docs/contact-capability-audit.md#step-d-ordinary-mob-review"
         },
         "zoglin": {
           "class_name": "net.minecraft.world.entity.monster.Zoglin",
@@ -17315,10 +17345,10 @@
       }
     }
   },
-  "generator_sha256": "1453f406ad7a8cebd022cb2d5db7e31d271fed18b23512f71b2655ce864335de",
-  "audit_sha256": "bba7880b978a54eecfeb6d11fc9540cf1211b5676f846622abf4d01c98675f4d",
-  "numerical_oracle_sha256": "7a53e4664503711ae277758e2b2da33378a7858d23ad3b2422809f8aceeea71e",
-  "numerical_runner_sha256": "1a5a6ccd2407c3da22074e0a838be102ac1cc92cb6d6bfb19e074371265f0892",
+  "generator_sha256": "5ff780efcbd3ecf30e58f310305243f5adf722a9896e0fd35e4bfd96db3d30f9",
+  "audit_sha256": "cc67fccc75dd38e064e914c8e421d31e88cfb560a07af6144b6871658f6f9430",
+  "numerical_oracle_sha256": "33f2a163d5e130ff3139567e47305284b8488f378dfefbeebbdfb6d83963cc59",
+  "numerical_runner_sha256": "ff403e0bbd89a0672639756edfce6cdae2108b1a58d7ab22a8c2503493937357",
   "packet_audit_sha256": "71f2914eb5dc3211a975d9a935ca01fec2a8b92525dbff0cd803758fcd5d9474",
-  "generated_sha256": "f11540f61ddb6fda73716fd3c135a78e513f7844bbc68f50d7e18087de852484"
+  "generated_sha256": "55fff084ebe56c3691e364002994206561d88285b39052f9b3ca4776446815de"
 }

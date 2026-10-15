@@ -63,14 +63,13 @@ def audit(jar):
 
 # Explicit reviewed lanes only. Owner equality is evidence to inspect, never
 # a qualification rule. See docs/contact-capability-audit.md for side effects.
-PASSIVE_QUALIFIED = {'chicken', 'rabbit', 'ocelot', 'villager', 'wandering_trader',
+PASSIVE_QUALIFIED = {'wolf', 'chicken', 'rabbit', 'ocelot', 'villager', 'wandering_trader',
                      'mooshroom', 'silverfish', 'giant'}
 QUALIFIED = {'player', 'cow', 'pig', 'zombie', 'sheep', 'creeper'} | PASSIVE_QUALIFIED
 # Reviewed failures are fingerprinted as well; see the per-type blockers.
 PASSIVE_UNKNOWN = {
     'llama': 'AbstractHorse client stand/eating geometry and llama size/strength/passenger hooks are not modeled.',
     'trader_llama': 'Llama/AbstractHorse geometry and trader despawn/mount hooks are not closed.',
-    'wolf': 'TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team.',
     'cat': 'TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team.',
     'fox': 'Fox isSleeping reads species flags; reducer only handles LivingEntity sleeping-position metadata.',
     'iron_golem': 'Species doPush target/random branch needs separate side-effect closure and numerical coverage.',
@@ -128,6 +127,8 @@ def fingerprints(jar, rows):
     # including constructors, tick wrappers, overloads and synthetic callbacks.
     classes = set()
     todo = {rows[n]['class_name'] for n in QUALIFIED | IRRELEVANT | PASSIVE_UNKNOWN.keys() if n in rows}
+    if '.wolf.' in rows['wolf']['class_name']:
+        todo.update({'net.minecraft.world.entity.OwnableEntity', 'net.minecraft.world.entity.EntityReference'})
     todo.add('net.minecraft.world.entity.EntityType')
     todo.add(rows['boat' if 'boat' in rows else 'oak_boat']['class_name'])
     todo.update({'net.minecraft.world.level.EntityGetter',
@@ -177,12 +178,15 @@ def main():
         rows = audit(named)
         for name in PASSIVE_QUALIFIED:
             row = rows[name]
+            if name == 'wolf':
+                assert row['aiStep'] == row['class_name']
+                assert row['tick'] == row['class_name']
             if name == 'chicken':
                 assert row['aiStep'] == ('net.minecraft.world.entity.animal.Chicken'
                     if version == '1.16.1' else 'net.minecraft.world.entity.animal.chicken.Chicken')
             for method in ['pushEntities', 'doPush', 'push', 'isPushable', 'getDimensions', 'isSleeping']:
                 assert row[method] == LIVING, (version, name, method, row[method])
-            assert row['getTeam'] == 'net.minecraft.world.entity.Entity', (version, name, 'team')
+            assert row['getTeam'] == ('net.minecraft.world.entity.TamableAnimal' if name == 'wolf' else 'net.minecraft.world.entity.Entity'), (version, name, 'team')
             if version == '1.16.1':
                 assert row['getCollideBox'] == 'net.minecraft.world.entity.Entity'
                 assert row['lerpTo'] == LIVING
