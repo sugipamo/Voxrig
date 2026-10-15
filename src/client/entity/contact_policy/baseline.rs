@@ -1,5 +1,6 @@
 mod policy_baseline {
     use crate::client::entity::contact_policy::key::*;
+    use crate::client::entity::contact_policy::{table, validate::EXPANDED_PACKETS};
     use crate::client::entity::{
         NativeSpawn, NativeSpawnMotion, SpawnLedger, contact_capabilities,
         owned_contacts::OwnedContacts,
@@ -11,6 +12,43 @@ mod policy_baseline {
     };
     use crate::{MinecraftVersion as V, MovementPacketTrigger, MovementRefusal};
     use std::fmt::Write;
+
+    fn production_tick(
+        dispatch: crate::client::entity::contact_tick::ContactDispatch,
+    ) -> table::TickModel {
+        use crate::client::entity::contact_tick::ContactDispatch;
+        match dispatch {
+            ContactDispatch::InheritedLiving => table::TickModel::InheritedLiving,
+            ContactDispatch::Chicken => table::TickModel::Chicken,
+            ContactDispatch::RemotePlayer => table::TickModel::RemotePlayer,
+        }
+    }
+
+    fn production_class(class: contact_capabilities::Classification) -> table::Class {
+        match class {
+            contact_capabilities::Classification::Qualified => table::Class::Qualified,
+            contact_capabilities::Classification::ProvenIrrelevant => {
+                table::Class::ProvenIrrelevant
+            }
+            contact_capabilities::Classification::BoundedUnknown => table::Class::BoundedUnknown,
+            contact_capabilities::Classification::Unknown => table::Class::Unknown,
+        }
+    }
+
+    fn default_far_locality(profile: table::Profile, boat: bool) -> bool {
+        // Only the fixed default-pose/far-query observation in step 1. This is
+        // not an implementation of DeferredContact's lifetime/geometry proof.
+        matches!(profile.locality, table::LocalityId::DefaultSpiderEnvelope)
+            || (matches!(profile.effects.solid, table::Class::ProvenIrrelevant)
+                && matches!(
+                    if boat {
+                        profile.effects.incoming
+                    } else {
+                        profile.effects.walking
+                    },
+                    table::Class::ProvenIrrelevant
+                ))
+    }
 
     fn receipts(version: V) -> (SpawnLedger, SessionStamp) {
         let session = SessionStamp {
@@ -111,12 +149,14 @@ packet-order=Spawn,Motion,Metadata,Equipment,Scale,Status(-128..127),Animation(0
 rows=version/entity/lane/effect: shared-classification, harmless-packet-runs\n\
 shared predicates are observations, not lane admission; spawn is owned walking; locality is default-pose far-query walking/boat\n",
         );
+        let mut shadow = out.clone();
         let mut count = 0;
         for version in VERSIONS {
             for &entity_type in EntityType::ALL {
                 let name = entity_type.name();
                 if entity_type.native_id(version).is_none() {
                     writeln!(out, "{version:?}/{name}: absent").unwrap();
+                    writeln!(shadow, "{version:?}/{name}: absent").unwrap();
                     continue;
                 }
                 let (ledger, session, entity) = spawn(version, name);
@@ -154,7 +194,44 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                     contact_capabilities::capabilities(version, name).modeled()
                 )
                 .unwrap();
+                let profile = table::lookup(version, entity_type, OwnerLane::OwnedWalking);
+                let actual_tick = admission
+                    .as_ref()
+                    .unwrap()
+                    .world
+                    .bodies
+                    .values()
+                    .next()
+                    .map_or(table::TickModel::NoTickBody, |body| {
+                        production_tick(body.dispatch)
+                    });
+                assert_eq!(profile.owned.tick, actual_tick);
+                let shadow_selector = format!("{:?}", profile.owned.tick);
+                assert_eq!(shadow_selector, selector, "{version:?}/{name} tick");
+                assert_eq!(
+                    default_far_locality(profile, false),
+                    deferred.check(query, false).is_ok(),
+                    "{version:?}/{name} walking locality"
+                );
+                assert_eq!(
+                    default_far_locality(profile, true),
+                    deferred.check(query, true).is_ok(),
+                    "{version:?}/{name} boat locality"
+                );
+                assert_eq!(
+                    profile.effects.modeled(),
+                    contact_capabilities::capabilities(version, name).modeled()
+                );
+                writeln!(
+                    shadow,
+                    "{version:?}/{name}: spawn={shadow_selector}; far_locality={}/{}; modeled={}",
+                    default_far_locality(profile, false),
+                    default_far_locality(profile, true),
+                    profile.effects.modeled()
+                )
+                .unwrap();
                 for &lane in OwnerLane::ALL {
+                    let profile = table::lookup(version, entity_type, lane);
                     for &effect in Effect::ALL {
                         let mut classification = None;
                         let harmless = runs(PacketKey::ALL.into_iter().map(|packet| {
@@ -241,12 +318,35 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                             };
                             assert_eq!(PacketKey::from_history(&kind), packet);
                             count += 1;
-                            contact_capabilities::harmless_packet(version, name, &kind)
+                            let production =
+                                contact_capabilities::harmless_packet(version, name, &kind);
+                            assert_eq!(
+                                profile.effects.get(effect),
+                                production_class(class),
+                                "{version:?}/{name}/{lane:?}/{effect:?}/{packet:?} classification"
+                            );
+                            let decision = EXPANDED_PACKETS[profile.packets as usize]
+                                [effect.ordinal()][packet.ordinal()];
+                            assert_eq!(
+                                decision, production,
+                                "{version:?}/{name}/{lane:?}/{effect:?}/{packet:?} packet"
+                            );
+                            production
                         }));
                         writeln!(
                             out,
                             "{lane:?}/{effect:?}: {:?}; {harmless}",
                             classification.unwrap()
+                        )
+                        .unwrap();
+                        let shadow_harmless = runs(PacketKey::ALL.into_iter().map(|packet| {
+                            EXPANDED_PACKETS[profile.packets as usize][effect.ordinal()]
+                                [packet.ordinal()]
+                        }));
+                        writeln!(
+                            shadow,
+                            "{lane:?}/{effect:?}: {:?}; {shadow_harmless}",
+                            profile.effects.get(effect)
                         )
                         .unwrap();
                     }
@@ -255,16 +355,198 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
         }
         assert_eq!(count, (107 + 157) * 5 * 7 * 521);
         writeln!(out, "evaluated-present-keys={count}").unwrap();
+        writeln!(shadow, "evaluated-present-keys={count}").unwrap();
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("data/client_api/contact_policy_step1.txt");
         if std::env::var_os("VOXRIG_UPDATE_CONTACT_BASELINE").is_some() {
             std::fs::write(&path, &out).unwrap();
         }
+        let frozen = std::fs::read_to_string(path).unwrap();
         assert_eq!(
-            std::fs::read_to_string(path).unwrap(),
-            out,
+            shadow, frozen,
+            "shadow table differs from frozen step-1 golden"
+        );
+        assert_eq!(
+            frozen, out,
             "baseline changed; review before updating with VOXRIG_UPDATE_CONTACT_BASELINE=1"
         );
+    }
+
+    #[test]
+    fn shadow_public_geometry_and_evidence_references() {
+        use crate::client::entity::{EntityDataField, EntityDataValue, EntityGeometryModel};
+        let oracle: serde_json::Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../data/client_api/entity_owner_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        let envelopes: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../docs/evidence/contact-envelopes-20261015.json"
+        ))
+        .unwrap();
+        for requirement in table::EVIDENCE_REQUIREMENTS {
+            if let Some(path) = requirement.artifact {
+                assert!(
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join(path)
+                        .is_file(),
+                    "{path}"
+                );
+            }
+        }
+        for (version, key) in VERSIONS.into_iter().zip(["1.16.1", "1.21.11"]) {
+            let fixture = &oracle["versions"][key];
+            let spawned: std::collections::BTreeSet<_> = fixture["results"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|r| r["steps"].as_array().unwrap())
+                .flat_map(|s| s["actions"].as_array().unwrap())
+                .filter(|a| a["op"] == "spawn")
+                .map(|a| a["type_name"].as_str().unwrap())
+                .collect();
+            for &entity in EntityType::ALL {
+                if entity.native_id(version).is_none() {
+                    continue;
+                }
+                let name = entity.name();
+                let row = table::ENTITY_POLICIES[entity.ordinal()];
+                assert_eq!(
+                    matches!(row.vehicle, table::VehicleModel::Rigid),
+                    crate::client::vehicle::collision::rigid(name),
+                    "{key}/{name} rigid selector"
+                );
+                let (mut ledger, session, id) = spawn(version, name);
+                ledger.receive_scale(
+                    7,
+                    crate::client::control::ReceivedAttribute {
+                        base: 1.,
+                        modifiers: vec![],
+                    },
+                    3,
+                );
+                if let Some(field) = version.table().entity_data(name).iter().find(|r| {
+                    EntityDataField::Baby
+                        .official_names()
+                        .contains(&(r.owner, r.field))
+                }) {
+                    ledger.receive_metadata(
+                        7,
+                        [(field.index, EntityDataValue::Bool(false))],
+                        true,
+                        3,
+                    );
+                }
+                let observation = ledger.capture_one(session, id, 3).unwrap();
+                let actual = match observation.derived_geometry() {
+                    Ok(geometry) => match geometry.model {
+                        EntityGeometryModel::PlayerPose => table::GeometryModel::PlayerPose,
+                        EntityGeometryModel::AgeablePose => table::GeometryModel::AgeablePose,
+                    },
+                    Err(crate::client::entity::EntityGeometryUnavailable::UnsupportedType) => {
+                        table::GeometryModel::NotApplicable
+                    }
+                    Err(error) => panic!("{key}/{name}: {error:?}"),
+                };
+                let selected = table::semantics(version, entity, OwnerLane::PublicGeometry);
+                assert_eq!(selected.geometry, actual, "{key}/{name} public geometry");
+                assert_eq!(selected.tick, table::TickModel::NoTickBody);
+                assert_eq!(selected.metadata, table::MetadataModel::NotApplicable);
+                let profile = table::lookup(version, entity, OwnerLane::OwnedWalking);
+                match profile.scenarios {
+                    table::ScenarioSetId::None => {}
+                    table::ScenarioSetId::Living
+                    | table::ScenarioSetId::Chicken
+                    | table::ScenarioSetId::RemotePlayer => {
+                        assert!(
+                            spawned.contains(name),
+                            "{key}/{name} numerical scenarios missing"
+                        );
+                    }
+                    table::ScenarioSetId::Excluded => assert!(
+                        fixture["exclusions"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|e| e["type"] == name)
+                    ),
+                    table::ScenarioSetId::SpiderEnvelope => assert!(
+                        envelopes["versions"][key]["types"]
+                            .get(name.strip_prefix("minecraft:").unwrap())
+                            .is_some()
+                    ),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn shadow_spider_revocations_match_current_reducer() {
+        use crate::client::{
+            control::Controls,
+            physics::{Body, Environment},
+        };
+        fn step(model: &mut OwnedContacts, version: V) -> crate::Result<()> {
+            model
+                .tick_player(
+                    &mut Body::new([100., 65., 100.]),
+                    &Environment::defaults(version),
+                    Controls::default(),
+                    false,
+                    None,
+                    &mut |_| {
+                        Ok(crate::NativeBlockState {
+                            name: "minecraft:air".into(),
+                            properties: Default::default(),
+                        })
+                    },
+                )
+                .map(|_| ())
+        }
+        for version in VERSIONS {
+            for entity in [EntityType::Spider, EntityType::CaveSpider] {
+                let profile = table::lookup(version, entity, OwnerLane::OwnedWalking);
+                let locality = table::LOCALITY_PROFILES[profile.locality as usize];
+                assert_eq!(locality.revokes.len(), 516);
+                for &packet in locality.revokes {
+                    let (mut ledger, session, _) = spawn(version, entity.name());
+                    let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                    step(&mut model, version).unwrap();
+                    ledger.history_context(version, 3, 3);
+                    match packet {
+                        PacketKey::Status(status) => ledger.history_signal(7, Some(status), None),
+                        PacketKey::Animation(animation) => {
+                            ledger.history_signal(7, None, Some(animation))
+                        }
+                        PacketKey::Metadata => ledger.receive_metadata(7, [], true, 3),
+                        PacketKey::Equipment => ledger.receive_equipment(7, [], true, 3),
+                        PacketKey::Scale => ledger.receive_scale(
+                            7,
+                            crate::client::control::ReceivedAttribute {
+                                base: 1.,
+                                modifiers: vec![],
+                            },
+                            3,
+                        ),
+                        PacketKey::Passengers => {
+                            ledger.history_passengers(&crate::client::vehicle::NativePassengers {
+                                vehicle: 7,
+                                passengers: vec![],
+                            })
+                        }
+                        _ => panic!("unexpected revocation {packet:?}"),
+                    }
+                    model.refresh(10, &ledger, 3).unwrap();
+                    let error = step(&mut model, version).unwrap_err();
+                    assert!(
+                        matches!(
+                            error.movement_refusal(),
+                            Some(MovementRefusal::Unsupported { .. })
+                        ),
+                        "{version:?}/{entity:?}/{packet:?}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
