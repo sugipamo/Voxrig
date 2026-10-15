@@ -13,23 +13,30 @@ effect cannot enter that lane. `BoundedUnknown` means only a finite subset of
 the dispatch has been audited; the rest remains unsupported. It never means a
 spatial bound or permission to skip a distant body. `Unknown` is the default.
 
-| Types (both versions) | Walking outgoing | Incoming pushability | Solid | Geometry | Metadata callback | Status | Animation |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Cow/Pig/Zombie/Sheep/Creeper/RemotePlayer + Step D seven + Chicken | Qualified | Qualified | ProvenIrrelevant | Qualified | Qualified with existing guards | BoundedUnknown | BoundedUnknown |
-| Bat/ArmorStand | ProvenIrrelevant | ProvenIrrelevant | ProvenIrrelevant | Unknown, unused | ProvenIrrelevant to this lane | ProvenIrrelevant to this lane | ProvenIrrelevant to this lane |
-| Horse/Spider/CaveSpider/Ghast | BoundedUnknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
-| All other registered types and unknown names | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
+<!-- contact-policy:coverage:start -->
+| Version | Types | Walking | Incoming | Solid | Geometry | Metadata | Status | Animation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1.16.1 | cave_spider, ghast, horse, spider | BoundedUnknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
+| 1.16.1 | armor_stand, bat | ProvenIrrelevant | ProvenIrrelevant | ProvenIrrelevant | Unknown | ProvenIrrelevant | ProvenIrrelevant | ProvenIrrelevant |
+| 1.16.1 | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie | Qualified | Qualified | ProvenIrrelevant | Qualified | Qualified | BoundedUnknown | BoundedUnknown |
+| 1.16.1 | area_effect_cloud, arrow, bee, blaze, boat, cat, chest_minecart, cod, command_block_minecart, dolphin, donkey, dragon_fireball, drowned, egg, elder_guardian, end_crystal, ender_dragon, ender_pearl, enderman, endermite, evoker, evoker_fangs, experience_bottle, experience_orb, eye_of_ender, falling_block, fireball, firework_rocket, fishing_bobber, fox, furnace_minecart, guardian, hoglin, hopper_minecart, husk, illusioner, iron_golem, item, item_frame, leash_knot, lightning_bolt, llama, llama_spit, magma_cube, minecart, mule, painting, panda, parrot, phantom, piglin, pillager, polar_bear, potion, pufferfish, ravager, salmon, shulker, shulker_bullet, skeleton, skeleton_horse, slime, small_fireball, snow_golem, snowball, spawner_minecart, spectral_arrow, squid, stray, strider, tnt, tnt_minecart, trader_llama, trident, tropical_fish, turtle, vex, vindicator, witch, wither, wither_skeleton, wither_skull, wolf, zoglin, zombie_horse, zombie_villager, zombified_piglin | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
+| 1.21.11 | cave_spider, ghast, horse, spider | BoundedUnknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
+| 1.21.11 | armor_stand, bat | ProvenIrrelevant | ProvenIrrelevant | ProvenIrrelevant | Unknown | ProvenIrrelevant | ProvenIrrelevant | ProvenIrrelevant |
+| 1.21.11 | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie | Qualified | Qualified | ProvenIrrelevant | Qualified | Qualified | BoundedUnknown | BoundedUnknown |
+| 1.21.11 | acacia_boat, acacia_chest_boat, allay, area_effect_cloud, armadillo, arrow, axolotl, bamboo_chest_raft, bamboo_raft, bee, birch_boat, birch_chest_boat, blaze, block_display, bogged, breeze, breeze_wind_charge, camel, camel_husk, cat, cherry_boat, cherry_chest_boat, chest_minecart, cod, command_block_minecart, copper_golem, creaking, dark_oak_boat, dark_oak_chest_boat, dolphin, donkey, dragon_fireball, drowned, egg, elder_guardian, end_crystal, ender_dragon, ender_pearl, enderman, endermite, evoker, evoker_fangs, experience_bottle, experience_orb, eye_of_ender, falling_block, fireball, firework_rocket, fishing_bobber, fox, frog, furnace_minecart, glow_item_frame, glow_squid, goat, guardian, happy_ghast, hoglin, hopper_minecart, husk, illusioner, interaction, iron_golem, item, item_display, item_frame, jungle_boat, jungle_chest_boat, leash_knot, lightning_bolt, lingering_potion, llama, llama_spit, magma_cube, mangrove_boat, mangrove_chest_boat, mannequin, marker, minecart, mule, nautilus, oak_boat, oak_chest_boat, ominous_item_spawner, painting, pale_oak_boat, pale_oak_chest_boat, panda, parched, parrot, phantom, piglin, piglin_brute, pillager, polar_bear, pufferfish, ravager, salmon, shulker, shulker_bullet, skeleton, skeleton_horse, slime, small_fireball, sniffer, snow_golem, snowball, spawner_minecart, spectral_arrow, splash_potion, spruce_boat, spruce_chest_boat, squid, stray, strider, tadpole, text_display, tnt, tnt_minecart, trader_llama, trident, tropical_fish, turtle, vex, vindicator, warden, wind_charge, witch, wither, wither_skeleton, wither_skull, wolf, zoglin, zombie_horse, zombie_nautilus, zombie_villager, zombified_piglin | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown |
+<!-- contact-policy:coverage:end -->
 
-The last partial row records the WIP's inspected inherited outgoing entry
-only. Tick, predicate, geometry and callback effects are not closed, so it
-always refuses, including at arbitrary distance. Item, Arrow and other
+The BoundedUnknown rows record inspected inherited outgoing entries only.
+Tick, predicate, geometry and callback effects are not closed. Spider/CaveSpider
+may use the separate finite envelope proof below; without that proof these
+rows refuse, including at arbitrary distance. Item, Arrow and other
 projectiles likewise stay Unknown: a false pushability result alone does not
 prove their tick/callback side effects irrelevant. Native slots are retained
 without substituting received positions for model geometry.
 
 ## Method ownership and side effects
 
-The generator resolves each original EntityType's class and inherited method
+The evidence auditor resolves each original EntityType's class and inherited method
 owners separately for each version. Player uses the actual RemotePlayer client
 class, rather than EntityType's Player generic. All bytecode methods of the
 reviewed classes and their ancestors, the boat selector, EntityGetter and
@@ -98,8 +105,13 @@ PYTHONDONTWRITEBYTECODE=1 python3 scripts/audit_contact_capabilities.py \
 
 Downloads must contain both original clients, Mojang client mappings and
 SpecialSource-1.11.4-shaded.jar. The script verifies their fixed hashes,
-rebuilds named clients, resolves owners, fingerprints methods, and generates
-the private Rust table plus docs/evidence/contact-capabilities-20261015.json.
+rebuilds named clients, resolves owners and fingerprints methods into
+docs/evidence/contact-capabilities-20261015.json. It reads the private Rust
+const-table export and never writes Rust policy. Use
+`python3 -B scripts/audit_contact_capabilities.py --check` without jars.
+The coverage section is generated and checked with
+`python3 -B scripts/contact_policy_export.py --check`; see
+[consumer checks](contact-policy-consumers.md).
 The 20261014 artifact remains the historical Step C input for Step B.
 The evidence also binds this review, metadata inputs and Step A packet audit.
 No original bytecode, jars or mappings are published. Fingerprints make the
@@ -123,7 +135,7 @@ construction sites. No reason-string parsing or public schema changes occur.
 ## Step D ordinary mob review
 
 Review order starts with Chicken, then the requested passive species and the
-additional ordinary types below. The generator resolves owners independently
+additional ordinary types below. The evidence auditor resolves owners independently
 on each original, exports the full ancestry fingerprints for qualified AND
 rejected candidates, and records each blocker in the dated evidence. Team
 ownership, dimension refresh, modern interpolation entry points and scale are

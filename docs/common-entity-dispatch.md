@@ -1,5 +1,30 @@
 # 接触dispatchの対応範囲
 
+現在の資格集合は private const table から生成した次の表で確認する。
+`python3 -B scripts/contact_policy_export.py --check` が集合と生成内容を検査する。
+公開 geometry・packet・locality の別契約は[consumer manifest](contact-policy-consumers.md)、
+原版数値 corpus の全 scenario ID は `check_contact_policy_consumers.py --check` で照合する。
+Wolf は Unknown のままで、owner 全体の停止条件は変更していない。
+
+<!-- contact-policy:selectors:start -->
+| Version | Owned tick selector | Qualified species |
+| --- | --- | --- |
+| 1.16.1 | Chicken | chicken |
+| 1.16.1 | InheritedLiving | cow, creeper, giant, mooshroom, ocelot, pig, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.16.1 | RemotePlayer | player |
+| 1.21.11 | Chicken | chicken |
+| 1.21.11 | InheritedLiving | cow, creeper, giant, mooshroom, ocelot, pig, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.21.11 | RemotePlayer | player |
+<!-- contact-policy:selectors:end -->
+
+## Historical audit notes (before Chicken qualification)
+
+以下は Step C/D 当時の監査記録である。種別列挙・件数・Chicken 未資格の記述は
+当時の状態を示し、現在の資格一覧ではない。現在の資格は上の生成表と
+[capability audit](contact-capability-audit.md)、数値 corpus は固定 gz fixture と
+[consumer checks](contact-policy-consumers.md)を参照する。副作用・限界の監査判断は保持する。
+
+
 徒歩・held flight・ボートへの[生物接触の統合](common-entity-owners.md)は、版別 private capability table が資格化した通常scaleの inherited-living / RemotePlayer を対象にする。#92、2026-10-14/15追加監査と生成した method-owner evidence に基づく有限の範囲で、全speciesの移動対応を意味しない。両版の未変更公式client JARの継承先・原版callbackを確認し、公開するのは以下の解釈と資格化した数値結果である。
 
 | 種類・入口 | Java 1.16.1 / 1.21.11の扱い | 共通ownerの境界 |

@@ -1,5 +1,30 @@
 # 徒歩・ボートの生物接触モデル
 
+現在の資格集合は private const table から生成した次の表で確認する。
+`python3 -B scripts/contact_policy_export.py --check` が集合と生成内容を検査する。
+公開 geometry・packet・locality の別契約は[consumer manifest](contact-policy-consumers.md)、
+原版数値 corpus の全 scenario ID は `check_contact_policy_consumers.py --check` で照合する。
+Wolf は Unknown のままで、owner 全体の停止条件は変更していない。
+
+<!-- contact-policy:selectors:start -->
+| Version | Owned tick selector | Qualified species |
+| --- | --- | --- |
+| 1.16.1 | Chicken | chicken |
+| 1.16.1 | InheritedLiving | cow, creeper, giant, mooshroom, ocelot, pig, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.16.1 | RemotePlayer | player |
+| 1.21.11 | Chicken | chicken |
+| 1.21.11 | InheritedLiving | cow, creeper, giant, mooshroom, ocelot, pig, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.21.11 | RemotePlayer | player |
+<!-- contact-policy:selectors:end -->
+
+## Historical audit notes (before Chicken qualification)
+
+以下は Step C/D 当時の監査記録である。種別列挙・件数・Chicken 未資格の記述は
+当時の状態を示し、現在の資格一覧ではない。現在の資格は上の生成表と
+[capability audit](contact-capability-audit.md)、数値 corpus は固定 gz fixture と
+[consumer checks](contact-policy-consumers.md)を参照する。副作用・限界の監査判断は保持する。
+
+
 共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、版ごとの private capability table で資格化した inherited-living / RemotePlayer の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
 
 ## モデルの開始点

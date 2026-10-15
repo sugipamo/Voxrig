@@ -4,16 +4,27 @@ Scope: exact contact reducer, Java 1.16.1 and 1.21.11 only. This is a deliberate
 small audited set, not a claim that all other opcodes affect movement. Unknown
 opcodes still refuse. Public entity history continues to retain every packet.
 
-| Packet | Opcode | Qualified target | Native effect in both clients |
-| --- | --- | --- | --- |
-| Entity event/status | 10 | Sheep only | Sets `eatAnimationTick = 40`, returns without superclass dispatch |
-| Entity event/status | 35 | All currently modeled types | Totem tracking particles and local sound; item activation display for the local player |
-| Animate | 4 | All currently modeled types | Critical-hit tracking particle emitter |
-| Animate | 5 | All currently modeled types | Enchanted-hit tracking particle emitter |
+<!-- contact-policy:packets:start -->
+| Version | Packet key (not wire ID) | Qualified targets |
+| --- | --- | --- |
+| 1.16.1 | Animation(4) | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.16.1 | Animation(5) | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.16.1 | Status(10) | sheep |
+| 1.16.1 | Status(35) | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.21.11 | Animation(4) | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.21.11 | Animation(5) | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+| 1.21.11 | Status(10) | sheep |
+| 1.21.11 | Status(35) | chicken, cow, creeper, giant, mooshroom, ocelot, pig, player, rabbit, sheep, silverfish, villager, wandering_trader, zombie |
+<!-- contact-policy:packets:end -->
 
-The modeled targets are player, cow, pig, zombie, sheep and creeper. The two
-versions share the reducer; future species must qualify their contact dispatch
-before entering it. No distance exemption, envelope, or approximate mode is used.
+These generated target/opcode sets describe the current private reducer in both
+versions. Each species must qualify its contact dispatch before entering it.
+No distance exemption, envelope, or approximate mode is used for these callbacks.
+Status 10 sets Sheep's eating timer; Status 35 and Animation 4/5 produce the
+visual/audio effects reviewed below. All other sub-opcodes retain refusal.
+`python3 -B scripts/audit_contact_packets.py --check` verifies these finite proof
+claims against the export without jars. `python3 -B scripts/contact_policy_export.py
+--check` checks the generated section; see [consumer checks](contact-policy-consumers.md).
 
 ## Original handler audit
 
