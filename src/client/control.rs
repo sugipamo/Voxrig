@@ -189,6 +189,8 @@ pub struct ControlFrame {
 /// Observable record of the connection's control session.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlRecord {
+    /// Structured cause retained when contact prediction stops this owner.
+    pub movement_refusal: Option<crate::MovementRefusal>,
     /// Owned Elytra request and actual receipts; None for other control kinds.
     pub glide: Option<super::glide::GlideRecord>,
     /// Latest automatic entity contact frame, at this owner's explicit model
@@ -295,6 +297,7 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    pub(crate) movement_refusal: Option<crate::MovementRefusal>,
     pub(crate) glide: Option<super::glide::GlideRecord>,
     pub(crate) contacts: Option<super::entity::owned_contacts::OwnedContacts>,
     pub(crate) entity_contacts: Option<super::EntityContactFrame>,
@@ -367,6 +370,7 @@ impl ControlSession {
         }
         Self {
             contacts: None,
+            movement_refusal: None,
             entity_contacts: None,
             contact_team: None,
             kind: ControlKind::Ground,
@@ -497,6 +501,7 @@ impl ControlSession {
             }
         }
         ControlRecord {
+            movement_refusal: self.movement_refusal.clone(),
             glide: self.glide.clone(),
             entity_contacts: self.entity_contacts.clone(),
             kind: self.kind,
@@ -899,6 +904,19 @@ mod tests {
                 properties: Default::default(),
             })
         }
+    }
+
+    #[test]
+    fn stopped_record_retains_typed_movement_refusal() {
+        let mut session = glide_session();
+        let detail = crate::MovementRefusal::permanent("contact history gap".into());
+        session.movement_refusal = Some(detail.clone());
+        session.status = ControlStatus::Stopped {
+            reason: detail.to_string(),
+        };
+        let record = session.record();
+        assert_eq!(record.movement_refusal, Some(detail));
+        assert!(matches!(record.status, ControlStatus::Stopped { .. }));
     }
 
     #[test]

@@ -396,7 +396,7 @@ impl Bot {
                         .lock()
                         .await
                         .capture(stamp, sequence);
-                    contacts.teams(&teams, &profiles)?;
+                    contacts.teams(&teams, &profiles, crate::MovementOwnerState::Invalidated)?;
                     session.contact_team = crate::client::entity::owned_contacts::team(
                         &teams,
                         &self.login_profile.name,
@@ -406,6 +406,7 @@ impl Bot {
             }
             .await;
             if let Err(error) = contacts_ready {
+                session.movement_refusal = error.movement_refusal().cloned();
                 session.contacts = None;
                 session.status = ControlStatus::Stopped {
                     reason: error.to_string(),
@@ -427,6 +428,7 @@ impl Bot {
                 Ok(Some(output)) => output,
                 Ok(None) => continue,
                 Err(error) => {
+                    session.movement_refusal = error.movement_refusal().cloned();
                     session.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };
@@ -713,7 +715,7 @@ impl Bot {
                     .lock()
                     .await
                     .capture(stamp, sequence);
-                contacts.teams(&teams, &profiles)?;
+                contacts.teams(&teams, &profiles, crate::MovementOwnerState::NotAdmitted)?;
                 session.contact_team =
                     crate::client::entity::owned_contacts::team(&teams, &self.login_profile.name);
                 session.contacts = Some(contacts);

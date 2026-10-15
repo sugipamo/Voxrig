@@ -488,7 +488,7 @@ impl Operations {
                     contacts.refresh(id, &state.entities, state.sequence)?;
                     let teams = state.teams.capture(stamp, state.sequence);
                     let profiles = state.player_list.capture(stamp, state.sequence);
-                    contacts.teams(&teams, &profiles)?;
+                    contacts.teams(&teams, &profiles, crate::MovementOwnerState::Invalidated)?;
                     session.contact_team = crate::client::entity::owned_contacts::team(
                         &teams,
                         &state
@@ -501,6 +501,7 @@ impl Operations {
                 Ok(())
             })();
             if let Err(error) = contacts_ready {
+                session.movement_refusal = error.movement_refusal().cloned();
                 session.contacts = None;
                 let release = self
                     .write_release(&session, state.operations.local_player.entity_id)
@@ -537,6 +538,7 @@ impl Operations {
             let output = match result {
                 Ok(output) => output,
                 Err(error) => {
+                    session.movement_refusal = error.movement_refusal().cloned();
                     session.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };
@@ -657,6 +659,7 @@ impl Operations {
                     }
                 }
                 Err(error) => {
+                    session.movement_refusal = error.movement_refusal().cloned();
                     session.status = ControlStatus::Stopped {
                         reason: format!("write failed; inspect before reuse: {error}"),
                     };
@@ -837,7 +840,7 @@ impl Operations {
             let mut contacts = constructor(stamp, id, own, &state.entities, state.sequence)?;
             let teams = state.teams.capture(stamp, state.sequence);
             let profiles = state.player_list.capture(stamp, state.sequence);
-            contacts.teams(&teams, &profiles)?;
+            contacts.teams(&teams, &profiles, crate::MovementOwnerState::NotAdmitted)?;
             session.contact_team = crate::client::entity::owned_contacts::team(
                 &teams,
                 &state

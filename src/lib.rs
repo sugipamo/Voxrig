@@ -67,3 +67,8 @@ pub(crate) use versions::java_1_16_1::*;
 pub mod prelude {
     pub use crate::client::prelude::*;
 }
+
+mod movement_refusal;
+pub use movement_refusal::{
+    MovementOwnerState, MovementPacketTrigger, MovementRefusal, MovementRefusalContext,
+};

@@ -115,9 +115,11 @@ impl Bot {
                 });
             let processing_resync = processing_insertion
                 && matches!(record.cursor_before.value, api::SlotKnowledge::Item { .. });
-            let comparison = if processing_resync
-                && let api::SlotKnowledge::Item { item } = &record.cursor_before.value
-            {
+            let resync_item = match &record.cursor_before.value {
+                api::SlotKnowledge::Item { item } if processing_resync => Some(item),
+                _ => None,
+            };
+            let comparison = if let Some(item) = resync_item {
                 // A furnace can consume its predecessor before applying PICKUP.
                 // Empty may then MATCH the native return and suppress resync.
                 // This comparison-only count exceeds ordinary slot capacities;
