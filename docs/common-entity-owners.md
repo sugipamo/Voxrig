@@ -1,6 +1,6 @@
 # 徒歩・ボートの生物接触モデル
 
-共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、player / cow / pig / zombie / sheep / creeper の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
+共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、版ごとの private capability table で資格化した inherited-living / RemotePlayer の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
 
 ## モデルの開始点
 
@@ -43,7 +43,7 @@
 | passenger / vehicle | 実際の寿命付き乗員関係。own boatの乗員は衝突入力から除外。途中の変更・nested未検証関係は停止 |
 | pose / baby / scale | 既存の原版寸法modelを使う。他の生物の非unit scale、未知pose/serializer、spin attackなど未検証hookは拒否。自分の地上・held flightのscale範囲は[別契約](common-player-scale.md) |
 
-モデルには原版tick順の256 active body / 512 retained bodyの上限もある。種類不明や未検証dispatchを、遠いからという理由だけで通常生物に読み替えない。walkingでは固定車両の独自push、一般species、乗員travelなどをこの4種類のlaneへ混ぜない。ボートには既存の固定車両laneを保つ。これらの追加対応、modern相対補正・特殊トロッコの入力は #40 と個別issueに従う。
+モデルには原版tick順の256 active body / 512 retained bodyの上限もある。種類不明や未検証dispatchを、遠いからという理由だけで通常生物に読み替えない。walkingでは固定車両の独自push、未監査hook、乗員travelなどを inherited-living lane へ混ぜない。ボートには既存の固定車両laneを保つ。これらの追加対応、modern相対補正・特殊トロッコの入力は #40 と個別issueに従う。
 
 履歴欠落、部分decode、必要な地形不足、未検証hook、own correction、world/owner変更では、生物のモデルを破棄して後続frameを止める。通常の地形待ちと同じ自動再開を、このモデルへ適用しない。own sleeping / spin attack / elytra姿勢も別の操作kindを必要とする。
 
@@ -55,7 +55,7 @@ crammingのサーバー側判定・damage・RNGは計算・送信しない。多
 
 `entity_owner_oracle.json.gz` は、未変更の公式client JARを先に読み込む自作headless harnessの数値結果。実際のClientLevel、LocalPlayer、Cow/Pig/Zombie/RemotePlayer、乗員を持つ原版Boat、packet handler、元のchunk/entity storageを使う。描画constructor、audio送出、passenger rideTick、LocalPlayerのGUI入力前処理は切り離し、その境界をfixtureにも記載する。
 
-両版96スケジュール・1152段階で、徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
+原版 fixture は両版280スケジュール・3360段階を保持し、SDKでは資格化した96スケジュール・1152段階で徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。未資格speciesの記録を通常livingの数値保証に含めない。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
 
 実接続は同じ共通Clientと固定バイナリを両版公式serverで使い、実際の元packet、spawn寿命、独立RCON、停止/下車を保存する。強制下車と未検証dispatchの2場面を別runで検証し、入力解除の一度だけの送信と後続予測frameの停止を確認する。結果とSDK・バイナリ・元JARの対応は[検証記録](evidence/common-entity-owners-20261012.json)に保持する。
 
@@ -75,4 +75,28 @@ owner oracleのown travel比較は記録したloaded stone worldを対象とし�
 追加の原版入力hash、継承先、metadata、数値oracleの範囲・再実行手順は
 [dispatch の追加監査](common-entity-dispatch.md)と
 [監査記録](evidence/sheep-creeper-contact-20261014.json)に記載する。
-他の未監査speciesへの global refusal は継続する。
+未監査入力は以下の private relevance fence に従う。
+
+## Private capabilities (Step C)
+
+公開 API、公開 geometry の資格範囲、予測値の意味・送信保証は変更しない。
+版別 private table は walking outgoing push、incoming pushability、solid collision、
+geometry、metadata / status / animation callback を独立に
+`Qualified / ProvenIrrelevant / BoundedUnknown / Unknown` に分類する。
+既存の Cow / Pig / Zombie / Sheep / Creeper / RemotePlayer の有限な owner lane を保持し、
+継承先の一致や LivingEntity ancestry だけでは新しい species を資格化しない。
+[副作用監査と再生成手順](contact-capability-audit.md)、
+[全登録種類の継承先・原版 method fingerprint](evidence/contact-capabilities-20261014.json)を参照。
+
+Bat / ArmorStand はこの walking / boat contact lane に無関係と証明したため、
+寸法・motion を数値 body へ補完せず native slot だけを保持する。
+ArmorStand の rideable-minecart hook を walking / boat push に読み替えない。
+Item / projectile を含む未監査 species は Unknown のまま拒否する。
+Status / animation の有限な例外は Step A の監査済み packet のみで、未知 opcode は拒否する。
+
+WIP の interpolation hull は非局所・間接作用を覆う証明がないため撤去した。
+Unknown / BoundedUnknown は距離にかかわらず typed Unsupported として送信前に拒否する。
+BoundedUnknown は監査済みの有限な部分があるという分類であり、空間的 envelope の証明ではない。
+Step B の relevance 機構は追加しない。除去・native ID 再利用・world / checkpoint 境界でも
+寿命を再評価し、未対応 spawn の entity lifetime / native ID / type / Spawn trigger を保持する。
+履歴・provenance の破損は Permanent、受信 profile / game mode 不足は Transient のまま。
