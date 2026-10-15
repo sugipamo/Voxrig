@@ -6,8 +6,21 @@ only default, unmounted Spider and CaveSpider lifetimes with complete supported
 motion receipts and no unproven callback to be excluded from a movement tick.
 Other Unknown/BoundedUnknown providers (including Horse, Ghast, projectiles,
 Slime, Shulker and unregistered names) retain global typed Unsupported refusal.
-Step B left the existing six qualified numerical body types unchanged. No public API,
+Historically, Step B left its then-existing six qualified numerical body types unchanged. No public API,
 geometry qualification, full NPC simulation or numerical guarantee is added.
+
+The current eligibility and revocation sets are generated from the private table.
+They select the existing proof handler; its dynamic obligations below remain
+mandatory. `python3 -B scripts/audit_contact_envelopes.py --check` compares the
+independent evidence target sets and receipt domain with the export without jars.
+`python3 -B scripts/contact_policy_export.py --check` checks this section.
+
+<!-- contact-policy:envelopes:start -->
+| Version | Profile | Eligible types | Lanes | Effects | Revocations |
+| --- | --- | --- | --- | --- | --- |
+| 1.16.1 | DefaultSpiderEnvelope | cave_spider, spider | OwnedWalking, OwnedGlide, OwnedBoat | WalkingPush, IncomingPush, SolidCollision | Metadata, Equipment, Scale, Passengers, Status(-128..127), Animation(0..255) |
+| 1.21.11 | DefaultSpiderEnvelope | cave_spider, spider | OwnedWalking, OwnedGlide, OwnedBoat | WalkingPush, IncomingPush, SolidCollision | Metadata, Equipment, Scale, Passengers, Status(-128..127), Animation(0..255) |
+<!-- contact-policy:envelopes:end -->
 
 ## Original owner review
 
@@ -136,7 +149,7 @@ cargo test --lib client::entity::owned_contacts::tests
 ```
 
 Java 21+, Python 3 and the same fixed inputs as the Step C audit are required.
-The evidence binds the review, generator, Step C artifact, reducers and physics
+The evidence binds the review, evidence auditor, Step C artifact, reducers and physics
 query sources. Rust regressions exercise both versions, native slots, far/near,
 interpolation crossings, attempted sweeps clipped by terrain, indirect peer
 contact, callback revocation, checkpoints, lifetimes and world boundaries.
@@ -151,6 +164,6 @@ provider or callback exemption. Legacy dimension refresh can leave a box
 anchored at its prior minimum until an original setPos. The peer proof therefore
 encloses both that current box and the body's recentered placement, plus the
 existing interpolation/shifted-target hull. This preserves the indirect-effect
-fence when newly qualified metadata changes dimensions. The same generator
+fence when newly qualified metadata changes dimensions. The same evidence auditor
 refreshes the dated evidence's source hashes and exports the additional owner
 columns; all original Step B method-owner bindings remain checked.

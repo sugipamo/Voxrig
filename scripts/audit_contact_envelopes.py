@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 
 from audit_contact_capabilities import CLIENT, ROOT, audit, digest
+from contact_policy_export import table_export, targets
 
 
 def methods(jar, roots):
@@ -43,11 +44,43 @@ def resolve(jar, cls, method):
     return resolve(jar, parent[1], method) if parent else None
 
 
+def check_policy(policy, evidence):
+    if set(evidence['versions']) != set(policy['versions']):
+        raise ValueError('envelope audit version sets differ')
+    for version, data in evidence['versions'].items():
+        required = targets(policy, version, 'SpiderEnvelope')
+        if set(data['types']) != required:
+            raise ValueError(f'{version}: envelope evidence/const-table target sets differ')
+        locality = policy['locality_profiles']['DefaultSpiderEnvelope']
+        # Independent proof-breaking receipt domain; all 512 sub-opcodes.
+        revokes = {'Metadata', 'Equipment', 'Scale', 'Passengers'}
+        revokes.update(f'Status({n})' for n in range(-128, 128))
+        revokes.update(f'Animation({n})' for n in range(256))
+        if set(locality['revokes']) != revokes:
+            raise ValueError('envelope revocations differ from manual proof')
+        eligible = {name for name, row in policy['versions'][version]['types'].items()
+                    if row['lanes']['OwnedWalking']['locality'] == 'DefaultSpiderEnvelope'}
+        if eligible != required:
+            raise ValueError('envelope eligibility/scenario sets differ')
+        if (data['original_client_jar_sha1'], data['client_mappings_sha1']) != CLIENT[version]:
+            raise ValueError(f'{version}: envelope provenance mismatch')
+    print('envelope audit: target sets and 516 proof-breaking receipts match const table')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--downloads', type=Path, required=True)
-    parser.add_argument('--work', type=Path, required=True)
+    parser.add_argument('--downloads', type=Path)
+    parser.add_argument('--work', type=Path)
+    parser.add_argument('--output', type=Path, default=ROOT / 'docs/evidence/contact-envelopes-20261015.json')
+    parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
+    policy = table_export()
+    if args.check:
+        check_policy(policy, json.loads(args.output.read_text()))
+        print('jar-dependent collection skipped in --check; checked-in fingerprints retained')
+        return
+    if args.downloads is None or args.work is None:
+        parser.error('--downloads and --work are required for original-jar collection')
     result = {
         'schema': 1,
         'scope': 'Step B; finite default unmounted Spider/CaveSpider contact envelope only; no numerical body qualification',
@@ -75,7 +108,7 @@ def main():
                                '--out-jar', str(named), '--srg-in', str(mappings)],
                               stdout=subprocess.DEVNULL)
         rows = audit(named)
-        types = {name: rows[name] for name in ['spider', 'cave_spider']}
+        types = {name: rows[name] for name in sorted(targets(policy, version, 'SpiderEnvelope'))}
         # Resolve separately on each original: no name/ancestry shortcut.
         for row in types.values():
             assert row['aiStep'] == 'net.minecraft.world.entity.monster.Monster'
@@ -115,9 +148,10 @@ def main():
         'src/versions/table.rs', 'scripts/generate_version_tables.py',
     ]
     result['source_sha256'] = {name: digest(ROOT / name) for name in sources}
-    output = ROOT / 'docs/evidence/contact-envelopes-20261015.json'
+    check_policy(policy, result)
+    output = args.output
     output.write_text(json.dumps(result, indent=2) + '\n')
-    print('Verified spatial proof owners for both versions; wrote', output.relative_to(ROOT))
+    print('Verified spatial proof owners for both versions; wrote', output)
 
 
 if __name__ == '__main__':

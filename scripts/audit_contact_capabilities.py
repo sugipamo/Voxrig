@@ -15,6 +15,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from contact_policy_export import table_export, classifications
+
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = {
     '1.16.1': ('c9abbe8ee4fa490751ca70635340b7cf00db83ff', 'ddf517a4f6750f4c15189de4e03246ae1f916cf5'),
@@ -63,10 +65,16 @@ def audit(jar):
     return {n: dict(class_name=c, **{m: owner(c, m) for m in METHODS}) for n, c in types.items()}
 
 
-# Explicit reviewed lanes only. Owner equality is evidence to inspect, never
-# a qualification rule. See docs/contact-capability-audit.md for side effects.
-ORDINARY_MOB_REVIEW = {'chicken', 'rabbit', 'ocelot', 'villager', 'wandering_trader',
-                     'mooshroom', 'silverfish', 'giant'}
+# The historical pre-extension evidence is an independent review boundary,
+# never a production qualification list. New review targets come from the table.
+def ordinary_mob_review(policy):
+    historical = json.loads((ROOT / 'docs/evidence/contact-capabilities-20261014.json').read_text())
+    return {version: {name for name, effects in rows.items() if effects['walking'] == 'Qualified'}
+            - {name for name, row in historical['versions'][version]['types'].items()
+               if row['classifications']['walking'] == 'Qualified'}
+            for version, rows in policy.items()}
+
+
 # Reviewed failures are fingerprinted as well; see the per-type blockers.
 PASSIVE_UNKNOWN = {
     'llama': 'AbstractHorse client stand/eating geometry and llama size/strength/passenger hooks are not modeled.',
@@ -104,17 +112,8 @@ PASSIVE_UNKNOWN = {
 
 
 def table_policy():
-    """Read constants through Rust, without parsing Rust or adding SDK API."""
-    output = subprocess.check_output([
-        'cargo', 'test', '--locked', '--lib', '-j1',
-        'client::entity::contact_policy::audit::export_contact_capability_policy',
-        '--', '--exact', '--nocapture', '--test-threads=1',
-    ], cwd=ROOT, text=True)
-    marker = 'CONTACT_CAPABILITY_POLICY='
-    exports = [line.split(marker, 1)[1] for line in output.splitlines() if marker in line]
-    if len(exports) != 1:
-        raise ValueError('expected exactly one Rust const-table export')
-    return json.loads(exports[0])
+    """Compatibility view of the single development export."""
+    return classifications(table_export())
 
 
 def check_evidence(policy, evidence):
@@ -171,6 +170,11 @@ def main():
     if not args.check and (args.downloads is None or args.work is None):
         parser.error('--downloads and --work are required unless --check is used')
     policy = table_policy()
+    reviews = ordinary_mob_review(policy)
+    for version, rows in policy.items():
+        for name in PASSIVE_UNKNOWN.keys() & rows.keys():
+            if rows[name]['walking'] == 'Qualified':
+                raise ValueError(f'{version}/{name}: manual blocker conflicts with qualification')
     if args.check:
         check_evidence(policy, json.loads(args.output.read_text()))
         return
@@ -189,7 +193,7 @@ def main():
         rows = audit(named)
         if set(rows) != set(policy[version]):
             raise ValueError(f'{version}: original-client entity set differs from const table')
-        for name in ORDINARY_MOB_REVIEW:
+        for name in reviews[version]:
             row = rows[name]
             if name == 'chicken':
                 assert row['aiStep'] == ('net.minecraft.world.entity.animal.Chicken'
@@ -215,7 +219,7 @@ def main():
             row['audit'] = 'reviewed-owner-lane' if name in reviewed_types(policy[version]) else 'unqualified'
             if name in PASSIVE_UNKNOWN:
                 row['qualification_blocker'] = PASSIVE_UNKNOWN[name]
-            elif name in ORDINARY_MOB_REVIEW:
+            elif name in reviews[version]:
                 row['qualification_review'] = 'docs/contact-capability-audit.md#step-d-ordinary-mob-review'
         result['versions'][version] = dict(original_client_jar_sha1=jar_sha,
             client_mappings_sha1=mapping_sha, entity_data_sha256=digest(metadata_path),

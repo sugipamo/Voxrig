@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 
 from run_entity_owner_oracle import CLIENT
+from contact_policy_export import ROOT, packet_targets, table_export
 
 
 def digest(path):
@@ -26,12 +27,39 @@ def method(code, name):
     return code[match.start():match.end() + end.start()] if end else code[match.start():]
 
 
+def check_policy(policy, evidence):
+    # Independent manual proof inventory from this audit, not Rust generation.
+    for version, data in policy['versions'].items():
+        modeled = {name for name, row in data['types'].items()
+                   if row['lanes']['OwnedWalking']['modeled']}
+        expected = {packet: modeled for packet in ['Status(35)', 'Animation(4)', 'Animation(5)']}
+        expected['Status(10)'] = {'sheep'}
+        if packet_targets(policy, version) != expected:
+            raise ValueError(f'{version}: table allows differ from manual packet proof inventory')
+        row = evidence[version]
+        if (row['original_client_sha1'], row['mappings_sha1']) != CLIENT[version]:
+            raise ValueError(f'{version}: packet audit original provenance mismatch')
+        if not row['javap_method_sha256']:
+            raise ValueError(f'{version}: packet fingerprints missing')
+    if set(evidence) != set(policy['versions']):
+        raise ValueError('packet audit version sets differ')
+    print('packet audit: exact opcode/target sets match const table')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--downloads', type=Path, required=True)
-    parser.add_argument('--work', type=Path, required=True)
-    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--downloads', type=Path)
+    parser.add_argument('--work', type=Path)
+    parser.add_argument('--output', type=Path, default=ROOT / 'data/client_api/contact_packet_audit.json')
+    parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
+    policy = table_export()
+    if args.check:
+        check_policy(policy, json.loads(args.output.read_text()))
+        print('jar-dependent collection skipped in --check; checked-in fingerprints retained')
+        return
+    if args.downloads is None or args.work is None:
+        parser.error('--downloads and --work are required for original-jar collection')
     result = {}
     for version, (jar_hash, mapping_hash) in CLIENT.items():
         jar = args.downloads / f'{version}-client.jar'
@@ -55,6 +83,7 @@ def main():
                 assert 'bipush        10' in body and 'bipush        40' in body
                 assert 'Field eatAnimationTick:I' in body
         result[version] = {'original_client_sha1': jar_hash, 'mappings_sha1': mapping_hash, 'javap_method_sha256': fingerprints}
+    check_policy(policy, result)
     args.output.write_text(json.dumps(result, indent=2) + '\n')
 
 

@@ -541,28 +541,43 @@ mod tests {
                         "{key} {name} {lane}"
                     );
                 }
-                if c.modeled() {
-                    assert!(
-                        [
-                            "cow",
-                            "pig",
-                            "zombie",
-                            "sheep",
-                            "creeper",
-                            "player",
-                            "chicken",
-                            "rabbit",
-                            "ocelot",
-                            "villager",
-                            "wandering_trader",
-                            "mooshroom",
-                            "silverfish",
-                            "giant"
-                        ]
-                        .contains(&name.as_str())
-                    );
-                }
             }
+            // Independent fixed admission regression corpus. Check equality in
+            // both directions: changing policy must not silently drop tests.
+            let fixed_targets = [
+                "cow",
+                "pig",
+                "zombie",
+                "sheep",
+                "creeper",
+                "player",
+                "chicken",
+                "rabbit",
+                "ocelot",
+                "villager",
+                "wandering_trader",
+                "mooshroom",
+                "silverfish",
+                "giant",
+            ]
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>();
+            let table_targets = super::super::contact_policy::key::EntityType::ALL
+                .iter()
+                .filter(|entity| entity.native_id(version).is_some())
+                .filter(|entity| {
+                    super::super::contact_policy::locality::modeled(
+                        version,
+                        entity.name(),
+                        super::super::contact_policy::key::OwnerLane::OwnedWalking,
+                    )
+                })
+                .map(|entity| entity.name().strip_prefix("minecraft:").unwrap())
+                .collect::<std::collections::BTreeSet<_>>();
+            assert_eq!(
+                fixed_targets, table_targets,
+                "{key}: fixed admission targets"
+            );
             assert_eq!(
                 capabilities(version, "minecraft:bat").walking,
                 Classification::ProvenIrrelevant

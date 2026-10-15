@@ -126,8 +126,8 @@ The Python auditor no longer owns qualification lists or emits Rust. When run
 with original `--downloads`/`--work` inputs, it takes required classifications
 and reviewed-type fingerprint inputs from the Rust export, checks original-client
 entity coverage, and retains the existing independent method-owner/fingerprint
-and review/blocker evidence collection. The fixed ordinary-mob review and blocker
-inputs remain for step 5. Its `--output` flag also selects the evidence for
+and review/blocker evidence collection. Ordinary-mob review inputs are derived against the historical pre-extension
+evidence; blocker prose remains an independent qualification fence. Its `--output` flag also selects the evidence for
 `--check`; check mode writes nothing.
 
 Schema-2 evidence field names are retained: `generator_sha256` binds the auditor
@@ -140,10 +140,9 @@ metadata gains a dispatch wrapper around the existing reducer. Its admission,
 locality, revocation and usage gates are unchanged. The independent frozen-source,
 golden and regression comparisons check the bound decisions. No oracle artifacts,
 golden, original-client method hashes, or other source bindings change in 4a.
-Historical reproduction wording in the bound audit review predates this migration; use the commands above for the current check path.
+The audit reviews now document the current export/check paths.
 
-Java manifests, documentation generation, other Python consumers, and a broader
-selector/scenario export remain step 5 work. Existing fixtures and reviews remain
+Step 5 completes the shared export and consumer checks described below. Existing fixtures and reviews remain
 independent evidence; table output is never a numerical oracle.
 
 ## Step 4b locality and usage reads
@@ -179,3 +178,31 @@ the latter routes Spawn's modeled gate through the lane lookup. The old
 Capabilities::modeled predicate is now test-only, alongside its frozen consumers.
 Numerical oracle
 fixtures, original-client hashes and all other evidence values remain unchanged.
+
+
+## Step 5 consumers and docs
+
+`audit::export_contact_capability_policy` now emits `CONTACT_POLICY=` JSON,
+validated by `scripts/contact_policy_export.py`. Schema 1 exports the resolved
+lane/effect profiles, actual lane selectors, packet defaults/exact rules,
+locality eligibility/requirements/all 516 revocations, scenario/evidence IDs,
+vehicle selectors, native IDs and versioned classifications. The present-key
+summary includes all axis values and the 4,814,040-key count. `policy_digest` is
+SHA-256 of compact sorted JSON before adding that field, independently checked
+in Python. Use the wrapper without flags for clean JSON stdout.
+
+The capability auditor, packet auditor and envelope auditor read that export;
+each has a jar-independent `--check`. Manual opcode proofs, source fingerprints,
+blocker judgments and original numerical values remain independent evidence.
+The owner consumer checker compares required species/scenarios, both scenes,
+fixed (scene, seed) IDs, original Java factory constructors/registration output,
+and exclusions in both directions. It also accepts a temporary original rerun
+for exact scenario/value/raw-output-hash comparison. The original Java harness
+and runner remain byte-identical and never consume generated numerical logic.
+
+Six marked documentation sections are rendered by the export wrapper;
+`--check` compares in memory and writes nothing. CI runs all five checks.
+See [consumer commands](../../../../docs/contact-policy-consumers.md).
+The fixed admission target set now checks equality with the table rather than
+only membership. Fixed raw-bit numerical corpora, fixed stage counts, historical
+frozen sources, golden bytes, and refusal regressions remain unchanged.

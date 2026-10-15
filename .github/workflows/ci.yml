@@ -28,6 +28,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: python3 scripts/test_native_trace.py
+      - run: python3 -B scripts/contact_policy_export.py --check
+      - run: python3 -B scripts/audit_contact_capabilities.py --check
+      - run: python3 -B scripts/audit_contact_packets.py --check
+      - run: python3 -B scripts/audit_contact_envelopes.py --check
+      - run: python3 -B scripts/check_contact_policy_consumers.py --check
       - run: cargo test --locked --all-targets -j1 -- --test-threads=1
       - run: cargo test --locked --doc -j1
       - run: cargo clippy --locked --all-targets -j1 -- -D warnings
