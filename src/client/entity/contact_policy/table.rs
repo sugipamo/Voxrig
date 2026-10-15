@@ -1,4 +1,4 @@
-//! Option B declarations. Production reads capability and packet decisions.
+//! Option B declarations. Production reads capability, packet and semantics selectors.
 //!
 //! Capability and packet observations have exactly step 1's meaning: they are
 //! shared predicates, repeated across lanes/effects, not new admission claims.
@@ -161,7 +161,7 @@ const LIVING: EffectPolicy = EffectPolicy {
     animation: B,
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Semantics {
     pub tick: TickModel,
     pub geometry: GeometryModel,

@@ -129,14 +129,9 @@ impl EntityObservation {
             .type_name
             .as_deref()
             .ok_or(U::UnsupportedType)?;
-        let model = match name {
-            "minecraft:player" => EntityGeometryModel::PlayerPose,
-            "minecraft:cow" | "minecraft:pig" | "minecraft:zombie" => {
-                EntityGeometryModel::AgeablePose
-            }
-            _ => return Err(U::UnsupportedType),
-        };
         let version = self.motion.entity.id.session().version;
+        let model = super::contact_policy::selectors::public_geometry(version, name)
+            .ok_or(U::UnsupportedType)?;
         let position = self.motion.position.as_ref().ok_or(U::MissingPosition)?;
         // The original constructor's standing default is a model input, not a
         // fabricated pose receipt. Partial packets suppress absent defaults.

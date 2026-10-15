@@ -1,4 +1,4 @@
-//! Private contact policy. Capabilities and harmless packets read the const table.
+//! Private contact policy. Capabilities, packets and semantics read the const table.
 //!
 //! The dense index includes absent version/entity pairs; presence is a separate
 //! axis constraint. Baseline rows for those pairs are explicitly `absent`.
@@ -9,13 +9,14 @@
 //! `VOXRIG_UPDATE_CONTACT_BASELINE=1 cargo test --locked -j1 frozen_contact_policy_baseline`.
 //! The test enumerates the full present product; run-length encoding only
 //! compresses identical consecutive packet outcomes in the checked-in text.
-// Locality/semantics declarations remain staged until their migration steps.
+// Locality declarations remain staged until step 4b.
 #![allow(dead_code)]
 pub(super) mod key;
 
 #[cfg(test)]
 mod baseline;
 
+pub(super) mod selectors;
 mod table;
 mod validate;
 
@@ -25,6 +26,8 @@ use super::contact_capabilities::{Capabilities, Classification};
 mod audit;
 #[cfg(test)]
 mod frozen_capabilities;
+#[cfg(test)]
+mod frozen_selectors;
 
 /// Compatibility facade for the shared predicate, not owner-lane admission.
 pub(super) fn capabilities(
