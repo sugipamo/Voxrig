@@ -1,7 +1,7 @@
 mod policy_baseline {
     use crate::client::entity::contact_policy::key::*;
     use crate::client::entity::contact_policy::{
-        frozen_capabilities, table, validate::EXPANDED_PACKETS,
+        frozen_capabilities, frozen_selectors, table, validate::EXPANDED_PACKETS,
     };
     use crate::client::entity::{
         NativeSpawn, NativeSpawnMotion, SpawnLedger, contact_capabilities,
@@ -262,6 +262,12 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                     .map_or(table::TickModel::NoTickBody, |body| {
                         production_tick(body.dispatch)
                     });
+                let old = frozen_selectors::owned(version, name);
+                assert_eq!(profile.owned, old, "{version:?}/{name} frozen selectors");
+                assert_eq!(
+                    actual_tick, old.tick,
+                    "{version:?}/{name} old Spawn dispatch"
+                );
                 assert_eq!(profile.owned.tick, actual_tick);
                 let shadow_selector = format!("{:?}", profile.owned.tick);
                 assert_eq!(shadow_selector, selector, "{version:?}/{name} tick");
@@ -507,6 +513,7 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                     Err(error) => panic!("{key}/{name}: {error:?}"),
                 };
                 let selected = table::semantics(version, entity, OwnerLane::PublicGeometry);
+                assert_eq!(actual, frozen_selectors::public_geometry(name));
                 assert_eq!(selected.geometry, actual, "{key}/{name} public geometry");
                 assert_eq!(selected.tick, table::TickModel::NoTickBody);
                 assert_eq!(selected.metadata, table::MetadataModel::NotApplicable);

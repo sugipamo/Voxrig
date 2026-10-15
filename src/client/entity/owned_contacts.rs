@@ -4,6 +4,7 @@ use super::{
     EntityId, EntityPose, LivingInterpolationPose, LivingTickBody, MAX_ENTITY_HISTORY_READ,
     MAX_ENTITY_HISTORY_RECORDS, SpawnLedger,
     contact_capabilities::{self, DeferredContact},
+    contact_policy::selectors as policy,
     contact_tick::{ContactDispatch, ContactTickBody, ContactTickWorld},
 };
 use crate::{
@@ -1312,23 +1313,13 @@ impl OwnedContacts {
                     .fresh
                     .checked_add(1)
                     .ok_or_else(|| failure("contact lifetime exhausted"))?;
-                let dimensions = super::geometry::shape(
-                    self.session.version,
-                    name,
-                    EntityPose::Standing,
-                    1.,
-                    1.,
-                );
+                let dimensions =
+                    policy::shape(self.session.version, name, EntityPose::Standing, 1., 1.);
                 let body = ContactTickBody::new(
                     self.session.version,
                     (self.fresh, id.native_id()),
-                    if name == "minecraft:player" {
-                        ContactDispatch::RemotePlayer
-                    } else if name == "minecraft:chicken" {
-                        ContactDispatch::Chicken
-                    } else {
-                        ContactDispatch::InheritedLiving
-                    },
+                    policy::dispatch(self.session.version, name)
+                        .expect("admitted contact dispatch"),
                     LivingInterpolationPose {
                         position: p.value.position,
                         rotation: r.value,
@@ -1338,7 +1329,11 @@ impl OwnedContacts {
                     [dimensions.0, dimensions.1],
                 )?;
                 self.world.admit(
-                    tick_body(self.fresh, id.native_id(), name == "minecraft:player"),
+                    tick_body(
+                        self.fresh,
+                        id.native_id(),
+                        body.dispatch == ContactDispatch::RemotePlayer,
+                    ),
                     Some(body),
                 )?;
                 self.native_keys.insert(id.native_id(), self.fresh);
@@ -1654,6 +1649,11 @@ impl OwnedContacts {
     }
 
     fn metadata(&mut self, key: u64, index: u8, value: &EntityDataValue) -> Result<()> {
+        policy::metadata(self.session.version, &self.inputs[&key].name)
+            .apply(|| self.living_metadata(key, index, value))
+    }
+
+    fn living_metadata(&mut self, key: u64, index: u8, value: &EntityDataValue) -> Result<()> {
         let input = self.inputs.get_mut(&key).unwrap();
         let body = self.world.bodies.get_mut(&key).unwrap();
         let table = self.session.version.table();
@@ -1682,7 +1682,7 @@ impl OwnedContacts {
             };
             input.pose = EntityPose::from_native(self.session.version, *id)
                 .ok_or_else(|| unsupported("unknown contact pose"))?;
-            let dimensions = super::geometry::shape(
+            let dimensions = policy::shape(
                 self.session.version,
                 &input.name,
                 input.pose,
@@ -1703,7 +1703,7 @@ impl OwnedContacts {
                 return Err(unsupported("unknown contact baby data"));
             };
             input.baby = if *baby { 0.5 } else { 1. };
-            let dimensions = super::geometry::shape(
+            let dimensions = policy::shape(
                 self.session.version,
                 &input.name,
                 input.pose,
@@ -1765,7 +1765,7 @@ impl OwnedContacts {
                 let uuid = input.uuid.ok_or_else(|| {
                     entity_failure(failure("contact scoreboard UUID missing"), input)
                 })?;
-                let holder = if input.name == "minecraft:player" {
+                let holder = if policy::identity_uses_profile(self.session.version, &input.name) {
                     // Original RemotePlayer requires a registered profile. Use the
                     // actual retained UUID/name, never the configured bot name.
                     let profile = profiles
@@ -1793,7 +1793,8 @@ impl OwnedContacts {
                 } else {
                     uuid_holder(uuid)
                 };
-                self.world.bodies.get_mut(&key).unwrap().team = team(teams, &holder);
+                self.world.bodies.get_mut(&key).unwrap().team =
+                    policy::team(self.session.version, &input.name, teams, &holder);
             }
             Ok(())
         })();

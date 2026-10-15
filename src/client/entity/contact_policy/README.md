@@ -1,12 +1,14 @@
-# Contact policy (migration step 3)
+# Contact policy (migration step 4a)
 
 Production `contact_capabilities` remains the compatibility facade and reads
 capability classifications and harmless Status/Animation decisions from this
 const table. The shared predicates use the OwnedWalking observation column;
 this does not add lane admission. Unresolved/version-absent names return all
-Unknown/false. Locality, dispatch, geometry, metadata, team, identity, and vehicle
-sampling still read their existing code (steps 4a/4b). No public API or runtime
-configuration is added. Wolf remains Unknown.
+Unknown/false. Spawn/tick dispatch, owned shape, metadata handler, team holder,
+UUID/profile identity selection and public geometry now read semantics selectors
+through `selectors.rs`. Locality eligibility, envelopes, revocations, usage gates
+and vehicle sampling retain their existing implementations (step 4b). No public
+API or runtime configuration is added. Wolf remains Unknown.
 
 `table.rs` implements option B: named effect fields, normalized policy profiles,
 explicit version/lane columns for every entity in the registry union, finite
@@ -69,6 +71,29 @@ default-pose/far-query locality. Separate tests compare unresolved and absent na
 against the frozen source for every Status/Animation opcode. Representative typed
 refusal checks remain in place.
 
+`frozen_selectors.rs` retains the pre-step-4a Spawn and public geometry branches,
+the shared metadata/team/UUID selections and the player-profile identity branch.
+Its modeled boundary reads only the independent frozen capability match. For all
+264 present version/species pairs (and absent pairs), tests compare the table's
+owned selectors in each owned lane against that source. The production adapters
+are checked against those old choices, including metadata invocation/error
+propagation, team membership/missing holder, UUID/profile selection and bitwise
+shape results for every native pose and representative baby/scale factors. The
+baseline also compares actual reducer Spawn dispatch and actual public geometry
+with the frozen source. Expected choices never come from table assignments.
+
+The owned adapters observe the same OwnedWalking column as the shared capability
+facade; they run after the existing admission gates. They do not grant eligibility
+in another lane. Enum dispatch is exhaustive. Nonapplicable owned handlers cannot
+be called for an admitted body under the const-validated selector/capability
+invariants. The metadata wrapper selects the existing living reducer; its field
+resolution, arithmetic, state updates and refusal construction remain there.
+IdentityModel::UuidHolder still requires the received UUID; TickModel::RemotePlayer
+selects the original registered-profile/name/game-mode path. TeamModel::OwnHolder
+calls the original team lookup. Chicken state and arithmetic in contact_tick.rs
+are untouched. Public geometry still supports only player/cow/pig/zombie; the
+vehicle sampler does not read these adapters.
+
 Additional tests check public geometry through the real `derived_geometry`
 function for every present pair, rigid vehicle classification against the real
 predicate, numerical species/scenario and exclusion membership in the existing
@@ -106,11 +131,14 @@ inputs remain for step 5. Its `--output` flag also selects the evidence for
 Schema-2 evidence field names are retained: `generator_sha256` binds the auditor
 script, while `generated_sha256` now binds the frozen historical match (same
 bytes/hash). The whole-source envelope binding of `contact_capabilities.rs` is
-updated because the facade delegates to the table and the evidence test includes
-the moved historical file. Envelope algorithms and bound semantic decisions are
-unchanged. No oracle artifacts, golden, original-client method hashes, or other
-source bindings change. Historical reproduction wording in the bound audit review
-predates this migration; use the commands above for the current check path.
+updated in step 3 because the facade delegates to the table and the evidence test
+includes the moved historical file. Step 4a updates only the envelope binding for
+`owned_contacts.rs`: the inline selectors must call the thin private facade, and
+metadata gains a dispatch wrapper around the existing reducer. Its admission,
+locality, revocation and usage gates are unchanged. The independent frozen-source,
+golden and regression comparisons check the bound decisions. No oracle artifacts,
+golden, original-client method hashes, or other source bindings change in 4a.
+Historical reproduction wording in the bound audit review predates this migration; use the commands above for the current check path.
 
 Java manifests, documentation generation, other Python consumers, and a broader
 selector/scenario export remain step 5 work. Existing fixtures and reviews remain
