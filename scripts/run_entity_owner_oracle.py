@@ -60,7 +60,7 @@ def main():
         (server/'server.properties').write_text(PROPERTIES.format(port=port,level_type='flat' if legacy else 'minecraft\\:flat'))
         output=work/'original-results.json'
         run(['java','-Xmx1G','--add-opens','java.base/java.lang=ALL-UNNAMED','-cp',os.pathsep.join(str(p) for p in [*cp,work/'harness.jar']),'voxrig.oracle.EntityTickOracle',str(output),*extra],server,work/'server.log')
-        rows=json.loads(output.read_text());assert len(rows)==(136 if legacy else 184);print(version,sum(len(r["steps"]) for r in rows),"stages",flush=True)
+        rows=json.loads(output.read_text());assert len(rows)==(144 if legacy else 192);print(version,sum(len(r["steps"]) for r in rows),"stages",flush=True)
         result['versions'][version]=dict(original_server_jar_sha1=sha,server_mappings_sha1=msha,original_client_jar_sha1=CLIENT[version][0],client_mappings_sha1=CLIENT[version][1],original_output_sha256=digest(output.read_bytes()),harness_sha256=digest(source.read_bytes()),exclusions=json.loads(Path(str(output)+".exclusions.json").read_text()),results=rows)
     result['runner_sha256']=digest(Path(__file__).read_bytes())
     args.output.write_bytes(gzip.compress((json.dumps(result,separators=(',', ':'))+'\n').encode(),mtime=0))

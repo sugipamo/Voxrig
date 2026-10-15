@@ -63,12 +63,11 @@ def audit(jar):
 
 # Explicit reviewed lanes only. Owner equality is evidence to inspect, never
 # a qualification rule. See docs/contact-capability-audit.md for side effects.
-PASSIVE_QUALIFIED = {'rabbit', 'ocelot', 'villager', 'wandering_trader',
+PASSIVE_QUALIFIED = {'chicken', 'rabbit', 'ocelot', 'villager', 'wandering_trader',
                      'mooshroom', 'silverfish', 'giant'}
 QUALIFIED = {'player', 'cow', 'pig', 'zombie', 'sheep', 'creeper'} | PASSIVE_QUALIFIED
 # Reviewed failures are fingerprinted as well; see the per-type blockers.
 PASSIVE_UNKNOWN = {
-    'chicken': 'Client aiStep changes falling Y velocity; modern custom baby dimensions are not modeled.',
     'llama': 'AbstractHorse client stand/eating geometry and llama size/strength/passenger hooks are not modeled.',
     'trader_llama': 'Llama/AbstractHorse geometry and trader despawn/mount hooks are not closed.',
     'wolf': 'TamableAnimal getTeam resolves owner/root-owner teams with version-specific precedence; reducer uses own UUID team.',
@@ -178,6 +177,9 @@ def main():
         rows = audit(named)
         for name in PASSIVE_QUALIFIED:
             row = rows[name]
+            if name == 'chicken':
+                assert row['aiStep'] == ('net.minecraft.world.entity.animal.Chicken'
+                    if version == '1.16.1' else 'net.minecraft.world.entity.animal.chicken.Chicken')
             for method in ['pushEntities', 'doPush', 'push', 'isPushable', 'getDimensions', 'isSleeping']:
                 assert row[method] == LIVING, (version, name, method, row[method])
             assert row['getTeam'] == 'net.minecraft.world.entity.Entity', (version, name, 'team')
@@ -187,6 +189,7 @@ def main():
             else:
                 assert row['canBeCollidedWith'] == 'net.minecraft.world.entity.Entity'
                 assert row['getDefaultDimensions'] == (
+                    'net.minecraft.world.entity.animal.chicken.Chicken' if name == 'chicken' else
                     'net.minecraft.world.entity.animal.cow.AbstractCow' if name == 'mooshroom' else LIVING
                 ), (version, name, row['getDefaultDimensions'])
                 assert row['getAgeScale'] == LIVING

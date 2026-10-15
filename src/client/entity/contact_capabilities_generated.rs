@@ -25,7 +25,8 @@ pub(super) fn lookup(version: MinecraftVersion, name: &str) -> Capabilities {
                 status: Classification::ProvenIrrelevant,
                 animation: Classification::ProvenIrrelevant,
             },
-            "minecraft:cow"
+            "minecraft:chicken"
+            | "minecraft:cow"
             | "minecraft:creeper"
             | "minecraft:giant"
             | "minecraft:mooshroom"
@@ -70,7 +71,8 @@ pub(super) fn lookup(version: MinecraftVersion, name: &str) -> Capabilities {
                 status: Classification::ProvenIrrelevant,
                 animation: Classification::ProvenIrrelevant,
             },
-            "minecraft:cow"
+            "minecraft:chicken"
+            | "minecraft:cow"
             | "minecraft:creeper"
             | "minecraft:giant"
             | "minecraft:mooshroom"
