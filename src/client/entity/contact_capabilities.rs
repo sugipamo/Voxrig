@@ -1,227 +1,116 @@
-//! Private, per-version owner policy. Ancestry alone never qualifies dispatch.
-use super::{
-    EntityHistoryValue, EntityId, LivingInterpolationPose, LivingPacketGuards, LivingPacketModel,
-};
-use crate::{MinecraftVersion, Result, client::Aabb};
+//! Private per-version evidence policy. Unclassified effects always refuse.
+use super::{EntityHistoryKind, EntityId};
+use crate::{MinecraftVersion, MovementPacketTrigger, MovementRefusal, Result, client::Aabb};
 #[path = "contact_capabilities_generated.rs"]
 mod generated;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum Capability {
-    Inherited,
-    RemotePlayer,
-    Irrelevant,
+pub(super) enum Classification {
+    Qualified,
+    ProvenIrrelevant,
+    /// Only a bounded subset is audited; this never authorizes distance deferral.
     BoundedUnknown,
     Unknown,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum WalkingPush {
-    None,
-    Inherited,
-    RemotePlayer,
-    Unknown,
-}
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum IncomingPush {
-    None,
-    Living,
-    Unknown,
-}
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum SolidCollision {
-    None,
-    Unknown,
-}
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum Geometry {
-    Living,
-    ConservativeLiving,
-    Unknown,
-}
-#[derive(Clone, Copy, Debug)]
 pub(super) struct Capabilities {
-    pub walking: WalkingPush,
-    pub incoming: IncomingPush,
-    pub solid: SolidCollision,
-    pub geometry: Geometry,
+    pub walking: Classification,
+    pub incoming: Classification,
+    pub solid: Classification,
+    pub geometry: Classification,
+    pub metadata: Classification,
+    pub status: Classification,
+    pub animation: Classification,
+}
+impl Capabilities {
+    const UNKNOWN: Self = Self {
+        walking: Classification::Unknown,
+        incoming: Classification::Unknown,
+        solid: Classification::Unknown,
+        geometry: Classification::Unknown,
+        metadata: Classification::Unknown,
+        status: Classification::Unknown,
+        animation: Classification::Unknown,
+    };
+    pub fn modeled(self) -> bool {
+        self.walking == Classification::Qualified
+            && self.incoming == Classification::Qualified
+            && self.solid == Classification::ProvenIrrelevant
+            && self.geometry == Classification::Qualified
+            && self.metadata == Classification::Qualified
+    }
 }
 pub(super) fn capabilities(version: MinecraftVersion, name: &str) -> Capabilities {
-    match generated::lookup(version, name) {
-        Capability::Inherited | Capability::RemotePlayer => Capabilities {
-            walking: if name == "minecraft:player" {
-                WalkingPush::RemotePlayer
-            } else {
-                WalkingPush::Inherited
-            },
-            incoming: IncomingPush::Living,
-            solid: SolidCollision::None,
-            geometry: Geometry::Living,
-        },
-        Capability::Irrelevant => Capabilities {
-            walking: WalkingPush::None,
-            incoming: IncomingPush::None,
-            solid: SolidCollision::None,
-            geometry: Geometry::Unknown,
-        },
-        capability => Capabilities {
-            walking: WalkingPush::Unknown,
-            incoming: IncomingPush::Unknown,
-            solid: if capability == Capability::BoundedUnknown {
-                SolidCollision::None
-            } else {
-                SolidCollision::Unknown
-            },
-            geometry: if capability == Capability::BoundedUnknown {
-                Geometry::ConservativeLiving
-            } else {
-                Geometry::Unknown
-            },
-        },
+    generated::lookup(version, name)
+}
+
+/// Step A's finite packet proof, used only on an audited callback lane.
+pub(super) fn harmless_packet(
+    version: MinecraftVersion,
+    name: &str,
+    kind: &EntityHistoryKind,
+) -> bool {
+    let policy = capabilities(version, name);
+    match kind {
+        EntityHistoryKind::Status { status, .. }
+            if policy.status == Classification::BoundedUnknown =>
+        {
+            *status == 35 || (*status == 10 && name == "minecraft:sheep")
+        }
+        EntityHistoryKind::Animation {
+            animation: 4 | 5, ..
+        } => policy.animation == Classification::BoundedUnknown,
+        _ => false,
     }
 }
 
-/// Unsupported hooks never get a public numerical sample. The hull includes
-/// every possible inherited interpolation anchor since admission, not merely
-/// the latest received target. It deliberately does not shrink with elapsed
-/// ticks. Unknown movement/metadata/mounting permanently removes the proof.
+/// Native slots for excluded/unqualified bodies, without numerical geometry.
+/// The WIP hull did not prove indirect effects; unknowns now always refuse.
 #[derive(Clone, Debug)]
 pub(super) struct DeferredContact {
     pub entity: EntityId,
     pub capabilities: Capabilities,
-    motion: Option<LivingPacketModel>,
-    envelope: Option<Aabb>,
-    dimensions: [f64; 2],
     name: String,
-    version: MinecraftVersion,
+    ordinal: u64,
 }
 impl DeferredContact {
-    pub fn new(
-        version: MinecraftVersion,
-        entity: EntityId,
-        name: &str,
-        pose: Option<LivingInterpolationPose>,
-        ordinal: u64,
-    ) -> Self {
-        let capabilities = capabilities(version, name);
-        let dimensions = version
-            .table()
-            .entity_dimensions(name)
-            .map(|d| [f64::from(d.width as f32), f64::from(d.height as f32)]);
-        let motion = (capabilities.geometry == Geometry::ConservativeLiving)
-            .then(|| pose.and_then(|p| LivingPacketModel::new(version, p, ordinal).ok()))
-            .flatten();
-        let mut result = Self {
+    pub fn new(version: MinecraftVersion, entity: EntityId, name: &str, ordinal: u64) -> Self {
+        Self {
             entity,
-            capabilities,
-            motion,
-            envelope: None,
-            dimensions: dimensions.unwrap_or([0.; 2]),
-            name: name.to_owned(),
-            version,
-        };
-        if dimensions.is_none() {
-            result.motion = None;
-        }
-        result.extend();
-        result
-    }
-    fn extend(&mut self) {
-        let Some(motion) = &self.motion else {
-            return;
-        };
-        let frame = motion.frame().interpolation;
-        for position in std::iter::once(frame.pose.position).chain(frame.target.map(|p| p.position))
-        {
-            // Full width covers legacy refreshDimensions' temporarily anchored
-            // growing box as well as both standing/baby centered shapes.
-            let [width, height] = self.dimensions;
-            let b = Aabb {
-                min_x: position[0] - width,
-                min_y: position[1],
-                min_z: position[2] - width,
-                max_x: position[0] + width,
-                max_y: position[1] + height.max(f64::from(0.2_f32)),
-                max_z: position[2] + width,
-            };
-            self.envelope = Some(self.envelope.map_or(b, |a| hull(a, b)));
+            capabilities: capabilities(version, name),
+            name: name.into(),
+            ordinal,
         }
     }
-    pub fn invalidate(&mut self) {
-        self.motion = None;
-        self.envelope = None;
-    }
-    pub fn apply(&mut self, ordinal: u64, packet: Option<super::LivingMotionPacket>) {
-        let Some(motion) = &mut self.motion else {
-            return;
-        };
-        if packet.is_none_or(|packet| {
-            motion
-                .apply(
-                    ordinal,
-                    packet,
-                    LivingPacketGuards {
-                        local_authoritative: false,
-                        ticking: true,
-                    },
-                )
-                .is_err()
-        }) {
-            self.invalidate();
-        } else {
-            self.extend();
-        }
-    }
-    pub fn metadata(
-        &mut self,
-        entries: &EntityHistoryValue<Vec<super::EntityMetadataEntry>>,
-        complete: bool,
-    ) {
-        if !complete {
-            self.invalidate();
-            return;
-        }
-        let EntityHistoryValue::Retained { value } = entries else {
-            self.invalidate();
-            return;
-        };
-        for entry in value {
-            let row = self
-                .version
-                .table()
-                .entity_data(&self.name)
-                .iter()
-                .find(|r| r.index == entry.index);
-            let safe = row.is_some_and(|r| {
-                let field = |f: super::EntityDataField| f.official_names().contains(&(r.owner, r.field));
-                if entry.index == 6 {
-                    matches!(entry.value, super::EntityDataValue::Pose(id) if super::EntityPose::from_native(self.version, id).is_some())
-                } else if field(super::EntityDataField::Baby) {
-                    matches!(entry.value, super::EntityDataValue::Bool(_))
-                } else if field(super::EntityDataField::Health) {
-                    matches!(entry.value, super::EntityDataValue::Float(v) if v.is_finite())
-                } else { false }
-            });
-            if !safe {
-                self.invalidate();
-                break;
-            }
-        }
-    }
-
     pub fn relevant(&self, boat: bool) -> bool {
-        self.capabilities.solid != SolidCollision::None
+        self.capabilities.solid != Classification::ProvenIrrelevant
             || if boat {
-                self.capabilities.incoming != IncomingPush::None
+                self.capabilities.incoming != Classification::ProvenIrrelevant
             } else {
-                self.capabilities.walking != WalkingPush::None
+                self.capabilities.walking != Classification::ProvenIrrelevant
             }
     }
-    pub fn check(&self, query: Aabb, boat: bool) -> Result<()> {
-        if self.relevant(boat) && self.envelope.is_none_or(|b| intersects(query, b)) {
-            return Err(super::contact_tick::failure(format!(
-                "unqualified relevant contact: {:?}",
-                self.entity
-            )));
+    pub fn check(&self, _query: Aabb, boat: bool) -> Result<()> {
+        if self.relevant(boat) {
+            let mut value = MovementRefusal::permanent(format!(
+                "unqualified contact capabilities: {} {:?}",
+                self.name, self.capabilities
+            ));
+            let context = value.context_mut();
+            context.session = Some(self.entity.session());
+            context.entity = Some(self.entity);
+            context.native_entity_id = Some(self.entity.native_id());
+            context.entity_type = Some(self.name.clone());
+            context.receive_sequence = Some(self.entity.spawn_sequence());
+            context.record_ordinal = Some(self.ordinal);
+            context.packet = Some(MovementPacketTrigger {
+                packet_type: "Spawn".into(),
+                opcode: 0,
+            });
+            return Err(MovementRefusal::Unsupported {
+                context: value.context().clone(),
+            }
+            .into_error());
         }
         Ok(())
     }
@@ -246,14 +135,6 @@ pub(super) fn hull(a: Aabb, b: Aabb) -> Aabb {
         max_z: a.max_z.max(b.max_z),
     }
 }
-fn intersects(a: Aabb, b: Aabb) -> bool {
-    a.min_x < b.max_x
-        && a.max_x > b.min_x
-        && a.min_y < b.max_y
-        && a.max_y > b.min_y
-        && a.min_z < b.max_z
-        && a.max_z > b.min_z
-}
 
 #[cfg(test)]
 mod tests {
@@ -265,22 +146,26 @@ mod tests {
             "../../../docs/evidence/contact-capabilities-20261014.json"
         ))
         .unwrap();
-        assert_eq!(
-            evidence["generator_sha256"],
-            format!(
-                "{:x}",
-                Sha256::digest(include_bytes!(
-                    "../../../scripts/audit_contact_capabilities.py"
-                ))
-            )
-        );
-        assert_eq!(
-            evidence["generated_sha256"],
-            format!(
-                "{:x}",
-                Sha256::digest(include_bytes!("contact_capabilities_generated.rs"))
-            )
-        );
+        for (key, bytes) in [
+            (
+                "generator_sha256",
+                &include_bytes!("../../../scripts/audit_contact_capabilities.py")[..],
+            ),
+            (
+                "generated_sha256",
+                &include_bytes!("contact_capabilities_generated.rs")[..],
+            ),
+            (
+                "audit_sha256",
+                &include_bytes!("../../../docs/contact-capability-audit.md")[..],
+            ),
+            (
+                "packet_audit_sha256",
+                &include_bytes!("../../../data/client_api/contact_packet_audit.json")[..],
+            ),
+        ] {
+            assert_eq!(evidence[key], format!("{:x}", Sha256::digest(bytes)));
+        }
         for (version, key, metadata) in [
             (
                 MinecraftVersion::Java1_16_1,
@@ -297,42 +182,59 @@ mod tests {
                 evidence["versions"][key]["entity_data_sha256"],
                 format!("{:x}", Sha256::digest(metadata))
             );
+            assert!(
+                !evidence["versions"][key]["method_sha256"]
+                    .as_object()
+                    .unwrap()
+                    .is_empty()
+            );
             for (name, row) in evidence["versions"][key]["types"].as_object().unwrap() {
-                assert_eq!(
-                    format!(
-                        "{:?}",
-                        generated::lookup(version, &format!("minecraft:{name}"))
-                    ),
-                    row["capability"]
-                );
-                if row["capability"] == "Inherited" {
-                    for method in ["pushEntities", "doPush", "push", "isPushable"] {
-                        assert_eq!(
-                            row[method], "net.minecraft.world.entity.LivingEntity",
-                            "{key} {name} {method}"
-                        );
-                    }
+                let c = capabilities(version, &format!("minecraft:{name}"));
+                for (lane, value) in [
+                    ("walking", c.walking),
+                    ("incoming", c.incoming),
+                    ("solid", c.solid),
+                    ("geometry", c.geometry),
+                    ("metadata", c.metadata),
+                    ("status", c.status),
+                    ("animation", c.animation),
+                ] {
+                    assert_eq!(
+                        format!("{value:?}"),
+                        row["classifications"][lane],
+                        "{key} {name} {lane}"
+                    );
+                }
+                if c.modeled() {
+                    assert!(
+                        ["cow", "pig", "zombie", "sheep", "creeper", "player"]
+                            .contains(&name.as_str())
+                    );
                 }
             }
             assert_eq!(
                 capabilities(version, "minecraft:bat").walking,
-                WalkingPush::None
+                Classification::ProvenIrrelevant
             );
             assert_eq!(
                 capabilities(version, "minecraft:armor_stand").incoming,
-                IncomingPush::None
+                Classification::ProvenIrrelevant
+            );
+            assert_eq!(
+                capabilities(version, "minecraft:horse").walking,
+                Classification::BoundedUnknown
             );
             assert_eq!(
                 capabilities(version, "minecraft:slime").geometry,
-                Geometry::Unknown
+                Classification::Unknown
             );
             assert_eq!(
-                capabilities(version, "minecraft:shulker").solid,
-                SolidCollision::Unknown
+                capabilities(version, "minecraft:firework_rocket"),
+                Capabilities::UNKNOWN
             );
             assert_eq!(
-                capabilities(version, "minecraft:firework_rocket").walking,
-                WalkingPush::Unknown
+                capabilities(version, "minecraft:not_registered"),
+                Capabilities::UNKNOWN
             );
         }
     }

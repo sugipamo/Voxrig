@@ -55,7 +55,7 @@ crammingのサーバー側判定・damage・RNGは計算・送信しない。多
 
 `entity_owner_oracle.json.gz` は、未変更の公式client JARを先に読み込む自作headless harnessの数値結果。実際のClientLevel、LocalPlayer、Cow/Pig/Zombie/RemotePlayer、乗員を持つ原版Boat、packet handler、元のchunk/entity storageを使う。描画constructor、audio送出、passenger rideTick、LocalPlayerのGUI入力前処理は切り離し、その境界をfixtureにも記載する。
 
-両版280スケジュール・3360段階で、徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
+原版 fixture は両版280スケジュール・3360段階を保持し、SDKでは資格化した96スケジュール・1152段階で徒歩・ボートの位置/速度のbitsと、ボートのspatial候補順を照合する。未資格speciesの記録を通常livingの数値保証に含めない。更新が自分・ボートより前後に来る場合、複数体、速度・相対移動・teleport/sync、睡眠/解除、team、補間取消しを含む。source、runner、original JARのhashはテストで固定する。headless oracleを、完全なグラフィカルclient時計や一般mob物理の証明として扱わない。
 
 実接続は同じ共通Clientと固定バイナリを両版公式serverで使い、実際の元packet、spawn寿命、独立RCON、停止/下車を保存する。強制下車と未検証dispatchの2場面を別runで検証し、入力解除の一度だけの送信と後続予測frameの停止を確認する。結果とSDK・バイナリ・元JARの対応は[検証記録](evidence/common-entity-owners-20261012.json)に保持する。
 
@@ -77,37 +77,26 @@ owner oracleのown travel比較は記録したloaded stone worldを対象とし�
 [監査記録](evidence/sheep-creeper-contact-20261014.json)に記載する。
 未監査入力は以下の private relevance fence に従う。
 
-## Private capabilities と relevance fence（option 1）
+## Private capabilities (Step C)
 
 公開 API、公開 geometry の資格範囲、予測値の意味・送信保証は変更しない。
-owner は walking の outgoing push、incoming pushability、solid collision、geometry を
-別々に保持する。版別の原版 EntityType class と accessor ancestry を生成入力に使い、
-`pushEntities` / `doPush` / `push` / `isPushable`、姿勢・寸法・述語と client AI-step
-wrapper の継承先を確認した通常生物を inherited lane へ入れる。
-LivingEntity の metadata があるだけでは admission にならない。
-生成規則・全登録種類の method owner は
-[capability evidence](evidence/contact-capabilities-20261014.json)に固定する。
-原版数値 oracle は新たに入る全 class と conservative Horse の通常状態を両版で比較する。
+版別 private table は walking outgoing push、incoming pushability、solid collision、
+geometry、metadata / status / animation callback を独立に
+`Qualified / ProvenIrrelevant / BoundedUnknown / Unknown` に分類する。
+既存の Cow / Pig / Zombie / Sheep / Creeper / RemotePlayer の有限な owner lane を保持し、
+継承先の一致や LivingEntity ancestry だけでは新しい species を資格化しない。
+[副作用監査と再生成手順](contact-capability-audit.md)、
+[全登録種類の継承先・原版 method fingerprint](evidence/contact-capabilities-20261014.json)を参照。
 
-Item、監査した arrow / throwable projectile、Bat、ArmorStand は local movement の
-walking push と boat solid selector に無関係なので native slot だけを保持する。
-この lane は motion、living metadata、team/profile、remote terrain を要求せず、
-公開 contact frame の numerical body を作らない。ArmorStand の rideable-minecart
-callback は別hookであり、minecart を通常生物へ読み替えない。
-FireworkRocket の attached-player boost や Vex.tick の noPhysics wrapper は
-無関係な projectile / 通常生物に補わず、unknown のまま保持する。
+Bat / ArmorStand はこの walking / boat contact lane に無関係と証明したため、
+寸法・motion を数値 body へ補完せず native slot だけを保持する。
+ArmorStand の rideable-minecart hook を walking / boat push に読み替えない。
+Item / projectile を含む未監査 species は Unknown のまま拒否する。
+Status / animation の有限な例外は Step A の監査済み packet のみで、未知 opcode は拒否する。
 
-未資格でも継承 packet interpolation と通常geometryが確認できるbody（Spider /
-Ghastなど）、および最大寸法を個別監査したHorseは conservative hull だけを保持する。hull は spawn と全受信 interpolation anchor を
-覆い、経過tickだけでは縮まらない。最新の遠いtargetで近い可能性を消さない。
-正常な pose/baby/health metadata は最大寸法の証明を保持するが、未知serializer、
-部分decode、保持gap、sleep-position callback、scale/equipment/status/animation、
-mount変更は証明を失わせる。未知の動的geometry / motion を有限距離で補わない。
-証明がなければ遠くても拒否する。
-
-各tickで local の開始boxと移動後までのswept hullを検査し、boat は別の元selector
-queryを開始/移動後の両方で検査する。未資格bodyのhullが交差するか、bounded geometryを
-持たなければ、失敗した staged prediction を破棄して送信前に停止する。
-交差しないことが証明できる場合だけ tick を許す。履歴更新・metadata・mount・除去・
-同じnative IDの再spawn・checkpoint / world境界でも再評価し、旧寿命のhullを流用しない。
-この保守的証明は数値の近似modeでも、server-current boxの主張でもない。
+WIP の interpolation hull は非局所・間接作用を覆う証明がないため撤去した。
+Unknown / BoundedUnknown は距離にかかわらず typed Unsupported として送信前に拒否する。
+BoundedUnknown は監査済みの有限な部分があるという分類であり、空間的 envelope の証明ではない。
+Step B の relevance 機構は追加しない。除去・native ID 再利用・world / checkpoint 境界でも
+寿命を再評価し、未対応 spawn の entity lifetime / native ID / type / Spawn trigger を保持する。
+履歴・provenance の破損は Permanent、受信 profile / game mode 不足は Transient のまま。

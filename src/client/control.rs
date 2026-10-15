@@ -1334,42 +1334,15 @@ mod tests {
     }
 
     #[test]
-    fn newly_relevant_unsupported_contact_stops_before_a_dispatchable_prediction() {
+    fn unsupported_spawn_stops_before_a_dispatchable_prediction_even_at_distance() {
         use crate::client::{
             SessionStamp,
-            entity::{
-                NativeMotion, NativeSpawn, NativeSpawnMotion, SpawnLedger,
-                owned_contacts::OwnedContacts,
-            },
+            entity::{NativeSpawn, NativeSpawnMotion, SpawnLedger, owned_contacts::OwnedContacts},
         };
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
             let mut ledger = SpawnLedger::default();
             ledger.contact_local_player(99);
             ledger.history_context(version, 0, 1);
-            ledger
-                .insert(
-                    version,
-                    NativeSpawn {
-                        id: 8,
-                        uuid: None,
-                        type_id: None,
-                        dedicated_type_name: Some("horse"),
-                        position: [6., 64., 0.5],
-                        living: Some(true),
-                    },
-                    1,
-                    16,
-                )
-                .unwrap();
-            ledger.initialize_motion(
-                8,
-                NativeSpawnMotion {
-                    position: Some([6., 64., 0.5]),
-                    rotation: Some([0.; 2]),
-                    ..Default::default()
-                },
-                1,
-            );
             let stamp = SessionStamp {
                 version,
                 connection_id: 1,
@@ -1383,13 +1356,27 @@ mod tests {
             let before = control.body.clone();
             let previous_frame = control.frame.clone();
             ledger.history_context(version, 0, 2);
-            ledger.receive_motion(
-                version,
+            ledger
+                .insert(
+                    version,
+                    NativeSpawn {
+                        id: 8,
+                        uuid: None,
+                        type_id: None,
+                        dedicated_type_name: Some("horse"),
+                        position: [600., 64., 0.5],
+                        living: Some(true),
+                    },
+                    2,
+                    16,
+                )
+                .unwrap();
+            ledger.initialize_motion(
                 8,
-                NativeMotion::Relative {
-                    delta: [-22528, 0, 0],
-                    rotation: None,
-                    ground: true,
+                NativeSpawnMotion {
+                    position: Some([600., 64., 0.5]),
+                    rotation: Some([0.; 2]),
+                    ..Default::default()
                 },
                 2,
             );
@@ -1399,7 +1386,19 @@ mod tests {
                 .unwrap()
                 .refresh(8, &ledger, 2)
                 .unwrap();
-            assert!(control.step(&start, &mut world(false)).is_err());
+            let error = control.step(&start, &mut world(false)).unwrap_err();
+            let detail = error.movement_refusal().unwrap();
+            assert!(matches!(detail, crate::MovementRefusal::Unsupported { .. }));
+            assert_eq!(detail.context().native_entity_id, Some(8));
+            assert_eq!(
+                detail.context().entity_type.as_deref(),
+                Some("minecraft:horse")
+            );
+            assert_eq!(detail.context().entity.unwrap().spawn_sequence(), 2);
+            assert_eq!(
+                detail.context().packet.as_ref().unwrap().packet_type,
+                "Spawn"
+            );
             assert_eq!(control.body, before);
             assert_eq!(control.frame, previous_frame);
             assert_eq!(control.dispatched_ticks, 1);
