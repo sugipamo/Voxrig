@@ -1129,17 +1129,16 @@ impl CommonFixture {
                 connection_id: id,
             }),
             started: Instant::now(),
-            writer: Mutex::new(Writer {
+            writer: Arc::new(Mutex::new(Writer {
                 stream: SocketWriter::new(writer),
                 compression: None,
-            }),
+            })),
             state: Mutex::new(state),
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
             revoked: AtomicBool::new(false),
             receiver_abort: std::sync::OnceLock::new(),
-            runtime: tokio::runtime::Handle::current(),
             interrupted_packet: AtomicI32::new(-1),
             limits: crate::client::ClientLimits::default(),
             interaction_sequence: AtomicI32::new(0),
@@ -1704,17 +1703,16 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
             connection_id: id,
         }),
         started: Instant::now(),
-        writer: Mutex::new(Writer {
+        writer: Arc::new(Mutex::new(Writer {
             stream: SocketWriter::new(writer),
             compression: None,
-        }),
+        })),
         state: Mutex::new(state),
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
         revoked: AtomicBool::new(false),
         receiver_abort: std::sync::OnceLock::new(),
-        runtime: tokio::runtime::Handle::current(),
         interrupted_packet: AtomicI32::new(-1),
         limits: crate::client::ClientLimits::default(),
         interaction_sequence: AtomicI32::new(0),
@@ -2877,6 +2875,7 @@ async fn cursor_return_close_same_consumer_both_modes_waits_for_each_actual_step
                 .await
                 .is_err()
         );
+        crate::client::tests::preclosed_quiesce_shutdown_scenario(&client).await;
         f.stop().await;
     }
 }
@@ -4680,4 +4679,20 @@ async fn ledger_modern_pending_swap_owns_cleanup_and_wait_expiry_remains_uncerta
         assert_eq!(ledger.test_written_through(), 1);
         f.stop().await;
     }
+}
+
+#[tokio::test]
+async fn preclosed_empty_cursor_quiesces_seals_and_joins_shutdown() {
+    let mut f = CommonFixture::new().await;
+    let screen = f.open_swap_container().await;
+    let client = f.client();
+    let close = client.survival().close_container(screen).await.unwrap();
+    assert!(close.dispatched);
+    assert!(close.server_close_sequence.is_none());
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+    );
+    crate::client::tests::preclosed_quiesce_shutdown_scenario(&client).await;
+    f.stop().await;
 }

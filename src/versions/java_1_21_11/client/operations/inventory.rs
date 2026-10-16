@@ -342,10 +342,7 @@ impl Operations {
         })
         .await
         .map_err(|_| {
-            self.bot
-                .session
-                .ledger
-                .fail(Failure::TransactionUnconfirmed);
+            self.bot.session.ledger.fail(Failure::TransactionExpired);
             Error::new(
                 ErrorKind::Timeout,
                 anyhow::anyhow!(

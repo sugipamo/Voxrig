@@ -52,6 +52,8 @@ pub(crate) enum Failure {
     OwnerLost,
     UncertainDispatch,
     TransactionUnconfirmed,
+    TransactionExpired,
+    TransactionOutcomeUnknown,
     RequiredReleaseFailed,
     Revoked,
     IdExhausted,
@@ -161,6 +163,7 @@ struct State {
 static NEXT_PROVENANCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 struct Shared {
+    shutdown: super::shutdown::Registry,
     provenance: u64,
     generation: GenerationKey,
     state: Mutex<State>,
@@ -239,6 +242,12 @@ pub(crate) struct Ledger {
 }
 
 impl Ledger {
+    pub(crate) fn tasks(&self) -> &super::shutdown::Registry {
+        &self.shared.shutdown
+    }
+}
+
+impl Ledger {
     #[allow(deprecated)] // fetch_update is required by MSRV 1.85.
     pub(crate) fn new(generation: GenerationKey) -> Self {
         let (changed, _) = watch::channel(());
@@ -251,6 +260,10 @@ impl Ledger {
             .ok();
         Self {
             shared: Arc::new(Shared {
+                shutdown: super::shutdown::Registry::new(super::GenerationKey::new(
+                    generation.version,
+                    generation.connection_id,
+                )),
                 provenance: provenance.unwrap_or(0),
                 generation,
                 changed,
@@ -377,6 +390,9 @@ pub(crate) struct WorkGuard {
 }
 
 impl WorkGuard {
+    pub(crate) fn tasks(&self) -> &super::shutdown::Registry {
+        &self.shared.shutdown
+    }
     pub(crate) fn child(&self) -> Result<Self, AdmissionError> {
         self.shared.lock().add_guard(self.root)?;
         Ok(Self {
@@ -617,14 +633,16 @@ fn publish_completion(permit: WritePermit) {
 // bytes can only be emitted by consuming a real permit here. Shutdown emits no
 // packet and retains the adapters' existing teardown semantics.
 pub(crate) struct SocketWriter<W> {
-    inner: W,
+    inner: Option<W>,
+    shutdown_error: Option<Arc<std::io::Error>>,
     #[cfg(test)]
     replacement: Option<testing::BoundedWriter>,
 }
 impl<W: tokio::io::AsyncWrite + Unpin> SocketWriter<W> {
     pub(crate) fn new(inner: W) -> Self {
         Self {
-            inner,
+            inner: Some(inner),
+            shutdown_error: None,
             #[cfg(test)]
             replacement: None,
         }
@@ -646,20 +664,42 @@ impl<W: tokio::io::AsyncWrite + Unpin> SocketWriter<W> {
             publish_completion(permit);
             return Ok(());
         }
-        crate::protocol::write_packet(&mut self.inner, compression, id, payload).await?;
+        crate::protocol::write_packet(
+            self.inner.as_mut().ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::NotConnected, "writer released")
+            })?,
+            compression,
+            id,
+            payload,
+        )
+        .await?;
         publish_completion(permit);
         Ok(())
     }
     pub(crate) async fn shutdown(&mut self) -> std::io::Result<()> {
-        tokio::io::AsyncWriteExt::shutdown(&mut self.inner).await
+        if let Some(cause) = &self.shutdown_error {
+            return Err(std::io::Error::other(cause.clone()));
+        }
+        if let Some(mut inner) = self.inner.take() {
+            if let Err(cause) = tokio::io::AsyncWriteExt::shutdown(&mut inner).await {
+                let cause = Arc::new(cause);
+                self.shutdown_error = Some(cause.clone());
+                return Err(std::io::Error::other(cause));
+            }
+        }
+        Ok(())
     }
     #[cfg(test)]
     pub(crate) fn test_replace(&mut self, writer: testing::BoundedWriter) {
         self.replacement = Some(writer);
     }
     #[cfg(test)]
+    pub(crate) fn is_released(&self) -> bool {
+        self.inner.is_none()
+    }
+    #[cfg(test)]
     pub(crate) fn test_inner(&self) -> &W {
-        &self.inner
+        self.inner.as_ref().expect("test writer open")
     }
 }
 

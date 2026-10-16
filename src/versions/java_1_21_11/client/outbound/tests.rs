@@ -603,11 +603,10 @@ async fn common_dismount_requires_receipt_before_release_and_never_replays() {
             client.dismount_record().await.unwrap().unwrap().stage,
             DismountStage::Completed
         );
-        assert!(
-            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
-                .await
-                .is_err()
-        );
+        assert!(!matches!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None)).await,
+            Ok(Ok(_))
+        ));
     }
 }
 
@@ -692,17 +691,16 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
             connection_id: id,
         }),
         started: Instant::now(),
-        writer: Mutex::new(Writer {
+        writer: Arc::new(Mutex::new(Writer {
             stream: SocketWriter::new(writer),
             compression: None,
-        }),
+        })),
         state: Mutex::new(State::default()),
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
         revoked: AtomicBool::new(false),
         receiver_abort: std::sync::OnceLock::new(),
-        runtime: tokio::runtime::Handle::current(),
         interrupted_packet: AtomicI32::new(-1),
         limits: crate::client::ClientLimits::default(),
         interaction_sequence: AtomicI32::new(0),
@@ -3961,11 +3959,10 @@ async fn common_respawn_uses_received_death_once_and_retains_actual_new_world() 
         assert!(client.respawn().await.is_err()); // No fresh dead health or ready baseline.
         session.stop();
         assert!(client.respawn_record().unwrap().dispatched);
-        assert!(
-            tokio::time::timeout(Duration::from_millis(30), read_packet(&mut peer, None))
-                .await
-                .is_err()
-        );
+        assert!(!matches!(
+            tokio::time::timeout(Duration::from_millis(30), read_packet(&mut peer, None)).await,
+            Ok(Ok(_))
+        ));
     }
 }
 
@@ -4985,4 +4982,52 @@ async fn ledger_native_and_common_share_debt_across_finite_motion_ticks() {
     for _ in 0..4 {
         read_packet(&mut peer, None).await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn shutdown_waiters_are_passive_cancel_safe_concurrent_and_cached() {
+    let (session, reader, _peer) = fixture().await;
+    let api = operations(&session);
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let receiving = session.clone();
+    session
+        .ledger
+        .tasks()
+        .spawn(async move { receiving.run_receiver(reader).await });
+    let writer = session.writer.lock().await;
+    let mut cancelled = Box::pin(client.wait_shutdown());
+    pending(cancelled.as_mut()).await;
+    let _fence = client.revoke_connection();
+    drop(cancelled);
+    let mut waiting = Box::pin(client.wait_shutdown());
+    pending(waiting.as_mut()).await;
+    drop(waiting);
+    drop(writer);
+    let clone = client.clone();
+    let (first, second) = timeout(Duration::from_secs(2), async {
+        tokio::join!(client.wait_shutdown(), clone.wait_shutdown())
+    })
+    .await
+    .unwrap();
+    first.unwrap();
+    second.unwrap();
+    client.wait_shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn shutdown_natural_eof_requires_no_second_revoke() {
+    let (session, reader, peer) = fixture().await;
+    let api = operations(&session);
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let receiving = session.clone();
+    session
+        .ledger
+        .tasks()
+        .spawn(async move { receiving.run_receiver(reader).await });
+    drop(peer);
+    timeout(Duration::from_secs(2), client.wait_shutdown())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(session.writer.lock().await.stream.is_released());
 }

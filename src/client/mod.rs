@@ -70,11 +70,13 @@ pub use player_facts::{PlayerAttribute, PlayerEffect};
 mod drain;
 pub(crate) mod ledger;
 mod lifecycle;
+pub(crate) mod shutdown;
 pub use drain::{
     AdmissionId, DrainError, DrainErrorKind, DrainHandle, DrainReceipt, DrainScope, GenerationKey,
     QuiesceHandle, StopError, StopPermit, StopReceipt, StopTarget, StopTargetKind, WriteOrdinal,
 };
 pub use lifecycle::{ConnectionRevocation, ConnectionStatus};
+pub use shutdown::{ShutdownError, ShutdownErrorKind};
 pub(crate) mod login;
 pub use furnace::{FurnaceObservation, FurnaceSlot};
 pub mod manager;

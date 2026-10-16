@@ -271,7 +271,8 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
                 let _ = reply.send(crate::client::ledger::finite::checked(
                     bot.common_recipe_placement_context_received().await,
                 ));
-            });
+            })
+            .await;
             result
                 .await
                 .map_err(|_| unavailable("recipe placement inspection owner unavailable"))??;

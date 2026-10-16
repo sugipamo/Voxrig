@@ -99,28 +99,40 @@ impl Progress {
 
 pub(super) struct Diagnostics {
     progress: Option<Arc<Mutex<Progress>>>,
-    reporter: Option<tokio::task::JoinHandle<()>>,
+    #[allow(dead_code)] // Retained output observer; actual task is joined by the registry.
+    reporter: Option<crate::client::shutdown::Task<()>>,
+    stop_reporter: Option<tokio::sync::oneshot::Sender<()>>,
     generation: u64,
 }
 
 impl Diagnostics {
-    pub(super) fn new(generation: u64) -> Self {
+    pub(super) fn new(generation: u64, ledger: &crate::client::ledger::Ledger) -> Self {
         let enabled = std::env::var_os("VOXRIG_TRACE_READER_PHASES").is_some_and(|v| v == "1")
             && std::env::var_os("VOXRIG_TRACE_PROTOCOL").is_some_and(|v| v == "1");
-        Self::with_enabled(generation, enabled)
+        Self::with_ledger(generation, enabled, Some(ledger))
     }
 
+    #[cfg(test)]
     fn with_enabled(generation: u64, enabled: bool) -> Self {
+        Self::with_ledger(generation, enabled, None)
+    }
+    fn with_ledger(
+        generation: u64,
+        enabled: bool,
+        ledger: Option<&crate::client::ledger::Ledger>,
+    ) -> Self {
         if !enabled {
             return Self {
                 progress: None,
                 reporter: None,
+                stop_reporter: None,
                 generation,
             };
         }
         let progress = Arc::new(Mutex::new(Progress::new()));
         let observed = Arc::clone(&progress);
-        let reporter = tokio::spawn(async move {
+        let (stop, stopped) = tokio::sync::oneshot::channel();
+        let report = async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
             let mut previous = Instant::now();
@@ -136,10 +148,29 @@ impl Diagnostics {
                         .snapshot(generation, false, elapsed)
                 });
             }
-        });
+        };
+        let future = async move {
+            tokio::select! { _ = report => {}, _ = stopped => {} }
+        };
+        let reporter = match ledger {
+            Some(ledger) => ledger.tasks().spawn(future),
+            None => {
+                let ledger =
+                    crate::client::ledger::Ledger::tracking(crate::client::ledger::GenerationKey {
+                        version: crate::MinecraftVersion::Java1_16_1,
+                        connection_id: generation,
+                    });
+                let retained = ledger.clone();
+                ledger.tasks().spawn(async move {
+                    let _owner = retained;
+                    future.await;
+                })
+            }
+        };
         Self {
             progress: Some(progress),
             reporter: Some(reporter),
+            stop_reporter: Some(stop),
             generation,
         }
     }
@@ -185,8 +216,8 @@ impl Diagnostics {
 
 impl Drop for Diagnostics {
     fn drop(&mut self) {
-        if let Some(reporter) = &self.reporter {
-            reporter.abort();
+        if let Some(stop) = self.stop_reporter.take() {
+            let _ = stop.send(());
         }
         if let Some(progress) = &self.progress {
             crate::lifecycle::emit_protocol_timing(|| {
@@ -248,7 +279,12 @@ mod tests {
     #[tokio::test]
     async fn dropping_diagnostics_aborts_reporter_and_disabled_has_no_task() {
         let diagnostics = Diagnostics::with_enabled(1, true);
-        let abort = diagnostics.reporter.as_ref().unwrap().abort_handle();
+        let abort = diagnostics
+            .reporter
+            .as_ref()
+            .unwrap()
+            .abort_handle()
+            .unwrap();
         drop(diagnostics);
         tokio::task::yield_now().await;
         assert!(abort.is_finished());

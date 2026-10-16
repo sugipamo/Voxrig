@@ -2072,3 +2072,27 @@ pub(crate) async fn common_retired_vehicle_ground_scenario(client: &Client) {
         before.received_pose
     );
 }
+
+/// Golemkit-side sequencing contract using only Voxrig's public capabilities.
+pub(crate) async fn preclosed_quiesce_shutdown_scenario(client: &Client) {
+    let key = client.generation_key();
+    let mut owner = client.begin_quiesce(key).unwrap();
+    let first = owner.admitted_drain();
+    let poll = || first.is_drained();
+    fn callback(_: &(impl Fn() -> std::result::Result<bool, super::DrainError> + Send + Sync)) {}
+    callback(&poll);
+    let first_receipt = first.wait().await.unwrap();
+    assert!(poll().unwrap());
+    assert_eq!(first_receipt.scope(), super::DrainScope::ProducersParked);
+    let final_stage = owner.seal_for_fence().unwrap();
+    let final_receipt = final_stage.wait().await.unwrap();
+    assert_eq!(final_receipt.scope(), super::DrainScope::SealedForFence);
+    assert_eq!(final_receipt.generation(), key);
+    let _revoked = client.revoke_connection();
+    tokio::time::timeout(std::time::Duration::from_secs(2), client.wait_shutdown())
+        .await
+        .unwrap()
+        .unwrap();
+    // Successful shutdown preserves the historical final fact after fencing.
+    assert_eq!(final_stage.wait().await.unwrap(), final_receipt);
+}

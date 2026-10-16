@@ -203,6 +203,8 @@ fn failure_kind(failure: Failure) -> DrainErrorKind {
         Failure::OwnerLost => DrainErrorKind::OwnerLost,
         Failure::UncertainDispatch => DrainErrorKind::UncertainDispatch,
         Failure::TransactionUnconfirmed => DrainErrorKind::TransactionUnconfirmed,
+        Failure::TransactionExpired => DrainErrorKind::TransactionExpired,
+        Failure::TransactionOutcomeUnknown => DrainErrorKind::TransactionOutcomeUnknown,
         Failure::RequiredReleaseFailed => DrainErrorKind::RequiredReleaseFailed,
         Failure::Revoked => DrainErrorKind::RevokedBeforeDrain,
         Failure::IdExhausted => DrainErrorKind::ResourceExhausted,

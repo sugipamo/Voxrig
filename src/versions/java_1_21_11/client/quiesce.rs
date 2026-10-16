@@ -168,12 +168,12 @@ impl crate::client::adapter::DrainOps for operations::Operations {
             self.bot
                 .session
                 .ledger
-                .fail(Failure::TransactionUnconfirmed);
+                .fail(Failure::TransactionOutcomeUnknown);
             return Err(StopError::Drain(
                 self.bot
                     .session
                     .ledger
-                    .error(crate::client::DrainErrorKind::TransactionUnconfirmed),
+                    .error(crate::client::DrainErrorKind::TransactionOutcomeUnknown),
             ));
         }
         Ok(targets)

@@ -36,6 +36,15 @@ impl Ledger {
     }
 }
 impl WorkGuard {
+    pub(crate) fn spawn<F>(self, future: F) -> crate::client::shutdown::Task<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let shared = self.shared.clone();
+        shared.shutdown.spawn(self.run(future))
+    }
+
     // Box at construction, rather than retaining F inside an async helper's
     // frame. Native composite inventory helpers nest several such boundaries;
     // their future size must not multiply on the caller's thread stack.
@@ -119,10 +128,16 @@ impl Retained {
         if let Some((current, work)) = self.entries.get(&family) {
             if *current == id {
                 let work = Arc::downgrade(work);
-                tokio::spawn(async move {
+                let shared = &self.entries.get(&family).expect("retained work").1;
+                let Some(shared) = shared.child() else {
+                    return;
+                };
+                let registry = shared.shared.clone();
+                shared.finish(Outcome::NoWrite);
+                registry.shutdown.spawn(async move {
                     tokio::time::sleep_until(deadline).await;
                     if let Some(work) = work.upgrade() {
-                        work.finish(Outcome::Failed(Failure::TransactionUnconfirmed));
+                        work.finish(Outcome::Failed(Failure::TransactionExpired));
                     }
                 });
             }
@@ -176,6 +191,29 @@ mod tests {
             version: MinecraftVersion::Java1_16_1,
             connection_id: id,
         })
+    }
+    #[tokio::test]
+    async fn finite_generic_failure_keeps_unconfirmed_fallback() {
+        let ledger = ledger(1);
+        let result = ledger.work().run_result(async { Err::<(), _>(()) }).await;
+        assert!(result.is_err());
+        assert_eq!(
+            ledger.cut(false).wait().await.unwrap_err().public().kind(),
+            crate::client::DrainErrorKind::TransactionUnconfirmed
+        );
+    }
+    #[tokio::test]
+    async fn finite_observer_timeout_is_not_transaction_expiry() {
+        let ledger = ledger(1);
+        let work = ledger.work();
+        let mut drain = ledger.cut(false);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(1), drain.wait())
+                .await
+                .is_err()
+        );
+        work.finish(Outcome::Complete);
+        drain.wait().await.unwrap();
     }
     #[tokio::test]
     async fn ledger_finite_late_writes_inherit_the_cut_after_root_closure() {
@@ -262,7 +300,10 @@ mod tests {
                 retained.reconcile(Family::Click, Some((1, true, false)));
             }
             if !complete {
-                assert!(drain.wait().await.is_err());
+                assert_eq!(
+                    drain.wait().await.unwrap_err().public().kind(),
+                    crate::client::DrainErrorKind::TransactionExpired
+                );
             } else {
                 drain.wait().await.unwrap();
             }

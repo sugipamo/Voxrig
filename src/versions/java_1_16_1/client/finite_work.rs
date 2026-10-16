@@ -17,17 +17,27 @@ impl Bot {
         &self,
         family: Family,
         future: F,
-    ) -> tokio::task::JoinHandle<F::Output>
+    ) -> impl Future<Output = ()> + Send
     where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
+        F: Future<Output = ()> + Send + 'static,
     {
-        let work = self.finite_work.lock().expect("finite work").child(family);
-        if let Some(work) = work {
-            self.spawn_finite_work(work, future)
+        let work = (self.connection_state() == ConnectionState::Ready)
+            .then(|| self.finite_work.lock().expect("finite work").child(family))
+            .flatten();
+        let future = Box::pin(future);
+        let inspection = if let Some(work) = work {
+            // Accepted reconciliation stays connection-owned. Its existing
+            // reply channel need not wait for unrelated finite-book cleanup.
+            self.spawn_finite_work(work, future);
+            None
         } else {
-            // Completed/failed history has no remaining write authority.
-            tokio::spawn(future)
+            // Read-only history inspection remains available after shutdown.
+            Some(future)
+        };
+        async move {
+            if let Some(inspection) = inspection {
+                inspection.await;
+            }
         }
     }
 
@@ -40,7 +50,7 @@ impl Bot {
     pub(super) fn spawn_finite_result<F, T, E>(
         &self,
         future: F,
-    ) -> tokio::task::JoinHandle<std::result::Result<T, E>>
+    ) -> crate::client::shutdown::Task<std::result::Result<T, E>>
     where
         F: Future<Output = std::result::Result<T, E>> + Send + 'static,
         T: Send + 'static,
@@ -48,7 +58,7 @@ impl Bot {
     {
         self.spawn_finite(async move { crate::client::ledger::finite::checked(future.await) })
     }
-    pub(super) fn spawn_finite<F>(&self, future: F) -> tokio::task::JoinHandle<F::Output>
+    pub(super) fn spawn_finite<F>(&self, future: F) -> crate::client::shutdown::Task<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
@@ -59,17 +69,17 @@ impl Bot {
         &self,
         work: WorkGuard,
         future: F,
-    ) -> tokio::task::JoinHandle<F::Output>
+    ) -> crate::client::shutdown::Task<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
         let bot = self.clone_internal();
-        tokio::spawn(work.run(async move {
+        work.spawn(async move {
             let output = future.await;
             bot.reconcile_finite().await;
             output
-        }))
+        })
     }
     pub(super) async fn reconcile_finite(&self) {
         let state = super::lock_packet_state(&self.common_inventory_swap)

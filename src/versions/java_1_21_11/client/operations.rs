@@ -377,7 +377,8 @@ impl Operations {
     /// Inspect unresolved operation history without sending, reconnecting or
     /// checking for a live connection. Never turns stale data into action authority.
     pub async fn operation_history(&self) -> OperationHistory {
-        let state = self.bot.session.state.lock().await;
+        let mut state = self.bot.session.state.lock().await;
+        state.inspect_motion(self.bot.session.stopped.load(Ordering::Acquire));
         let closed = self.bot.session.stopped.load(Ordering::Acquire);
         let interrupted = self.bot.session.interrupted_packet.load(Ordering::Acquire);
         OperationHistory {

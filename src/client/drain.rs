@@ -109,7 +109,11 @@ pub enum DrainErrorKind {
     UncertainDispatch,
     /// Covered work lost its owner through drop, panic or task abort.
     OwnerLost,
-    /// Required pending, barrier, swap or finite cleanup expired or is unconfirmed.
+    /// An existing required protocol or cleanup deadline was observed to expire.
+    TransactionExpired,
+    /// Concrete outcome, context or provenance loss prevents required confirmation.
+    TransactionOutcomeUnknown,
+    /// Required transaction or cleanup is unconfirmed without a more specific cause.
     TransactionUnconfirmed,
     /// A selected required neutral release failed or was refused.
     RequiredReleaseFailed,
@@ -540,6 +544,28 @@ impl StopPermit<'_> {
     }
 }
 impl Client {
+    /// Observe shutdown of this exact Client's original transport generation,
+    /// identified by `generation_key()`, shared with all common/native clones.
+    /// This passive observer does not initiate quiesce, cleanup or shutdown and
+    /// remains pending until transport termination begins. Concurrent and repeated
+    /// waiters all observe the same cached result; after completion this returns
+    /// that result immediately, including the original error on failed shutdown.
+    /// Dropping or timing out this future cancels observation only and cannot
+    /// affect shutdown progress or another waiter.
+    ///
+    /// `Ok(())` certifies release of the local transport halves and actual exit
+    /// of connection-owned tasks (including timers and workers). It does not prove
+    /// server acknowledgement, game effects or physical stillness. Manager event
+    /// relays and caller-owned tasks/futures are outside this scope: callers must
+    /// cancel/join their own source tasks. A caller holding writer serialization
+    /// can delay completion. No bounded completion time or timeout is provided.
+    pub fn wait_shutdown(
+        &self,
+    ) -> impl Future<Output = Result<(), super::ShutdownError>> + Send + '_ {
+        let ledger = super::dispatch!(&self.adapter, a => DrainOps::drain_ledger(a));
+        async move { ledger.tasks().wait().await }
+    }
+
     /// Immutable process-local transport identity shared by all common/native clones.
     /// Synchronous observation, before or after revocation; no I/O, runtime or errors.
     pub fn generation_key(&self) -> GenerationKey {
@@ -550,6 +576,13 @@ impl Client {
     /// Existing Result-returning mutations/native/raw sends then fail with ErrorKind::State.
     /// Legacy void control setters become no-ops. Drop never resumes or selects stops.
     /// Neither stage proves server acceptance; the final stage guarantees no later Voxrig writes.
+    ///
+    /// Before calling, serialize application source admission, settle inventory
+    /// operations and explicitly close containers using their original ScreenId.
+    /// End item use before quiesce.
+    /// Keep this serialization through begin: clones must not reopen a container
+    /// or restart item use. Quiesce does not automatically close screens or release
+    /// items, and a new ordinary container close is rejected after begin.
     pub fn begin_quiesce(&self, generation: GenerationKey) -> Result<QuiesceHandle, DrainError> {
         let (ledger, ready) = super::dispatch!(&self.adapter, a => (DrainOps::drain_ledger(a), DrainOps::drain_ready(a)));
         let stage = ledger.begin(generation, ready)?;

@@ -325,7 +325,8 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
                         bot.common_crafting_context_received().await,
                     ));
                 },
-            );
+            )
+            .await;
             result
                 .await
                 .map_err(|_| unavailable("crafting inspection owner unavailable"))??;
