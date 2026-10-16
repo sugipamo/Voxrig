@@ -463,7 +463,7 @@ impl crate::client::adapter::CoreOps for Bot {
     async fn respawn(&self) -> Result<api::RespawnRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let bot = self.clone();
                 self.spawn_finite_result(async move {
@@ -718,19 +718,24 @@ impl crate::client::adapter::CoreOps for Bot {
         })
     }
     async fn execute(&self, mode: api::GameMode, action: Action<'_>) -> Result<Option<i32>> {
-        if let Some(command) = match action {
-            Action::SetFlying(flying) => Some(api::FlightCommand::SetFlying { flying }),
-            Action::MoveFlying(position, rotation) => {
-                Some(api::FlightCommand::Move { position, rotation })
-            }
-            _ => None,
-        } {
-            if mode != api::GameMode::Creative {
-                return Err(common_state("creative operation required"));
-            }
-            return self.flight(command).await.map(|_| None);
-        }
-        self.execute_common_inner(mode, action, None).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if let Some(command) = match action {
+                    Action::SetFlying(flying) => Some(api::FlightCommand::SetFlying { flying }),
+                    Action::MoveFlying(position, rotation) => {
+                        Some(api::FlightCommand::Move { position, rotation })
+                    }
+                    _ => None,
+                } {
+                    if mode != api::GameMode::Creative {
+                        return Err(common_state("creative operation required"));
+                    }
+                    return self.flight(command).await.map(|_| None);
+                }
+                self.execute_common_inner(mode, action, None).await
+            })
+            .await
     }
 }
 

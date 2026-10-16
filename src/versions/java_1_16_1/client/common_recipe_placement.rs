@@ -206,7 +206,7 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
     ) -> Result<RecipePlacementRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;

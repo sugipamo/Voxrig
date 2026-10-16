@@ -126,7 +126,7 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
         source: InventorySource,
         slot: u16,
     ) -> Result<InventoryTransferRecord> {
-        self.bot.session.ledger.work().run_scoped(async {
+        self.bot.session.ledger.try_work()?.run_scoped(async {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
         if let InventorySource::Container { screen } = source {

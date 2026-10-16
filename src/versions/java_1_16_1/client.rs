@@ -1087,6 +1087,7 @@ pub struct Bot {
     stopped: Arc<AtomicBool>,
     terminal_emitted: Arc<AtomicBool>,
     jump_requested: Arc<AtomicBool>,
+    native_jump_work: Arc<StdMutex<Option<crate::client::ledger::WorkGuard>>>,
     teleport_barrier_ticks: Arc<AtomicU8>,
     motion: Arc<Mutex<Versioned<MotionState>>>,
     survival: Arc<RwLock<Versioned<SurvivalState>>>,
@@ -1211,6 +1212,7 @@ impl Bot {
             stopped: self.stopped.clone(),
             terminal_emitted: self.terminal_emitted.clone(),
             jump_requested: self.jump_requested.clone(),
+            native_jump_work: self.native_jump_work.clone(),
             teleport_barrier_ticks: self.teleport_barrier_ticks.clone(),
             motion: self.motion.clone(),
             survival: self.survival.clone(),
@@ -1417,6 +1419,7 @@ impl Bot {
             stopped: Arc::new(AtomicBool::new(false)),
             terminal_emitted: Arc::new(AtomicBool::new(false)),
             jump_requested: Arc::new(AtomicBool::new(false)),
+            native_jump_work: Arc::default(),
             teleport_barrier_ticks: Arc::new(AtomicU8::new(0)),
             motion: Arc::new(Mutex::new(Versioned::new(
                 MotionState::default(),
@@ -1607,7 +1610,12 @@ impl Bot {
             supervisor.packet_applied.notify_waiters();
         });
         let physics = bot.clone_internal();
-        tokio::spawn(async move { physics.control_loop().await });
+        let producer = bot
+            .connection
+            .ledger()
+            .register_producer()
+            .map_err(crate::client::ledger::finite::admission_error)?;
+        tokio::spawn(async move { physics.control_loop(producer).await });
         Ok(bot)
     }
     /// Performs the `subscribe` operation.
@@ -1694,6 +1702,7 @@ impl Bot {
         operation: Operation,
         diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
     ) -> std::result::Result<DispatchOutcome, DispatchError> {
+        self.observe_stop_context().await;
         let diagnostic_correlation =
             diagnostic_correlation.filter(|_| crate::lifecycle::dig_lifecycle_trace_enabled());
         let dig_diagnostic = match (&operation, diagnostic_correlation) {
@@ -1766,7 +1775,8 @@ impl Bot {
         let result = self
             .connection
             .ledger()
-            .work()
+            .try_work()
+            .map_err(|_| DispatchError::Admission(OperationAdmissionError::InvalidOperation))?
             .run_result(async {
                 let coherent_state = self.coherent_state_gate.lock().await;
                 match operation {
@@ -1922,7 +1932,8 @@ impl Bot {
         let result = self
             .connection
             .ledger()
-            .work()
+            .try_work()
+            .map_err(|_| DispatchError::Admission(OperationAdmissionError::InvalidOperation))?
             .run_result(async {
                 if clicks.is_empty() {
                     return Err(DispatchError::InvalidInput);
@@ -2205,7 +2216,8 @@ impl Bot {
         let result = self
             .connection
             .ledger()
-            .work()
+            .try_work()
+            .map_err(|_| DispatchError::Admission(OperationAdmissionError::InvalidOperation))?
             .run_result(async {
                 if matches!(operation, CleanupOperation::ControlClear) {
                     self.connection
@@ -2696,13 +2708,18 @@ impl Bot {
         position: BlockPos,
         wait: Duration,
     ) -> Result<NbtQueryResponse> {
-        let transaction_id = self.next_nbt_query.fetch_add(1, Ordering::Relaxed);
-        let mut events = self.subscribe();
-        let mut payload = Vec::new();
-        put_varint(&mut payload, transaction_id);
-        payload.write_u64::<BigEndian>(position.packed())?;
-        self.send(0x01, &payload).await?;
-        wait_for_nbt(&mut events, transaction_id, wait).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let transaction_id = self.next_nbt_query.fetch_add(1, Ordering::Relaxed);
+                let mut events = self.subscribe();
+                let mut payload = Vec::new();
+                put_varint(&mut payload, transaction_id);
+                payload.write_u64::<BigEndian>(position.packed())?;
+                self.send(0x01, &payload).await?;
+                wait_for_nbt(&mut events, transaction_id, wait).await
+            })
+            .await
     }
     /// Performs the `query_entity_nbt` operation.
     pub async fn query_entity_nbt(
@@ -2710,24 +2727,37 @@ impl Bot {
         entity_id: i32,
         wait: Duration,
     ) -> Result<NbtQueryResponse> {
-        let transaction_id = self.next_nbt_query.fetch_add(1, Ordering::Relaxed);
-        let mut events = self.subscribe();
-        let mut payload = Vec::new();
-        put_varint(&mut payload, transaction_id);
-        put_varint(&mut payload, entity_id);
-        self.send(0x0d, &payload).await?;
-        wait_for_nbt(&mut events, transaction_id, wait).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let transaction_id = self.next_nbt_query.fetch_add(1, Ordering::Relaxed);
+                let mut events = self.subscribe();
+                let mut payload = Vec::new();
+                put_varint(&mut payload, transaction_id);
+                put_varint(&mut payload, entity_id);
+                self.send(0x0d, &payload).await?;
+                wait_for_nbt(&mut events, transaction_id, wait).await
+            })
+            .await
     }
     /// Performs the `respond_resource_pack` operation.
     pub async fn respond_resource_pack(&self, status: ResourcePackStatus) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, status as i32);
-        self.send(0x20, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, status as i32);
+                self.send(0x20, &payload).await
+            })
+            .await
     }
 
     /// Replaces and dispatches the standard Client Settings and brand payloads.
     pub async fn set_client_settings(&self, settings: ClientSettings) -> Result<()> {
-        self.dispatch_client_settings(settings, false).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async { self.dispatch_client_settings(settings, false).await })
+            .await
     }
 
     async fn set_client_settings_protocol(&self, settings: ClientSettings) -> Result<()> {
@@ -2752,7 +2782,12 @@ impl Bot {
         payload.push(u8::from(settings.chat_colors));
         payload.push(settings.skin_parts);
         put_varint(&mut payload, settings.main_hand as i32);
-        let response_work = protocol_response.then(|| self.connection.protocol_work());
+        let response_work = protocol_response
+            .then(|| self.connection.protocol_work())
+            .flatten();
+        if protocol_response && response_work.is_none() {
+            return Ok(());
+        }
         if let Some(work) = &response_work {
             self.connection
                 .dispatch_protocol_work(
@@ -2932,15 +2967,22 @@ impl Bot {
         self.connection.control_snapshot().await
     }
     /// Replaces the persistent input state consumed by the 20 Hz physics loop.
+    /// After `Client::begin_quiesce`, this is a no-op: no state change, queueing or write.
     ///
     /// Returning means the local state was updated; it does not wait for a
     /// movement packet or server acknowledgement. The state remains active
     /// until replaced or cleared.
     pub async fn set_control(&self, control: ControlState) {
-        let _ = self
-            .connection
-            .replace_control(self.operation_context(0), OperationClass::Normal, control)
-            .await;
+        let Ok(work) = self.connection.ledger().try_work() else {
+            return;
+        };
+        work.run_scoped(async {
+            let _ = self
+                .connection
+                .replace_control(self.operation_context(0), OperationClass::Normal, control)
+                .await;
+        })
+        .await;
     }
 
     /// Replaces the actor-owned control state for a Caller-selected observation.
@@ -2964,28 +3006,38 @@ impl Bot {
             .map_err(DispatchError::Admission)
     }
     /// Clears every persistent control input locally.
+    /// After `Client::begin_quiesce`, this is a no-op: no state change, queueing or write.
     pub async fn clear_control(&self) {
-        let _ = self
-            .connection
-            .replace_control(
-                self.operation_context(0),
-                OperationClass::Cleanup,
-                ControlState::default(),
-            )
-            .await;
+        let Ok(work) = self.connection.ledger().try_work() else {
+            return;
+        };
+        work.run_scoped(async {
+            let _ = self
+                .connection
+                .replace_control(
+                    self.operation_context(0),
+                    OperationClass::Cleanup,
+                    ControlState::default(),
+                )
+                .await;
+        })
+        .await;
     }
     /// Access protocol-adjacent operations with weaker compatibility guarantees.
     pub fn unstable(&self) -> crate::versions::java_1_16_1::UnstableBot<'_> {
         crate::versions::java_1_16_1::UnstableBot { bot: self }
     }
     /// Temporarily stops the 20 Hz movement producer without changing `ControlState`.
+    /// After `Client::begin_quiesce`, this is a no-op: no state change, queueing or write.
     ///
     /// This is useful when an external controller knows that a server teleport is imminent.
     /// The previous control state is applied again automatically after the suspension.
     pub fn suspend_movement_for(&self, duration: Duration) {
-        let ticks = duration.as_millis().div_ceil(50).min(u128::from(u8::MAX)) as u8;
-        self.teleport_barrier_ticks
-            .fetch_max(ticks, Ordering::AcqRel);
+        self.connection.ledger().while_open(|| {
+            let ticks = duration.as_millis().div_ceil(50).min(u128::from(u8::MAX)) as u8;
+            self.teleport_barrier_ticks
+                .fetch_max(ticks, Ordering::AcqRel);
+        });
     }
     /// Waits until login, spawn, and the initial authoritative position complete.
     pub async fn wait_until_ready(&self) -> Result<()> {
@@ -3006,36 +3058,46 @@ impl Bot {
         }
     }
     pub(crate) async fn move_relative_unchecked(&self, forward: f64, strafe: f64) -> Result<()> {
-        self.wait_until_ready().await?;
-        let _coherent_state = self.coherent_state_gate.lock().await;
-        let mut p = self.player.lock().await;
-        let yaw = (p.yaw as f64).to_radians();
-        p.x += -yaw.sin() * forward + yaw.cos() * strafe;
-        p.z += yaw.cos() * forward + yaw.sin() * strafe;
-        {
-            let mut receipts = self.common_receipts.lock().await;
-            receipts.position_source = Some(crate::client::ValueSource::Submitted);
-            receipts.ground_source = None;
-        }
-        drop(p);
-        self.send_position().await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.wait_until_ready().await?;
+                let _coherent_state = self.coherent_state_gate.lock().await;
+                let mut p = self.player.lock().await;
+                let yaw = (p.yaw as f64).to_radians();
+                p.x += -yaw.sin() * forward + yaw.cos() * strafe;
+                p.z += yaw.cos() * forward + yaw.sin() * strafe;
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.position_source = Some(crate::client::ValueSource::Submitted);
+                    receipts.ground_source = None;
+                }
+                drop(p);
+                self.send_position().await
+            })
+            .await
     }
     /// Updates yaw/pitch locally and dispatches one movement packet.
     ///
     /// Success guarantees packet dispatch, not server acceptance of the pose.
     pub async fn look(&self, yaw: f32, pitch: f32) -> Result<()> {
-        if !yaw.is_finite() || !pitch.is_finite() {
-            bail!("look angles must be finite");
-        }
-        self.wait_until_ready().await?;
-        let _coherent_state = self.coherent_state_gate.lock().await;
-        let mut p = self.player.lock().await;
-        p.yaw = yaw;
-        p.pitch = pitch.clamp(-90.0, 90.0);
-        self.common_receipts.lock().await.rotation_source =
-            Some(crate::client::ValueSource::Submitted);
-        drop(p);
-        self.send_position().await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if !yaw.is_finite() || !pitch.is_finite() {
+                    bail!("look angles must be finite");
+                }
+                self.wait_until_ready().await?;
+                let _coherent_state = self.coherent_state_gate.lock().await;
+                let mut p = self.player.lock().await;
+                p.yaw = yaw;
+                p.pitch = pitch.clamp(-90.0, 90.0);
+                self.common_receipts.lock().await.rotation_source =
+                    Some(crate::client::ValueSource::Submitted);
+                drop(p);
+                self.send_position().await
+            })
+            .await
     }
     /// Returns an owned cube of block observations around the current position.
     ///
@@ -3554,156 +3616,211 @@ impl Bot {
     /// the player cannot currently jump. For held swimming/climbing input, use
     /// `ControlState::jump` through [`Bot::set_control`].
     pub async fn jump(&self) -> Result<()> {
+        self.connection.ledger().check_normal()?;
         self.wait_until_ready().await?;
         let _gate = self.coherent_state_gate.lock().await;
-        if self.stopped.load(Ordering::Acquire) {
-            bail!("connection closed before ground jump admission");
-        }
-        if self.common_native_physics_paused().await {
-            bail!("another operation owns movement; use its ground-jump API");
-        }
-        self.jump_requested.store(true, Ordering::Release);
-        Ok(())
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if self.stopped.load(Ordering::Acquire) {
+                    bail!("connection closed before ground jump admission");
+                }
+                if self.common_native_physics_paused().await {
+                    bail!("another operation owns movement; use its ground-jump API");
+                }
+                let mut queued = self.native_jump_work.lock().expect("native jump");
+                if queued.is_none() {
+                    *queued = Some(self.connection.ledger().work());
+                }
+                self.jump_requested.store(true, Ordering::Release);
+                Ok(())
+            })
+            .await
     }
     /// Sends mounted movement input for steerable entities such as horses and pigs.
     pub async fn set_vehicle_control(&self, control: VehicleControl) -> Result<()> {
-        if !control.sideways.is_finite()
-            || !control.forward.is_finite()
-            || !(-1.0..=1.0).contains(&control.sideways)
-            || !(-1.0..=1.0).contains(&control.forward)
-        {
-            bail!("vehicle input must be finite and within -1.0..=1.0");
-        }
-        let mut payload = Vec::new();
-        payload.write_f32::<BigEndian>(control.sideways)?;
-        payload.write_f32::<BigEndian>(control.forward)?;
-        payload.push(u8::from(control.jump) | (u8::from(control.dismount) << 1));
-        self.send(0x1d, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if !control.sideways.is_finite()
+                    || !control.forward.is_finite()
+                    || !(-1.0..=1.0).contains(&control.sideways)
+                    || !(-1.0..=1.0).contains(&control.forward)
+                {
+                    bail!("vehicle input must be finite and within -1.0..=1.0");
+                }
+                let mut payload = Vec::new();
+                payload.write_f32::<BigEndian>(control.sideways)?;
+                payload.write_f32::<BigEndian>(control.forward)?;
+                payload.push(u8::from(control.jump) | (u8::from(control.dismount) << 1));
+                self.send(0x1d, &payload).await
+            })
+            .await
     }
 
     /// Sends the two paddle inputs used while controlling a boat.
     pub async fn steer_boat(&self, left_paddle: bool, right_paddle: bool) -> Result<()> {
-        self.send(0x17, &[u8::from(left_paddle), u8::from(right_paddle)])
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.send(0x17, &[u8::from(left_paddle), u8::from(right_paddle)])
+                    .await
+            })
             .await
     }
 
     /// Requests dismount through the mounted-input packet.
     pub async fn dismount(&self) -> Result<()> {
-        self.set_vehicle_control(VehicleControl {
-            dismount: true,
-            ..VehicleControl::default()
-        })
-        .await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.set_vehicle_control(VehicleControl {
+                    dismount: true,
+                    ..VehicleControl::default()
+                })
+                .await
+            })
+            .await
     }
     pub(crate) async fn send_vehicle_pose_unchecked(&self, pose: VehiclePose) -> Result<()> {
-        if !pose.position.x.is_finite()
-            || !pose.position.y.is_finite()
-            || !pose.position.z.is_finite()
-            || !pose.yaw.is_finite()
-            || !pose.pitch.is_finite()
-        {
-            bail!("vehicle pose values must be finite");
-        }
-        let mut payload = Vec::new();
-        payload.write_f64::<BigEndian>(pose.position.x)?;
-        payload.write_f64::<BigEndian>(pose.position.y)?;
-        payload.write_f64::<BigEndian>(pose.position.z)?;
-        payload.write_f32::<BigEndian>(pose.yaw)?;
-        payload.write_f32::<BigEndian>(pose.pitch)?;
-        self.send(0x16, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if !pose.position.x.is_finite()
+                    || !pose.position.y.is_finite()
+                    || !pose.position.z.is_finite()
+                    || !pose.yaw.is_finite()
+                    || !pose.pitch.is_finite()
+                {
+                    bail!("vehicle pose values must be finite");
+                }
+                let mut payload = Vec::new();
+                payload.write_f64::<BigEndian>(pose.position.x)?;
+                payload.write_f64::<BigEndian>(pose.position.y)?;
+                payload.write_f64::<BigEndian>(pose.position.z)?;
+                payload.write_f32::<BigEndian>(pose.yaw)?;
+                payload.write_f32::<BigEndian>(pose.pitch)?;
+                self.send(0x16, &payload).await
+            })
+            .await
     }
     /// Dispatches a respawn request without waiting for the new spawn state.
     pub async fn respawn(&self) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, 0);
-        self.send(0x04, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, 0);
+                self.send(0x04, &payload).await
+            })
+            .await
     }
     /// Selects a hotbar slot and updates the predicted local selection.
     ///
     /// Success guarantees packet dispatch; the protocol has no direct
     /// acknowledgement for this action.
     pub async fn select_hotbar(&self, slot: u8) -> Result<()> {
-        if slot > 8 {
-            bail!("hotbar slot must be 0..=8");
-        }
-        let _coherent_state = self.coherent_state_gate.lock().await;
-        let mut payload = Vec::new();
-        payload.write_i16::<BigEndian>(i16::from(slot))?;
-        self.send(0x24, &payload).await?;
-        self.inventory.write().await.selected_hotbar = slot;
-        Ok(())
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if slot > 8 {
+                    bail!("hotbar slot must be 0..=8");
+                }
+                let _coherent_state = self.coherent_state_gate.lock().await;
+                let mut payload = Vec::new();
+                payload.write_i16::<BigEndian>(i16::from(slot))?;
+                self.send(0x24, &payload).await?;
+                self.inventory.write().await.selected_hotbar = slot;
+                Ok(())
+            })
+            .await
     }
     /// Dispatches an item-drop action without waiting for an inventory update.
     pub async fn drop_selected(&self, entire_stack: bool) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, if entire_stack { 3 } else { 4 });
-        payload.write_u64::<BigEndian>(0)?;
-        payload.write_i8(0)?;
-        self.send(0x1b, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, if entire_stack { 3 } else { 4 });
+                payload.write_u64::<BigEndian>(0)?;
+                payload.write_i8(0)?;
+                self.send(0x1b, &payload).await
+            })
+            .await
     }
     /// Drops exactly `count` items from the selected hotbar stack.
     pub async fn drop_selected_count(&self, count: u32) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                if count == 0 {
-                    bail!("drop count must be positive");
-                }
-                let available = self
-                    .inventory
-                    .read()
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        if count == 0 {
+                            bail!("drop count must be positive");
+                        }
+                        let available = self
+                            .inventory
+                            .read()
+                            .await
+                            .selected_item()
+                            .map_or(0, |item| u32::from(item.count.max(0) as u8));
+                        if count > available {
+                            bail!("drop count {count} exceeds selected stack size {available}");
+                        }
+                        if count == available {
+                            return self.drop_selected(true).await;
+                        }
+                        for _ in 0..count {
+                            self.drop_selected(false).await?;
+                        }
+                        Ok(())
+                    })
                     .await
-                    .selected_item()
-                    .map_or(0, |item| u32::from(item.count.max(0) as u8));
-                if count > available {
-                    bail!("drop count {count} exceeds selected stack size {available}");
-                }
-                if count == available {
-                    return self.drop_selected(true).await;
-                }
-                for _ in 0..count {
-                    self.drop_selected(false).await?;
-                }
-                Ok(())
             })
             .await
     }
 
     /// Moves/swaps one explicitly chosen player-inventory slot using acknowledged clicks.
     pub async fn move_player_item(&self, source: i16, destination: i16) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                if !(0..=45).contains(&source)
-                    || !(0..=45).contains(&destination)
-                    || source == destination
-                {
-                    bail!("player slots must be distinct values in 0..=45");
-                }
-                let inventory = self.inventory.read().await;
-                if inventory.cursor.is_some() {
-                    bail!("inventory cursor must be empty before moving an item");
-                }
-                if inventory
-                    .player_slots()
-                    .get(source as usize)
-                    .and_then(Option::as_ref)
-                    .is_none()
-                {
-                    bail!("source player slot is empty");
-                }
-                drop(inventory);
-                self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
-                    .await?;
-                self.click_slot_and_wait(0, destination, 0, ClickMode::Normal)
-                    .await?;
-                if self.inventory.read().await.cursor.is_some() {
-                    self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
-                        .await?;
-                }
-                Ok(())
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        if !(0..=45).contains(&source)
+                            || !(0..=45).contains(&destination)
+                            || source == destination
+                        {
+                            bail!("player slots must be distinct values in 0..=45");
+                        }
+                        let inventory = self.inventory.read().await;
+                        if inventory.cursor.is_some() {
+                            bail!("inventory cursor must be empty before moving an item");
+                        }
+                        if inventory
+                            .player_slots()
+                            .get(source as usize)
+                            .and_then(Option::as_ref)
+                            .is_none()
+                        {
+                            bail!("source player slot is empty");
+                        }
+                        drop(inventory);
+                        self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
+                            .await?;
+                        self.click_slot_and_wait(0, destination, 0, ClickMode::Normal)
+                            .await?;
+                        if self.inventory.read().await.cursor.is_some() {
+                            self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
+                                .await?;
+                        }
+                        Ok(())
+                    })
+                    .await
             })
             .await
     }
@@ -3714,16 +3831,24 @@ impl Bot {
         source: i16,
         destination: EquipmentSlot,
     ) -> Result<()> {
-        self.move_player_item(source, destination as i16).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async { self.move_player_item(source, destination as i16).await })
+            .await
     }
 
     /// Sends an edited written/writable book stack. NBT construction remains caller-controlled.
     pub async fn edit_book(&self, book: &ItemStack, signing: bool, hand: Hand) -> Result<()> {
-        let mut payload = Vec::new();
-        write_slot(&mut payload, Some(book));
-        payload.push(u8::from(signing));
-        put_varint(&mut payload, hand as i32);
-        self.send(0x0c, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                write_slot(&mut payload, Some(book));
+                payload.push(u8::from(signing));
+                put_varint(&mut payload, hand as i32);
+                self.send(0x0c, &payload).await
+            })
+            .await
     }
     pub(crate) async fn send_digging_packet(
         &self,
@@ -3731,11 +3856,16 @@ impl Bot {
         position: BlockPos,
         face: BlockFace,
     ) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, status as i32);
-        payload.write_u64::<BigEndian>(position.packed())?;
-        payload.write_i8(face as i8)?;
-        self.send(0x1b, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, status as i32);
+                payload.write_u64::<BigEndian>(position.packed())?;
+                payload.write_i8(face as i8)?;
+                self.send(0x1b, &payload).await
+            })
+            .await
     }
     /// Performs timed digging and waits for the matching server acknowledgement.
     pub async fn dig_block(
@@ -3743,69 +3873,75 @@ impl Bot {
         position: BlockPos,
         face: BlockFace,
     ) -> Result<DiggingAcknowledgement> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                let state_id = self
-                    .block(position.x, position.y, position.z)
-                    .await
-                    .context("target block chunk is not loaded")?;
-                let tool_id = self
-                    .inventory
-                    .read()
-                    .await
-                    .selected_item()
-                    .map(|item| item.item_id);
-                let ticks = crate::versions::java_1_16_1::registry::mining_ticks(state_id, tool_id)
-                    .context("target block is not diggable")?;
-                let mut events = self.subscribe();
-                self.send_digging_packet(DiggingStatus::Started, position, face)
-                    .await?;
-                tokio::time::sleep(Duration::from_millis(ticks.saturating_mul(50))).await;
-                let transaction = self
-                    .dispatch_acknowledged(
-                        self.operation_context(0),
-                        AcknowledgedOperation::DigFinish { position, face },
-                    )
-                    .await
-                    .map_err(|error| {
-                        crate::Error::new(
-                            if matches!(error, DispatchError::DeliveryUnknown) {
-                                crate::ErrorKind::UncertainDispatch
-                            } else {
-                                crate::ErrorKind::State
-                            },
-                            anyhow::anyhow!(error),
-                        )
-                    })?;
-                match transaction.wait().await {
-                    DispatchOutcome::Acknowledged => {}
-                    DispatchOutcome::Rejected => {
-                        bail!("server rejected digging action at {position:?}");
-                    }
-                    DispatchOutcome::DeliveryUnknown => {
-                        bail!("delivery of digging acknowledgement is unknown");
-                    }
-                    DispatchOutcome::Dispatched => {
-                        bail!("digging action was dispatched without acknowledgement");
-                    }
-                }
-                timeout(self.connection_options.protocol_ack_timeout, async {
-                    loop {
-                        if let Event::DiggingAcknowledged(ack) =
-                            next_operation_event(&mut events).await?
-                        {
-                            if ack.position == position
-                                && ack.status == DiggingStatus::Finished as i32
-                            {
-                                return Ok(ack);
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        let state_id = self
+                            .block(position.x, position.y, position.z)
+                            .await
+                            .context("target block chunk is not loaded")?;
+                        let tool_id = self
+                            .inventory
+                            .read()
+                            .await
+                            .selected_item()
+                            .map(|item| item.item_id);
+                        let ticks =
+                            crate::versions::java_1_16_1::registry::mining_ticks(state_id, tool_id)
+                                .context("target block is not diggable")?;
+                        let mut events = self.subscribe();
+                        self.send_digging_packet(DiggingStatus::Started, position, face)
+                            .await?;
+                        tokio::time::sleep(Duration::from_millis(ticks.saturating_mul(50))).await;
+                        let transaction = self
+                            .dispatch_acknowledged(
+                                self.operation_context(0),
+                                AcknowledgedOperation::DigFinish { position, face },
+                            )
+                            .await
+                            .map_err(|error| {
+                                crate::Error::new(
+                                    if matches!(error, DispatchError::DeliveryUnknown) {
+                                        crate::ErrorKind::UncertainDispatch
+                                    } else {
+                                        crate::ErrorKind::State
+                                    },
+                                    anyhow::anyhow!(error),
+                                )
+                            })?;
+                        match transaction.wait().await {
+                            DispatchOutcome::Acknowledged => {}
+                            DispatchOutcome::Rejected => {
+                                bail!("server rejected digging action at {position:?}");
+                            }
+                            DispatchOutcome::DeliveryUnknown => {
+                                bail!("delivery of digging acknowledgement is unknown");
+                            }
+                            DispatchOutcome::Dispatched => {
+                                bail!("digging action was dispatched without acknowledgement");
                             }
                         }
-                    }
-                })
-                .await
-                .context("timed out waiting for digging response event")?
+                        timeout(self.connection_options.protocol_ack_timeout, async {
+                            loop {
+                                if let Event::DiggingAcknowledged(ack) =
+                                    next_operation_event(&mut events).await?
+                                {
+                                    if ack.position == position
+                                        && ack.status == DiggingStatus::Finished as i32
+                                    {
+                                        return Ok(ack);
+                                    }
+                                }
+                            }
+                        })
+                        .await
+                        .context("timed out waiting for digging response event")?
+                    })
+                    .await
             })
             .await
     }
@@ -3821,18 +3957,23 @@ impl Bot {
         cursor: [f32; 3],
         inside_block: bool,
     ) -> Result<()> {
-        if cursor.iter().any(|value| !(0.0..=1.0).contains(value)) {
-            bail!("block cursor coordinates must be within 0.0..=1.0");
-        }
-        let mut payload = Vec::new();
-        put_varint(&mut payload, hand as i32);
-        payload.write_u64::<BigEndian>(position.packed())?;
-        put_varint(&mut payload, face as i32);
-        for value in cursor {
-            payload.write_f32::<BigEndian>(value)?;
-        }
-        payload.push(u8::from(inside_block));
-        self.send(0x2d, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if cursor.iter().any(|value| !(0.0..=1.0).contains(value)) {
+                    bail!("block cursor coordinates must be within 0.0..=1.0");
+                }
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                payload.write_u64::<BigEndian>(position.packed())?;
+                put_varint(&mut payload, face as i32);
+                for value in cursor {
+                    payload.write_f32::<BigEndian>(value)?;
+                }
+                payload.push(u8::from(inside_block));
+                self.send(0x2d, &payload).await
+            })
+            .await
     }
     /// Dispatches placement and waits until the caller-selected observed cell changes.
     pub async fn place_block_and_wait_for_change(
@@ -3841,67 +3982,97 @@ impl Bot {
         observed: BlockPos,
         wait: Duration,
     ) -> Result<Snapshot<Option<i32>>> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                let previous = self.block(observed.x, observed.y, observed.z).await;
-                self.place_block(
-                    request.hand,
-                    request.clicked,
-                    request.face,
-                    request.cursor,
-                    request.inside_block,
-                )
-                .await?;
-                self.wait_for_block_change(observed, previous, wait).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        let previous = self.block(observed.x, observed.y, observed.z).await;
+                        self.place_block(
+                            request.hand,
+                            request.clicked,
+                            request.face,
+                            request.cursor,
+                            request.inside_block,
+                        )
+                        .await?;
+                        self.wait_for_block_change(observed, previous, wait).await
+                    })
+                    .await
             })
             .await
     }
     /// Dispatches a use-item action without waiting for its game result.
     pub async fn use_item(&self, hand: Hand) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, hand as i32);
-        self.send(0x2e, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                self.send(0x2e, &payload).await
+            })
+            .await
     }
     /// Dispatches use-item, waits locally for `duration`, then dispatches release.
     ///
     /// Dropping this future after the first dispatch does not automatically send
     /// the release action.
     pub async fn use_item_for(&self, hand: Hand, duration: Duration) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                self.use_item(hand).await?;
-                tokio::time::sleep(duration).await;
-                self.release_item().await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        self.use_item(hand).await?;
+                        tokio::time::sleep(duration).await;
+                        self.release_item().await
+                    })
+                    .await
             })
             .await
     }
     /// Dispatches release-use-item without waiting for acknowledgement.
     pub async fn release_item(&self) -> Result<()> {
-        self.send_digging_packet(
-            DiggingStatus::ReleaseUseItem,
-            BlockPos { x: 0, y: 0, z: 0 },
-            BlockFace::Down,
-        )
-        .await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.send_digging_packet(
+                    DiggingStatus::ReleaseUseItem,
+                    BlockPos { x: 0, y: 0, z: 0 },
+                    BlockFace::Down,
+                )
+                .await
+            })
+            .await
     }
     /// Dispatches an arm animation without waiting for acknowledgement.
     pub async fn swing_arm(&self, hand: Hand) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, hand as i32);
-        self.send(0x2b, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                self.send(0x2b, &payload).await
+            })
+            .await
     }
     /// Dispatches an entity interaction without confirming its game result.
     pub async fn interact_entity(&self, entity_id: i32, hand: Hand, sneaking: bool) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, entity_id);
-        put_varint(&mut payload, 0);
-        put_varint(&mut payload, hand as i32);
-        payload.push(u8::from(sneaking));
-        self.send(0x0e, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, entity_id);
+                put_varint(&mut payload, 0);
+                put_varint(&mut payload, hand as i32);
+                payload.push(u8::from(sneaking));
+                self.send(0x0e, &payload).await
+            })
+            .await
     }
     /// Dispatches a position-specific entity interaction without confirmation.
     pub async fn interact_entity_at(
@@ -3911,49 +4082,59 @@ impl Bot {
         hand: Hand,
         sneaking: bool,
     ) -> Result<()> {
-        if !hit.iter().all(|coordinate| coordinate.is_finite()) {
-            bail!("entity interaction coordinates must be finite");
-        }
-        let mut payload = Vec::new();
-        put_varint(&mut payload, entity_id);
-        put_varint(&mut payload, 2);
-        for coordinate in hit {
-            payload.write_f32::<BigEndian>(coordinate)?;
-        }
-        put_varint(&mut payload, hand as i32);
-        payload.push(u8::from(sneaking));
-        self.send(0x0e, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if !hit.iter().all(|coordinate| coordinate.is_finite()) {
+                    bail!("entity interaction coordinates must be finite");
+                }
+                let mut payload = Vec::new();
+                put_varint(&mut payload, entity_id);
+                put_varint(&mut payload, 2);
+                for coordinate in hit {
+                    payload.write_f32::<BigEndian>(coordinate)?;
+                }
+                put_varint(&mut payload, hand as i32);
+                payload.push(u8::from(sneaking));
+                self.send(0x0e, &payload).await
+            })
+            .await
     }
     /// Waits for the locally calculated attack cooldown, then dispatches attack
     /// and arm-swing packets. Success does not confirm damage.
     pub async fn attack(&self, entity_id: i32) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                let survival = self.survival.read().await;
-                let attack_speed = survival
-                    .attributes
-                    .get("minecraft:generic.attack_speed")
-                    .or_else(|| survival.attributes.get("generic.attack_speed"))
-                    .map_or(4.0, |attribute| attribute.value())
-                    .max(0.1);
-                drop(survival);
-                let cooldown = Duration::from_secs_f64(1.0 / attack_speed);
-                loop {
-                    let mut last_attack = self.last_attack.lock().await;
-                    let remaining = last_attack.map_or(Duration::ZERO, |last| {
-                        cooldown.saturating_sub(last.elapsed())
-                    });
-                    if !remaining.is_zero() {
-                        // Do not hold the dispatch lock while charging. An immediate
-                        // defensive hit can reset the shared clock during this wait.
-                        drop(last_attack);
-                        tokio::time::sleep(remaining).await;
-                        continue;
-                    }
-                    return self.dispatch_attack(entity_id, &mut last_attack).await;
-                }
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        let survival = self.survival.read().await;
+                        let attack_speed = survival
+                            .attributes
+                            .get("minecraft:generic.attack_speed")
+                            .or_else(|| survival.attributes.get("generic.attack_speed"))
+                            .map_or(4.0, |attribute| attribute.value())
+                            .max(0.1);
+                        drop(survival);
+                        let cooldown = Duration::from_secs_f64(1.0 / attack_speed);
+                        loop {
+                            let mut last_attack = self.last_attack.lock().await;
+                            let remaining = last_attack.map_or(Duration::ZERO, |last| {
+                                cooldown.saturating_sub(last.elapsed())
+                            });
+                            if !remaining.is_zero() {
+                                // Do not hold the dispatch lock while charging. An immediate
+                                // defensive hit can reset the shared clock during this wait.
+                                drop(last_attack);
+                                tokio::time::sleep(remaining).await;
+                                continue;
+                            }
+                            return self.dispatch_attack(entity_id, &mut last_attack).await;
+                        }
+                    })
+                    .await
             })
             .await
     }
@@ -3964,8 +4145,13 @@ impl Bot {
     /// shared attack clock is reset, so a subsequent [`Self::attack`] waits
     /// for recovery. Transport and dispatch serialization may still wait.
     pub async fn attack_immediate(&self, entity_id: i32) -> Result<()> {
-        let mut last_attack = self.last_attack.lock().await;
-        self.dispatch_attack(entity_id, &mut last_attack).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut last_attack = self.last_attack.lock().await;
+                self.dispatch_attack(entity_id, &mut last_attack).await
+            })
+            .await
     }
     async fn dispatch_attack(
         &self,
@@ -3974,7 +4160,7 @@ impl Bot {
     ) -> Result<()> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_result(async {
                 let mut payload = Vec::new();
                 put_varint(&mut payload, entity_id);
@@ -3992,43 +4178,62 @@ impl Bot {
     }
     /// Dispatches a chat message after local length validation.
     pub async fn send_chat(&self, message: &str) -> Result<()> {
-        if message.is_empty() || message.chars().count() > 256 {
-            bail!("chat message must contain 1..=256 characters");
-        }
-        let mut payload = Vec::new();
-        put_string(&mut payload, message);
-        self.send(0x03, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if message.is_empty() || message.chars().count() > 256 {
+                    bail!("chat message must contain 1..=256 characters");
+                }
+                let mut payload = Vec::new();
+                put_string(&mut payload, message);
+                self.send(0x03, &payload).await
+            })
+            .await
     }
     /// Requests protocol-level command/chat completion and waits for its matching response.
     pub async fn tab_complete(&self, text: &str, wait: Duration) -> Result<TabCompletion> {
-        if text.is_empty() || text.chars().count() > 256 {
-            bail!("completion text must contain 1..=256 characters");
-        }
-        let transaction_id = self.next_tab_completion.fetch_add(1, Ordering::Relaxed);
-        let mut events = self.subscribe();
-        let mut payload = Vec::new();
-        put_varint(&mut payload, transaction_id);
-        put_string(&mut payload, text);
-        self.send(0x06, &payload).await?;
-        Ok(timeout(wait, async {
-            loop {
-                match events.recv().await {
-                    Ok(Event::TabCompletion(result)) if result.transaction_id == transaction_id => {
-                        return Ok::<_, anyhow::Error>(result);
-                    }
-                    Ok(Event::Disconnected { reason }) => bail!("disconnected: {reason}"),
-                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
-                    Err(broadcast::error::RecvError::Closed) => bail!("event stream closed"),
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if text.is_empty() || text.chars().count() > 256 {
+                    bail!("completion text must contain 1..=256 characters");
                 }
-            }
-        })
-        .await
-        .context("timed out waiting for tab completion")??)
+                let transaction_id = self.next_tab_completion.fetch_add(1, Ordering::Relaxed);
+                let mut events = self.subscribe();
+                let mut payload = Vec::new();
+                put_varint(&mut payload, transaction_id);
+                put_string(&mut payload, text);
+                self.send(0x06, &payload).await?;
+                Ok(timeout(wait, async {
+                    loop {
+                        match events.recv().await {
+                            Ok(Event::TabCompletion(result))
+                                if result.transaction_id == transaction_id =>
+                            {
+                                return Ok::<_, anyhow::Error>(result);
+                            }
+                            Ok(Event::Disconnected { reason }) => bail!("disconnected: {reason}"),
+                            Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                            Err(broadcast::error::RecvError::Closed) => {
+                                bail!("event stream closed")
+                            }
+                        }
+                    }
+                })
+                .await
+                .context("timed out waiting for tab completion")??)
+            })
+            .await
     }
     /// Dispatches a slash command through the chat protocol.
     pub async fn send_command(&self, command: &str) -> Result<()> {
-        let command = command.strip_prefix('/').unwrap_or(command);
-        self.send_chat(&format!("/{command}")).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let command = command.strip_prefix('/').unwrap_or(command);
+                self.send_chat(&format!("/{command}")).await
+            })
+            .await
     }
     /// Applies a predicted click locally, dispatches it, and returns its action ID.
     ///
@@ -4041,20 +4246,25 @@ impl Bot {
         button: i8,
         mode: ClickMode,
     ) -> Result<i16> {
-        let (action, transaction) = self
-            .click_slot_transaction(window_id, slot, button, mode)
-            .await?;
-        // This compatibility API returns before confirmation. Keep the
-        // actor-owned transaction alive and clean prediction metadata if its
-        // delivery deadline expires; dropping a caller future must not cancel
-        // the actor's pending transaction.
-        let monitor = self.clone_internal();
-        self.spawn_finite(async move {
-            if transaction.wait().await == DispatchOutcome::DeliveryUnknown {
-                monitor.rollback_pending_click(window_id, action).await;
-            }
-        });
-        Ok(action)
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let (action, transaction) = self
+                    .click_slot_transaction(window_id, slot, button, mode)
+                    .await?;
+                // This compatibility API returns before confirmation. Keep the
+                // actor-owned transaction alive and clean prediction metadata if its
+                // delivery deadline expires; dropping a caller future must not cancel
+                // the actor's pending transaction.
+                let monitor = self.clone_internal();
+                self.spawn_finite(async move {
+                    if transaction.wait().await == DispatchOutcome::DeliveryUnknown {
+                        monitor.rollback_pending_click(window_id, action).await;
+                    }
+                });
+                Ok(action)
+            })
+            .await
     }
 
     async fn rollback_pending_click(&self, window_id: i8, action: i16) {
@@ -4075,7 +4285,7 @@ impl Bot {
     ) -> Result<(i16, ProtocolTransaction)> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_result(async {
                 let _click_guard = self.click_lock.lock().await;
                 let _coherent_state = self.coherent_state_gate.lock().await;
@@ -4204,26 +4414,29 @@ impl Bot {
         button: i8,
         mode: ClickMode,
     ) -> Result<i16> {
-        self.connection.ledger().work().run_result(async {
-        let (action, transaction) = self
-            .click_slot_transaction(window_id, slot, button, mode)
-            .await?;
-        match transaction.wait().await {
-            crate::DispatchOutcome::Acknowledged => Ok(action),
-            crate::DispatchOutcome::Rejected => {
-                bail!(
-                    "server rejected window action {action} (window {window_id}, slot {slot}, button {button}, mode {mode:?})"
-                );
+        let admission = self.connection.ledger().try_work()?;
+        admission.run_scoped(async {
+            self.connection.ledger().try_work()?.run_result(async {
+            let (action, transaction) = self
+                .click_slot_transaction(window_id, slot, button, mode)
+                .await?;
+            match transaction.wait().await {
+                crate::DispatchOutcome::Acknowledged => Ok(action),
+                crate::DispatchOutcome::Rejected => {
+                    bail!(
+                        "server rejected window action {action} (window {window_id}, slot {slot}, button {button}, mode {mode:?})"
+                    );
+                }
+                crate::DispatchOutcome::DeliveryUnknown => {
+                    self.rollback_pending_click(window_id, action).await;
+                    bail!("delivery of window action {action} is unknown");
+                }
+                crate::DispatchOutcome::Dispatched => {
+                    bail!("window action {action} was dispatched without acknowledgement");
+                }
             }
-            crate::DispatchOutcome::DeliveryUnknown => {
-                self.rollback_pending_click(window_id, action).await;
-                bail!("delivery of window action {action} is unknown");
-            }
-            crate::DispatchOutcome::Dispatched => {
-                bail!("window action {action} was dispatched without acknowledgement");
-            }
-        }
 
+            }).await
         }).await
     }
     /// Performs the `craft_once` operation.
@@ -4234,136 +4447,153 @@ impl Bot {
         height: usize,
         ingredients: &[Option<i32>],
     ) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                if !matches!((window_id, width, height), (0, 2, 2) | (_, 3, 3)) {
-                    bail!("player crafting must be 2x2 and an open container must be 3x3");
-                }
-                if ingredients.len() != width * height {
-                    bail!("ingredient grid length does not match dimensions");
-                }
-                let grid_end = 1 + ingredients.len();
-                self.compact_player_inventory(window_id).await?;
-                // A previous attempt can leave ingredients in the grid. Return them before
-                // placing a fresh recipe; never consume a partially reconciled recipe twice.
-                for slot in 1..grid_end {
-                    self.return_slot_to_storage(window_id, slot).await?;
-                }
-                let source_start = if window_id == 0 { 9 } else { grid_end };
-                for (grid_index, ingredient) in ingredients.iter().enumerate() {
-                    let Some(item_id) = ingredient else {
-                        continue;
-                    };
-                    let source = self
-                        .inventory()
-                        .await
-                        .windows
-                        .get(&window_id)
-                        .and_then(|slots| {
-                            slots
-                                .iter()
-                                .enumerate()
-                                .skip(source_start)
-                                .take(36)
-                                .find(|(_, item)| {
-                                    item.as_ref().is_some_and(|item| item.item_id == *item_id)
-                                })
-                                .map(|(slot, _)| slot as i16)
-                        })
-                        .with_context(|| format!("ingredient item {item_id} is unavailable"))?;
-                    self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
-                        .await
-                        .with_context(|| format!("pick ingredient {item_id} from slot {source}"))?;
-                    self.click_slot_and_wait(
-                        window_id,
-                        (1 + grid_index) as i16,
-                        1,
-                        ClickMode::Normal,
-                    )
-                    .await
-                    .with_context(|| format!("place ingredient {item_id} into crafting grid"))?;
-                    if self.inventory().await.cursor.is_some() {
-                        self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
-                            .await
-                            .with_context(|| format!("return remaining ingredient {item_id}"))?;
-                    }
-                }
-                timeout(Duration::from_secs(5), async {
-                    let mut events = self.subscribe();
-                    loop {
-                        if self
-                            .inventory()
-                            .await
-                            .windows
-                            .get(&window_id)
-                            .and_then(|slots| slots.first())
-                            .is_some_and(Option::is_some)
-                        {
-                            return Ok::<(), anyhow::Error>(());
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        if !matches!((window_id, width, height), (0, 2, 2) | (_, 3, 3)) {
+                            bail!("player crafting must be 2x2 and an open container must be 3x3");
                         }
-                        let _ = next_operation_event(&mut events).await?;
-                    }
-                })
-                .await
-                .context("timed out waiting for crafting result")??;
-                self.take_crafting_result(window_id, ingredients.len())
+                        if ingredients.len() != width * height {
+                            bail!("ingredient grid length does not match dimensions");
+                        }
+                        let grid_end = 1 + ingredients.len();
+                        self.compact_player_inventory(window_id).await?;
+                        // A previous attempt can leave ingredients in the grid. Return them before
+                        // placing a fresh recipe; never consume a partially reconciled recipe twice.
+                        for slot in 1..grid_end {
+                            self.return_slot_to_storage(window_id, slot).await?;
+                        }
+                        let source_start = if window_id == 0 { 9 } else { grid_end };
+                        for (grid_index, ingredient) in ingredients.iter().enumerate() {
+                            let Some(item_id) = ingredient else {
+                                continue;
+                            };
+                            let source = self
+                                .inventory()
+                                .await
+                                .windows
+                                .get(&window_id)
+                                .and_then(|slots| {
+                                    slots
+                                        .iter()
+                                        .enumerate()
+                                        .skip(source_start)
+                                        .take(36)
+                                        .find(|(_, item)| {
+                                            item.as_ref()
+                                                .is_some_and(|item| item.item_id == *item_id)
+                                        })
+                                        .map(|(slot, _)| slot as i16)
+                                })
+                                .with_context(|| {
+                                    format!("ingredient item {item_id} is unavailable")
+                                })?;
+                            self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
+                                .await
+                                .with_context(|| {
+                                    format!("pick ingredient {item_id} from slot {source}")
+                                })?;
+                            self.click_slot_and_wait(
+                                window_id,
+                                (1 + grid_index) as i16,
+                                1,
+                                ClickMode::Normal,
+                            )
+                            .await
+                            .with_context(|| {
+                                format!("place ingredient {item_id} into crafting grid")
+                            })?;
+                            if self.inventory().await.cursor.is_some() {
+                                self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
+                                    .await
+                                    .with_context(|| {
+                                        format!("return remaining ingredient {item_id}")
+                                    })?;
+                            }
+                        }
+                        timeout(Duration::from_secs(5), async {
+                            let mut events = self.subscribe();
+                            loop {
+                                if self
+                                    .inventory()
+                                    .await
+                                    .windows
+                                    .get(&window_id)
+                                    .and_then(|slots| slots.first())
+                                    .is_some_and(Option::is_some)
+                                {
+                                    return Ok::<(), anyhow::Error>(());
+                                }
+                                let _ = next_operation_event(&mut events).await?;
+                            }
+                        })
+                        .await
+                        .context("timed out waiting for crafting result")??;
+                        self.take_crafting_result(window_id, ingredients.len())
+                            .await
+                    })
                     .await
             })
             .await
     }
     /// Performs the `take_crafting_result` operation.
     pub async fn take_crafting_result(&self, window_id: i8, grid_slots: usize) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                let inventory = self.inventory().await;
-                check_inventory(inventory.cursor.is_none(), "crafting cursor is occupied")?;
-                let result = inventory
-                    .windows
-                    .get(&window_id)
-                    .and_then(|s| s.first())
-                    .and_then(Option::as_ref)
-                    .context("crafting result is unavailable")?;
-                check_inventory(
-                    storage_capacity(&inventory, window_id, result)? >= i16::from(result.count),
-                    "insufficient compatible player storage for crafting result; result not taken",
-                )?;
-                self.click_slot_and_wait(window_id, 0, 0, ClickMode::Normal)
-                    .await
-                    .context("collect crafting result")?;
-                {
-                    let _coherent_state = self.coherent_state_gate.lock().await;
-                    // Accepted crafting-result clicks consume one item from every occupied
-                    // recipe slot client-side; vanilla does not necessarily echo these slots.
-                    let mut inventory = self.inventory.write().await;
-                    if let Some(slots) = inventory.windows.get_mut(&window_id) {
-                        for slot in slots.iter_mut().take(1 + grid_slots).skip(1).flatten() {
-                            slot.count -= 1;
-                        }
-                        for item in slots.iter_mut().take(1 + grid_slots).skip(1) {
-                            if item.as_ref().is_some_and(|item| item.count <= 0) {
-                                *item = None;
+        let admission = self.connection.ledger().try_work()?;
+        admission.run_scoped(async {
+            self.connection
+                .ledger()
+                .try_work()?
+                .run_result(async {
+                    let inventory = self.inventory().await;
+                    check_inventory(inventory.cursor.is_none(), "crafting cursor is occupied")?;
+                    let result = inventory
+                        .windows
+                        .get(&window_id)
+                        .and_then(|s| s.first())
+                        .and_then(Option::as_ref)
+                        .context("crafting result is unavailable")?;
+                    check_inventory(
+                        storage_capacity(&inventory, window_id, result)? >= i16::from(result.count),
+                        "insufficient compatible player storage for crafting result; result not taken",
+                    )?;
+                    self.click_slot_and_wait(window_id, 0, 0, ClickMode::Normal)
+                        .await
+                        .context("collect crafting result")?;
+                    {
+                        let _coherent_state = self.coherent_state_gate.lock().await;
+                        // Accepted crafting-result clicks consume one item from every occupied
+                        // recipe slot client-side; vanilla does not necessarily echo these slots.
+                        let mut inventory = self.inventory.write().await;
+                        if let Some(slots) = inventory.windows.get_mut(&window_id) {
+                            for slot in slots.iter_mut().take(1 + grid_slots).skip(1).flatten() {
+                                slot.count -= 1;
                             }
+                            for item in slots.iter_mut().take(1 + grid_slots).skip(1) {
+                                if item.as_ref().is_some_and(|item| item.count <= 0) {
+                                    *item = None;
+                                }
+                            }
+                            slots[0] = None;
                         }
-                        slots[0] = None;
+                        sync_player_inventory_from_window(&mut inventory, window_id);
                     }
-                    sync_player_inventory_from_window(&mut inventory, window_id);
-                }
-                self.store_cursor(window_id)
-                    .await
-                    .context("store crafting result")?;
-                Ok(())
-            })
-            .await
+                    self.store_cursor(window_id)
+                        .await
+                        .context("store crafting result")?;
+                    Ok(())
+                })
+                .await
+        }).await
     }
 
     async fn store_cursor(&self, window: i8) -> Result<()> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_result(async {
                 // Each successful click fills a destination or empties the cursor.
                 for _ in 0..=36 {
@@ -4409,7 +4639,7 @@ impl Bot {
     async fn return_slot_to_storage(&self, window: i8, source: usize) -> Result<()> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_result(async {
                 let inventory = self.inventory().await;
                 check_inventory(
@@ -4449,173 +4679,223 @@ impl Bot {
     /// Never drops items, uses equipment as spare storage, or merges different NBT.
     /// Rejected/ambiguous clicks stop the operation; callers must not replay blindly.
     pub async fn compact_player_inventory(&self, window: i8) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                self.store_cursor(window).await?;
-                let inventory = self.inventory().await;
-                let range = storage_range(
-                    window,
-                    inventory
-                        .windows
-                        .get(&window)
-                        .context("window unavailable")?
-                        .len(),
-                )?;
-                for source in range.clone().rev() {
-                    let inventory = self.inventory().await;
-                    let slots = inventory
-                        .windows
-                        .get(&window)
-                        .context("window changed during compaction")?;
-                    let Some(item) = slots.get(source).and_then(Option::as_ref) else {
-                        continue;
-                    };
-                    if (range.start..source)
-                        .any(|i| slots[i].is_some() && merge_room(slots[i].as_ref(), item) > 0)
-                    {
-                        self.click_slot_and_wait(window, source as i16, 0, ClickMode::Normal)
-                            .await?;
-                        let after = self.inventory().await;
-                        check_inventory(
-                            after.cursor.as_ref() == Some(item)
-                                && after
-                                    .windows
-                                    .get(&window)
-                                    .and_then(|s| s.get(source))
-                                    .is_some_and(Option::is_none),
-                            "compaction pickup outcome changed; refusing further clicks",
-                        )?;
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
                         self.store_cursor(window).await?;
-                    }
-                }
-                if window == 0 {
-                    let inventory = self.inventory().await;
-                    if let Some(item) = inventory
-                        .windows
-                        .get(&0)
-                        .and_then(|s| s.get(45))
-                        .and_then(Option::as_ref)
-                    {
-                        if storage_capacity(&inventory, 0, item)? >= i16::from(item.count) {
-                            self.return_slot_to_storage(0, 45).await?;
+                        let inventory = self.inventory().await;
+                        let range = storage_range(
+                            window,
+                            inventory
+                                .windows
+                                .get(&window)
+                                .context("window unavailable")?
+                                .len(),
+                        )?;
+                        for source in range.clone().rev() {
+                            let inventory = self.inventory().await;
+                            let slots = inventory
+                                .windows
+                                .get(&window)
+                                .context("window changed during compaction")?;
+                            let Some(item) = slots.get(source).and_then(Option::as_ref) else {
+                                continue;
+                            };
+                            if (range.start..source).any(|i| {
+                                slots[i].is_some() && merge_room(slots[i].as_ref(), item) > 0
+                            }) {
+                                self.click_slot_and_wait(
+                                    window,
+                                    source as i16,
+                                    0,
+                                    ClickMode::Normal,
+                                )
+                                .await?;
+                                let after = self.inventory().await;
+                                check_inventory(
+                                    after.cursor.as_ref() == Some(item)
+                                        && after
+                                            .windows
+                                            .get(&window)
+                                            .and_then(|s| s.get(source))
+                                            .is_some_and(Option::is_none),
+                                    "compaction pickup outcome changed; refusing further clicks",
+                                )?;
+                                self.store_cursor(window).await?;
+                            }
                         }
-                    }
-                }
-                Ok(())
+                        if window == 0 {
+                            let inventory = self.inventory().await;
+                            if let Some(item) = inventory
+                                .windows
+                                .get(&0)
+                                .and_then(|s| s.get(45))
+                                .and_then(Option::as_ref)
+                            {
+                                if storage_capacity(&inventory, 0, item)? >= i16::from(item.count) {
+                                    self.return_slot_to_storage(0, 45).await?;
+                                }
+                            }
+                        }
+                        Ok(())
+                    })
+                    .await
             })
             .await
     }
     /// Dispatches recipe placement without waiting for inventory synchronization.
     pub async fn place_recipe(&self, window_id: i8, recipe_id: &str, make_all: bool) -> Result<()> {
-        let mut payload = vec![window_id as u8];
-        put_string(&mut payload, recipe_id);
-        payload.push(u8::from(make_all));
-        self.send(0x19, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = vec![window_id as u8];
+                put_string(&mut payload, recipe_id);
+                payload.push(u8::from(make_all));
+                self.send(0x19, &payload).await
+            })
+            .await
     }
     /// Dispatches close-window and immediately clears the predicted local window.
     pub async fn close_window(&self) -> Result<()> {
-        self.connection
-            .ledger()
-            .work()
-            .run_result(async {
-                let _coherent_state = self.coherent_state_gate.lock().await;
-                let window_id = self
-                    .inventory
-                    .read()
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.connection
+                    .ledger()
+                    .try_work()?
+                    .run_result(async {
+                        let _coherent_state = self.coherent_state_gate.lock().await;
+                        let window_id = self
+                            .inventory
+                            .read()
+                            .await
+                            .open_window
+                            .as_ref()
+                            .map(|window| window.id)
+                            .context("no window is open")?;
+                        self.send(0x0a, &[window_id as u8]).await?;
+                        let mut inventory = self.inventory.write().await;
+                        inventory.open_window = None;
+                        inventory.last_transaction = None;
+                        inventory.merchant_offers = None;
+                        inventory.windows.remove(&window_id);
+                        inventory.properties.retain(|(id, _), _| *id != window_id);
+                        inventory
+                            .pending_clicks
+                            .retain(|(id, _), _| *id != window_id);
+                        let mut furnace_window_position = self.furnace_window_position.lock().await;
+                        if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
+                            *furnace_window_position = None;
+                        }
+                        drop(furnace_window_position);
+                        drop(inventory);
+                        self.emit(Event::WindowClosed { window_id });
+                        Ok(())
+                    })
                     .await
-                    .open_window
-                    .as_ref()
-                    .map(|window| window.id)
-                    .context("no window is open")?;
-                self.send(0x0a, &[window_id as u8]).await?;
-                let mut inventory = self.inventory.write().await;
-                inventory.open_window = None;
-                inventory.last_transaction = None;
-                inventory.merchant_offers = None;
-                inventory.windows.remove(&window_id);
-                inventory.properties.retain(|(id, _), _| *id != window_id);
-                inventory
-                    .pending_clicks
-                    .retain(|(id, _), _| *id != window_id);
-                let mut furnace_window_position = self.furnace_window_position.lock().await;
-                if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
-                    *furnace_window_position = None;
-                }
-                drop(furnace_window_position);
-                drop(inventory);
-                self.emit(Event::WindowClosed { window_id });
-                Ok(())
             })
             .await
     }
     /// Selects one server-advertised merchant offer without choosing it automatically.
     pub async fn select_trade(&self, index: usize) -> Result<()> {
-        let offers = self
-            .merchant_offers()
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let offers = self
+                    .merchant_offers()
+                    .await
+                    .context("no merchant offers are open")?;
+                if index >= offers.offers.len() {
+                    bail!("merchant offer index is out of range");
+                }
+                let mut payload = Vec::new();
+                put_varint(&mut payload, i32::try_from(index)?);
+                self.send(0x22, &payload).await
+            })
             .await
-            .context("no merchant offers are open")?;
-        if index >= offers.offers.len() {
-            bail!("merchant offer index is out of range");
-        }
-        let mut payload = Vec::new();
-        put_varint(&mut payload, i32::try_from(index)?);
-        self.send(0x22, &payload).await
     }
 
     /// Selects one of the three enchantment-table options.
     pub async fn select_enchantment(&self, option: u8) -> Result<()> {
-        if option > 2 {
-            bail!("enchantment option must be 0..=2");
-        }
-        let window_id = self
-            .open_window_state()
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if option > 2 {
+                    bail!("enchantment option must be 0..=2");
+                }
+                let window_id = self
+                    .open_window_state()
+                    .await
+                    .context("no window is open")?
+                    .id;
+                self.send(0x08, &[window_id as u8, option]).await
+            })
             .await
-            .context("no window is open")?
-            .id;
-        self.send(0x08, &[window_id as u8, option]).await
     }
 
     /// Sends the raw anvil rename text for the currently open anvil.
     pub async fn rename_item(&self, name: &str) -> Result<()> {
-        if name.chars().count() > 50 {
-            bail!("item name must not exceed 50 characters");
-        }
-        let mut payload = Vec::new();
-        put_string(&mut payload, name);
-        self.send(0x1f, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if name.chars().count() > 50 {
+                    bail!("item name must not exceed 50 characters");
+                }
+                let mut payload = Vec::new();
+                put_string(&mut payload, name);
+                self.send(0x1f, &payload).await
+            })
+            .await
     }
 
     /// Performs the `set_beacon_effects` operation.
     pub async fn set_beacon_effects(&self, primary: i32, secondary: i32) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, primary);
-        put_varint(&mut payload, secondary);
-        self.send(0x23, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, primary);
+                put_varint(&mut payload, secondary);
+                self.send(0x23, &payload).await
+            })
+            .await
     }
 
     /// Performs the `update_sign` operation.
     pub async fn update_sign(&self, position: BlockPos, lines: [&str; 4]) -> Result<()> {
-        if lines.iter().any(|line| line.chars().count() > 384) {
-            bail!("sign lines must not exceed 384 characters");
-        }
-        let mut payload = Vec::new();
-        payload.write_u64::<BigEndian>(position.packed())?;
-        for line in lines {
-            put_string(&mut payload, line);
-        }
-        self.send(0x2a, &payload).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                if lines.iter().any(|line| line.chars().count() > 384) {
+                    bail!("sign lines must not exceed 384 characters");
+                }
+                let mut payload = Vec::new();
+                payload.write_u64::<BigEndian>(position.packed())?;
+                for line in lines {
+                    put_string(&mut payload, line);
+                }
+                self.send(0x2a, &payload).await
+            })
+            .await
     }
 
     /// Performs the `swap_hands` operation.
     pub async fn swap_hands(&self) -> Result<()> {
-        self.send_digging_packet(
-            DiggingStatus::SwapHands,
-            BlockPos { x: 0, y: 0, z: 0 },
-            BlockFace::Down,
-        )
-        .await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                self.send_digging_packet(
+                    DiggingStatus::SwapHands,
+                    BlockPos { x: 0, y: 0, z: 0 },
+                    BlockFace::Down,
+                )
+                .await
+            })
+            .await
     }
     /// Starts the operation barrier, stops local movement, closes the TCP
     /// writer, and waits for the reader to publish a terminal transport fact.
@@ -4623,6 +4903,9 @@ impl Bot {
     /// This method owns no timeout. Callers that require a logout deadline must
     /// apply it outside this client.
     pub async fn disconnect(&self) -> Result<()> {
+        self.connection
+            .ledger()
+            .fail(crate::client::ledger::Failure::Disconnected);
         self.connection.begin_disconnect().await.map_err(|error| {
             crate::Error::new(
                 crate::ErrorKind::State,
@@ -4656,8 +4939,9 @@ impl Bot {
 
     // Atomic::try_update is unavailable on our Rust 1.85 MSRV.
     #[allow(deprecated)]
-    async fn control_loop(&self) {
+    async fn control_loop(&self, producer: crate::client::ledger::Producer) {
         if self.wait_until_ready().await.is_err() {
+            producer.acknowledge_park();
             return;
         }
         let mut ticker = tokio::time::interval(Duration::from_millis(50));
@@ -4670,10 +4954,20 @@ impl Bot {
             // Input sampling, posture writes and movement share the same gate
             // as mode/world changes and selected-owner cleanup.
             let _coherent_state = self.coherent_state_gate.lock().await;
+            let lag = tokio::time::Instant::now().saturating_duration_since(scheduled);
+            if self.connection.ledger().quiescing()
+                && self.native_jump_work.lock().expect("native jump").is_none()
+            {
+                break;
+            }
             if self.common_native_physics_paused().await {
+                if self.connection.ledger().quiescing()
+                    && self.native_jump_work.lock().expect("native jump").is_none()
+                {
+                    break;
+                }
                 continue;
             }
-            let lag = tokio::time::Instant::now().saturating_duration_since(scheduled);
             if self
                 .teleport_barrier_ticks
                 .fetch_update(Ordering::AcqRel, Ordering::Acquire, |ticks| {
@@ -4684,58 +4978,102 @@ impl Bot {
                 self.physics.lock().await.record_tick(Duration::ZERO, lag);
                 continue;
             }
-            let (control, movement_fraction) = self
-                .connection
-                .consume_control_for_tick(Duration::from_millis(50))
+            let queued = self.native_jump_work.lock().expect("native jump").take();
+            let queued_jump = queued.is_some();
+            let work = match queued {
+                Some(work) => work,
+                None => match self.connection.ledger().try_work() {
+                    Ok(work) => work,
+                    Err(_) => break,
+                },
+            };
+            let queued_tick = if queued_jump {
+                Some(self.motion.lock().await.ticks)
+            } else {
+                None
+            };
+            let again = work
+                .run_scoped(async {
+                    if self.common_native_physics_paused().await {
+                        return true;
+                    }
+                    let native_target = self.connection.ledger().native_target();
+                    let (control, movement_fraction) = self
+                        .connection
+                        .consume_control_for_tick(Duration::from_millis(50))
+                        .await;
+                    if control.sprint != sprinting {
+                        if self
+                            .send_entity_action(if control.sprint { 3 } else { 4 })
+                            .await
+                            .is_err()
+                        {
+                            // A finite owner may acquire actor admission after this
+                            // loop sampled released controls. Keep the loop alive;
+                            // retry posture reconciliation only after the run settles.
+                            if self.common_native_physics_paused().await {
+                                return true;
+                            }
+                            return false;
+                        }
+                        sprinting = control.sprint;
+                    }
+                    if control.sneak != sneaking {
+                        if self
+                            .send_entity_action(if control.sneak { 0 } else { 1 })
+                            .await
+                            .is_err()
+                        {
+                            // A finite owner may acquire actor admission after this
+                            // loop sampled released controls. Keep the loop alive;
+                            // retry posture reconciliation only after the run settles.
+                            if self.common_native_physics_paused().await {
+                                return true;
+                            }
+                            return false;
+                        }
+                        sneaking = control.sneak;
+                    }
+                    let jump = (control.jump && !jump_held)
+                        || self.jump_requested.swap(false, Ordering::AcqRel);
+                    jump_held = control.jump;
+                    let tick_started = std::time::Instant::now();
+                    if self
+                        .physics_tick_with_fraction_unlocked(control, jump, movement_fraction)
+                        .await
+                        .is_err()
+                    {
+                        return false;
+                    }
+                    self.physics
+                        .lock()
+                        .await
+                        .record_tick(tick_started.elapsed(), lag);
+                    if control == ControlState::default() {
+                        if let Some(target) = native_target {
+                            self.connection.ledger().clear_target(target);
+                        }
+                    }
+                    true
+                })
                 .await;
-            if control.sprint != sprinting {
-                if self
-                    .send_entity_action(if control.sprint { 3 } else { 4 })
-                    .await
-                    .is_err()
-                {
-                    // A finite owner may acquire actor admission after this
-                    // loop sampled released controls. Keep the loop alive;
-                    // retry posture reconciliation only after the run settles.
-                    if self.common_native_physics_paused().await {
-                        continue;
-                    }
-                    break;
+            if let Some(before) = queued_tick {
+                if self.motion.lock().await.ticks == before {
+                    self.connection
+                        .ledger()
+                        .fail(crate::client::ledger::Failure::TransactionUnconfirmed);
                 }
-                sprinting = control.sprint;
             }
-            if control.sneak != sneaking {
-                if self
-                    .send_entity_action(if control.sneak { 0 } else { 1 })
-                    .await
-                    .is_err()
-                {
-                    // A finite owner may acquire actor admission after this
-                    // loop sampled released controls. Keep the loop alive;
-                    // retry posture reconciliation only after the run settles.
-                    if self.common_native_physics_paused().await {
-                        continue;
-                    }
-                    break;
+            if !again {
+                if queued_jump {
+                    self.connection
+                        .ledger()
+                        .fail(crate::client::ledger::Failure::TransactionUnconfirmed);
                 }
-                sneaking = control.sneak;
-            }
-            let jump =
-                (control.jump && !jump_held) || self.jump_requested.swap(false, Ordering::AcqRel);
-            jump_held = control.jump;
-            let tick_started = std::time::Instant::now();
-            if self
-                .physics_tick_with_fraction_unlocked(control, jump, movement_fraction)
-                .await
-                .is_err()
-            {
                 break;
             }
-            self.physics
-                .lock()
-                .await
-                .record_tick(tick_started.elapsed(), lag);
         }
+        producer.acknowledge_park();
     }
 
     #[cfg(test)]
@@ -5643,6 +5981,7 @@ impl Bot {
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;
         self.reconcile_finite().await;
+        self.observe_stop_context().await;
         self.enforce_session_limits().await?;
         if matches!(id, 0x14 | 0x16) {
             self.observe_common_glide_equipment(packet_sequence).await;
@@ -6049,7 +6388,9 @@ impl Bot {
         Ok(())
     }
     async fn handle_position(&self, p: &[u8]) -> Result<()> {
-        let response_work = self.connection.protocol_work();
+        let Some(response_work) = self.connection.protocol_work() else {
+            return Ok(());
+        };
         let mut s = self.player.lock().await;
         let (position, rotation, teleport) =
             common_recording::decode_position(p, [s.x, s.y, s.z], [s.yaw, s.pitch])?;
@@ -6227,6 +6568,7 @@ impl Bot {
         Ok(())
     }
     async fn send(&self, id: i32, p: &[u8]) -> Result<()> {
+        self.observe_stop_context().await;
         self.connection
             .dispatch(self.operation_context(0), OperationClass::Normal, id, p)
             .await
@@ -6708,10 +7050,16 @@ impl crate::client::adapter::WaitOps for Bot {
 
 impl crate::client::adapter::ChatOps for Bot {
     async fn send_chat(&self, message: &str) -> Result<()> {
-        Bot::send_chat(self, message).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async { Bot::send_chat(self, message).await })
+            .await
     }
     async fn send_command(&self, command: &str) -> Result<()> {
-        Bot::send_command(self, command).await
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async { Bot::send_command(self, command).await })
+            .await
     }
     async fn chat_after(&self, cursor: u64) -> Result<crate::client::ChatLog> {
         let _gate = self.coherent_state_gate.lock().await;
@@ -10357,3 +10705,4 @@ mod tests {
 }
 
 mod finite_work;
+mod quiesce;

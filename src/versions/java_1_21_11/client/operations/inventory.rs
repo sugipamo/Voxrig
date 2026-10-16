@@ -264,7 +264,7 @@ impl Operations {
             main_slot,
             hotbar,
         )?;
-        let work = self.bot.session.ledger.work();
+        let work = self.bot.session.ledger.try_work()?;
         state.pending_swap_work = Some(PendingWork::new(work));
         state.operations.inventory.pending_swap = Some(submission.clone());
         let send_work = ScopedWork::new(

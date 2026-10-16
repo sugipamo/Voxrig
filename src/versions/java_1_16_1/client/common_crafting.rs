@@ -238,7 +238,7 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
     ) -> Result<CraftingTakeRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.clone().lock_owned().await;
                 self.common_motion_admission().await?;

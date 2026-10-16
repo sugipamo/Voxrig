@@ -189,7 +189,7 @@ impl crate::client::adapter::FlightOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
                 self.mutable(&state)?;

@@ -42,6 +42,22 @@ use super::{
 use crate::versions::{java_1_16_1, java_1_21_11};
 use crate::{BlockFace, MinecraftVersion, Region, Result};
 
+/// Shared irreversible drain and selected-stop integration; never public.
+pub(crate) trait DrainOps {
+    fn drain_ledger(&self) -> super::ledger::Ledger;
+    fn drain_ready(&self) -> bool;
+    fn stop_targets(
+        &self,
+    ) -> impl std::future::Future<
+        Output = std::result::Result<Vec<super::StopTarget>, super::StopError>,
+    > + Send;
+    fn neutralize(
+        &self,
+        target: super::StopTarget,
+    ) -> impl std::future::Future<Output = std::result::Result<super::StopReceipt, super::StopError>>
+    + Send;
+}
+
 /// Connection lifecycle and packet diagnostics.
 pub(crate) trait SessionOps {
     /// Exact native version of this adapter.
@@ -89,7 +105,7 @@ pub(crate) trait CoreOps {
 
 /// Facts the dig timing needs that only the adapter knows.
 pub(crate) trait DigOps {
-    fn dig_work(&self) -> super::ledger::WorkGuard;
+    fn dig_work(&self) -> Result<super::ledger::WorkGuard>;
     fn dig_coordinator(&self) -> std::sync::Arc<super::operational_dig::Coordinator>;
     async fn dig_snapshot(&self, target: [i32; 3]) -> Result<super::operational_dig::Inputs>;
     async fn dig_dispatch(
@@ -320,7 +336,8 @@ pub(crate) trait VehicleOps {
 /// Every cross-version operation. Implemented automatically for any type that
 /// implements all of the concern traits.
 pub(crate) trait VersionAdapter:
-    SessionOps
+    DrainOps
+    + SessionOps
     + CoreOps
     + UiOps
     + ChatOps
@@ -343,7 +360,9 @@ pub(crate) trait VersionAdapter:
     + DigOps
 {
 }
-impl<T> VersionAdapter for T where
+impl<T> VersionAdapter for T
+where
+    T: DrainOps,
     T: SessionOps
         + CoreOps
         + UiOps
@@ -364,7 +383,7 @@ impl<T> VersionAdapter for T where
         + FlightOps
         + VehicleOps
         + ChunkOps
-        + DigOps
+        + DigOps,
 {
 }
 

@@ -25,7 +25,7 @@
 //! cumulative outcome counters saturate, and the first failure is
 //! retained separately forever. No receipt/history registry is retained here.
 //! See docs/internal/drain-ledger.md for provisional choices and integration debt.
-#![allow(dead_code)] // Drain/producer integration remains private until PR 4.
+#![allow(dead_code)] // Internal foundation/test diagnostics are not public APIs.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -34,6 +34,8 @@ use tokio::sync::watch;
 use crate::MinecraftVersion;
 
 pub(crate) mod finite;
+mod staged;
+pub(crate) mod stops;
 
 const MAX_ROOTS: usize = 1024;
 const MAX_GUARDS: usize = 4096;
@@ -54,6 +56,8 @@ pub(crate) enum Failure {
     Revoked,
     IdExhausted,
     Poisoned,
+    Disconnected,
+    WorkAborted,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -138,6 +142,9 @@ struct State {
     // public send errors, and existing queued callers must not gain a new cap.
     track_existing: bool,
     closed: bool,
+    quiescing: bool,
+    sealed: bool,
+    ready: bool,
     last_root: u64,
     last_producer: u64,
     last_write: u64,
@@ -151,10 +158,14 @@ struct State {
     outcomes: Outcomes,
 }
 
+static NEXT_PROVENANCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 struct Shared {
+    provenance: u64,
     generation: GenerationKey,
     state: Mutex<State>,
     changed: watch::Sender<()>,
+    stops: Mutex<stops::StopBook>,
 }
 
 impl Shared {
@@ -228,15 +239,28 @@ pub(crate) struct Ledger {
 }
 
 impl Ledger {
+    #[allow(deprecated)] // fetch_update is required by MSRV 1.85.
     pub(crate) fn new(generation: GenerationKey) -> Self {
         let (changed, _) = watch::channel(());
+        let provenance = NEXT_PROVENANCE
+            .fetch_update(
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+                |n| n.checked_add(1),
+            )
+            .ok();
         Self {
             shared: Arc::new(Shared {
+                provenance: provenance.unwrap_or(0),
                 generation,
                 changed,
+                stops: Mutex::default(),
                 state: Mutex::new(State {
                     track_existing: false,
                     closed: false,
+                    quiescing: false,
+                    sealed: false,
+                    ready: false,
                     last_root: 0,
                     last_producer: 0,
                     last_write: 0,
@@ -245,7 +269,10 @@ impl Ledger {
                     roots: BTreeMap::new(),
                     guards: 0,
                     producers: BTreeSet::new(),
-                    terminal: None,
+                    terminal: provenance.is_none().then_some(Terminal {
+                        root: None,
+                        cause: Failure::IdExhausted,
+                    }),
                     outcomes: Outcomes::default(),
                 }),
             }),
@@ -286,16 +313,17 @@ impl Ledger {
             shared: self.shared.clone(),
             root: id,
             retired: false,
+            neutral_stop: false,
         })
     }
 
-    fn register_producer(&self) -> Result<Producer, AdmissionError> {
+    pub(crate) fn register_producer(&self) -> Result<Producer, AdmissionError> {
         let mut state = self.shared.lock();
         state.healthy()?;
-        if state.closed {
+        if state.closed && !self.inherited() {
             return Err(AdmissionError::Closed);
         }
-        if state.producers.len() >= MAX_PRODUCERS {
+        if !state.track_existing && state.producers.len() >= MAX_PRODUCERS {
             return Err(AdmissionError::Capacity);
         }
         let last = state.last_producer;
@@ -345,6 +373,7 @@ pub(crate) struct WorkGuard {
     shared: Arc<Shared>,
     root: u64,
     retired: bool,
+    neutral_stop: bool,
 }
 
 impl WorkGuard {
@@ -354,6 +383,7 @@ impl WorkGuard {
             shared: self.shared.clone(),
             root: self.root,
             retired: false,
+            neutral_stop: self.neutral_stop,
         })
     }
 
@@ -388,6 +418,7 @@ impl WorkGuard {
                 shared: self.shared.clone(),
                 root: self.root,
                 retired: false,
+                neutral_stop: self.neutral_stop,
             }),
             ordinal,
         })
@@ -439,20 +470,20 @@ impl Drop for WritePermit {
     }
 }
 
-struct Producer {
+pub(crate) struct Producer {
     shared: Arc<Shared>,
     id: u64,
     parked: bool,
 }
 
 impl Producer {
-    fn park_requested(&self) -> bool {
+    pub(crate) fn park_requested(&self) -> bool {
         self.shared.lock().closed
     }
 
     // May only be called once no sample/queue can create another independent root.
     // Existing finite roots remain counted separately. No network stop is implied.
-    fn acknowledge_park(mut self) {
+    pub(crate) fn acknowledge_park(mut self) {
         self.shared.lock().producers.remove(&self.id);
         self.parked = true;
         self.shared.notify();
@@ -570,8 +601,8 @@ impl PendingWork {
     }
 }
 
-// The sole frame-completion policy. Provisional pending Golemkit: completing W
-// at socket flush never retires protocol pending/barrier owners or awaits ACK.
+// The approved frame-completion policy: socket write plus flush. Publishing W
+// never retires protocol pending/barrier owners or waits for server ACK.
 enum CompletionPoint {
     SocketFlush,
 }
@@ -605,6 +636,7 @@ impl<W: tokio::io::AsyncWrite + Unpin> SocketWriter<W> {
         id: i32,
         payload: &[u8],
     ) -> anyhow::Result<()> {
+        work.observe_packet(id, payload)?;
         let permit = work
             .begin_write()
             .map_err(|e| anyhow::anyhow!("ledger write: {e:?}"))?;

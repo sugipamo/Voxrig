@@ -310,7 +310,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async { self.start_mining_in(target, face, false).await })
             .await
     }
@@ -323,7 +323,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
                 if self.bot.session.operational_dig.active() {
@@ -415,6 +415,9 @@ impl Operations {
                     .as_mut()
                     .expect("stored mining intent")
                     .start_dispatched = true;
+                if let Some(capture) = &state.common_mining {
+                    self.bot.session.ledger.attach_mining(capture.id());
+                }
                 Ok(intent)
             })
             .await
@@ -434,7 +437,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
                 self.ready(&state)?;
@@ -586,7 +589,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_result(async {
                 if maximum_wait.is_zero() || maximum_wait > Duration::from_secs(30) {
                     return Err(invalid(
@@ -905,7 +908,7 @@ impl crate::client::adapter::MiningOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 self.start_mining_in(target, face, true).await?;
                 self.mining_record()

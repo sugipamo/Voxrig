@@ -1033,7 +1033,7 @@ impl crate::client::adapter::PathMotionOps for Bot {
     ) -> Result<MotionRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 model::validate_controls(controls)?;
                 let _gate = self.coherent_state_gate.lock().await;

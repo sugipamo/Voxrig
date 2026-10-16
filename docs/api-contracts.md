@@ -109,3 +109,123 @@ revisionは不要な再転送を避けるために使えます。通常のgetter
 接続・login・play packet・ready待機のtimeoutと、接続ごとのchunk・entity・map・総cache record、CustomPayload、event queueの上限は`ConnectionOptions`で変更できます。上限超過は接続errorとして終了します。自動再接続とbackoffは外部controllerの方針です。
 
 公開されるfallible APIは`voxrig::Result<T>`を返します。再試行や入力修正の判断にはerror文字列ではなく`Error::kind()`を使用します。`ErrorKind`は将来追加され得るため、matchにはfallback branchが必要です。
+
+## Staged quiesce and source fencing (#131 PR 4)
+
+`Client::generation_key()` observes one immutable process-local transport key.
+World resets do not replace it. Retain the original source `Client` and key
+through handoff; neither a key nor a serialized receipt recreates authority.
+Native users enter through the common `Client` (`NativeClient::client()` for
+1.21.11). Native clones share exactly the same admission gates and ledger.
+
+`begin_quiesce(key)` is synchronous, irreversible and succeeds once, at Ready.
+It closes normal mutation admission, fixes the first root cut and requests
+ordinary-producer park. Existing Result-returning mutation, native and raw send
+operations on that connection reject with the existing `ErrorKind::State`.
+Existing typed native dispatch APIs retain their existing typed admission-error
+representation. The three void-returning 1.16.1 native methods `set_control`,
+`clear_control`, and `suspend_movement_for` become **no-ops** after begin: no state
+change, queueing or write. `ConnectionStatus::Ready` continues to describe the
+transport, and alone does not prove mutation admission. Clients that never call
+begin retain their existing protocol behavior, outcomes and cancellation rules.
+
+Retain `QuiesceHandle`; it cannot be cloned. Dropping it never resumes, selects a
+stop, revokes the source, or cancels accepted work. Lost orchestration authority
+requires explicitly fencing that same source; a second begin cannot recover it.
+There is no resume and no automatic stop-target selection.
+
+The two stages are deliberately separate:
+
+1. `q.admitted_drain()` observes the fixed first cut and producer park ACKs. Its
+   `ProducersParked` receipt covers accepted finite work and all descendants,
+   pending protocol transactions, exact barriers, pending swaps and retained
+   continuations. Ordinary control and passive/native physics cannot sample
+   again. A ground jump accepted before begin but not yet sampled remains finite
+   debt: it is evaluated/sent once on the next tick before park is confirmed.
+   Independent protocol maintenance may still write after this first receipt.
+2. Inspect `q.stop_targets().await`, match **original** world/mode/owner IDs, and
+   explicitly choose targets. `q.stop_permit()` borrows `&mut q`, allowing one
+   stop holder. `neutralize(target).await` admits at first poll, owns accepted
+   cleanup independently of its waiter, and joins/caches repeated requests for
+   the same binding without resending. Dropping an unused permit sends nothing.
+3. `q.seal_for_fence()` closes stop and independent maintenance admission and
+   fixes the final cut. Its `SealedForFence` receipt waits for accepted stops and
+   dependencies and certifies **no later Voxrig application write** on the source,
+   including teleport confirm/position, keepalive and configuration responses.
+   Accepted response batches remain counted across every frame/flush. Receivers
+   continue processing dependency receipts; new unrelated responses are suppressed
+   before obtaining write authority. Repeat seal calls observe the same cut/cache.
+
+Common and legacy native movement have separate original-owner bindings. A
+native clear cannot remove a common binding; an ended common owner is retired.
+When common control owns wire posture, neutralizing the dormant native target
+clears only its local inputs. Neutralizing the common target releases that wire
+posture, including inherited sprint/sneak. Callers select each target explicitly.
+Mount transitions invalidate movement targets even when the old relation returns.
+
+Movement neutralization releases original held input/sprint/sneak, without
+landing, disabling flight, predicting a new position or dismounting. Vehicle
+neutralization releases input and paddles on the original mount, without claiming
+that the vehicle has stopped. Item-use neutralization is allowed **even when it
+has gameplay effects**, such as firing a bow. Callers own that selection policy.
+Digging neutralization sends ABORT, never FINISH. An ABORT intentionally submitted
+through `StopPermit` is **clean completion only after its cleanup is confirmed**:
+`StopReceipt` is Ok and drain may succeed. Cleanup timeout is sticky
+`TransactionUnconfirmed`; unknown delivery is sticky `UncertainDispatch`. Other
+aborts, expiry, lost owners and dropped caller-owned native helper futures remain
+permanent failures. No automatic FINISH/ABORT/release is added for those helpers.
+Stale/unsupported/refused selected stops send no replacement-owner write and
+latch required-release failure. Temporarily restored mode/world/hand/mount state
+does not restore an old binding.
+
+`DrainHandle: Clone + Send + Sync` is an observer, not a Future. Use `.wait().await`
+for a receipt or `.is_drained()` for a cheap synchronous check: `Ok(false)` pending,
+`Ok(true)` issued/cached, `Err` failed. Polling requires no runtime, await, I/O,
+record scan or work progression; it takes short synchronous locks and queries the
+live-root prefix. Independent waits share the stage cache and have independent
+wake registration. Dropping/timing out a wait cancels that observer only.
+There is no `try_receipt` API; use `wait` to obtain the same receipt after a true
+poll. Receipt issuance and revoke share an ordering gate: revoke first fails an
+unissued drain, issue first preserves historical success. EOF/closure is never
+successful drain. The first terminal failure remains sticky for every unissued
+stage, even after later ACKs or idle state.
+
+`written_through()` is W: the contiguous prefix of socket **write plus flush**
+completion from handshake onward. It is neither a maximum ordinal that skips
+failures, a server ACK, peer read, server acceptance nor physical stillness.
+Receipt completion additionally requires all covered local cleanup. The isolated
+internal completion point is `CompletionPoint::SocketFlush`.
+
+All new types are re-exported from `voxrig::client`. Only `QuiesceHandle`,
+`DrainHandle`, `StopPermit`, `DrainError`, `DrainErrorKind`, `StopError`,
+`StopTarget`, and `StopTargetKind` are added to the common/root prelude. There
+are no native-only bridges, new public traits, new existing-enum variants, or
+new dependencies. Shutdown observation remains PR 5: final drain is followed by
+explicit source revocation and eventual shutdown observation, not a claim that
+`disconnect` joins every task.
+
+Golemkit must expose both drain stages and retain their scopes. An illustrative
+Golemkit-side adapter (these types and constructors are **not in this crate**):
+
+```text
+fn backend_poll(drain: voxrig::client::DrainHandle)
+    -> impl Fn() -> Result<bool, BackendError> + Send + Sync
+{
+    move || drain.is_drained().map_err(|error| match error.kind() {
+        DrainErrorKind::TransactionUnconfirmed => BackendError::Timeout(/* retain cause */),
+        DrainErrorKind::UncertainDispatch => BackendError::OperationUnconfirmed(/* retain cause */),
+        _ => map_other_drain_error(error),
+    })
+}
+// Pass this closure to the actual Golemkit BackendDrain constructor.
+```
+
+Do not translate a first-stage true into final source completion, infer success
+from zero counters, or retry uncertain mutations. Error paths still fence and
+await source shutdown; an outer orchestration timeout cannot synthesize a receipt.
+
+Jump admission and queue publication hold the producer's state/coherent lock.
+A request still waiting for that lock when begin closes admission has not yet
+been accepted and returns State. The producer cannot acknowledge park between
+acceptance and publication of a queued jump. This ordering is tested in both
+adapters, including the legacy native jump path.

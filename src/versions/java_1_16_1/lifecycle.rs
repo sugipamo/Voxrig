@@ -521,16 +521,24 @@ impl CommandSender {
     async fn send(&self, command: Command) -> Result<(), mpsc::error::SendError<Command>> {
         // Local ACK/expiry/cleanup commands retire existing pending authority;
         // they must remain processable after root admission closes.
-        let work = matches!(
+        let needs_work = matches!(
             &command,
-            Command::Motion(_)
+            Command::ReplaceControl { .. }
+                | Command::Motion(_)
                 | Command::Dispatch { .. }
                 | Command::DispatchPrimitive { .. }
                 | Command::DispatchInteractionBatch { .. }
                 | Command::DispatchAcknowledged { .. }
                 | Command::DispatchProtocol { .. }
-        )
-        .then(|| ScopedWork::new(self.ledger.work()));
+        );
+        let work = if needs_work {
+            match self.ledger.try_work() {
+                Ok(work) => Some(ScopedWork::new(work)),
+                Err(_) => return Err(mpsc::error::SendError(command)),
+            }
+        } else {
+            None
+        };
         self.sender
             .send(QueuedCommand { command, work })
             .await
@@ -836,6 +844,9 @@ impl ConnectionActor {
                         );
                         if result.is_ok() {
                             **actor_control.write().await = replacement;
+                            let _ = expiry_commands
+                                .ledger
+                                .bind_native_input(replacement != crate::ControlState::default());
                         }
                         let _ = reply.send(result);
                     }
@@ -1548,10 +1559,10 @@ impl ConnectionActor {
         let receipt = GenerationRevocation {
             generation: self.generation,
         };
+        self.ledger.fail(Failure::Revoked);
         if self.revoked.swap(true, Ordering::AcqRel) {
             return receipt;
         }
-        self.ledger.fail(Failure::Revoked);
         self.owner.abort();
         let writer = self.writer.clone();
         self.runtime.spawn(async move {
@@ -1613,6 +1624,9 @@ impl ConnectionActor {
         context: OperationContext,
         class: OperationClass,
     ) -> Result<(), OperationAdmissionError> {
+        self.ledger
+            .check_normal()
+            .map_err(|_| OperationAdmissionError::InvalidOperation)?;
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::Admit {
@@ -1945,12 +1959,8 @@ impl ConnectionActor {
         result.await.unwrap_or(None)
     }
 
-    pub(crate) fn protocol_work(&self) -> ScopedWork {
-        ScopedWork::new(
-            self.ledger
-                .admit()
-                .expect("existing protocol response admission"),
-        )
+    pub(crate) fn protocol_work(&self) -> Option<ScopedWork> {
+        self.ledger.maintenance().ok().map(ScopedWork::new)
     }
 
     pub(crate) async fn dispatch_protocol(
@@ -1968,9 +1978,16 @@ impl ConnectionActor {
         work: Option<WorkGuard>,
     ) -> crate::Result<()> {
         let (reply, result) = oneshot::channel();
-        let work = ScopedWork::new(
-            work.unwrap_or_else(|| self.ledger.admit().expect("existing protocol admission")),
-        );
+        let work = match work {
+            Some(work) => work,
+            None => {
+                let Ok(work) = self.ledger.maintenance() else {
+                    return Ok(());
+                };
+                work
+            }
+        };
+        let work = ScopedWork::new(work);
         self.commands
             .send_work(
                 Command::DispatchProtocol {
@@ -2000,6 +2017,7 @@ impl ConnectionActor {
     }
 
     pub(crate) async fn mark_terminal(&self, classification: TerminalClassification) {
+        self.ledger.fail(Failure::Disconnected);
         let _ = self
             .commands
             .send(Command::MarkTerminal(classification, None))

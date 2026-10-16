@@ -134,7 +134,7 @@ impl crate::client::adapter::InventoryClickOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
                 self.mutable(&state)?;

@@ -19,6 +19,7 @@ fn attribute(name: &str) -> Option<i32> {
 pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
     pub session: Option<ControlSession>,
     next_id: u64,
+    jump_work: Option<crate::client::ledger::WorkGuard>,
     generation: Option<u64>,
     model_attempt: Option<u64>,
     // Complete local disable wins only over older abilities in the same world.
@@ -363,6 +364,9 @@ impl Operations {
         let record = session.record();
         state.control.session = Some(session);
         self.bot.session.changed.notify_waiters();
+        if release.is_ok() {
+            self.bot.session.ledger.retire_common_control(id);
+        }
         release.map(|()| Some(record))
     }
 
@@ -372,19 +376,30 @@ impl Operations {
         generation: u64,
         mode: GameMode,
         kind: crate::client::control::ControlKind,
+        producer: crate::client::ledger::Producer,
     ) {
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             interval.tick().await;
             let mut state = self.bot.session.state.lock().await;
+            let queued = state.control.jump_work.take();
+            let queued_jump = queued.is_some();
+            let work = match queued {
+                Some(work) => work,
+                None => match self.bot.session.ledger.try_work() {
+                    Ok(work) => work,
+                    Err(_) => break,
+                },
+            };
+            let again = work.run_scoped(async {
             if state
                 .control
                 .session
                 .as_ref()
                 .is_none_or(|s| s.id != id || !s.running())
             {
-                return;
+                return false;
             }
             let stop = match self.ready(&state) {
                 Err(e) => Some(e.to_string()),
@@ -409,7 +424,7 @@ impl Operations {
                     },
                 };
                 self.bot.session.changed.notify_waiters();
-                return;
+                return false;
             }
             if kind == crate::client::control::ControlKind::Glide {
                 if !state
@@ -432,7 +447,7 @@ impl Operations {
                             reason: "actual glide preceded start dispatch; inspect before reuse"
                                 .into(),
                         };
-                        return;
+                        return false;
                     }
                     let mut payload = Vec::new();
                     put_varint(
@@ -452,7 +467,7 @@ impl Operations {
                                 "glide start write failed; inspect before reuse: {error}"
                             ),
                         };
-                        return;
+                        return false;
                     }
                     state
                         .control
@@ -465,7 +480,7 @@ impl Operations {
                         .dispatched = true;
                 }
                 if state.control.session.as_mut().unwrap().glide_waiting() {
-                    continue;
+                    return true;
                 }
             }
             let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
@@ -514,7 +529,7 @@ impl Operations {
                 };
                 state.control.session = Some(session);
                 self.bot.session.changed.notify_waiters();
-                return;
+                return false;
             }
             let result = if state.reconstruction.issue.is_some()
                 || !state.reconstruction.recovery_chunks.is_empty()
@@ -552,12 +567,12 @@ impl Operations {
                     }
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();
-                    return;
+                    return false;
                 }
             };
             let Some(output) = output else {
                 state.control.session = Some(session);
-                continue;
+                return true;
             };
             let entity = state.operations.local_player.entity_id;
             let sequence = state.sequence;
@@ -570,7 +585,7 @@ impl Operations {
                     reason: "position attempt IDs exhausted".into(),
                 };
                 state.control.session = Some(session);
-                return;
+                return false;
             }
             let landed =
                 kind == crate::client::control::ControlKind::Flight && session.body.flight_landed;
@@ -655,7 +670,7 @@ impl Operations {
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();
                     if landed || glide_ended {
-                        return;
+                        return false;
                     }
                 }
                 Err(error) => {
@@ -664,10 +679,56 @@ impl Operations {
                         reason: format!("write failed; inspect before reuse: {error}"),
                     };
                     state.control.session = Some(session);
-                    return;
+                    return false;
                 }
             }
+            true
+            }).await;
+            drop(state);
+            if queued_jump {
+                let completed = self
+                    .bot
+                    .session
+                    .state
+                    .lock()
+                    .await
+                    .control
+                    .session
+                    .as_ref()
+                    .is_some_and(|s| {
+                        matches!(
+                            s.record().ground_jump.map(|r| r.status),
+                            Some(crate::client::control::GroundJumpStatus::Evaluated {
+                                dispatched: true,
+                                ..
+                            })
+                        )
+                    });
+                if !completed {
+                    self.bot
+                        .session
+                        .ledger
+                        .fail(crate::client::ledger::Failure::TransactionUnconfirmed);
+                }
+            }
+            if !again {
+                break;
+            }
         }
+        if !self
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .control
+            .session
+            .as_ref()
+            .is_some_and(|s| s.id == id && s.running())
+        {
+            self.bot.session.ledger.retire_common_control(id);
+        }
+        producer.acknowledge_park();
     }
 }
 
@@ -678,219 +739,224 @@ impl Operations {
         initial_flight_controls: Option<Controls>,
         glide: bool,
     ) -> Result<ControlRecord> {
-        let kind = if glide {
-            crate::client::control::ControlKind::Glide
-        } else if initial_flight_controls.is_some() {
-            crate::client::control::ControlKind::Flight
-        } else {
-            crate::client::control::ControlKind::Ground
-        };
-        match kind {
-            crate::client::control::ControlKind::Ground => {
-                crate::client::control::validate_ground_mode(mode)?
-            }
-            crate::client::control::ControlKind::Flight
-                if matches!(mode, GameMode::Creative | GameMode::Spectator) => {}
-            crate::client::control::ControlKind::Glide if mode != GameMode::Spectator => {}
-            _ => return Err(invalid("selected control kind does not support this mode")),
-        }
-        if let Some(controls) = initial_flight_controls {
-            crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
-            if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
-                return Err(invalid("controls out of range"));
-            }
-        }
-        let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
-        if state.operations.game_mode != Some(mode) {
-            return Err(invalid(
-                "continuous control requires matching received mode",
-            ));
-        }
-
-        if state.control.active() {
-            return Err(invalid("a control session is already running"));
-        }
-        if state
-            .survival_motion
-            .as_ref()
-            .is_some_and(|r| r.status == SurvivalMotionStatus::Running)
-        {
-            return Err(invalid("a finite motion run is in progress"));
-        }
-        let generation = state.loading.generation;
-        if let Some(reason) = stop_reason(&state, generation, mode, kind) {
-            return Err(invalid(reason));
-        }
-        let Some(position) = state.position else {
-            return Err(invalid("continuous control requires a received position"));
-        };
-        if state
-            .motion
-            .received_pose
-            .as_ref()
-            .is_none_or(|p| p.generation != generation)
-        {
-            return Err(invalid("continuous control requires a received pose"));
-        }
-        let received = received(&state);
-        if matches!(
-            state.motion.position_basis,
-            super::super::motion::PositionBasis::Unavailable
-                | super::super::motion::PositionBasis::PendingSubmission
-        ) {
-            return Err(invalid(
-                "continuous control requires a resolved position model",
-            ));
-        }
-        let previous = state
-            .control
-            .session
-            .as_ref()
-            .filter(|_| state.control.generation == Some(generation));
-        let attempt = state.motion.last_submission.as_ref().map(|s| s.attempt_id);
-        if let Some(previous) = previous {
-            if (previous.body.position != position || attempt != state.control.model_attempt)
-                && !previous.has_new_pose(&received)
-            {
-                return Err(invalid(
-                    "current model momentum unavailable after unrelated local movement",
-                ));
-            }
-        }
-        let owned_model = previous.filter(|_| attempt == state.control.model_attempt);
-        if owned_model.is_none()
-            && state.motion.position_basis == super::super::motion::PositionBasis::Submitted
-        {
-            return Err(invalid(
-                "position was submitted outside this control model; receive a fresh pose first",
-            ));
-        }
-        if owned_model.is_none()
-            && received.pose.is_some_and(|(pose_sequence, _, velocity)| {
-                velocity.is_none() && received.velocity.is_none_or(|v| v.0 < pose_sequence)
-            })
-        {
-            return Err(invalid("received velocity baseline is unavailable"));
-        }
-        if glide
-            && state
-                .operations
-                .local_player
-                .fall_flying
-                .is_some_and(|(value, _)| value)
-        {
-            return Err(invalid(
-                "already fall-flying; new start request is not qualified",
-            ));
-        }
-        let equipment = if glide {
-            Some(glide_equipment(&state)?)
-        } else {
-            None
-        };
-        let id = state.control.next_id + 1;
-        let rotation = state.rotation;
-        let mut session = if let Some(previous) = owned_model {
-            previous.resume(id, rotation, &received)
-        } else {
-            let mut session = ControlSession::new(
-                crate::MinecraftVersion::Java1_21_11,
-                id,
-                position,
-                &received,
-            );
-            session.controls.yaw = rotation[0];
-            session.controls.pitch = rotation[1];
-            session
-        };
-        if let Some(previous) = previous {
-            session.inherit_item_release(previous);
-        }
-        if !glide && previous.is_some_and(|p| p.kind == crate::client::control::ControlKind::Glide)
-        {
-            if state.operations.local_player.pose
-                != Some(super::super::players::PlayerPose::Standing)
-            {
-                return Err(invalid("ground after glide requires actual standing pose"));
-            }
-            session.body.leave_glide_pose();
-        }
-        session.mode = mode;
-        session.kind = kind;
-        if let Some(controls) = initial_flight_controls {
-            session.controls = controls;
-        }
-        {
-            let stamp = crate::client::SessionStamp {
-                version: crate::MinecraftVersion::Java1_21_11,
-                connection_id: self.bot.session.id,
-                world_generation: generation,
-            };
-            let own = state
-                .operations
-                .local_player
-                .entity_id
-                .ok_or_else(|| invalid("contact model requires own login entity"))?;
-            let constructor = if glide {
-                crate::client::entity::owned_contacts::OwnedContacts::new_glide
+        let admission = self.bot.session.ledger.try_work()?;
+        admission.run_scoped(async {
+            let kind = if glide {
+                crate::client::control::ControlKind::Glide
+            } else if initial_flight_controls.is_some() {
+                crate::client::control::ControlKind::Flight
             } else {
-                crate::client::entity::owned_contacts::OwnedContacts::new
+                crate::client::control::ControlKind::Ground
             };
-            let mut contacts = constructor(stamp, id, own, &state.entities, state.sequence)?;
-            let teams = state.teams.capture(stamp, state.sequence);
-            let profiles = state.player_list.capture(stamp, state.sequence);
-            contacts.teams(&teams, &profiles, crate::MovementOwnerState::NotAdmitted)?;
-            session.contact_team = crate::client::entity::owned_contacts::team(
-                &teams,
-                &state
-                    .identity
-                    .as_ref()
-                    .ok_or_else(|| invalid("contact login identity missing"))?
-                    .name,
-            );
-            session.contacts = Some(contacts);
-        }
-        state.control.next_id = id;
-        state.control.generation = Some(generation);
-        state.control.model_attempt = attempt;
-        if let Some(equipment) = equipment {
-            crate::client::physics::glide_origin(
-                crate::MinecraftVersion::Java1_21_11,
-                &session.body,
-                &mut |p| state.block(p),
-            )?;
-
-            if session.body.on_ground
-                || session.body.in_water
-                || received.environment.levitation
-                || received.environment.player_scale != Some(1.0)
-            {
+            match kind {
+                crate::client::control::ControlKind::Ground => {
+                    crate::client::control::validate_ground_mode(mode)?
+                }
+                crate::client::control::ControlKind::Flight
+                    if matches!(mode, GameMode::Creative | GameMode::Spectator) => {}
+                crate::client::control::ControlKind::Glide if mode != GameMode::Spectator => {}
+                _ => return Err(invalid("selected control kind does not support this mode")),
+            }
+            if let Some(controls) = initial_flight_controls {
+                crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
+                if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
+                    return Err(invalid("controls out of range"));
+                }
+            }
+            let mut state = self.bot.session.state.lock().await;
+            self.ready(&state)?;
+            if state.operations.game_mode != Some(mode) {
                 return Err(invalid(
-                    "glide requires an airborne unit-scale non-water model without levitation",
+                    "continuous control requires matching received mode",
                 ));
             }
-            session.glide = Some(crate::client::glide::GlideRecord {
-                after_sequence: state.sequence,
-                dispatched: false,
-                accepted_sequence: None,
-                ended_sequence: None,
-                actual: state
+
+            if state.control.active() {
+                return Err(invalid("a control session is already running"));
+            }
+            if state
+                .survival_motion
+                .as_ref()
+                .is_some_and(|r| r.status == SurvivalMotionStatus::Running)
+            {
+                return Err(invalid("a finite motion run is in progress"));
+            }
+            let generation = state.loading.generation;
+            if let Some(reason) = stop_reason(&state, generation, mode, kind) {
+                return Err(invalid(reason));
+            }
+            let Some(position) = state.position else {
+                return Err(invalid("continuous control requires a received position"));
+            };
+            if state
+                .motion
+                .received_pose
+                .as_ref()
+                .is_none_or(|p| p.generation != generation)
+            {
+                return Err(invalid("continuous control requires a received pose"));
+            }
+            let received = received(&state);
+            if matches!(
+                state.motion.position_basis,
+                super::super::motion::PositionBasis::Unavailable
+                    | super::super::motion::PositionBasis::PendingSubmission
+            ) {
+                return Err(invalid(
+                    "continuous control requires a resolved position model",
+                ));
+            }
+            let previous = state
+                .control
+                .session
+                .as_ref()
+                .filter(|_| state.control.generation == Some(generation));
+            let attempt = state.motion.last_submission.as_ref().map(|s| s.attempt_id);
+            if let Some(previous) = previous {
+                if (previous.body.position != position || attempt != state.control.model_attempt)
+                    && !previous.has_new_pose(&received)
+                {
+                    return Err(invalid(
+                        "current model momentum unavailable after unrelated local movement",
+                    ));
+                }
+            }
+            let owned_model = previous.filter(|_| attempt == state.control.model_attempt);
+            if owned_model.is_none()
+                && state.motion.position_basis == super::super::motion::PositionBasis::Submitted
+            {
+                return Err(invalid(
+                    "position was submitted outside this control model; receive a fresh pose first",
+                ));
+            }
+            if owned_model.is_none()
+                && received.pose.is_some_and(|(pose_sequence, _, velocity)| {
+                    velocity.is_none() && received.velocity.is_none_or(|v| v.0 < pose_sequence)
+                })
+            {
+                return Err(invalid("received velocity baseline is unavailable"));
+            }
+            if glide
+                && state
                     .operations
                     .local_player
                     .fall_flying
-                    .map(|(v, s)| crate::client::received(v, s)),
-                equipment,
-                equipment_invalidated_sequence: None,
-                waiting_ticks: 0,
-            });
-        }
-        let record = session.record();
-        state.control.session = Some(session);
-        drop(state);
-        let ops = self.clone();
-        tokio::spawn(async move { ops.run_control(id, generation, mode, kind).await });
-        Ok(record)
+                    .is_some_and(|(value, _)| value)
+            {
+                return Err(invalid(
+                    "already fall-flying; new start request is not qualified",
+                ));
+            }
+            let equipment = if glide {
+                Some(glide_equipment(&state)?)
+            } else {
+                None
+            };
+            let id = state.control.next_id + 1;
+            let rotation = state.rotation;
+            let mut session = if let Some(previous) = owned_model {
+                previous.resume(id, rotation, &received)
+            } else {
+                let mut session = ControlSession::new(
+                    crate::MinecraftVersion::Java1_21_11,
+                    id,
+                    position,
+                    &received,
+                );
+                session.controls.yaw = rotation[0];
+                session.controls.pitch = rotation[1];
+                session
+            };
+            if let Some(previous) = previous {
+                session.inherit_item_release(previous);
+            }
+            if !glide && previous.is_some_and(|p| p.kind == crate::client::control::ControlKind::Glide)
+            {
+                if state.operations.local_player.pose
+                    != Some(super::super::players::PlayerPose::Standing)
+                {
+                    return Err(invalid("ground after glide requires actual standing pose"));
+                }
+                session.body.leave_glide_pose();
+            }
+            session.mode = mode;
+            session.kind = kind;
+            if let Some(controls) = initial_flight_controls {
+                session.controls = controls;
+            }
+            {
+                let stamp = crate::client::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_21_11,
+                    connection_id: self.bot.session.id,
+                    world_generation: generation,
+                };
+                let own = state
+                    .operations
+                    .local_player
+                    .entity_id
+                    .ok_or_else(|| invalid("contact model requires own login entity"))?;
+                let constructor = if glide {
+                    crate::client::entity::owned_contacts::OwnedContacts::new_glide
+                } else {
+                    crate::client::entity::owned_contacts::OwnedContacts::new
+                };
+                let mut contacts = constructor(stamp, id, own, &state.entities, state.sequence)?;
+                let teams = state.teams.capture(stamp, state.sequence);
+                let profiles = state.player_list.capture(stamp, state.sequence);
+                contacts.teams(&teams, &profiles, crate::MovementOwnerState::NotAdmitted)?;
+                session.contact_team = crate::client::entity::owned_contacts::team(
+                    &teams,
+                    &state
+                        .identity
+                        .as_ref()
+                        .ok_or_else(|| invalid("contact login identity missing"))?
+                        .name,
+                );
+                session.contacts = Some(contacts);
+            }
+            state.control.next_id = id;
+            state.control.generation = Some(generation);
+            state.control.model_attempt = attempt;
+            if let Some(equipment) = equipment {
+                crate::client::physics::glide_origin(
+                    crate::MinecraftVersion::Java1_21_11,
+                    &session.body,
+                    &mut |p| state.block(p),
+                )?;
+
+                if session.body.on_ground
+                    || session.body.in_water
+                    || received.environment.levitation
+                    || received.environment.player_scale != Some(1.0)
+                {
+                    return Err(invalid(
+                        "glide requires an airborne unit-scale non-water model without levitation",
+                    ));
+                }
+                session.glide = Some(crate::client::glide::GlideRecord {
+                    after_sequence: state.sequence,
+                    dispatched: false,
+                    accepted_sequence: None,
+                    ended_sequence: None,
+                    actual: state
+                        .operations
+                        .local_player
+                        .fall_flying
+                        .map(|(v, s)| crate::client::received(v, s)),
+                    equipment,
+                    equipment_invalidated_sequence: None,
+                    waiting_ticks: 0,
+                });
+            }
+            let record = session.record();
+            self.bot.session.ledger.bind_movement(crate::client::SessionStamp { version: crate::MinecraftVersion::Java1_21_11, connection_id: self.bot.session.id, world_generation: generation }, mode, Some(id))?;
+            state.control.session = Some(session);
+            drop(state);
+            let ops = self.clone();
+            let producer = self.bot.session.ledger.register_producer().map_err(crate::client::ledger::finite::admission_error)?;
+            tokio::spawn(async move { ops.run_control(id, generation, mode, kind, producer).await });
+            Ok(record)
+        }).await
     }
 }
 
@@ -921,40 +987,45 @@ impl crate::client::adapter::ControlOps for Operations {
         session_id: Option<u64>,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
-        if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
-            return Err(invalid("controls out of range"));
-        }
-        let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
-        if state.operations.game_mode != Some(mode) {
-            return Err(invalid("controls require matching received mode"));
-        }
-        if let Some(reason) = stop_reason(
-            &state,
-            state.loading.generation,
-            mode,
-            state
-                .control
-                .session
-                .as_ref()
-                .map_or(crate::client::control::ControlKind::Ground, |s| s.kind),
-        ) {
-            return Err(invalid(reason));
-        }
-        if state.control.generation != Some(state.loading.generation) {
-            return Err(invalid("control belongs to a previous world"));
-        }
-        match state.control.session.as_mut() {
-            Some(session) if session.running() && session.mode == mode => {
-                if session_id.is_some_and(|id| session.id != id) {
-                    return Err(invalid("selected control session was replaced"));
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
+                if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
+                    return Err(invalid("controls out of range"));
                 }
-                session.controls = controls;
-                Ok(session.record())
-            }
-            _ => Err(invalid("no running control session")),
-        }
+                let mut state = self.bot.session.state.lock().await;
+                self.ready(&state)?;
+                if state.operations.game_mode != Some(mode) {
+                    return Err(invalid("controls require matching received mode"));
+                }
+                if let Some(reason) = stop_reason(
+                    &state,
+                    state.loading.generation,
+                    mode,
+                    state
+                        .control
+                        .session
+                        .as_ref()
+                        .map_or(crate::client::control::ControlKind::Ground, |s| s.kind),
+                ) {
+                    return Err(invalid(reason));
+                }
+                if state.control.generation != Some(state.loading.generation) {
+                    return Err(invalid("control belongs to a previous world"));
+                }
+                match state.control.session.as_mut() {
+                    Some(session) if session.running() && session.mode == mode => {
+                        if session_id.is_some_and(|id| session.id != id) {
+                            return Err(invalid("selected control session was replaced"));
+                        }
+                        session.controls = controls;
+                        Ok(session.record())
+                    }
+                    _ => Err(invalid("no running control session")),
+                }
+            })
+            .await
     }
 
     #[cfg(test)]
@@ -985,23 +1056,30 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         session_id: Option<u64>,
     ) -> Result<Option<ControlRecord>> {
-        let state = self.bot.session.state.lock().await;
-        let Some(session) = state.control.session.as_ref() else {
-            return Ok(None);
-        };
-        if session.mode != mode || session_id.is_some_and(|id| session.id != id) {
-            return Err(invalid(
-                "selected control was replaced or belongs to a different mode",
-            ));
-        }
-        let id = session.id;
-        drop(state);
-        let owner = self.clone();
-        self.bot
-            .session
-            .spawn_finite_result(async move { owner.stop_control_owned(id, Some(mode)).await })
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                let state = self.bot.session.state.lock().await;
+                let Some(session) = state.control.session.as_ref() else {
+                    return Ok(None);
+                };
+                if session.mode != mode || session_id.is_some_and(|id| session.id != id) {
+                    return Err(invalid(
+                        "selected control was replaced or belongs to a different mode",
+                    ));
+                }
+                let id = session.id;
+                drop(state);
+                let owner = self.clone();
+                self.bot
+                    .session
+                    .spawn_finite_result(
+                        async move { owner.stop_control_owned(id, Some(mode)).await },
+                    )
+                    .await
+                    .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
+            })
             .await
-            .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
     async fn request_ground_jump(
@@ -1009,34 +1087,44 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         session_id: u64,
     ) -> Result<crate::client::control::GroundJumpRequest> {
+        self.bot.session.ledger.check_normal()?;
         let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
-        if state.operations.game_mode != Some(mode) {
-            return Err(invalid("ground jump requires matching received mode"));
-        }
-        let generation = state.loading.generation;
-        if state.control.generation != Some(generation) {
-            return Err(invalid("ground jump control belongs to a previous world"));
-        }
-        if let Some(reason) = stop_reason(
-            &state,
-            generation,
-            mode,
-            state
-                .control
-                .session
-                .as_ref()
-                .map_or(crate::client::control::ControlKind::Ground, |s| s.kind),
-        ) {
-            return Err(invalid(reason));
-        }
-        state
-            .control
-            .session
-            .as_mut()
-            .filter(|s| s.mode == mode)
-            .ok_or_else(|| invalid("no running control session in the expected mode"))?
-            .request_ground_jump(session_id)
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                self.ready(&state)?;
+                if state.operations.game_mode != Some(mode) {
+                    return Err(invalid("ground jump requires matching received mode"));
+                }
+                let generation = state.loading.generation;
+                if state.control.generation != Some(generation) {
+                    return Err(invalid("ground jump control belongs to a previous world"));
+                }
+                if let Some(reason) = stop_reason(
+                    &state,
+                    generation,
+                    mode,
+                    state
+                        .control
+                        .session
+                        .as_ref()
+                        .map_or(crate::client::control::ControlKind::Ground, |s| s.kind),
+                ) {
+                    return Err(invalid(reason));
+                }
+                let request = state
+                    .control
+                    .session
+                    .as_mut()
+                    .filter(|s| s.mode == mode)
+                    .ok_or_else(|| invalid("no running control session in the expected mode"))?
+                    .request_ground_jump(session_id)?;
+                if state.control.jump_work.is_none() {
+                    state.control.jump_work = Some(self.bot.session.ledger.work());
+                }
+                Ok(request)
+            })
+            .await
     }
 
     async fn control_record(&self) -> Result<Option<ControlRecord>> {
@@ -1050,6 +1138,47 @@ impl crate::client::adapter::ControlOps for Operations {
             .session
             .as_ref()
             .map(ControlSession::record))
+    }
+}
+
+impl Operations {
+    pub(in crate::versions::java_1_21_11::client) async fn quiesce_movement(
+        &self,
+        target: crate::client::StopTarget,
+        id: u64,
+    ) -> Result<()> {
+        let mut state = self.bot.session.state.lock().await;
+        self.bot.session.observe_stop_context(&state);
+        if !self.bot.session.ledger.stop_valid(target) {
+            return Err(invalid("selected movement context changed"));
+        }
+        let session = state
+            .control
+            .session
+            .as_ref()
+            .filter(|s| s.id == id && s.mode == target.mode() && s.running())
+            .ok_or_else(|| invalid("selected movement owner changed"))?;
+        if session.mode_change_sequence.is_some() || session.flight_change_sequence.is_some() {
+            return Err(invalid("selected movement mode changed"));
+        }
+        self.bot
+            .session
+            .send(ids::play_serverbound::PLAYER_INPUT, &[0])
+            .await?;
+        if let Some(entity) = state.operations.local_player.entity_id {
+            self.bot
+                .session
+                .send(
+                    ids::play_serverbound::ENTITY_ACTION,
+                    &sprint_command(entity, false),
+                )
+                .await?;
+        }
+        state.control.session.as_mut().unwrap().status = ControlStatus::Stopped {
+            reason: "neutralized during quiesce".into(),
+        };
+        self.bot.session.ledger.clear_target(target);
+        Ok(())
     }
 }
 

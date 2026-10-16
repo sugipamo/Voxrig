@@ -26,7 +26,8 @@ impl Drop for WriteAttempt<'_> {
 
 impl Session {
     pub(super) fn revoke(self: &Arc<Self>) {
-        // No async state/writer lock or active-runtime lookup precedes the fence.
+        // Receipt issue and revocation share the ledger gate.
+        self.ledger.fail(Failure::Revoked);
         self.stop();
         if self.revoked.swap(true, Ordering::AcqRel) {
             return;
@@ -40,7 +41,7 @@ impl Session {
         });
     }
     pub(super) fn stop(&self) {
-        self.ledger.fail(Failure::Revoked);
+        self.ledger.fail(Failure::Disconnected);
         self.stopped.store(true, Ordering::Release);
         // Wake both a blocked writer and the receive loop. Retain a permit for
         // teardown which has not yet started waiting.
@@ -70,7 +71,7 @@ impl Session {
     }
 
     pub(super) async fn send(&self, id: i32, payload: &[u8]) -> Result<()> {
-        let work = ScopedWork::new(self.ledger.work());
+        let work = ScopedWork::new(self.ledger.try_work()?);
         self.send_work(id, payload, work.guard()).await
     }
 

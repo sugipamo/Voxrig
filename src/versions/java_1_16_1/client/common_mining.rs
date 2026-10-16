@@ -168,6 +168,7 @@ impl Bot {
         revision: Option<u64>,
     ) -> Result<MiningRecord> {
         let _gate = self.coherent_state_gate.lock().await;
+        self.observe_stop_context().await;
         let result = async {
             let run = super::lock_packet_state(&self.common_mining)
                 .await
@@ -254,7 +255,10 @@ impl Bot {
             let mut guard = super::lock_packet_state(&self.common_mining).await;
             let record = &mut guard.as_mut().expect("retained mining").record;
             match action {
-                MiningAction::Start => record.start.dispatched = true,
+                MiningAction::Start => {
+                    record.start.dispatched = true;
+                    self.connection.ledger().attach_mining(id);
+                }
                 MiningAction::Finish => {
                     record.finish.as_mut().expect("retained finish").dispatched = true
                 }
@@ -501,7 +505,7 @@ impl crate::client::adapter::MiningOps for Bot {
     async fn start_mining(&self, target: [i32; 3], face: crate::BlockFace) -> Result<MiningRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 if self.operational_dig.active() {
@@ -573,7 +577,7 @@ impl crate::client::adapter::MiningOps for Bot {
     async fn mining_send(&self, id: MiningId, action: MiningAction) -> Result<MiningRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 if action == MiningAction::Start {
                     return Err(mining::unavailable("START may not be replayed"));
@@ -1219,5 +1223,53 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+    }
+    #[tokio::test]
+    async fn quiesce_common_mining_abort_releases_original_actor_owner_after_ack() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.survival().select_hotbar(0).await.unwrap();
+        packets.recv().await.unwrap();
+        let record = client
+            .survival()
+            .start_mining(TARGET, crate::BlockFace::North)
+            .await
+            .unwrap();
+        packets.recv().await.unwrap();
+        let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+        q.admitted_drain().wait().await.unwrap();
+        let target = q
+            .stop_targets()
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|t| t.mining_id() == Some(record.id))
+            .unwrap();
+        let mut permit = q.stop_permit().unwrap();
+        let mut stop = Box::pin(permit.neutralize(target));
+        assert!(timeout(Duration::from_millis(10), &mut stop).await.is_err());
+        assert_eq!(packets.recv().await.unwrap().1[0], 1);
+        let mut ack = BlockPos {
+            x: TARGET[0],
+            y: TARGET[1],
+            z: TARGET[2],
+        }
+        .packed()
+        .to_be_bytes()
+        .to_vec();
+        put_varint(&mut ack, 1);
+        put_varint(&mut ack, 1);
+        ack.push(1);
+        bot.apply_packet(0x07, ack).await.unwrap();
+        stop.await.unwrap();
+        q.seal_for_fence().unwrap().wait().await.unwrap();
+        assert!(packets.try_recv().is_err());
+        release.send(()).unwrap();
+        drop(client);
+        drop(q);
+        drop(bot);
+        server.await.unwrap();
     }
 }

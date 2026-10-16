@@ -1,14 +1,12 @@
-# Internal draft: admission ledger, writers and finite owners (#131 PR 1–3)
+# Internal staged quiesce ledger (#131 PR 1–4)
 
-This is an internal implementation contract and integration checklist, not a
-public API or a guarantee of current Client behavior. `src/client/ledger/` is
-crate-private and has no public re-exports. PR 2 wires both adapters' writers,
-legacy protocol transactions/exact barriers, modern inline pending swaps, and
-protocol responses. PR 3 wires finite workers and retained continuations; producer park,
-restricted stop and public drain belong to PR 4. There is no public receipt yet.
-The approved direction is staged quiesce (option B); resume and automatic stop
-target selection are excluded. This foundation does not implement QuiesceHandle,
-StopPermit, shutdown, or Golemkit BackendDrain.
+This is the internal implementation contract and integration checklist for the
+public staged API in `voxrig::client`. PR 1–3 supply finite root/child ownership,
+real socket permits and protocol/retained cleanup. PR 4 adds ordinary-producer
+parking, explicit selected stops, independent-maintenance sealing and public
+stage observers. The ledger, guards, producer tokens and CompletionPoint remain
+crate-private. Resume, automatic target selection and shutdown observation are
+excluded; shutdown/task completion belongs to PR 5.
 
 ## Identity, ownership, cuts, and completion
 
@@ -110,13 +108,13 @@ Both adapters create their transport identity and ledger before the handshake.
 The same ledger follows handshake, login, configuration and play; compression,
 respawn and reconfiguration never reset its ordinals. Legacy keeps its ledger in
 the writer and actor; modern transfers it from login to Session. Ready remains
-the initial supported boundary for the future public drain API.
+the initial supported boundary for the public drain API.
 
 The single policy isolation point is `CompletionPoint::SocketFlush`, the
 `COMPLETION_POINT` constant and `publish_completion` in
 `src/client/ledger/mod.rs`. SocketWriter calls this only after the unchanged
 protocol encoder finishes write_all and flush. This completion policy is
-**provisional pending Golemkit**. W does not wait for server ACK. Changing this
+**the approved PR 4 write boundary**. W does not wait for server ACK. Changing this
 policy later must not silently change public ProtocolTransaction::wait or
 inventory wait semantics. Pending guards are independent of frame permits.
 
@@ -166,7 +164,7 @@ result and can be awaited/inspected repeatedly. `Drain::inspect` remains an
 internal synchronous non-blocking path: one short lock, a BTreeMap prefix query
 (O(log active roots)), and O(1) producer/failure checks; it never awaits or scans
 retired history. A no-runtime unit test covers pending, completion, sticky failure
-and historical cached success for the future PR 4 poll. No runtime or timing
+and historical cached success for the public synchronous poll. No runtime or timing
 assumption is needed in the ledger core tests; they poll futures with counting wakers and use explicit
 handoffs rather than sleeps.
 
@@ -181,8 +179,8 @@ retains only the actual live queue/writer/pending owners and removes them at
 retirement; it adds no per-packet history or detached background owners. It uses
 the identical root/child attribution model and real permits. Tracking does not
 ignore root closure, WriterBusy, checked ID exhaustion or sticky drain failure.
-It grants no maintenance/stop bypass; PR 4 must integrate its shared admission
-and final seal across these same writer boundaries. Root, producer,
+It grants no arbitrary maintenance/stop bypass; PR 4 supplies separate restricted
+admission classes and the final seal across these same writer boundaries. Root, producer,
 and write IDs use checked u64 allocation (0 is the empty prefix); u64::MAX is a
 valid final ID and the next request fails closed permanently. No wrapping,
 Atomic::try_update, new dependency, or post-1.85 API is used.
@@ -203,11 +201,11 @@ are internal choices; no public API is introduced here.
 
 This checklist comes from design §1.3 at baseline 9932ae4. PR 2 wires the
 protocol pending/writer boundaries described above; PR 3 implements the finite
-operation-family ownership described below. Producer and shutdown obligations
-remain for PR 4–5. "Classify"
+operation-family ownership described below. PR 4 supplies producer/stop obligations below; shutdown remains PR 5. "Classify"
 means retain certainty/uncertainty and required local dependencies, not a settled
-Golemkit ACK/outcome contract. Frame W and pending cleanup follow the approved interpretation above; public
-stop scope, BackendDrain and multi-party authority are not implemented here.
+Golemkit ACK/outcome contract. Frame W and pending cleanup follow the approved
+interpretation above; the public stop scope is documented below. Golemkit
+BackendDrain itself is external.
 
 | Family / implementation anchors | Future owner and completion dependencies | Boundary or unresolved integration point |
 | --- | --- | --- |
@@ -219,7 +217,7 @@ stop scope, BackendDrain and multi-party authority are not implemented here.
 | Crafting result take / transfer (`common_crafting`; modern `inventory/crafting`) | Own confirmation, record reconciliation and actor finish/release. | Must progress without callers repeatedly fetching public records. |
 | Recipe placement (`common_recipe_placement`; modern `inventory/recipe_placement`) | Retained receipt, reconciliation and actor release inherit ownership. | Receipt getter is not an admission/completion mechanism. |
 | Placement (`common_placement`; modern `operations/placement`) | Send plus retained intent/placement_record reconciliation own dependencies. | Pure observation history alone is not debt after all authority retires. |
-| Staged mining START / FINISH / ABORT (`common_mining`; modern `operations/mining`) | Every admitted stage and its retained transaction/cleanup owns finite debt. | A not-yet-requested FINISH is future admission; held session and later stop policy remain separate and unresolved. |
+| Staged mining START / FINISH / ABORT (`common_mining`; modern `operations/mining`) | Every admitted stage and its retained transaction/cleanup owns finite debt. | A not-yet-requested FINISH is future admission; held sessions are separate from finite debt and can be explicitly selected through the PR 4 permit. |
 | Operational dig / cancel ABORT (common `operational_dig`) | One root owns START, timed FINISH, error/cancel ABORT and cleanup history; descendants survive caller drop. | Timed/cancel continuation is existing debt, unlike a future staged mining request. |
 | Finite path / motion (`common_motion`; modern `movement/control`) | Finite run owns all ticks, landing/release and cleanup even after API returns a record. | A returned record does not retire the run. |
 | Continuous ground / flight / glide (`common_control`; modern `operations/continuous`) | Registered producer plus separate finite tick/update roots; park ACK after no new independent emission is possible. | Classify sampled/queued updates and jumps; public suppression/ACK mapping remains undecided. |
@@ -238,10 +236,8 @@ PR 2 audits normal gameplay, primitive/batch sends, legacy bounded_motion writes
 and independent protocol maintenance (keepalive, teleport/config/loading) through
 SocketWriter. Remaining integration must audit retained worker/continuation state,
 inspection and producer parking, including native paths, not merely tokio::spawn
-sites. No stop behavior, stop-permit holder, neutral movement/item/vehicle/dig
-release, resume, or final public seal is implemented in this PR. Test-only scoped threads, observations tests, and
-native trial spawn_blocking paths are not production owners. No public success
-may be exposed until all write-capable paths and dependency handoffs are audited.
+sites. PR 4 integrates the selected stop/producer/seal obligations below. Resume is excluded. Test-only scoped threads, observations tests, and
+native trial spawn_blocking paths are not production owners. Public receipts depend on the complete writer/producer/dependency audit below.
 
 
 ## PR 3 finite ownership and caller cancellation
@@ -307,8 +303,78 @@ future caller-requested FINISH/ABORT/release. Only existing admitted stages and
 connection-owned continuations are debt. Recovery creates a fresh connection
 with a fresh ledger; no authority/receipt migrates from the old connection.
 
-Continuous control/passive physics/receiver response producer lifetimes,
-producer samples and queued jump parking, quiesce/neutral-stop selection, final
-maintenance seal, public APIs and shutdown registries remain PR 4–5. Existing
-individual writes from those paths still require real writer permits. No park,
-stop policy, resume behavior or public drain success is introduced here.
+PR 4 extends these finite owners with continuous/passive producer parking,
+queued-jump ownership, selected neutral stops and final maintenance sealing as
+described below. Individual writes retain the same real permits. Shutdown
+registries remain PR 5; resume remains excluded.
+
+
+## PR 4 staged integration and public receipt audit
+
+Normal root admission, begin/cut capture, special stop/maintenance admission,
+final seal, failure and receipt issue use the same short synchronous ledger
+mutex. Normal closure is irreversible; the final seal additionally closes stop
+and independent maintenance. A private task-local child may only inherit from
+the identical ledger Arc. Accepted descendants remain legal after seal; the
+last guard's retirement removes every ability to create another descendant.
+No authority is granted by diagnostic IDs or current idle state.
+
+The public handle shares one stage inspection/cache across clones; each wait
+subscribes independently before polling. `is_drained` is synchronous with no
+runtime, await, I/O, reconciliation or history scan. Prefix inspection remains
+O(log live roots), with constant-time producer/failure checks. Both stages expose
+fixed cuts; the first receipt does not prohibit independent maintenance.
+
+Common ground/flight/glide tasks register a producer before publication and own
+one finite sample through every tick's frames/model cleanup. Park acknowledges
+only after sampling is permanently impossible. Legacy passive/native physics
+uses the same registration and gate. Accepted queued jumps retain a separate raw
+finite owner until their once-only next tick; they cannot disappear at begin.
+Persistent key updates after begin are rejected. The legacy void-returning
+set_control/clear_control/suspend_movement_for are explicitly no-ops after begin.
+Raw/native/common clones all share the originating ledger and gates.
+
+Receiver response vectors and legacy teleport-confirm/position and settings/
+brand pairs hold one maintenance owner across all frames. Final seal rejects new
+unrelated response roots before queue/write exposure. Existing ACK rejection
+responses inherit the pending owner's child even after seal. Pending transactions,
+exact barriers, pending_swap and retained continuations remain distinct debt;
+W alone cannot retire them. Writer stalls and teleport/seal race tests check the
+no-write-after-final promise at the real socket boundary.
+
+Stop provenance is captured at original control admission or held-input frame
+submission, never invented by candidate inspection. The live stop book retains
+only current family bindings and selected result observers, not per-frame history
+(at most five slots: distinct common/native movement plus the other three kinds).
+Retirement uses the exact control or target identity, so native local clear cannot
+retire a common owner or a newly replaced native input lifetime. A native local
+clear retains its binding until the next neutral producer sample reconciles wire
+posture, or until an explicit selected stop. If common control owns wire posture,
+a selected native stop clears only dormant local input; the independently selected
+common stop releases inherited wire posture. Mount transitions latch movement
+invalidation. Confirmed ordinary item release remains known while received using-
+item flags catch up. World/mode/hand/mount interruption invalidates an old binding
+permanently; a world reset also retires its old held input. Targets
+have no public constructor or Deserialize. Inspection selects nothing. One
+borrowed StopPermit admits one connection-owned worker per chosen binding;
+retries join/cache it and waiter cancellation cannot cancel cleanup. A rejected
+required stop is sticky failure. No raw-packet or normal-control bypass exists.
+
+Intentional permit dig ABORT is the approved exception to PR 3's abort rule:
+a confirmed cleanup yields a clean StopReceipt and may yield a clean drain.
+Cleanup timeout remains TransactionUnconfirmed and unknown delivery remains
+UncertainDispatch. Other aborts/expiry/owner loss, including caller-dropped native
+helper futures, stay sticky. Item release is permitted despite gameplay effects.
+
+Revoke records its ledger cause before publishing the separate transport fence;
+receipt issue uses that same ledger gate. Issued stage facts remain historical;
+unissued stages fail. Disconnect/EOF is failure, never a completion certificate.
+No shutdown join, fresh-reattach readiness or server stillness is asserted here.
+The public surface is the approved minimal draft: no try_receipt, native bridge,
+public ledger/watch/guard/CompletionPoint, or additional prelude identities.
+
+Jump admission and queue publication hold the producer's state/coherent lock.
+A request still waiting for that lock when begin closes admission has not yet
+been accepted and returns State. The producer cannot acknowledge park between
+acceptance and publication of a queued jump. This ordering is tested in both
+adapters, including the legacy native jump path.

@@ -400,7 +400,7 @@ impl crate::client::adapter::PlacementOps for Bot {
     ) -> Result<PlacementRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;

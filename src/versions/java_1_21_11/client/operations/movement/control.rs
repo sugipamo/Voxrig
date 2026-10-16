@@ -330,7 +330,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None, None)
                     .await
@@ -383,7 +383,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 if observer.is_some_and(|o| self.bot.session.id == o.bot.session.id) {
                     return Err(invalid("motion requires an independent observer"));

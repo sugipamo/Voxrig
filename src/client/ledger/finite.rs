@@ -4,12 +4,24 @@
 use super::*;
 use std::future::Future;
 
+pub(crate) fn admission_error(error: AdmissionError) -> crate::Error {
+    crate::Error::new(
+        crate::ErrorKind::State,
+        anyhow::anyhow!("connection admission closed: {error:?}"),
+    )
+}
+
 tokio::task_local! {
     static CURRENT: ScopedWork;
 }
 
 impl Ledger {
-    pub(crate) fn work(&self) -> WorkGuard {
+    pub(crate) fn inherited(&self) -> bool {
+        CURRENT
+            .try_with(|parent| Arc::ptr_eq(&self.shared, &parent.guard().shared))
+            .unwrap_or(false)
+    }
+    pub(crate) fn try_work(&self) -> crate::Result<WorkGuard> {
         CURRENT
             .try_with(|parent| {
                 Arc::ptr_eq(&self.shared, &parent.guard().shared)
@@ -17,7 +29,10 @@ impl Ledger {
             })
             .ok()
             .flatten()
-            .unwrap_or_else(|| self.admit().expect("existing finite admission"))
+            .map_or_else(|| self.admit().map_err(admission_error), Ok)
+    }
+    pub(crate) fn work(&self) -> WorkGuard {
+        self.try_work().expect("existing finite admission")
     }
 }
 impl WorkGuard {
