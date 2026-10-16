@@ -1,8 +1,8 @@
-//! Private per-version evidence policy. Unclassified effects always refuse.
+//! Private per-version evidence policy. Unqualified contact follows the table fallback.
+#[cfg(test)]
+use super::EntityHistoryKind;
 use super::contact_policy::locality::DeferredPolicy;
-use super::{
-    EntityHistoryKind, EntityId, LivingInterpolationPose, LivingPacketGuards, LivingPacketModel,
-};
+use super::{EntityId, LivingInterpolationPose, LivingPacketGuards, LivingPacketModel};
 use crate::{MinecraftVersion, MovementPacketTrigger, MovementRefusal, Result, client::Aabb};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -46,7 +46,8 @@ pub(super) fn capabilities(version: MinecraftVersion, name: &str) -> Capabilitie
     super::contact_policy::capabilities(version, name)
 }
 
-/// Step A's finite packet proof, used only on an audited callback lane.
+/// Step A's finite packet proof, separate from policy pass-through.
+#[cfg(test)]
 pub(super) fn harmless_packet(
     version: MinecraftVersion,
     name: &str,
@@ -211,8 +212,11 @@ impl DeferredContact {
     pub fn relevant(&self, boat: bool) -> bool {
         self.policy.relevant(boat)
     }
+    pub(super) fn proves_irrelevant(&self, query: Aabb, boat: bool) -> bool {
+        !self.relevant(boat) || self.envelope.is_some_and(|b| !intersects(query, b))
+    }
     pub fn check(&self, query: Aabb, boat: bool) -> Result<()> {
-        if self.relevant(boat) && self.envelope.is_none_or(|b| intersects(query, b)) {
+        if !self.proves_irrelevant(query, boat) && !self.policy.pass_through(boat) {
             let mut value = MovementRefusal::permanent(format!(
                 "unqualified contact capabilities: {} {:?}",
                 self.name, self.capabilities

@@ -1244,9 +1244,8 @@ impl OwnedContacts {
                 if id.session() != self.session || id.spawn_sequence() != record.receive_sequence {
                     return Err(failure("contact spawn provenance"));
                 }
-                let Some(name) = m.entity.type_name.as_deref() else {
-                    return Err(unsupported("unknown contact entity type"));
-                };
+                // Missing registry names select the table's Unknown fallback.
+                let name = m.entity.type_name.as_deref().unwrap_or("");
                 if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
                     || !locality::modeled(
                         self.session.version,
@@ -1539,7 +1538,7 @@ impl OwnedContacts {
                     .find(|i| i.entity == *entity)
                     .unwrap()
                     .name;
-                if !contact_capabilities::harmless_packet(self.session.version, name, &record.kind)
+                if !super::contact_policy::ignore_callback(self.session.version, name, &record.kind)
                 {
                     return Err(unsupported("unqualified contact status/animation dispatch"));
                 }
@@ -2005,7 +2004,7 @@ mod tests {
             .map(|_| ())
     }
     #[test]
-    fn envelope_far_allow_and_near_refusal_preserve_slots_without_fabricated_samples() {
+    fn envelope_far_and_near_pass_through_preserve_slots_without_fabricated_samples() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in ["spider", "cave_spider"] {
                 for own_id in [1, 99, 1000] {
@@ -2029,7 +2028,7 @@ mod tests {
                             boat_query(high.bounds),
                             true
                         )
-                        .is_err()
+                        .is_ok()
                     );
                     let mut own = crate::client::physics::Body::new([0., 65., 0.]);
                     for _ in 0..8 {
@@ -2043,19 +2042,12 @@ mod tests {
                         true,
                     )
                     .unwrap();
-                    let error = player_step(
+                    player_step(
                         &mut model,
                         &mut crate::client::physics::Body::new([600., 65., 0.]),
                     )
-                    .unwrap_err();
-                    assert!(matches!(
-                        error.movement_refusal(),
-                        Some(MovementRefusal::Unsupported { .. })
-                    ));
-                    assert_eq!(
-                        error.movement_refusal().unwrap().context().native_entity_id,
-                        Some(8)
-                    );
+                    .unwrap();
+                    assert!(model.frame(0).bodies.is_empty());
                 }
             }
         }
@@ -2084,19 +2076,27 @@ mod tests {
             ledger.receive_motion(version, 8, packet, 3);
             model.refresh(10, &ledger, 3).unwrap();
             // Both endpoints are far; the complete path crosses the player.
+            for (position, proven) in [
+                ([0., 65., 0.], false),
+                ([-100., 65., 0.], false),
+                ([0., 65., 100.], true),
+            ] {
+                let query = aabb(crate::client::physics::Body::new(position).bounds);
+                assert_eq!(model.deferred[&8].proves_irrelevant(query, false), proven);
+            }
             assert!(
                 player_step(
                     &mut model.clone(),
                     &mut crate::client::physics::Body::new([0., 65., 0.])
                 )
-                .is_err()
+                .is_ok()
             );
             assert!(
                 player_step(
                     &mut model.clone(),
                     &mut crate::client::physics::Body::new([-100., 65., 0.])
                 )
-                .is_err()
+                .is_ok()
             );
             assert!(
                 player_step(
@@ -2109,7 +2109,7 @@ mod tests {
     }
 
     #[test]
-    fn envelope_checks_attempted_sweep_even_when_wall_clips_the_result() {
+    fn envelope_passes_attempted_sweep_even_when_wall_clips_the_result() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             let (mut ledger, session) = receipts(version);
             ledger.remove(7);
@@ -2118,7 +2118,7 @@ mod tests {
             let before = numerical_state(&model);
             let mut own = crate::client::physics::Body::new([0., 65., 0.]);
             own.velocity = [10., 0., 0.];
-            let error = model
+            let result = model
                 .clone()
                 .tick_player(
                     &mut own,
@@ -2138,18 +2138,15 @@ mod tests {
                         })
                     },
                 )
-                .unwrap_err();
-            assert!(matches!(
-                error.movement_refusal(),
-                Some(MovementRefusal::Unsupported { .. })
-            ));
-            // The retained model is never replaced by this failed staged clone.
+                .unwrap();
+            assert!(own.position[0] < 2., "wall collision remains active");
+            assert!(result.1.bodies.is_empty());
             assert_eq!(numerical_state(&model), before);
         }
     }
 
     #[test]
-    fn envelope_refuses_indirect_remote_overlap_and_shifted_interpolation_target() {
+    fn envelope_passes_indirect_remote_overlap_and_shifted_interpolation_target() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             let (mut ledger, session) = receipts(version);
             extra(&mut ledger, version, "spider", [600., 65., 0.], true, 2);
@@ -2163,15 +2160,11 @@ mod tests {
             let mut pose = remote.motion.frame().interpolation.pose;
             pose.position = [600., 65., 0.];
             remote.set_model_pose(pose).unwrap();
-            let error = player_step(
+            player_step(
                 &mut model.clone(),
                 &mut crate::client::physics::Body::new([0., 65., 0.]),
             )
-            .unwrap_err();
-            assert_eq!(
-                error.movement_refusal().unwrap().context().native_entity_id,
-                Some(8)
-            );
+            .unwrap();
             if version == V::Java1_21_11 {
                 let remote = model.world.bodies.values_mut().next().unwrap();
                 pose.position = [0., 65., 0.];
@@ -2203,14 +2196,14 @@ mod tests {
                         &mut model,
                         &mut crate::client::physics::Body::new([0., 65., 0.])
                     )
-                    .is_err()
+                    .is_ok()
                 );
             }
         }
     }
 
     #[test]
-    fn envelope_unproven_callbacks_revoke_locality_with_typed_packet_context() {
+    fn envelope_unproven_callbacks_revoke_proof_and_pass_through() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for kind in [
                 "Metadata",
@@ -2229,13 +2222,10 @@ mod tests {
                     &mut crate::client::physics::Body::new([0., 65., 0.]),
                 )
                 .unwrap();
+                let query = aabb(crate::client::physics::Body::new([0., 65., 0.]).bounds);
+                assert!(model.deferred[&8].proves_irrelevant(query, false));
                 ledger.history_context(version, 3, 3);
                 let entity = Some(model.deferred[&8].entity);
-                let opcode = match kind {
-                    "Status" => 127,
-                    "Animation" => 255,
-                    _ => 0,
-                };
                 let record_kind = match kind {
                     "Metadata" => EntityHistoryKind::Metadata {
                         native_id: 8,
@@ -2283,26 +2273,19 @@ mod tests {
                 model
                     .reduce_record(&record, false, None, &mut BTreeMap::new())
                     .unwrap();
-                let error = player_step(
+                assert!(!model.deferred[&8].proves_irrelevant(query, false));
+                player_step(
                     &mut model,
                     &mut crate::client::physics::Body::new([0., 65., 0.]),
                 )
-                .unwrap_err();
-                let detail = error.movement_refusal().unwrap();
-                assert!(matches!(detail, MovementRefusal::Unsupported { .. }));
-                let c = detail.context();
-                assert_eq!(c.entity, entity);
-                assert_eq!(c.entity_type.as_deref(), Some("minecraft:spider"));
-                assert_eq!(c.record_ordinal, Some(100));
-                assert_eq!(c.receive_sequence, Some(3));
-                assert_eq!(c.packet.as_ref().unwrap().packet_type, kind);
-                assert_eq!(c.packet.as_ref().unwrap().opcode, opcode);
+                .unwrap();
+                assert!(model.world.bodies.is_empty());
             }
         }
     }
 
     #[test]
-    fn envelope_revocation_survives_checkpoint_and_unsupported_motion_stays_global() {
+    fn envelope_revocation_and_unsupported_motion_pass_through_checkpoint() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for signal in [true, false] {
                 let (mut ledger, session) = receipts(version);
@@ -2327,23 +2310,13 @@ mod tests {
                     );
                 }
                 model.refresh(10, &ledger, 3).unwrap();
-                let expected = if signal { "Status" } else { "Motion" };
-                let error = player_step(
+                let query = aabb(crate::client::physics::Body::new([0., 65., 0.]).bounds);
+                assert!(!model.deferred[&8].proves_irrelevant(query, false));
+                player_step(
                     &mut model,
                     &mut crate::client::physics::Body::new([0., 65., 0.]),
                 )
-                .unwrap_err();
-                assert_eq!(
-                    error
-                        .movement_refusal()
-                        .unwrap()
-                        .context()
-                        .packet
-                        .as_ref()
-                        .unwrap()
-                        .packet_type,
-                    expected
-                );
+                .unwrap();
                 for sequence in 4..MAX_ENTITY_HISTORY_RECORDS as u64 + 8 {
                     ledger.history_context(version, 3, sequence);
                     ledger.history_signal(500, None, Some(0));
@@ -2356,24 +2329,19 @@ mod tests {
                     MAX_ENTITY_HISTORY_RECORDS as u64 + 8,
                 )
                 .unwrap();
-                let error = player_step(
+                assert!(!fresh.deferred[&8].proves_irrelevant(query, false));
+                player_step(
                     &mut fresh,
                     &mut crate::client::physics::Body::new([0., 65., 0.]),
                 )
-                .unwrap_err();
-                let detail = error.movement_refusal().unwrap();
-                assert!(matches!(detail, MovementRefusal::Unsupported { .. }));
-                assert_eq!(
-                    detail.context().packet.as_ref().unwrap().packet_type,
-                    expected
-                );
-                assert_eq!(detail.context().receive_sequence, Some(3));
+                .unwrap();
+                assert!(fresh.world.bodies.is_empty());
             }
         }
     }
 
     #[test]
-    fn envelope_includes_world_boundary_clamped_placement_and_refuses_out_of_domain() {
+    fn envelope_passes_world_boundary_and_out_of_domain_contact() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for sign in [-1., 1.] {
                 let (mut ledger, session) = receipts(version);
@@ -2390,12 +2358,7 @@ mod tests {
                 for invalid_x in [f64::NAN, f64::INFINITY, 10.] {
                     let mut query = aabb(crate::client::physics::Body::new([0., 65., 0.]).bounds);
                     query.min_x = invalid_x; // 10 also makes min > max.
-                    let error = contact_capabilities::check(model.deferred.values(), query, false)
-                        .unwrap_err();
-                    assert!(matches!(
-                        error.movement_refusal(),
-                        Some(MovementRefusal::Unsupported { .. })
-                    ));
+                    contact_capabilities::check(model.deferred.values(), query, false).unwrap();
                 }
 
                 player_step(
@@ -2403,15 +2366,11 @@ mod tests {
                     &mut crate::client::physics::Body::new([0., 65., 0.]),
                 )
                 .unwrap();
-                let error = player_step(
+                player_step(
                     &mut model,
                     &mut crate::client::physics::Body::new([sign * 30_000_000., 65., 0.]),
                 )
-                .unwrap_err();
-                assert!(matches!(
-                    error.movement_refusal(),
-                    Some(MovementRefusal::Unsupported { .. })
-                ));
+                .unwrap();
                 extra(
                     &mut ledger,
                     version,
@@ -2426,7 +2385,7 @@ mod tests {
                         &mut model,
                         &mut crate::client::physics::Body::new([0., 65., 0.])
                     )
-                    .is_err()
+                    .is_ok()
                 );
             }
         }
@@ -2472,11 +2431,39 @@ mod tests {
                     &mut model,
                     &mut crate::client::physics::Body::new([0., 65., 0.])
                 )
-                .is_err()
+                .is_ok()
             );
             let mut wrong = session;
             wrong.world_generation += 1;
             assert!(OwnedContacts::new(wrong, 12, 99, &ledger, end + 1).is_err());
+        }
+    }
+
+    #[test]
+    fn unqualified_creatures_leave_qualified_numerics_unchanged_in_walking_and_glide() {
+        for version in [V::Java1_16_1, V::Java1_21_11] {
+            for name in ["wolf", "horse", "spider", "not_registered"] {
+                for glide in [false, true] {
+                    let (mut ledger, session) = receipts(version);
+                    let mut expected = OwnedContacts::new(session, 10, 99, &ledger, 1).unwrap();
+                    extra(&mut ledger, version, name, [0.5, 65., 0.5], true, 2);
+                    let mut actual = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
+                    expected.own_glide = glide;
+                    actual.own_glide = glide;
+                    let mut expected_body = crate::client::physics::Body::new([0.5, 65., 0.5]);
+                    let mut actual_body = expected_body.clone();
+                    for _ in 0..4 {
+                        player_step(&mut expected, &mut expected_body).unwrap();
+                        player_step(&mut actual, &mut actual_body).unwrap();
+                        assert_eq!(actual_body, expected_body, "{version:?}/{name}/{glide}");
+                        assert_eq!(
+                            numerical_state(&actual)["bodies"],
+                            numerical_state(&expected)["bodies"]
+                        );
+                        assert_eq!(actual.frame(0).bodies.len(), 1);
+                    }
+                }
+            }
         }
     }
 
@@ -2503,7 +2490,7 @@ mod tests {
         }
     }
     #[test]
-    fn unproven_unknown_and_bounded_unknown_refuse_with_spawn_lifetime_context() {
+    fn unproven_unknown_and_bounded_unknown_pass_through_without_samples() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for name in [
                 "horse",
@@ -2551,32 +2538,17 @@ mod tests {
                     assert!(model.world.bodies.is_empty());
                     let own = crate::client::physics::Body::new([0., 65., 0.]);
                     let before = numerical_state(&model);
-                    let error = player_step(&mut model.clone(), &mut own.clone()).unwrap_err();
+                    let mut stepped = own.clone();
+                    player_step(&mut model.clone(), &mut stepped).unwrap();
+                    assert_eq!(stepped.velocity[0], 0.);
+                    assert_eq!(stepped.velocity[2], 0.);
                     assert_eq!(before, numerical_state(&model));
-                    let detail = error.movement_refusal().unwrap();
-                    assert!(matches!(detail, MovementRefusal::Unsupported { .. }));
-                    let context = detail.context();
-                    assert_eq!(context.entity, Some(model.deferred[&8].entity));
-                    assert_eq!(context.native_entity_id, Some(8));
-                    assert_eq!(
-                        context.entity_type.as_deref(),
-                        Some(format!("minecraft:{name}").as_str())
-                    );
-                    assert_eq!(context.session, Some(session));
-                    assert_eq!(context.owner_id, Some(10));
-                    assert_eq!(context.packet.as_ref().unwrap().packet_type, "Spawn");
-                    assert_eq!(context.receive_sequence, Some(2));
-                    assert!(context.record_ordinal.is_some());
-                    let boat_error = contact_capabilities::check(
+                    contact_capabilities::check(
                         model.deferred.values(),
                         boat_query(own.bounds),
                         true,
                     )
-                    .unwrap_err();
-                    assert!(matches!(
-                        boat_error.movement_refusal(),
-                        Some(MovementRefusal::Unsupported { .. })
-                    ));
+                    .unwrap();
                     // A distant target or a new lifetime never qualifies the species.
                     ledger.history_context(version, 3, 3);
                     ledger.receive_motion(
@@ -2590,18 +2562,14 @@ mod tests {
                         3,
                     );
                     model.refresh(10, &ledger, 3).unwrap();
-                    assert!(player_step(&mut model.clone(), &mut own.clone()).is_err());
+                    assert!(player_step(&mut model.clone(), &mut own.clone()).is_ok());
                     let old = model.deferred[&8].entity;
                     ledger.remove(8);
                     extra(&mut ledger, version, name, [600., 65., 0.], true, 4);
                     model.refresh(10, &ledger, 4).unwrap();
                     assert_ne!(model.deferred[&8].entity, old);
-                    let error = player_step(&mut model.clone(), &mut own.clone()).unwrap_err();
-                    assert_eq!(
-                        error.movement_refusal().unwrap().context().receive_sequence,
-                        Some(4)
-                    );
-                    // Reuse as a proven exclusion admits independently of the old refusal.
+                    player_step(&mut model.clone(), &mut own.clone()).unwrap();
+                    // Reuse as a proven exclusion admits independently of the old lifetime.
                     ledger.remove(8);
                     extra(&mut ledger, version, "bat", [0., 65., 0.], false, 5);
                     model.refresh(10, &ledger, 5).unwrap();
@@ -2612,7 +2580,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_geometry_metadata_and_passengers_never_authorize_deferral() {
+    fn unknown_geometry_metadata_and_passengers_pass_through() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             for (name, motion) in [
                 ("spider", false),
@@ -2641,7 +2609,7 @@ mod tests {
                         &mut model,
                         &mut crate::client::physics::Body::new([0., 65., 0.])
                     )
-                    .is_err(),
+                    .is_ok(),
                     "{version:?} {name}"
                 );
             }
@@ -2658,7 +2626,7 @@ mod tests {
                         &mut model,
                         &mut crate::client::physics::Body::new([0., 65., 0.])
                     )
-                    .is_err()
+                    .is_ok()
                 );
             }
             let (mut ledger, session) = receipts(version);
@@ -2676,12 +2644,12 @@ mod tests {
                     &mut model,
                     &mut crate::client::physics::Body::new([0., 65., 0.])
                 )
-                .is_err()
+                .is_ok()
             );
         }
     }
     #[test]
-    fn unknown_contacts_remain_unsupported_across_checkpoint_and_world_lifetime() {
+    fn unknown_contacts_pass_through_checkpoint_and_keep_world_admission_checks() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
             let (mut ledger, session) = receipts(version);
             ledger.remove(7);
@@ -2689,7 +2657,7 @@ mod tests {
             let model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
             let mut own = crate::client::physics::Body::new([0., 65., 0.]);
             own.velocity = [8., 0., 0.];
-            assert!(player_step(&mut model.clone(), &mut own).is_err());
+            assert!(player_step(&mut model.clone(), &mut own).is_ok());
             for sequence in 3..MAX_ENTITY_HISTORY_RECORDS as u64 + 8 {
                 ledger.history_context(version, 3, sequence);
                 ledger.history_signal(500, None, Some(0));
@@ -2703,15 +2671,11 @@ mod tests {
             )
             .unwrap();
             assert_eq!(fresh.deferred[&8].entity, model.deferred[&8].entity);
-            let error = player_step(
+            player_step(
                 &mut fresh.clone(),
                 &mut crate::client::physics::Body::new([0., 65., 0.]),
             )
-            .unwrap_err();
-            assert!(matches!(
-                error.movement_refusal(),
-                Some(MovementRefusal::Unsupported { .. })
-            ));
+            .unwrap();
             let mut wrong = session;
             wrong.world_generation += 1;
             assert!(
@@ -2826,44 +2790,25 @@ mod tests {
     }
 
     #[test]
-    fn unaudited_signals_are_typed_and_survive_checkpoint_replay() {
+    fn unaudited_signals_are_ignored_at_every_replay_boundary() {
         for version in [V::Java1_16_1, V::Java1_21_11] {
-            // Includes death, wake-up, unknown values, and sheep-only status on a cow.
-            for (status, animation, kind, opcode) in [
-                (Some(3), None, "Status", 3),
-                (Some(10), None, "Status", 10),
-                (Some(127), None, "Status", 127),
-                (None, Some(2), "Animation", 2),
-                (None, Some(255), "Animation", 255),
+            for (status, animation) in [
+                (Some(3), None),
+                (Some(10), None),
+                (Some(127), None),
+                (None, Some(2)),
+                (None, Some(255)),
             ] {
                 let (mut ledger, session) = receipts(version);
                 let mut model = OwnedContacts::new(session, 10, 99, &ledger, 1).unwrap();
-                let entity = model.inputs.values().next().unwrap().entity;
+                let baseline = numerical_state(&model);
                 ledger.history_context(version, 3, 2);
                 ledger.history_signal(7, status, animation);
-                let error = model.refresh(10, &ledger, 2).unwrap_err();
-                let detail = error.movement_refusal().unwrap();
-                assert!(matches!(detail, MovementRefusal::Unsupported { .. }));
-                let c = detail.context();
-                assert_eq!(c.owner_state, MovementOwnerState::Invalidated);
-                assert_eq!(c.owner_id, Some(10));
-                assert_eq!(c.entity, Some(entity));
-                assert_eq!(c.native_entity_id, Some(7));
-                assert_eq!(c.entity_type.as_deref(), Some("minecraft:cow"));
-                assert_eq!(
-                    c.packet,
-                    Some(MovementPacketTrigger {
-                        packet_type: kind.into(),
-                        opcode
-                    })
-                );
-                assert_eq!(c.receive_sequence, Some(2));
-                assert!(!model.valid);
-                let admission = OwnedContacts::new(session, 11, 99, &ledger, 2).unwrap_err();
-                assert_eq!(
-                    admission.movement_refusal().unwrap().context().owner_state,
-                    MovementOwnerState::NotAdmitted
-                );
+                model.refresh(10, &ledger, 2).unwrap();
+                assert!(model.valid);
+                assert_eq!(numerical_state(&model), baseline);
+                let fresh = OwnedContacts::new(session, 11, 99, &ledger, 2).unwrap();
+                assert_eq!(numerical_state(&fresh), baseline);
                 let mut checkpoint = ContactCheckpoint::new(session, 99).unwrap();
                 for record in ledger
                     .history_after(session, 2, None, MAX_ENTITY_HISTORY_READ)
@@ -2872,14 +2817,9 @@ mod tests {
                 {
                     checkpoint.advance(record);
                 }
-                let saved = &checkpoint.errors[&7].1;
-                assert_eq!(saved.context().packet, c.packet);
-                assert_eq!(saved.context().entity, Some(entity));
-                let mut target = OwnedContacts::empty(session, 99).unwrap();
-                checkpoint
-                    .seed(&mut target, &[entity], &mut BTreeMap::new())
-                    .unwrap();
-                assert_eq!(target.checkpoint_errors[0].1.context().packet, c.packet);
+                assert!(checkpoint.errors.is_empty());
+                assert!(checkpoint.global_error.is_none());
+                assert_eq!(numerical_state(&checkpoint.model), baseline);
             }
         }
     }
@@ -3137,32 +3077,18 @@ mod tests {
                     let fresh = OwnedContacts::new(session, 11, 99, &ledger, sequence).unwrap();
                     assert_eq!(numerical_state(&fresh), baseline);
                 }
-                for (status, animation, packet, opcode) in [
-                    (Some(127), None, "Status", 127),
-                    (None, Some(255), "Animation", 255),
-                ] {
+                for (status, animation) in [(Some(127), None), (None, Some(255))] {
                     let (mut ledger, session) = receipts(version);
                     ledger.remove(7);
                     extra(&mut ledger, version, name, [0.9, 65., 0.5], true, 2);
                     let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
                     ledger.history_context(version, 3, sequence + 1);
                     ledger.history_signal(8, status, animation);
-                    let error = model.refresh(10, &ledger, sequence + 1).unwrap_err();
-                    let refusal = error.movement_refusal().unwrap();
-                    assert!(matches!(refusal, MovementRefusal::Unsupported { .. }));
-                    let context = refusal.context();
-                    assert_eq!(
-                        context.entity,
-                        Some(model.inputs.values().next().unwrap().entity)
-                    );
-                    assert_eq!(context.native_entity_id, Some(8));
-                    assert_eq!(
-                        context.entity_type.as_deref(),
-                        Some(format!("minecraft:{name}").as_str())
-                    );
-                    assert_eq!(context.receive_sequence, Some(sequence + 1));
-                    assert_eq!(context.packet.as_ref().unwrap().packet_type, packet);
-                    assert_eq!(context.packet.as_ref().unwrap().opcode, opcode);
+                    let baseline = numerical_state(&model);
+                    model.refresh(10, &ledger, sequence + 1).unwrap();
+                    assert_eq!(numerical_state(&model), baseline);
+                    let fresh = OwnedContacts::new(session, 11, 99, &ledger, sequence + 1).unwrap();
+                    assert_eq!(numerical_state(&fresh), baseline);
                 }
             }
         }

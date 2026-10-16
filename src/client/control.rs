@@ -1334,7 +1334,7 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_spawn_stops_before_a_dispatchable_prediction_even_at_distance() {
+    fn unqualified_spawn_keeps_control_and_received_knockback_alive() {
         use crate::client::{
             SessionStamp,
             entity::{NativeSpawn, NativeSpawnMotion, SpawnLedger, owned_contacts::OwnedContacts},
@@ -1353,8 +1353,6 @@ mod tests {
             control.contacts = Some(OwnedContacts::new(stamp, 8, 99, &ledger, 1).unwrap());
             let output = control.step(&start, &mut world(false)).unwrap().unwrap();
             control.dispatched(&output);
-            let before = control.body.clone();
-            let previous_frame = control.frame.clone();
             ledger.history_context(version, 0, 2);
             ledger
                 .insert(
@@ -1386,29 +1384,26 @@ mod tests {
                 .unwrap()
                 .refresh(8, &ledger, 2)
                 .unwrap();
-            let error = control.step(&start, &mut world(false)).unwrap_err();
-            let detail = error.movement_refusal().unwrap();
-            assert!(matches!(detail, crate::MovementRefusal::Unsupported { .. }));
-            assert_eq!(detail.context().native_entity_id, Some(8));
-            assert_eq!(
-                detail.context().entity_type.as_deref(),
-                Some("minecraft:horse")
+            let knockback = received(
+                Some((5, [0.5, 64., 0.5], Some([0.; 3]))),
+                Some((6, [0.25, 0.42, 0.])),
             );
-            assert_eq!(detail.context().entity.unwrap().spawn_sequence(), 2);
-            assert_eq!(
-                detail.context().packet.as_ref().unwrap().packet_type,
-                "Spawn"
-            );
-            assert_eq!(control.body, before);
-            assert_eq!(control.frame, previous_frame);
-            assert_eq!(control.dispatched_ticks, 1);
-            assert!(matches!(control.status, ControlStatus::Stopped { .. }));
-            assert!(control.contacts.is_none());
+            let output = control
+                .step(&knockback, &mut world(false))
+                .unwrap()
+                .unwrap();
+            assert!(control.body.position[0] > 0.5);
+            assert!(control.body.position[1] > 64.);
+            assert_eq!(control.velocity_updates, 1);
+            assert!(control.contacts.is_some());
+            assert!(control.entity_contacts.as_ref().unwrap().bodies.is_empty());
+            control.dispatched(&output);
+            assert_eq!(control.dispatched_ticks, 2);
         }
     }
 
     #[test]
-    fn bounded_contact_allows_far_then_stops_a_failed_sweep_before_dispatch() {
+    fn bounded_contact_passes_through_intersecting_sweep_before_dispatch() {
         use crate::client::{
             SessionStamp,
             entity::{NativeSpawn, NativeSpawnMotion, SpawnLedger, owned_contacts::OwnedContacts},
@@ -1461,31 +1456,14 @@ mod tests {
             // A stationary tick is unrelated and may produce a frame.
             let output = control.step(&start, &mut world(false)).unwrap().unwrap();
             control.dispatched(&output);
-            // The next attempted sweep intersects the deferred envelope. A
-            // failure inside physics must not replace either retained frame.
+            // Intersecting an unqualified envelope keeps control dispatchable.
             control.body.velocity = [10., 0., 0.];
-            let before = control.body.clone();
-            let previous_frame = control.frame.clone();
-            let previous_contacts = control.entity_contacts.clone();
-            let error = control.step(&start, &mut world(false)).unwrap_err();
-            let detail = error.movement_refusal().unwrap();
-            assert!(matches!(detail, crate::MovementRefusal::Unsupported { .. }));
-            assert_eq!(detail.context().native_entity_id, Some(8));
-            assert_eq!(
-                detail.context().entity_type.as_deref(),
-                Some("minecraft:spider")
-            );
-            assert_eq!(detail.context().entity.unwrap().spawn_sequence(), 2);
-            assert_eq!(
-                detail.context().packet.as_ref().unwrap().packet_type,
-                "Spawn"
-            );
-            assert_eq!(control.body, before);
-            assert_eq!(control.frame, previous_frame);
-            assert_eq!(control.dispatched_ticks, 2);
-            assert_eq!(control.entity_contacts, previous_contacts);
-            assert!(matches!(control.status, ControlStatus::Stopped { .. }));
-            assert!(control.contacts.is_none());
+            let output = control.step(&start, &mut world(false)).unwrap().unwrap();
+            assert!(control.body.position[0] > 8.);
+            assert!(control.contacts.is_some());
+            assert!(control.entity_contacts.as_ref().unwrap().bodies.is_empty());
+            control.dispatched(&output);
+            assert_eq!(control.dispatched_ticks, 3);
         }
     }
 

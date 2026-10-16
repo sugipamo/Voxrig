@@ -4,7 +4,8 @@
 `python3 -B scripts/contact_policy_export.py --check` が集合と生成内容を検査する。
 公開 geometry・packet・locality の別契約は[consumer manifest](contact-policy-consumers.md)、
 原版数値 corpus の全 scenario ID は `check_contact_policy_consumers.py --check` で照合する。
-Wolf は Unknown のままで、owner 全体の停止条件は変更していない。
+Wolf は Unknown のまま、Step 6 (#128 option 3) では contact の影響を省略して制御を継続する。
+[動作変更と API 移行](contact-policy-consumers.md#step-6-intentional-pass-through-issue-128-option-3)を参照。
 
 <!-- contact-policy:selectors:start -->
 | Version | Owned tick selector | Qualified species |
@@ -38,7 +39,7 @@ Wolf は Unknown のままで、owner 全体の停止条件は変更していな
 | Bat | isPushable=false、doPush / pushEntitiesはno-op | walking / boat selector から除外。通常Cowへの読み替えをせず、private table でこの lane の除外を証明する |
 | Slime / MagmaCube | Slime.pushは継承pushの後にIronGolem向け固有damage dispatch。MagmaCubeはこの入口を継承 | 拒否。size/overrideは[#98](https://github.com/sugipamo/Voxrig/issues/98)、元のgeometry観測は #40 |
 | Shulker | pushはno-op。modernのcanBeCollidedWithはaliveに従う。開閉による動的処理は通常pairと別 | 拒否。接触hookは[#99](https://github.com/sugipamo/Voxrig/issues/99)、元のgeometry観測は #40 |
-| その他のspecies / 未知serializer | Step D の未資格化理由は追加監査表を参照。未監査hookは補完しない | Unknown / BoundedUnknown は typed Unsupported。Step B の独立した有限証明がある場合のみ非交差を許可 |
+| その他のspecies / 未知serializer | Step D の未資格化理由は追加監査表を参照。未監査hookは補完しない | 未資格の生物は table の PassThrough。modeled body の未知 serializer 等は従来どおり拒否 |
 
 ## 述語の時点と不足
 
@@ -97,22 +98,22 @@ walking outgoing push、incoming pushability、solid collision、geometry と
 metadata / status / animation の各 callback を独立に分類する。
 既存の六種類だけを Qualified owner lane に入れ、Bat / ArmorStand は
 contact exclusion を ProvenIrrelevant とする。その他は Unknown または
-部分監査の BoundedUnknown のまま拒否する。継承先が一致するだけでは資格化しない。
-Status / animation は Step A の有限な no-op 例外以外、typed Unsupported で拒否する。
+部分監査の BoundedUnknown のまま PassThrough とする。継承先が一致するだけでは資格化しない。
+Status / animation は Step A の有限な no-op 証明以外、効果を適用せず無視する。
 
 Step B の[有限 envelope 証明](contact-envelope-audit.md)は capability table と独立で、
 まず default / unmounted Spider・CaveSpider のみへ適用する。
 受信 target を current geometry とせず、spawn 以降の全補間 anchor・codec base・
 absolute endpoint を含む縮まない hull を使う。own 前後 slot・swept / step-up query・
 boat selector に加え、全 qualified remote の補間 / shifted target と固定 boat collider
-からの非交差を要求し、間接作用も除外する。証明できた tick だけ拒否を局所化する。
+からの非交差を要求し、間接作用も除外する。これは証明済み無関係性の条件である。
 Unknown hook は近傍限定と仮定しない。metadata / scale / equipment / status /
-animation / mount で有限証明を失えば、遠方でも typed Unsupported で拒否する。
-その他の Unknown / BoundedUnknown も証明不能時は従来の全域拒否を維持する。
+animation / mount で有限証明を失えば、PassThrough へ戻る。
+その他の Unknown / BoundedUnknown も数値 body を作らず contact の影響を省略する。
 
 元の native slot と spawn lifetime を保持し、除去・再利用・metadata・乗員・checkpoint /
 world 境界で再評価する。checkpoint は累積 hull と失効原因 packet を保存する。
-失敗 staged frame の送信禁止と入力解除、公開 API / schema / 数値保証は変更しない。
+真の admission / 数値処理失敗時の staged frame 送信禁止と入力解除、公開型 / schema は変更しない。
 原版 numerical fixture は既存六種類の own前後slot・baby metadata、補間・team・sleep・
 boat geometry と Bat / ArmorStand exclusion を引き続き検査する。
 追加 species の envelope 証明は数値 body や全 callback の資格化ではない。
@@ -139,11 +140,10 @@ still admits nothing). No ancestry or reason-string dispatch is used.
 The fixture has 320 schedules / 3,840 stages. Exact SDK comparison covers 208
 qualified schedules / 2,496 stages, split equally between walking and boat;
 the 1,344 unqualified raw stages are excluded from numerical claims. Baby/adult
-and species-variant inputs are tested where applicable. Typed Unsupported
-refusals retain spawn lifetime/native ID/type/packet provenance for unqualified
-species near and far. Only the existing audited Spider/CaveSpider Step B proof
-can permit an unqualified lifetime when all relevant envelopes miss; Step D
-adds no distance exemption.
+and species-variant inputs are tested where applicable. Step 6 now permits
+unqualified species near and far by omitting their contact influence. Existing
+Spider/CaveSpider Step B proofs remain separate evidence of nonintersection;
+proof failure falls back to PassThrough. No unqualified species is promoted.
 
 Legacy dimension-refresh boxes retain their original minimum on equal/growing
 width until a real position placement; modern refresh recenters immediately.

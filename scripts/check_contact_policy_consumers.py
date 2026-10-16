@@ -25,7 +25,29 @@ def schedules(data):
     return rows
 
 
+def check_pass_through(policy):
+    # Independent decision boundary from Issue #128 option 3. Qualification
+    # evidence and numerical scenario requirements are checked separately.
+    for version, data in policy['versions'].items():
+        for name, row in data['types'].items():
+            for lane in ['OwnedWalking', 'OwnedGlide', 'OwnedBoat']:
+                profile = row['lanes'][lane]
+                expected = 'Refuse' if profile['modeled'] else 'PassThrough'
+                if profile['unqualified'] != expected:
+                    raise ValueError(f'{version}/{name}/{lane}: unqualified fallback drift')
+    for name, profile in policy['packet_profiles'].items():
+        if profile['default'] != 'Refuse' or profile['unproven_callbacks'] != 'PassThrough':
+            raise ValueError(f'{name}: callback/family fallback drift')
+        for rule in profile['exact']:
+            if not rule['packet'].startswith(('Status(', 'Animation(')):
+                raise ValueError(f'{name}: callback proof outside status/animation')
+            if rule['decision'] != 'Irrelevant(PacketAudit)':
+                raise ValueError(f'{name}: finite callback proof relabeled')
+    print('pass-through: owned unqualified fallbacks and callback/family boundaries match')
+
+
 def check_policy(policy, fixture):
+    check_pass_through(policy)
     if set(fixture['versions']) != set(policy['versions']):
         raise ValueError('owner fixture version set differs from table')
     evidence = json.loads((ROOT / 'docs/evidence/contact-capabilities-20261015.json').read_text())

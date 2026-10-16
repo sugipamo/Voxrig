@@ -17,6 +17,9 @@ pub enum MovementRefusal {
         context: MovementRefusalContext,
     },
     /// The current implementation does not qualify this input or capability.
+    /// Unqualified creature contact, failed deferred envelopes and unlisted
+    /// contact status/animation callbacks pass through without this refusal
+    /// (Issue #128 option 3). Modeled input/admission failures may still emit it.
     Unsupported {
         /// Frozen refusal details.
         context: MovementRefusalContext,

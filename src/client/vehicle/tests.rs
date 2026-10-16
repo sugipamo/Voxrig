@@ -1110,108 +1110,98 @@ fn saved_passenger_ids_do_not_exclude_later_spawns_without_a_new_actual_list() {
 }
 
 #[test]
-fn deferred_boat_contacts_use_envelopes_and_refuse_before_retaining_a_swept_frame() {
+fn deferred_boat_contacts_pass_through_near_and_swept_envelopes() {
     use crate::client::entity::{NativeSpawnMotion, owned_contacts::OwnedContacts};
     for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
-        for (position, velocity, allowed) in [
-            ([600., 65., 2.5], [0.; 3], true),
-            ([0.5, 65., 2.5], [0.; 3], false),
-            ([4.75, 65., 2.5], [1., 0., 0.], false),
-        ] {
-            let (mut record, _) = boat_velocity_fixture(version);
-            let stamp = record.initial.session;
-            let mut spawns = SpawnLedger::default();
-            spawns.contact_local_player(42);
-            for (id, name, p, sequence) in [
-                (
-                    10,
-                    if version == MinecraftVersion::Java1_16_1 {
-                        "boat"
-                    } else {
-                        "oak_boat"
-                    },
-                    [0.5, 65., 2.5],
-                    11,
-                ),
-                (8, "spider", position, 13),
+        for creature in ["spider", "wolf", "horse", "not_registered"] {
+            for (position, velocity) in [
+                ([600., 65., 2.5], [0.; 3]),
+                ([0.5, 65., 2.5], [0.; 3]),
+                ([4.75, 65., 2.5], [1., 0., 0.]),
             ] {
-                spawns.history_context(version, stamp.world_generation, sequence);
-                spawns
-                    .insert(
-                        version,
-                        NativeSpawn {
-                            id,
-                            uuid: Some([7; 16]),
-                            type_id: None,
-                            dedicated_type_name: Some(name),
-                            position: p,
-                            living: None,
+                let (mut record, _) = boat_velocity_fixture(version);
+                let stamp = record.initial.session;
+                let mut spawns = SpawnLedger::default();
+                spawns.contact_local_player(42);
+                for (id, name, p, sequence) in [
+                    (
+                        10,
+                        if version == MinecraftVersion::Java1_16_1 {
+                            "boat"
+                        } else {
+                            "oak_boat"
+                        },
+                        [0.5, 65., 2.5],
+                        11,
+                    ),
+                    (8, creature, position, 13),
+                ] {
+                    spawns.history_context(version, stamp.world_generation, sequence);
+                    spawns
+                        .insert(
+                            version,
+                            NativeSpawn {
+                                id,
+                                uuid: Some([7; 16]),
+                                type_id: None,
+                                dedicated_type_name: Some(name),
+                                position: p,
+                                living: None,
+                            },
+                            sequence,
+                            32,
+                        )
+                        .unwrap();
+                    spawns.initialize_motion(
+                        id,
+                        NativeSpawnMotion {
+                            position: Some(p),
+                            rotation: Some([0.; 2]),
+                            velocity: Some([0.; 3]),
+                            head_yaw: None,
                         },
                         sequence,
-                        32,
-                    )
+                    );
+                }
+                let passengers = NativePassengers {
+                    vehicle: 10,
+                    passengers: vec![42],
+                };
+                let mut relations = PassengerLedger::default();
+                relations.receive(&passengers, Some(42), &spawns, 12);
+                // The mount existed before the unrelated creature spawn.
+                let vehicle = relations.capture(stamp, 13, Some(42), &spawns);
+                record.vehicle = vehicle.clone();
+                record.initial.receive_sequence = 13;
+                let motion = spawns
+                    .capture_motion(stamp, spawns.identity(stamp, 10).unwrap(), 13)
                     .unwrap();
-                spawns.initialize_motion(
-                    id,
-                    NativeSpawnMotion {
-                        position: Some(p),
-                        rotation: Some([0.; 2]),
-                        velocity: Some([0.; 3]),
-                        head_yaw: None,
+                control::configure_boat(&mut record, Some(motion), None).unwrap();
+                record.boat_motion.as_mut().unwrap().initial_frame.velocity = velocity;
+                let initial = record.boat_motion.as_ref().unwrap().initial_frame.clone();
+                let mut contacts = OwnedContacts::for_boat(&record, &spawns).unwrap();
+                let result = contacts.tick_boat(
+                    &record,
+                    &vehicle,
+                    &spawns,
+                    &relations,
+                    Default::default(),
+                    &mut |_| {
+                        Ok(crate::NativeBlockState {
+                            name: "minecraft:air".into(),
+                            properties: Default::default(),
+                        })
                     },
-                    sequence,
                 );
-            }
-            let passengers = NativePassengers {
-                vehicle: 10,
-                passengers: vec![42],
-            };
-            let mut relations = PassengerLedger::default();
-            relations.receive(&passengers, Some(42), &spawns, 12);
-            // The mount existed before the unrelated spider spawn.
-            let vehicle = relations.capture(stamp, 13, Some(42), &spawns);
-            record.vehicle = vehicle.clone();
-            record.initial.receive_sequence = 13;
-            let motion = spawns
-                .capture_motion(stamp, spawns.identity(stamp, 10).unwrap(), 13)
-                .unwrap();
-            control::configure_boat(&mut record, Some(motion), None).unwrap();
-            record.boat_motion.as_mut().unwrap().initial_frame.velocity = velocity;
-            let initial = record.boat_motion.as_ref().unwrap().initial_frame.clone();
-            let mut contacts = OwnedContacts::for_boat(&record, &spawns).unwrap();
-            let result = contacts.tick_boat(
-                &record,
-                &vehicle,
-                &spawns,
-                &relations,
-                Default::default(),
-                &mut |_| {
-                    Ok(crate::NativeBlockState {
-                        name: "minecraft:air".into(),
-                        properties: Default::default(),
-                    })
-                },
-            );
-            if allowed {
-                let (sample, _) = result.unwrap();
+                let (sample, frame) = result.unwrap();
                 assert!(sample.bodies.is_empty());
-            } else {
-                let error = result.unwrap_err();
-                let detail = error.movement_refusal().unwrap();
-                assert!(matches!(detail, crate::MovementRefusal::Unsupported { .. }));
-                assert_eq!(
-                    detail.context().native_entity_id,
-                    Some(8),
-                    "{version:?} {position:?} {velocity:?}: {error:?}"
-                );
-                assert_eq!(
-                    detail.context().entity_type.as_deref(),
-                    Some("minecraft:spider")
-                );
+                if velocity[0] > 0. {
+                    assert!(frame.position[0] > initial.position[0]);
+                }
+                assert_eq!(record.boat_motion.as_ref().unwrap().initial_frame, initial);
+                assert!(record.boat_motion.as_ref().unwrap().frames.is_empty());
+                assert_eq!(record.dispatched_ticks, 0);
             }
-            assert_eq!(record.boat_motion.as_ref().unwrap().initial_frame, initial);
-            assert!(record.boat_motion.as_ref().unwrap().frames.is_empty());
-            assert_eq!(record.dispatched_ticks, 0);
         }
     }
 }

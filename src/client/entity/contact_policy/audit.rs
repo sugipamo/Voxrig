@@ -104,6 +104,7 @@ fn policy_export() -> Value {
                         "profile": format!("{:?}", profile.id),
                         "effects": effects,
                         "modeled": profile.effects.modeled(),
+                        "unqualified": format!("{:?}", profile.unqualified),
                         "selectors": semantics(table::semantics(version, entity, lane)),
                         "packet_profile": format!("{:?}", profile.packets),
                         "locality": format!("{:?}", profile.locality),
@@ -125,6 +126,7 @@ fn policy_export() -> Value {
     let packets: serde_json::Map<String, Value> = table::PACKET_POLICIES.iter().map(|policy| {
         (format!("{:?}", policy.id), json!({
             "default": format!("{:?}", policy.default),
+            "unproven_callbacks": format!("{:?}", policy.unproven_callbacks),
             "exact": policy.exact.iter().map(|rule| json!({
                 "packet": format!("{:?}", rule.packet),
                 "effects": rule.effects.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>(),

@@ -4,7 +4,8 @@
 `python3 -B scripts/contact_policy_export.py --check` が集合と生成内容を検査する。
 公開 geometry・packet・locality の別契約は[consumer manifest](contact-policy-consumers.md)、
 原版数値 corpus の全 scenario ID は `check_contact_policy_consumers.py --check` で照合する。
-Wolf は Unknown のままで、owner 全体の停止条件は変更していない。
+Wolf は Unknown のまま、Step 6 (#128 option 3) では contact の影響を省略して制御を継続する。
+[動作変更と API 移行](contact-policy-consumers.md#step-6-intentional-pass-through-issue-128-option-3)を参照。
 
 <!-- contact-policy:selectors:start -->
 | Version | Owned tick selector | Qualified species |
@@ -116,8 +117,8 @@ geometry、metadata / status / animation callback を独立に
 Bat / ArmorStand はこの walking / boat contact lane に無関係と証明したため、
 寸法・motion を数値 body へ補完せず native slot だけを保持する。
 ArmorStand の rideable-minecart hook を walking / boat push に読み替えない。
-Item / projectile を含む未監査 species は Unknown のまま拒否する。
-Status / animation の有限な例外は Step A の監査済み packet のみで、未知 opcode は拒否する。
+Item / projectile を含む未監査 species は Unknown のまま PassThrough とする。
+Status / animation の有限な証明は Step A の監査済み packet のみで、未知 opcode は効果を適用せず無視する。
 
 Step B は別の保守的 envelope 証明を追加する。
 [envelope の原版 owner 監査・規則・再生成手順](contact-envelope-audit.md)と
@@ -127,16 +128,14 @@ Unknown / BoundedUnknown の分類自体を空間的保証と解釈しない。
 spawn・codec base・全補間 anchor・absolute endpoint の hull は縮めず、
 最大形状と作用範囲を含める。own 前後 slot、実際の swept / step-up query、boat selector、
 全 qualified remote の current / target / shifted target と固定 boat collider に交差しない
-場合だけ、その tick を許可する。全 remote との非交差は間接作用の最初の辺を除外する
+場合だけ、証明済みの無関係性を主張できる。全 remote との非交差は間接作用の最初の辺を除外する
 保守的条件であり、単なる own との近距離判定ではない。
 
-metadata / scale / equipment / status / animation / mount は未証明 hook の範囲を
-近傍と仮定せず有限証明を失わせ、typed Unsupported の全域拒否へ戻す。
-その寿命中の motion だけでは証明を復活させない。その他の未監査 species・hook、
-不明な位置・最大形状・非局所作用は距離によらず従来どおり全域拒否する。
+metadata / scale / equipment / status / animation / mount は有限証明を失わせる。
+その寿命中の motion だけでは証明を復活させない。Step 6 では証明不能でも
+PassThrough へ戻り、未知の物理効果を補完せず contact の影響を省略する。
 除去・native ID 再利用・world / checkpoint 境界で再評価し、checkpoint も hull と
-失効状態を保持する。拒否には entity lifetime / native ID / type と原因 packet を保持する。
-失敗 staged frame は保持・送信せず、従来の入力解除を維持する。
+失効状態を保持する。真の admission / 数値処理失敗の staged frame は保持・送信しない。
 履歴・provenance の破損は Permanent、受信 profile / game mode 不足は Transient のまま。
 
 
@@ -161,11 +160,10 @@ still admits nothing). No ancestry or reason-string dispatch is used.
 The fixture has 320 schedules / 3,840 stages. Exact SDK comparison covers 208
 qualified schedules / 2,496 stages, split equally between walking and boat;
 the 1,344 unqualified raw stages are excluded from numerical claims. Baby/adult
-and species-variant inputs are tested where applicable. Typed Unsupported
-refusals retain spawn lifetime/native ID/type/packet provenance for unqualified
-species near and far. Only the existing audited Spider/CaveSpider Step B proof
-can permit an unqualified lifetime when all relevant envelopes miss; Step D
-adds no distance exemption.
+and species-variant inputs are tested where applicable. Step 6 now permits
+unqualified species near and far by omitting their contact influence. Existing
+Spider/CaveSpider Step B proofs remain separate evidence of nonintersection;
+proof failure falls back to PassThrough. No unqualified species is promoted.
 
 Legacy dimension-refresh boxes retain their original minimum on equal/growing
 width until a real position placement; modern refresh recenters immediately.

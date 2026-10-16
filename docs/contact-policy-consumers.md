@@ -26,14 +26,57 @@ The consumer check compares the required Java factory/registration targets with
 the fixed original-owner corpus in both scenes and with the Java factory source.
 Unknown observations and exclusion probes remain in the independent corpus.
 Rust admission and numerical tests retain fixed counts, exact expected values,
-refusal contexts, and the earlier frozen-source/golden comparisons. The table
+true admission-refusal contexts, and the earlier frozen-source/golden comparisons. The table
 cannot remove an existing numerical scenario merely by changing a classification.
 Original jar collection commands in the individual audits and owner runner are
 preserved. Jar-independent checks use committed evidence and gz oracles; they
 skip jar-dependent collection, so absent jars do not skip the policy/list checks.
 
+## Step 6: intentional pass-through (Issue #128 option 3)
+
+The 2026-10-16 08:44 JST decision changes owned walking, glide and boat contact
+policy. The const profile's `unqualified: PassThrough` skips influence from
+unmodeled bodies, including Unknown names and missing type names. No numerical
+body or guessed physics is created. Spider/CaveSpider envelopes and their
+revocations are retained, but overlap, missing motion or a revoked proof now
+fall back to pass-through. Bat/ArmorStand exclusions remain unchanged.
+
+Packet profiles distinguish `Irrelevant(PacketAudit)` evidence from
+`PassThrough` policy. Only the same finite sheep 10, listener 35 and animation
+4/5 cases carry proof. All other status/animation values, including Rabbit
+Status(1), are ignored for contact reduction, also on qualified modeled bodies.
+They do not apply unknown status effects, change the model's numerical state,
+or remove packets from public history. Other packet families default to Refuse;
+metadata, scale, equipment, mount, provenance and history admission guards on
+modeled bodies retain their existing behavior.
+
+Before regenerating `data/client_api/contact_policy_step1.txt`, the intended
+changes are: the 228 versioned entity far-locality observations previously
+false/false become true/true; all 4,814,040 present Cartesian keys retain their
+classifications and finite harmless-packet proofs. The golden adds a separate
+ignored-callback run for each row (Status/Animation only), exposing the policy
+without relabeling unproved callbacks as harmless. Of the expanded packet
+decisions, 4,727,870 change from Refuse to PassThrough; the 3,010 finite proof
+cells and 83,160 non-callback Refuse cells stay unchanged. Absent entries,
+qualified spawn selectors and numerical dispatch are unchanged. Regenerate
+intentionally with `VOXRIG_UPDATE_CONTACT_BASELINE=1 cargo test --locked --lib -j1
+frozen_contact_policy_baseline -- --test-threads=1`, then verify without the variable.
+
+Golemkit/evolto: the public types and signatures are unchanged, but callers no
+longer receive `MovementRefusal::Unsupported` solely for an unqualified contact,
+a failed deferred envelope, or an unlisted status/animation callback. Control
+stays active; integrations must not rely on that refusal to stop or re-admit a
+session. Existing self entity_velocity and explosion knockback receipt handling
+continues; this policy adds no prediction for omitted creatures. True admission,
+history and modeled geometry/metadata failures can still refuse.
+
+This supersedes #122's “wolf Unknown stops the session” symptom: Wolf remains
+Unknown and is omitted. Wolf-specific team/owner semantics proposed in #122
+are still absent from main. #122 stays open and untouched. The eventual PR for
+this change should use `Closes #128`; no PR is created or pushed by this step.
+
 <!-- contact-policy:manifest:start -->
-Policy SHA-256: `e632b2900149704d48d59aa2690e80309e3f0f806532b599f45cfeac1909f672`.
+Policy SHA-256: `862aef5a50e32a330d4bdd804d1f64be2aa200b704eedd5a4246abb48cee1174`.
 Expanded present keys: 4,814,040; versioned entities: 264.
 
 | Version | Scenario ID | Assigned types |
