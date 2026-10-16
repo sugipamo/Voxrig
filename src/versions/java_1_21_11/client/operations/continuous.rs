@@ -997,7 +997,9 @@ impl crate::client::adapter::ControlOps for Operations {
         let id = session.id;
         drop(state);
         let owner = self.clone();
-        tokio::spawn(async move { owner.stop_control_owned(id, Some(mode)).await })
+        self.bot
+            .session
+            .spawn_finite_result(async move { owner.stop_control_owned(id, Some(mode)).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }

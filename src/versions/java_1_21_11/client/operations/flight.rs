@@ -186,74 +186,81 @@ impl Operations {
 
 impl crate::client::adapter::FlightOps for Operations {
     async fn flight(&self, command: FlightCommand) -> Result<FlightRecord> {
-        let state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        if state.operations.inventory.pending_swap.is_some()
-            || state.operations.local_player.motion_interruption.is_some()
-            || state.vehicles.motion_interrupted()
-            || !movement::flight_can_retire(&state)
-        {
-            return Err(unavailable(
-                "flight requires unmounted resolved common motion context",
-            ));
-        }
-        let player = self.common_player_unlocked(&state)?;
-        let previous_attempt = self
-            .bot
-            .flight_history
-            .lock()
-            .expect("flight history")
-            .as_ref()
-            .map_or(0, |r| r.attempt);
-        let landing_run = if command == FlightCommand::Land {
-            let mut state = state;
-            let run = movement::landing_plan(
-                &mut state,
-                self.bot.session.id,
-                self.bot.session.started.elapsed().as_millis() as u64 / 50,
-                player.clone(),
-                previous_attempt,
-            )?;
-            (state, Some(run))
-        } else {
-            (state, None)
-        };
-        let (state, landing_run) = landing_run;
-        let record = {
-            let mut history = self.bot.flight_history.lock().expect("flight history");
-            let mut record = api::flight::prepare(
-                player,
-                command,
-                state.operations.requested_flying,
-                history.as_ref(),
-            )?;
-            record.received_abilities = state.operations.abilities_receipt();
-            if let Some(run) = &landing_run {
-                record.landing = Some(api::FlightLanding {
-                    flight_attempt: previous_attempt,
-                    declared_controller_velocity: [0.; 3],
-                    disable_dispatched: false,
-                    neutral_dispatched: false,
-                    motion: movement::landing_common_record(run)?,
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_scoped(async {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                if state.operations.inventory.pending_swap.is_some()
+                    || state.operations.local_player.motion_interruption.is_some()
+                    || state.vehicles.motion_interrupted()
+                    || !movement::flight_can_retire(&state)
+                {
+                    return Err(unavailable(
+                        "flight requires unmounted resolved common motion context",
+                    ));
+                }
+                let player = self.common_player_unlocked(&state)?;
+                let previous_attempt = self
+                    .bot
+                    .flight_history
+                    .lock()
+                    .expect("flight history")
+                    .as_ref()
+                    .map_or(0, |r| r.attempt);
+                let landing_run = if command == FlightCommand::Land {
+                    let mut state = state;
+                    let run = movement::landing_plan(
+                        &mut state,
+                        self.bot.session.id,
+                        self.bot.session.started.elapsed().as_millis() as u64 / 50,
+                        player.clone(),
+                        previous_attempt,
+                    )?;
+                    (state, Some(run))
+                } else {
+                    (state, None)
+                };
+                let (state, landing_run) = landing_run;
+                let record = {
+                    let mut history = self.bot.flight_history.lock().expect("flight history");
+                    let mut record = api::flight::prepare(
+                        player,
+                        command,
+                        state.operations.requested_flying,
+                        history.as_ref(),
+                    )?;
+                    record.received_abilities = state.operations.abilities_receipt();
+                    if let Some(run) = &landing_run {
+                        record.landing = Some(api::FlightLanding {
+                            flight_attempt: previous_attempt,
+                            declared_controller_velocity: [0.; 3],
+                            disable_dispatched: false,
+                            neutral_dispatched: false,
+                            motion: movement::landing_common_record(run)?,
+                        });
+                    }
+                    *history = Some(record.clone());
+                    record
+                };
+                let bot = self.bot.clone();
+                let attempt = record.attempt;
+                let (reply, result) = tokio::sync::oneshot::channel();
+                self.bot.session.spawn_finite(async move {
+                    let result = if let Some(run) = landing_run {
+                        bot.operations().landing_send_owned(attempt, run).await
+                    } else {
+                        bot.operations().flight_send_owned(attempt).await
+                    };
+                    let _ = reply.send(crate::client::ledger::finite::checked(result));
                 });
-            }
-            *history = Some(record.clone());
-            record
-        };
-        let bot = self.bot.clone();
-        let attempt = record.attempt;
-        let (reply, result) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
-            let result = if let Some(run) = landing_run {
-                bot.operations().landing_send_owned(attempt, run).await
-            } else {
-                bot.operations().flight_send_owned(attempt).await
-            };
-            let _ = reply.send(result);
-        });
-        drop(state);
-        result
+                drop(state);
+                result
+                    .await
+                    .map_err(|_| unavailable("flight owner result unavailable"))?
+            })
             .await
-            .map_err(|_| unavailable("flight owner result unavailable"))?
     }
 }

@@ -3834,6 +3834,7 @@ async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_s
         let client = f.client();
         let before = client.received_inventory().await.unwrap();
         let waiter = crate::client::tests::common_cursor_close_start(&client, mode, screen);
+        let mut drain = None;
         for index in 0..2 {
             let (id, payload) = timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
                 .await
@@ -3843,6 +3844,11 @@ async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_s
             let record =
                 crate::client::tests::common_cursor_close_retained(&client, index + 1).await;
             let step = &record.return_steps[index];
+            if index == 0 {
+                drain = Some(f.api.bot.session.ledger.cut(false));
+                waiter.abort();
+            }
+            assert!(drain.as_mut().unwrap().inspect().is_none());
             assert_eq!(payload, super::click::payload(step).unwrap());
             assert_eq!(step.source_slot, 27 + index as u16);
             assert!(client.survival().swap_hotbar(9, 0).await.is_err());
@@ -3881,7 +3887,17 @@ async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_s
                 .unwrap(),
             (ids::play_serverbound::CLOSE_WINDOW, vec![3])
         );
-        let complete = waiter.await.unwrap().unwrap();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        tokio::time::timeout(Duration::from_secs(1), drain.as_mut().unwrap().wait())
+            .await
+            .unwrap()
+            .unwrap();
+        let complete = client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap();
         crate::client::tests::common_data_cursor_close_complete_scenario(
             &client,
             &complete,
@@ -4393,6 +4409,8 @@ async fn crafting_take_merge_cancelled_waiter_preserves_one_write_combined_curso
     assert!(
         matches!(&pending.cursor_prediction.value,crate::client::SlotKnowledge::Item{item} if item.count==8)
     );
+    let mut drain = f.api.bot.session.ledger.cut(false);
+    assert!(drain.inspect().is_none());
     waiter.abort();
     assert!(waiter.await.unwrap_err().is_cancelled());
     drop(writer);
@@ -4429,6 +4447,10 @@ async fn crafting_take_merge_cancelled_waiter_preserves_one_write_combined_curso
     }
     put_slot(&mut full, &plain("stick", 8));
     f.receive(ids::play_clientbound::WINDOW_ITEMS, &full).await;
+    tokio::time::timeout(Duration::from_secs(1), drain.wait())
+        .await
+        .unwrap()
+        .unwrap();
     let complete = client
         .survival()
         .crafting_take_record()

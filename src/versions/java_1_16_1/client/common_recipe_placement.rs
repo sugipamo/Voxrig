@@ -102,74 +102,78 @@ impl Bot {
         }
     }
     pub(super) async fn common_recipe_placement_context_received(&self) -> Result<()> {
-        let Some(snapshot) = super::lock_packet_state(&self.common_recipe_placement)
-            .await
-            .clone()
-        else {
-            return Ok(());
-        };
-        if !snapshot.record.unresolved() {
-            return Ok(());
-        }
-        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
-            self.interrupt_common_recipe_placement(
-                "recipe placement connection closed or uncertain",
-            )
-            .await;
-            return Ok(());
-        }
-        let current = self.recipe_placement_capture().await;
-        let cache = self.recipe_placement_cache(&snapshot.record).await;
-        let ghost = self
-            .common_receipts
-            .lock()
-            .await
-            .recipe_ghost
-            .as_ref()
-            .filter(|g| g.receive_sequence() > snapshot.record.send.after_sequence)
-            .map(|g| g.capture(snapshot.record.id.session()))
-            .transpose()
-            .map(Option::flatten);
-        let complete = {
-            let mut guard = super::lock_packet_state(&self.common_recipe_placement).await;
-            let record = &mut guard.as_mut().expect("retained").record;
-            match current {
-                Ok(current) => match &ghost {
-                    Ok(ghost) => dispatch::receive_with_ghost(record, &current, ghost.as_ref()),
-                    Err(error) => record.inspection(error),
-                },
-                Err(e) => record.inspection(e),
-            }
-            if let Err(e) = cache {
-                record.inspection(e);
-            }
-            record.ready()
-        };
-        if complete {
-            match self
-                .connection
-                .finish_recipe_placement(snapshot.record.id.attempt())
+        self.with_finite(crate::client::ledger::finite::Family::Recipe, async {
+            let Some(snapshot) = super::lock_packet_state(&self.common_recipe_placement)
                 .await
-            {
-                Ok(()) => {
-                    let mut guard = super::lock_packet_state(&self.common_recipe_placement).await;
-                    let r = guard.as_mut().expect("retained");
-                    r.released = true;
-                    r.record.stage = if r.record.ghost.is_some() {
-                        RecipePlacementStage::ObservedGhost
-                    } else {
-                        RecipePlacementStage::ObservedPlaced
-                    };
+                .clone()
+            else {
+                return Ok(());
+            };
+            if !snapshot.record.unresolved() {
+                return Ok(());
+            }
+            if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+                self.interrupt_common_recipe_placement(
+                    "recipe placement connection closed or uncertain",
+                )
+                .await;
+                return Ok(());
+            }
+            let current = self.recipe_placement_capture().await;
+            let cache = self.recipe_placement_cache(&snapshot.record).await;
+            let ghost = self
+                .common_receipts
+                .lock()
+                .await
+                .recipe_ghost
+                .as_ref()
+                .filter(|g| g.receive_sequence() > snapshot.record.send.after_sequence)
+                .map(|g| g.capture(snapshot.record.id.session()))
+                .transpose()
+                .map(Option::flatten);
+            let complete = {
+                let mut guard = super::lock_packet_state(&self.common_recipe_placement).await;
+                let record = &mut guard.as_mut().expect("retained").record;
+                match current {
+                    Ok(current) => match &ghost {
+                        Ok(ghost) => dispatch::receive_with_ghost(record, &current, ghost.as_ref()),
+                        Err(error) => record.inspection(error),
+                    },
+                    Err(e) => record.inspection(e),
                 }
-                Err(e) => {
-                    self.interrupt_common_recipe_placement(format!(
-                        "recipe placement release uncertain: {e:?}"
-                    ))
+                if let Err(e) = cache {
+                    record.inspection(e);
+                }
+                record.ready()
+            };
+            if complete {
+                match self
+                    .connection
+                    .finish_recipe_placement(snapshot.record.id.attempt())
                     .await
+                {
+                    Ok(()) => {
+                        let mut guard =
+                            super::lock_packet_state(&self.common_recipe_placement).await;
+                        let r = guard.as_mut().expect("retained");
+                        r.released = true;
+                        r.record.stage = if r.record.ghost.is_some() {
+                            RecipePlacementStage::ObservedGhost
+                        } else {
+                            RecipePlacementStage::ObservedPlaced
+                        };
+                    }
+                    Err(e) => {
+                        self.interrupt_common_recipe_placement(format!(
+                            "recipe placement release uncertain: {e:?}"
+                        ))
+                        .await
+                    }
                 }
             }
-        }
-        Ok(())
+            Ok(())
+        })
+        .await
     }
 }
 
@@ -200,61 +204,73 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
         mode: api::GameMode,
         plan: &contract::RecipePlacementPlan,
     ) -> Result<RecipePlacementRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        if let contract::CraftingSource::Table { screen } = plan.layout().source() {
-            if super::lock_packet_state(&self.common_container_close)
-                .await
-                .as_ref()
-                .is_some_and(|r| r.id.screen() == screen)
-            {
-                return Err(unavailable("old table opening has retained close intent"));
-            }
-        }
-        let revision = self
-            .connection
-            .motion_admission_revision()
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                if let contract::CraftingSource::Table { screen } = plan.layout().source() {
+                    if super::lock_packet_state(&self.common_container_close)
+                        .await
+                        .as_ref()
+                        .is_some_and(|r| r.id.screen() == screen)
+                    {
+                        return Err(unavailable("old table opening has retained close intent"));
+                    }
+                }
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| unavailable(format!("recipe placement admission: {e:?}")))?;
+                let current = self.recipe_placement_capture().await?;
+                let attempt = super::lock_packet_state(&self.common_recipe_placement)
+                    .await
+                    .as_ref()
+                    .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
+                    .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
+                dispatch::validate_plan_history(
+                    plan,
+                    super::lock_packet_state(&self.common_recipe_placement)
+                        .await
+                        .as_ref()
+                        .map(|r| &r.record),
+                )?;
+                let record = dispatch::prepare(plan, &current, mode, attempt)?;
+                self.recipe_placement_cache(&record).await?;
+                dispatch::payload(&record)?;
+                let id = record.id;
+                let work =
+                    self.begin_finite(crate::client::ledger::finite::Family::Recipe, id.attempt());
+                *super::lock_packet_state(&self.common_recipe_placement).await =
+                    Some(NativeRecipePlacement {
+                        record,
+                        released: false,
+                    });
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite_work(work, async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.recipe_placement_send_owned(id, revision).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| unavailable("recipe placement owner result unavailable"))?
+            })
             .await
-            .map_err(|e| unavailable(format!("recipe placement admission: {e:?}")))?;
-        let current = self.recipe_placement_capture().await?;
-        let attempt = super::lock_packet_state(&self.common_recipe_placement)
-            .await
-            .as_ref()
-            .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
-            .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
-        dispatch::validate_plan_history(
-            plan,
-            super::lock_packet_state(&self.common_recipe_placement)
-                .await
-                .as_ref()
-                .map(|r| &r.record),
-        )?;
-        let record = dispatch::prepare(plan, &current, mode, attempt)?;
-        self.recipe_placement_cache(&record).await?;
-        dispatch::payload(&record)?;
-        let id = record.id;
-        *super::lock_packet_state(&self.common_recipe_placement).await =
-            Some(NativeRecipePlacement {
-                record,
-                released: false,
-            });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.recipe_placement_send_owned(id, revision).await);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| unavailable("recipe placement owner result unavailable"))?
     }
     async fn recipe_placement_record(&self) -> Result<Option<RecipePlacementRecord>> {
         if let Ok(gate) = self.coherent_state_gate.clone().try_lock_owned() {
             let bot = self.clone_internal();
             let (reply, result) = tokio::sync::oneshot::channel();
-            tokio::spawn(async move {
+            self.spawn_inspection(crate::client::ledger::finite::Family::Recipe, async move {
                 let _gate = gate;
-                let _ = reply.send(bot.common_recipe_placement_context_received().await);
+                let _ = reply.send(crate::client::ledger::finite::checked(
+                    bot.common_recipe_placement_context_received().await,
+                ));
             });
             result
                 .await

@@ -530,7 +530,7 @@ impl CommandSender {
                 | Command::DispatchAcknowledged { .. }
                 | Command::DispatchProtocol { .. }
         )
-        .then(|| ScopedWork::new(self.ledger.admit().expect("existing actor admission")));
+        .then(|| ScopedWork::new(self.ledger.work()));
         self.sender
             .send(QueuedCommand { command, work })
             .await
@@ -551,7 +551,7 @@ impl CommandSender {
     }
     #[cfg(test)]
     fn try_send(&self, command: Command) -> Result<(), mpsc::error::TrySendError<Command>> {
-        let work = ScopedWork::new(self.ledger.admit().expect("existing actor admission"));
+        let work = ScopedWork::new(self.ledger.work());
         self.sender
             .try_send(QueuedCommand {
                 command,
@@ -582,6 +582,9 @@ pub(crate) struct ConnectionActor {
 }
 
 impl ConnectionActor {
+    pub(crate) fn ledger(&self) -> &Ledger {
+        &self.ledger
+    }
     pub(crate) fn spawn(
         writer: Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
         acknowledgement_timeout: Duration,

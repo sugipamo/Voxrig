@@ -307,7 +307,12 @@ impl Operations {
         target: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<MiningIntent> {
-        self.start_mining_in(target, face, false).await
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_scoped(async { self.start_mining_in(target, face, false).await })
+            .await
     }
     async fn start_mining_in(
         &self,
@@ -315,96 +320,104 @@ impl Operations {
         face: crate::BlockFace,
         capture_common: bool,
     ) -> Result<MiningIntent> {
-        let mut state = self.bot.session.state.lock().await;
-        if self.bot.session.operational_dig.active() {
-            return Err(unavailable(
-                "operational dig owns this connection; no replacement mining admitted",
-            ));
-        }
-        self.mutable(&state)?;
-        let common = capture_common
-            .then(|| self.common_player_unlocked(&state))
-            .transpose()?;
-        if let Some(initial) = &common {
-            if initial.received_pose.is_none()
-                || initial.dimension.is_none()
-                || !matches!(
-                    initial.inventory.cursor.as_ref(),
-                    Some(crate::client::ObservedValue {
-                        value: crate::client::SlotKnowledge::Empty,
-                        source: crate::client::ValueSource::Received { .. },
-                    })
-                )
-            {
-                return Err(unavailable(
-                    "common mining requires received own pose, dimension and empty cursor",
-                ));
-            }
-        }
-        let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        let (standing, baseline) = prepared(
-            &mut state,
-            self.bot.session.id,
-            tick,
-            target,
-            face as u8,
-            common.is_some(),
-        )?;
-        let (selection, held_receive_sequence) = selected_hand(&state, common.is_some())?;
-        let held_stack = state.operations.inventory.slots[36 + usize::from(selection.slot)].clone();
-        let estimate = common
-            .as_ref()
-            .map(|_| common_estimate(&state, self.bot.session.id, &baseline))
-            .transpose()?;
-        let intent = MiningIntent {
-            connection_id: self.bot.session.id,
-            after_sequence: state.sequence,
-            start_sequence: self.next_sequence()?,
-            dimension: standing.dimension,
-            target,
-            face_id: face as u8,
-            position: standing.position,
-            selection,
-            held_receive_sequence,
-            held_stack,
-            estimated_wait_ms: if let Some(e) = &estimate {
-                e.wait_ms()
-            } else if baseline.name == "minecraft:dirt" {
-                1100
-            } else {
-                8500
-            },
-            baseline,
-            estimate,
-        };
-        state.common_mining = common.map(|initial| CommonMiningCapture {
-            initial,
-            start_sequence: intent.start_sequence,
-        });
-        state.mining = Some(MiningRecord {
-            intent: intent.clone(),
-            start_dispatched: false,
-            finish: None,
-            abort: None,
-            target_receipt: None,
-            requires_inspection: None,
-            inventory_change: None,
-            removal: None,
-            recovery_attempt: None,
-        });
         self.bot
             .session
-            .send(
-                ids::play_serverbound::BLOCK_DIG,
-                &packet(&intent, 0, intent.start_sequence),
-            )
-            .await?;
-        state
-            .mining
-            .as_mut()
-            .expect("stored mining intent")
-            .start_dispatched = true;
-        Ok(intent)
+            .ledger
+            .work()
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                if self.bot.session.operational_dig.active() {
+                    return Err(unavailable(
+                        "operational dig owns this connection; no replacement mining admitted",
+                    ));
+                }
+                self.mutable(&state)?;
+                let common = capture_common
+                    .then(|| self.common_player_unlocked(&state))
+                    .transpose()?;
+                if let Some(initial) = &common {
+                    if initial.received_pose.is_none()
+                        || initial.dimension.is_none()
+                        || !matches!(
+                            initial.inventory.cursor.as_ref(),
+                            Some(crate::client::ObservedValue {
+                                value: crate::client::SlotKnowledge::Empty,
+                                source: crate::client::ValueSource::Received { .. },
+                            })
+                        )
+                    {
+                        return Err(unavailable(
+                            "common mining requires received own pose, dimension and empty cursor",
+                        ));
+                    }
+                }
+                let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
+                let (standing, baseline) = prepared(
+                    &mut state,
+                    self.bot.session.id,
+                    tick,
+                    target,
+                    face as u8,
+                    common.is_some(),
+                )?;
+                let (selection, held_receive_sequence) = selected_hand(&state, common.is_some())?;
+                let held_stack =
+                    state.operations.inventory.slots[36 + usize::from(selection.slot)].clone();
+                let estimate = common
+                    .as_ref()
+                    .map(|_| common_estimate(&state, self.bot.session.id, &baseline))
+                    .transpose()?;
+                let intent = MiningIntent {
+                    connection_id: self.bot.session.id,
+                    after_sequence: state.sequence,
+                    start_sequence: self.next_sequence()?,
+                    dimension: standing.dimension,
+                    target,
+                    face_id: face as u8,
+                    position: standing.position,
+                    selection,
+                    held_receive_sequence,
+                    held_stack,
+                    estimated_wait_ms: if let Some(e) = &estimate {
+                        e.wait_ms()
+                    } else if baseline.name == "minecraft:dirt" {
+                        1100
+                    } else {
+                        8500
+                    },
+                    baseline,
+                    estimate,
+                };
+                state.common_mining = common.map(|initial| CommonMiningCapture {
+                    initial,
+                    start_sequence: intent.start_sequence,
+                });
+                state.mining = Some(MiningRecord {
+                    intent: intent.clone(),
+                    start_dispatched: false,
+                    finish: None,
+                    abort: None,
+                    target_receipt: None,
+                    requires_inspection: None,
+                    inventory_change: None,
+                    removal: None,
+                    recovery_attempt: None,
+                });
+                self.bot
+                    .session
+                    .send(
+                        ids::play_serverbound::BLOCK_DIG,
+                        &packet(&intent, 0, intent.start_sequence),
+                    )
+                    .await?;
+                state
+                    .mining
+                    .as_mut()
+                    .expect("stored mining intent")
+                    .start_dispatched = true;
+                Ok(intent)
+            })
+            .await
     }
 
     /// Attempt FINISH once for the original target. An early finish can schedule
@@ -418,82 +431,97 @@ impl Operations {
         self.mining_send(intent, true).await
     }
     async fn mining_send(&self, intent: &MiningIntent, abort: bool) -> Result<i32> {
-        let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
-        owning(&state, intent, self.bot.session.id)?;
-        let record = state.mining.as_ref().expect("owning intent");
-        if !record.start_dispatched
-            || record.removal.is_some()
-            || record.requires_inspection.is_some()
-            || (if abort {
-                record.abort.is_some()
-            } else {
-                record.finish.is_some() || record.abort.is_some()
-            })
-            || state.world.dimension.as_ref().map(|d| &d.0) != Some(&intent.dimension)
-        {
-            return Err(unavailable(
-                "mining send cannot resume/replay this stage or changed context",
-            ));
-        }
-        if !abort {
-            let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-            let validation = prepared(
-                &mut state,
-                self.bot.session.id,
-                tick,
-                intent.target,
-                intent.face_id,
-                intent.estimate.is_some(),
-            );
-            match validation {
-                Ok((standing, block))
-                    if block == intent.baseline
-                        && standing.position == intent.position
-                        && selected_hand(&state, intent.estimate.is_some())?.0
-                            == intent.selection
-                        && state.operations.inventory.slots
-                            [36 + usize::from(intent.selection.slot)]
-                            == intent.held_stack => {}
-                outcome => {
-                    let reason = match outcome {
-                        Err(e) => e.to_string(),
-                        _ => "mining baseline or player context changed".into(),
-                    };
-                    mining_world_changed(&mut state, &reason);
-                    return Err(unavailable(reason));
-                }
-            }
-        }
-        let sequence = self.next_sequence()?;
-        let attempt = MiningSend {
-            sequence,
-            after_sequence: state.sequence,
-            dispatched: false,
-        };
-        let record = state.mining.as_mut().expect("owning intent");
-        if abort {
-            record.abort = Some(attempt);
-        } else {
-            record.finish = Some(attempt);
-        }
         self.bot
             .session
-            .send(
-                ids::play_serverbound::BLOCK_DIG,
-                &packet(intent, if abort { 1 } else { 2 }, sequence),
-            )
-            .await?;
-        let record = state.mining.as_mut().expect("owning intent");
-        (if abort {
-            &mut record.abort
-        } else {
-            &mut record.finish
-        })
-        .as_mut()
-        .expect("send attempt")
-        .dispatched = true;
-        Ok(sequence)
+            .ledger
+            .work()
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.ready(&state)?;
+                owning(&state, intent, self.bot.session.id)?;
+                let record = state.mining.as_ref().expect("owning intent");
+                if !record.start_dispatched
+                    || record.removal.is_some()
+                    || record.requires_inspection.is_some()
+                    || (if abort {
+                        record.abort.is_some()
+                    } else {
+                        record.finish.is_some() || record.abort.is_some()
+                    })
+                    || state.world.dimension.as_ref().map(|d| &d.0) != Some(&intent.dimension)
+                {
+                    return Err(unavailable(
+                        "mining send cannot resume/replay this stage or changed context",
+                    ));
+                }
+                if !abort {
+                    let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
+                    let validation = prepared(
+                        &mut state,
+                        self.bot.session.id,
+                        tick,
+                        intent.target,
+                        intent.face_id,
+                        intent.estimate.is_some(),
+                    );
+                    match validation {
+                        Ok((standing, block))
+                            if block == intent.baseline
+                                && standing.position == intent.position
+                                && selected_hand(&state, intent.estimate.is_some())?.0
+                                    == intent.selection
+                                && state.operations.inventory.slots
+                                    [36 + usize::from(intent.selection.slot)]
+                                    == intent.held_stack => {}
+                        outcome => {
+                            let reason = match outcome {
+                                Err(e) => e.to_string(),
+                                _ => "mining baseline or player context changed".into(),
+                            };
+                            mining_world_changed(&mut state, &reason);
+                            return Err(unavailable(reason));
+                        }
+                    }
+                }
+                let sequence = self.next_sequence()?;
+                let attempt = MiningSend {
+                    sequence,
+                    after_sequence: state.sequence,
+                    dispatched: false,
+                };
+                let work = if abort {
+                    self.bot.session.ledger.work()
+                } else {
+                    state.finite_work.begin(
+                        &self.bot.session.ledger,
+                        crate::client::ledger::finite::Family::Mining,
+                        intent.start_sequence as u64,
+                    )
+                };
+                let record = state.mining.as_mut().expect("owning intent");
+                if abort {
+                    let _ = crate::client::ledger::finite::checked::<(), _>(Err(()));
+                    record.abort = Some(attempt);
+                } else {
+                    record.finish = Some(attempt);
+                }
+                work.run(self.bot.session.send(
+                    ids::play_serverbound::BLOCK_DIG,
+                    &packet(intent, if abort { 1 } else { 2 }, sequence),
+                ))
+                .await?;
+                let record = state.mining.as_mut().expect("owning intent");
+                (if abort {
+                    &mut record.abort
+                } else {
+                    &mut record.finish
+                })
+                .as_mut()
+                .expect("send attempt")
+                .dispatched = true;
+                Ok(sequence)
+            })
+            .await
     }
 
     /// Read-only result reconciliation. Once removal is observed, that result is
@@ -504,7 +532,9 @@ impl Operations {
         let mut state = self.bot.session.state.lock().await;
         self.bot.session.check(&state)?;
         owning(&state, intent, self.bot.session.id)?;
-        Ok(status(&mut state))
+        let result = status(&mut state);
+        state.reconcile_finite();
+        Ok(result)
     }
     /// Wait without resending. Timeout returns a pending status and retains the
     /// intent; a cancelled future does the same. Closed connections expose history.
@@ -536,7 +566,13 @@ impl Operations {
         .await;
         match result {
             Ok(result) => result,
-            Err(_) => self.observe_survival_mining(intent).await,
+            Err(_) => {
+                self.bot
+                    .session
+                    .ledger
+                    .fail(Failure::TransactionUnconfirmed);
+                self.observe_survival_mining(intent).await
+            }
         }
     }
     /// Convenience scheduling only. Cancellation never sends an automatic abort
@@ -547,33 +583,40 @@ impl Operations {
         face: crate::BlockFace,
         maximum_wait: Duration,
     ) -> Result<MiningStatus> {
-        if maximum_wait.is_zero() || maximum_wait > Duration::from_secs(30) {
-            return Err(invalid(
-                "mining wait must be greater than zero and at most 30 seconds",
-            ));
-        }
-        let intent = self.start_survival_mining(target, face).await?;
-        tokio::time::sleep(Duration::from_millis(intent.estimated_wait_ms)).await;
-        let observed = self.observe_survival_mining(&intent).await?;
-        if matches!(
-            observed,
-            MiningStatus::ObservedRemoved { .. } | MiningStatus::RequiresInspection { .. }
-        ) {
-            return Ok(observed);
-        }
-        if let Err(error) = self.finish_survival_mining(&intent).await {
-            // A receive can invalidate prerequisites between observation and
-            // FINISH admission. Return its evidence, never retry or hide I/O errors.
-            if let Ok(MiningStatus::RequiresInspection { record }) =
-                self.observe_survival_mining(&intent).await
-            {
-                if record.finish.is_none() && error.kind() == ErrorKind::State {
-                    return Ok(MiningStatus::RequiresInspection { record });
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_result(async {
+                if maximum_wait.is_zero() || maximum_wait > Duration::from_secs(30) {
+                    return Err(invalid(
+                        "mining wait must be greater than zero and at most 30 seconds",
+                    ));
                 }
-            }
-            return Err(error);
-        }
-        self.wait_survival_mining(&intent, maximum_wait).await
+                let intent = self.start_survival_mining(target, face).await?;
+                tokio::time::sleep(Duration::from_millis(intent.estimated_wait_ms)).await;
+                let observed = self.observe_survival_mining(&intent).await?;
+                if matches!(
+                    observed,
+                    MiningStatus::ObservedRemoved { .. } | MiningStatus::RequiresInspection { .. }
+                ) {
+                    return Ok(observed);
+                }
+                if let Err(error) = self.finish_survival_mining(&intent).await {
+                    // A receive can invalidate prerequisites between observation and
+                    // FINISH admission. Return its evidence, never retry or hide I/O errors.
+                    if let Ok(MiningStatus::RequiresInspection { record }) =
+                        self.observe_survival_mining(&intent).await
+                    {
+                        if record.finish.is_none() && error.kind() == ErrorKind::State {
+                            return Ok(MiningStatus::RequiresInspection { record });
+                        }
+                    }
+                    return Err(error);
+                }
+                self.wait_survival_mining(&intent, maximum_wait).await
+            })
+            .await
     }
 }
 
@@ -859,10 +902,17 @@ impl crate::client::adapter::MiningOps for Operations {
         target: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<crate::client::survival::MiningRecord> {
-        self.start_mining_in(target, face, true).await?;
-        self.mining_record()
-            .await?
-            .ok_or_else(|| unavailable("common mining capture missing"))
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_scoped(async {
+                self.start_mining_in(target, face, true).await?;
+                self.mining_record()
+                    .await?
+                    .ok_or_else(|| unavailable("common mining capture missing"))
+            })
+            .await
     }
     async fn mining_send(
         &self,
@@ -1031,5 +1081,11 @@ impl crate::client::adapter::MiningOps for Operations {
             recovery_attempt: native.recovery_attempt.clone(),
             continuation_validated: false,
         }))
+    }
+}
+
+pub(in crate::versions::java_1_21_11::client) fn reconcile_ledger(state: &mut State) {
+    if state.mining.as_ref().is_some_and(|r| r.start_dispatched) {
+        let _ = status(state);
     }
 }

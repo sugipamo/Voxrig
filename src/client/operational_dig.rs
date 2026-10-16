@@ -176,9 +176,12 @@ impl super::Survival {
             _signal: signal,
         };
         let owner = self.clone();
-        tokio::spawn(async move { owner.dig_owned(target, face, cancelled, receive).await })
-            .await
-            .map_err(|e| unavailable(format!("dig owner failed: {e}")))?
+        let work = super::dispatch!(&self.client.adapter, a => DigOps::dig_work(a));
+        tokio::spawn(
+            work.run_result(async move { owner.dig_owned(target, face, cancelled, receive).await }),
+        )
+        .await
+        .map_err(|e| unavailable(format!("dig owner failed: {e}")))?
     }
     /// Latest original cancellation/error cleanup; never permission to replay.
     pub fn dig_cleanup_record(&self) -> Option<DigCleanupRecord> {
@@ -304,6 +307,9 @@ impl super::Survival {
                 .next()
                 .and_then(|b| b.state);
             if state.as_ref() != Some(&initial.state) || tokio::time::Instant::now() >= deadline {
+                if state.as_ref() == Some(&initial.state) {
+                    let _ = super::ledger::finite::checked::<(), _>(Err(()));
+                }
                 return Ok(DigRecord {
                     target,
                     estimate: initial.estimate,

@@ -75,6 +75,7 @@ struct State {
     common_placement: Option<operations::placement::CommonPlacementCapture>,
     retired_common_placement: Option<crate::client::survival::PlacementRecord>,
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
+    finite_work: crate::client::ledger::finite::Retained,
     pending_swap_work: Option<PendingWork>,
     common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
     common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
@@ -138,6 +139,7 @@ impl Default for State {
             common_placement: None,
             retired_common_placement: None,
             common_inventory_swap: None,
+            finite_work: Default::default(),
             pending_swap_work: None,
             common_inventory_click: None,
             common_crafting_take: None,
@@ -245,6 +247,9 @@ impl State {
             operations::inventory::transfer::context_received(self);
             operations::container::context_received(self);
             operations::mining::common_mining_context_received(self);
+            operations::placement::reconcile_ledger(self);
+            operations::mining::reconcile_ledger(self);
+            self.reconcile_finite();
             if in_play {
                 for kind in event_kinds::kinds(id, payload) {
                     self.events.record(self.sequence, kind);
@@ -1460,3 +1465,5 @@ impl crate::client::adapter::UiOps for operations::Operations {
         Ok(state.display.world_border(player.session, state.sequence))
     }
 }
+
+mod finite_work;

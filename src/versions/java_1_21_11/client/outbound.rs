@@ -70,7 +70,7 @@ impl Session {
     }
 
     pub(super) async fn send(&self, id: i32, payload: &[u8]) -> Result<()> {
-        let work = ScopedWork::new(self.ledger.admit().expect("existing sender admission"));
+        let work = ScopedWork::new(self.ledger.work());
         self.send_work(id, payload, work.guard()).await
     }
 

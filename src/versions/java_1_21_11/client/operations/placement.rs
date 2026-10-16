@@ -322,46 +322,60 @@ impl Operations {
         face: crate::BlockFace,
         capture_common: bool,
     ) -> Result<PlacementIntent> {
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        let initial = capture_common
-            .then(|| self.common_player_unlocked(&state))
-            .transpose()?;
-        if let Some(p) = &initial {
-            crate::client::survival::placement::selected_material(p)?;
-        }
-        let mut intent = prepare(
-            &mut state,
-            self.bot.session.id,
-            self.bot.session.started.elapsed().as_millis() as u64 / 50,
-            support,
-            face as u8,
-            initial
-                .as_ref()
-                .is_some_and(|p| p.inventory.player_screen.is_some()),
-        )?;
-        intent.sequence = self.next_sequence()?;
-        if !capture_common && state.common_placement.is_some() {
-            state.retired_common_placement = common_record_in(&state)?;
-        }
-        state.common_placement = initial.map(|initial| CommonPlacementCapture {
-            initial,
-            sequence: intent.sequence,
-        });
-        state.placement = Some(PlacementRecord {
-            intent: intent.clone(),
-            dispatched: false,
-            target_receive_sequence: None,
-            inventory_receive_sequence: None,
-            requires_inspection: None,
-            observation: None,
-        });
         self.bot
             .session
-            .send(ids::play_serverbound::BLOCK_PLACE, &packet(&intent))
-            .await?;
-        state.placement.as_mut().expect("intent stored").dispatched = true;
-        Ok(intent)
+            .ledger
+            .work()
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                let initial = capture_common
+                    .then(|| self.common_player_unlocked(&state))
+                    .transpose()?;
+                if let Some(p) = &initial {
+                    crate::client::survival::placement::selected_material(p)?;
+                }
+                let mut intent = prepare(
+                    &mut state,
+                    self.bot.session.id,
+                    self.bot.session.started.elapsed().as_millis() as u64 / 50,
+                    support,
+                    face as u8,
+                    initial
+                        .as_ref()
+                        .is_some_and(|p| p.inventory.player_screen.is_some()),
+                )?;
+                intent.sequence = self.next_sequence()?;
+                if !capture_common && state.common_placement.is_some() {
+                    state.retired_common_placement = common_record_in(&state)?;
+                }
+                state.common_placement = initial.map(|initial| CommonPlacementCapture {
+                    initial,
+                    sequence: intent.sequence,
+                });
+                let work = state.finite_work.begin(
+                    &self.bot.session.ledger,
+                    crate::client::ledger::finite::Family::Placement,
+                    intent.sequence as u64,
+                );
+                state.placement = Some(PlacementRecord {
+                    intent: intent.clone(),
+                    dispatched: false,
+                    target_receive_sequence: None,
+                    inventory_receive_sequence: None,
+                    requires_inspection: None,
+                    observation: None,
+                });
+                work.run(
+                    self.bot
+                        .session
+                        .send(ids::play_serverbound::BLOCK_PLACE, &packet(&intent)),
+                )
+                .await?;
+                state.placement.as_mut().expect("intent stored").dispatched = true;
+                Ok(intent)
+            })
+            .await
     }
     /// Read received progress. Successful observation releases the one-shot gate;
     /// pending/conflicting observations never do. Closure preserves history.
@@ -405,7 +419,13 @@ impl Operations {
         .await
         {
             Ok(result) => result,
-            Err(_) => self.observe_survival_placement(intent).await,
+            Err(_) => {
+                self.bot
+                    .session
+                    .ledger
+                    .fail(Failure::TransactionUnconfirmed);
+                self.observe_survival_placement(intent).await
+            }
         }
     }
 }
@@ -770,5 +790,21 @@ impl crate::client::adapter::PlacementOps for Operations {
             &intent,
         )?;
         common_record_in(&state)
+    }
+}
+
+pub(in crate::versions::java_1_21_11::client) fn reconcile_ledger(state: &mut State) {
+    if let Some(intent) = state
+        .placement
+        .as_ref()
+        .filter(|r| r.dispatched)
+        .map(|r| r.intent.clone())
+    {
+        let _ = observe_in(
+            state,
+            intent.connection_id,
+            state.reconstruction.tick,
+            &intent,
+        );
     }
 }

@@ -41,83 +41,94 @@ impl Bot {
         slot: u16,
         hotbar: u8,
     ) -> Result<InventorySwapRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        if let contract::InventorySwapSource::Container { screen } = source {
-            if super::lock_packet_state(&self.common_container_close)
-                .await
-                .as_ref()
-                .is_some_and(|r| r.id.screen() == screen)
-            {
-                return Err(contract::unavailable(
-                    "container has a retained close intent; old opening cannot be clicked",
-                ));
-            }
-        }
-        let revision = self
-            .connection
-            .motion_admission_revision()
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                if let contract::InventorySwapSource::Container { screen } = source {
+                    if super::lock_packet_state(&self.common_container_close)
+                        .await
+                        .as_ref()
+                        .is_some_and(|r| r.id.screen() == screen)
+                    {
+                        return Err(contract::unavailable(
+                            "container has a retained close intent; old opening cannot be clicked",
+                        ));
+                    }
+                }
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| contract::unavailable(format!("inventory admission: {e:?}")))?;
+                {
+                    let inventory = self.inventory.read().await;
+                    if !inventory.pending_clicks.is_empty()
+                        || inventory.cursor.is_some()
+                        || (matches!(source, contract::InventorySwapSource::PlayerMain)
+                            && inventory.open_window.is_some())
+                    {
+                        return Err(contract::unavailable(
+                            "legacy inventory operation unresolved",
+                        ));
+                    }
+                }
+                let attempt = super::lock_packet_state(&self.common_inventory_swap)
+                    .await
+                    .as_ref()
+                    .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
+                    .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
+                let initial = self.common_player_unlocked().await?;
+                let screen = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(initial.session));
+                let registries = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let record = contract::prepare_received_source(
+                    (initial, registries),
+                    mode,
+                    source,
+                    slot,
+                    hotbar,
+                    attempt,
+                    if matches!(source, contract::InventorySwapSource::PlayerMain) {
+                        None
+                    } else {
+                        screen
+                    },
+                )?;
+                let id = record.id;
+                let work =
+                    self.begin_finite(crate::client::ledger::finite::Family::Swap, id.attempt());
+                *super::lock_packet_state(&self.common_inventory_swap).await =
+                    Some(NativeInventorySwap {
+                        record,
+                        released: false,
+                        receipt_deadline: None,
+                    });
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite_work(work, async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.common_swap_send_owned(id, revision).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| contract::unavailable("inventory owner result unavailable"))?
+            })
             .await
-            .map_err(|e| contract::unavailable(format!("inventory admission: {e:?}")))?;
-        {
-            let inventory = self.inventory.read().await;
-            if !inventory.pending_clicks.is_empty()
-                || inventory.cursor.is_some()
-                || (matches!(source, contract::InventorySwapSource::PlayerMain)
-                    && inventory.open_window.is_some())
-            {
-                return Err(contract::unavailable(
-                    "legacy inventory operation unresolved",
-                ));
-            }
-        }
-        let attempt = super::lock_packet_state(&self.common_inventory_swap)
-            .await
-            .as_ref()
-            .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
-            .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
-        let initial = self.common_player_unlocked().await?;
-        let screen = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session));
-        let registries = self
-            .common_receipts
-            .lock()
-            .await
-            .registries
-            .capture(initial.session, initial.receive_sequence);
-        let record = contract::prepare_received_source(
-            (initial, registries),
-            mode,
-            source,
-            slot,
-            hotbar,
-            attempt,
-            if matches!(source, contract::InventorySwapSource::PlayerMain) {
-                None
-            } else {
-                screen
-            },
-        )?;
-        let id = record.id;
-        *super::lock_packet_state(&self.common_inventory_swap).await = Some(NativeInventorySwap {
-            record,
-            released: false,
-            receipt_deadline: None,
-        });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.common_swap_send_owned(id, revision).await);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| contract::unavailable("inventory owner result unavailable"))?
     }
     async fn common_swap_send_owned(
         &self,
@@ -211,6 +222,15 @@ impl Bot {
                 tokio::time::Instant::now()
                     + self.connection_options.inventory_click_receipt_timeout,
             );
+            self.finite_work.lock().expect("finite work").expire_at(
+                crate::client::ledger::finite::Family::Swap,
+                id.attempt(),
+                guard
+                    .as_ref()
+                    .expect("retained")
+                    .receipt_deadline
+                    .expect("deadline"),
+            );
             Ok(result)
         }
         .await;
@@ -231,7 +251,7 @@ impl Bot {
         }
     }
     pub(super) async fn common_inventory_context_received(&self) -> Result<()> {
-        self.reconcile_common_inventory_swap(false).await
+        self.reconcile_common_inventory_swap().await
     }
     pub(super) async fn common_inventory_reply_received(&self, reply: WindowTransaction) {
         let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
@@ -253,91 +273,94 @@ impl Bot {
             // Fresh exact destinations, not this boolean, decide the outcome.
         }
     }
-    async fn reconcile_common_inventory_swap(&self, confirm: bool) -> Result<()> {
-        let Some(snapshot) = super::lock_packet_state(&self.common_inventory_swap)
-            .await
-            .clone()
-        else {
-            return Ok(());
-        };
-        if snapshot.record.stage == InventorySwapStage::ObservedSwapped {
-            return Ok(());
-        }
-        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
-            self.interrupt_common_inventory_swap("inventory connection closed or uncertain")
-                .await;
-            return Ok(());
-        }
-        let current = self.common_player_unlocked().await?;
-        let screen = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session));
-        let native_conflict = if matches!(
-            snapshot.record.source,
-            contract::InventorySwapSource::Container { .. }
-        ) {
-            let inventory = self.inventory.read().await;
-            inventory.cursor.is_some()
-                || inventory
-                    .open_window
-                    .as_ref()
-                    .map_or(0, |s| i32::from(s.id))
-                    != snapshot.record.window_id()
-                || !inventory.pending_clicks.is_empty()
-        } else {
-            false
-        };
-        let complete = {
-            let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
-            let record = &mut guard.as_mut().expect("retained").record;
-            let registries = self
+    async fn reconcile_common_inventory_swap(&self) -> Result<()> {
+        self.with_finite(crate::client::ledger::finite::Family::Swap, async {
+            let Some(snapshot) = super::lock_packet_state(&self.common_inventory_swap)
+                .await
+                .clone()
+            else {
+                return Ok(());
+            };
+            if snapshot.record.stage == InventorySwapStage::ObservedSwapped {
+                return Ok(());
+            }
+            if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+                self.interrupt_common_inventory_swap("inventory connection closed or uncertain")
+                    .await;
+                return Ok(());
+            }
+            let current = self.common_player_unlocked().await?;
+            let screen = self
                 .common_receipts
                 .lock()
                 .await
-                .registries
-                .capture(current.session, current.receive_sequence);
-            contract::receive_with_registries(record, &current, screen.as_ref(), &registries);
-            if native_conflict {
-                contract::inspection(record, "legacy inventory cache/click context changed");
-            }
-            if matches!(record.source, contract::InventorySwapSource::PlayerMain)
-                && !(contract::destinations_ready(record) && record.legacy_reply.is_some())
-                && snapshot
-                    .receipt_deadline
-                    .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
-            {
-                contract::inspection(
-                    record,
-                    "swap receipt deadline elapsed; inspect without replay",
-                );
-            }
-            confirm && contract::destinations_ready(record) && record.legacy_reply.is_some()
-        };
-        if complete {
-            match self
-                .connection
-                .finish_inventory_swap(snapshot.record.id.attempt())
-                .await
-            {
-                Ok(()) => {
-                    let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
-                    let run = guard.as_mut().expect("retained");
-                    run.released = true;
-                    run.record.stage = InventorySwapStage::ObservedSwapped;
-                }
-                Err(e) => {
-                    self.interrupt_common_inventory_swap(format!(
-                        "inventory completion gate: {e:?}"
-                    ))
+                .container
+                .as_ref()
+                .map(|s| s.capture(current.session));
+            let native_conflict = if matches!(
+                snapshot.record.source,
+                contract::InventorySwapSource::Container { .. }
+            ) {
+                let inventory = self.inventory.read().await;
+                inventory.cursor.is_some()
+                    || inventory
+                        .open_window
+                        .as_ref()
+                        .map_or(0, |s| i32::from(s.id))
+                        != snapshot.record.window_id()
+                    || !inventory.pending_clicks.is_empty()
+            } else {
+                false
+            };
+            let complete = {
+                let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
+                let record = &mut guard.as_mut().expect("retained").record;
+                let registries = self
+                    .common_receipts
+                    .lock()
                     .await
+                    .registries
+                    .capture(current.session, current.receive_sequence);
+                contract::receive_with_registries(record, &current, screen.as_ref(), &registries);
+                if native_conflict {
+                    contract::inspection(record, "legacy inventory cache/click context changed");
+                }
+                if matches!(record.source, contract::InventorySwapSource::PlayerMain)
+                    && !(contract::destinations_ready(record) && record.legacy_reply.is_some())
+                    && snapshot
+                        .receipt_deadline
+                        .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
+                {
+                    contract::inspection(
+                        record,
+                        "swap receipt deadline elapsed; inspect without replay",
+                    );
+                }
+                contract::destinations_ready(record) && record.legacy_reply.is_some()
+            };
+            if complete {
+                match self
+                    .connection
+                    .finish_inventory_swap(snapshot.record.id.attempt())
+                    .await
+                {
+                    Ok(()) => {
+                        let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
+                        let run = guard.as_mut().expect("retained");
+                        run.released = true;
+                        run.record.stage = InventorySwapStage::ObservedSwapped;
+                    }
+                    Err(e) => {
+                        self.interrupt_common_inventory_swap(format!(
+                            "inventory completion gate: {e:?}"
+                        ))
+                        .await
+                    }
                 }
             }
-        }
-        Ok(())
+            Ok(())
+        })
+        .await
     }
 }
 
@@ -375,10 +398,10 @@ impl crate::client::adapter::InventorySwapOps for Bot {
     async fn inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>> {
         let bot = self.clone_internal();
         let (reply, result) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
+        self.spawn_inspection(crate::client::ledger::finite::Family::Swap, async move {
             let value = async {
                 let _gate = bot.coherent_state_gate.lock().await;
-                bot.reconcile_common_inventory_swap(true).await?;
+                bot.reconcile_common_inventory_swap().await?;
                 Ok(bot
                     .common_inventory_swap
                     .lock()
@@ -387,7 +410,7 @@ impl crate::client::adapter::InventorySwapOps for Bot {
                     .map(|s| s.record.clone()))
             }
             .await;
-            let _ = reply.send(value);
+            let _ = reply.send(crate::client::ledger::finite::checked(value));
         });
         result
             .await
@@ -3035,6 +3058,8 @@ mod tests {
         assert!(
             matches!(&pending.cursor_prediction.value,api::SlotKnowledge::Item{item} if item.count==8)
         );
+        let mut drain = bot.connection.ledger().cut(false);
+        assert!(drain.inspect().is_none());
         waiter.abort();
         assert!(waiter.await.unwrap_err().is_cancelled());
         drop(writer);
@@ -3097,6 +3122,10 @@ mod tests {
             write_slot(&mut full, stack.as_ref());
         }
         bot.apply_packet(0x14, full).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(1), drain.wait())
+            .await
+            .unwrap()
+            .unwrap();
         let complete = client
             .survival()
             .crafting_take_record()
@@ -3959,6 +3988,7 @@ mod tests {
             }
             let before = client.received_inventory().await.unwrap();
             let waiter = api::tests::common_cursor_close_start(&client, mode, screen);
+            let mut drain = None;
             for index in 0..2 {
                 let (id, payload) = timeout(Duration::from_secs(1), packets.recv())
                     .await
@@ -3968,6 +3998,11 @@ mod tests {
                 assert_eq!(payload[0], 3);
                 let record = api::tests::common_cursor_close_retained(&client, index + 1).await;
                 let step = &record.return_steps[index];
+                if index == 0 {
+                    drain = Some(bot.connection.ledger().cut(false));
+                    waiter.abort();
+                }
+                assert!(drain.as_mut().unwrap().inspect().is_none());
                 assert_eq!(step.source_slot, 27 + index as u16);
                 assert_eq!(
                     i16::from_be_bytes([payload[1], payload[2]]),
@@ -4011,7 +4046,17 @@ mod tests {
                     .unwrap(),
                 (0x0a, vec![3])
             );
-            let complete = waiter.await.unwrap().unwrap();
+            assert!(waiter.await.unwrap_err().is_cancelled());
+            tokio::time::timeout(Duration::from_secs(1), drain.as_mut().unwrap().wait())
+                .await
+                .unwrap()
+                .unwrap();
+            let complete = client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .unwrap();
             api::tests::common_data_cursor_close_complete_scenario(
                 &client,
                 &complete,

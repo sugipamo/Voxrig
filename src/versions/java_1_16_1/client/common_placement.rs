@@ -191,7 +191,8 @@ impl Bot {
             inspection(p, reason);
         }
     }
-    async fn reconcile_common_placement(&self, confirm: bool) -> Result<()> {
+    async fn reconcile_common_placement(&self) -> Result<()> {
+        self.with_finite(crate::client::ledger::finite::Family::Placement, async {
         let Some(snapshot) = super::lock_packet_state(&self.common_placement)
             .await
             .clone()
@@ -302,8 +303,7 @@ impl Bot {
             {
                 inspection(run, "placement loaded support/target context changed");
             } else {
-                complete = confirm
-                    && run.record.send.dispatched
+                complete = run.record.send.dispatched
                     && run.record.target_receipt.is_some()
                     && run.record.material_receipt.is_some()
                     && target_state.as_ref() == Some(&run.record.expected);
@@ -332,9 +332,11 @@ impl Bot {
             }
         }
         Ok(())
+
+        }).await
     }
     pub(super) async fn common_placement_context_received(&self) -> Result<()> {
-        self.reconcile_common_placement(false).await
+        self.reconcile_common_placement().await
     }
     pub(super) async fn common_placement_chunk_changed(&self, chunk: [i32; 2]) {
         let mut guard = super::lock_packet_state(&self.common_placement).await;
@@ -396,58 +398,74 @@ impl crate::client::adapter::PlacementOps for Bot {
         support: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<PlacementRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| placement::unavailable(format!("placement admission: {e:?}")))?;
+                let mut record = self.placement_prepared(support, face, None).await?;
+                let attempt = super::lock_packet_state(&self.common_placement)
+                    .await
+                    .as_ref()
+                    .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
+                    .ok_or_else(|| placement::unavailable("placement attempts exhausted"))?;
+                record.id = PlacementId::new(record.initial.session, attempt);
+                let id = record.id;
+                let work = self.begin_finite(
+                    crate::client::ledger::finite::Family::Placement,
+                    id.attempt(),
+                );
+                *super::lock_packet_state(&self.common_placement).await =
+                    Some(NativePlacementRun {
+                        record,
+                        released: false,
+                        movement_revision: self.motion.lock().await.revision(),
+                        movement_attribute: super::common_motion::legacy_movement_attribute(
+                            &**self.survival.read().await,
+                        )
+                        .cloned(),
+                    });
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite_work(work, async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.placement_send_owned(id, revision).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| placement::unavailable("placement owner result missing"))?
+            })
             .await
-            .map_err(|e| placement::unavailable(format!("placement admission: {e:?}")))?;
-        let mut record = self.placement_prepared(support, face, None).await?;
-        let attempt = super::lock_packet_state(&self.common_placement)
-            .await
-            .as_ref()
-            .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
-            .ok_or_else(|| placement::unavailable("placement attempts exhausted"))?;
-        record.id = PlacementId::new(record.initial.session, attempt);
-        let id = record.id;
-        *super::lock_packet_state(&self.common_placement).await = Some(NativePlacementRun {
-            record,
-            released: false,
-            movement_revision: self.motion.lock().await.revision(),
-            movement_attribute: super::common_motion::legacy_movement_attribute(
-                &**self.survival.read().await,
-            )
-            .cloned(),
-        });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.placement_send_owned(id, revision).await);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| placement::unavailable("placement owner result missing"))?
     }
     async fn placement_record(&self) -> Result<Option<PlacementRecord>> {
         // The connection owns completion/release even if this read waiter is cancelled.
         let (reply, result) = tokio::sync::oneshot::channel();
         let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _gate = bot.coherent_state_gate.lock().await;
-            let value = async {
-                bot.reconcile_common_placement(true).await?;
-                Ok(bot
-                    .common_placement
-                    .lock()
-                    .await
-                    .as_ref()
-                    .map(|p| p.record.clone()))
-            }
-            .await;
-            let _ = reply.send(value);
-        });
+        self.spawn_inspection(
+            crate::client::ledger::finite::Family::Placement,
+            async move {
+                let _gate = bot.coherent_state_gate.lock().await;
+                let value = async {
+                    bot.reconcile_common_placement().await?;
+                    Ok(bot
+                        .common_placement
+                        .lock()
+                        .await
+                        .as_ref()
+                        .map(|p| p.record.clone()))
+                }
+                .await;
+                let _ = reply.send(crate::client::ledger::finite::checked(value));
+            },
+        );
         result
             .await
             .map_err(|_| placement::unavailable("placement inspection owner unavailable"))?

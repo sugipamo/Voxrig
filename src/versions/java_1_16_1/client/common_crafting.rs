@@ -148,79 +148,84 @@ impl Bot {
                 });
         }
     }
-    pub(super) async fn common_crafting_context_received(&self, confirm: bool) -> Result<()> {
-        let Some(snapshot) = super::lock_packet_state(&self.common_crafting_take)
-            .await
-            .clone()
-        else {
-            return Ok(());
-        };
-        if !snapshot.record.unresolved() {
-            return Ok(());
-        }
-        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
-            self.interrupt_common_crafting_take("crafting connection closed or uncertain")
-                .await;
-            return Ok(());
-        }
-        let current = self.common_player_unlocked().await?;
-        let table = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session));
-        let registries = self
-            .common_receipts
-            .lock()
-            .await
-            .registries
-            .capture(current.session, current.receive_sequence);
-        let inventory = self.inventory.read().await;
-        let cache_conflict = !inventory.pending_clicks.is_empty()
-            || inventory
-                .open_window
-                .as_ref()
-                .map_or(0, |s| i32::from(s.id))
-                != snapshot.record.window_id()
-            || current.inventory.cursor.as_ref().is_none_or(|c| {
-                api::legacy_slot(inventory.cursor.as_ref()).map_or(true, |v| c.value != v)
-            });
-        drop(inventory);
-        let complete = {
-            let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
-            let record = &mut guard.as_mut().expect("retained").record;
-            take::receive(
-                record,
-                &current,
-                &take::screen_observation(&current, table),
-                &registries,
-            );
-            if cache_conflict {
-                record.inspection("crafting cache/ownership context changed");
-            }
-            confirm && record.ready()
-        };
-        if complete {
-            match self
-                .connection
-                .finish_inventory_click(snapshot.record.id.attempt())
+    pub(super) async fn common_crafting_context_received(&self) -> Result<()> {
+        self.with_finite(crate::client::ledger::finite::Family::Crafting, async {
+            let Some(snapshot) = super::lock_packet_state(&self.common_crafting_take)
                 .await
-            {
-                Ok(()) => {
-                    let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
-                    let r = guard.as_mut().expect("retained");
-                    r.released = true;
-                    r.record.stage = r.record.completed_stage();
+                .clone()
+            else {
+                return Ok(());
+            };
+            if !snapshot.record.unresolved() {
+                return Ok(());
+            }
+            if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+                self.interrupt_common_crafting_take("crafting connection closed or uncertain")
+                    .await;
+                return Ok(());
+            }
+            let current = self.common_player_unlocked().await?;
+            let table = self
+                .common_receipts
+                .lock()
+                .await
+                .container
+                .as_ref()
+                .map(|s| s.capture(current.session));
+            let registries = self
+                .common_receipts
+                .lock()
+                .await
+                .registries
+                .capture(current.session, current.receive_sequence);
+            let inventory = self.inventory.read().await;
+            let cache_conflict = !inventory.pending_clicks.is_empty()
+                || inventory
+                    .open_window
+                    .as_ref()
+                    .map_or(0, |s| i32::from(s.id))
+                    != snapshot.record.window_id()
+                || current.inventory.cursor.as_ref().is_none_or(|c| {
+                    api::legacy_slot(inventory.cursor.as_ref()).map_or(true, |v| c.value != v)
+                });
+            drop(inventory);
+            let complete = {
+                let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
+                let record = &mut guard.as_mut().expect("retained").record;
+                take::receive(
+                    record,
+                    &current,
+                    &take::screen_observation(&current, table),
+                    &registries,
+                );
+                if cache_conflict {
+                    record.inspection("crafting cache/ownership context changed");
                 }
-                Err(e) => {
-                    self.interrupt_common_crafting_take(format!("crafting completion gate: {e:?}"))
+                record.ready()
+            };
+            if complete {
+                match self
+                    .connection
+                    .finish_inventory_click(snapshot.record.id.attempt())
+                    .await
+                {
+                    Ok(()) => {
+                        let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
+                        let r = guard.as_mut().expect("retained");
+                        r.released = true;
+                        r.record.stage = r.record.completed_stage();
+                    }
+                    Err(e) => {
+                        self.interrupt_common_crafting_take(format!(
+                            "crafting completion gate: {e:?}"
+                        ))
                         .await
+                    }
                 }
             }
-        }
-        Ok(())
+            Ok(())
+        })
+        .await
     }
 }
 
@@ -231,78 +236,96 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
         grid: &contract::ReceivedCrafting,
         destination: CraftingResultDestination,
     ) -> Result<CraftingTakeRecord> {
-        let gate = self.coherent_state_gate.clone().lock_owned().await;
-        self.common_motion_admission().await?;
-        if let CraftingSource::Table { screen } = grid.source() {
-            if super::lock_packet_state(&self.common_container_close)
-                .await
-                .as_ref()
-                .is_some_and(|r| r.id.screen() == screen)
-            {
-                return Err(unavailable("old table opening has retained close intent"));
-            }
-        }
-        let revision = self
-            .connection
-            .motion_admission_revision()
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.clone().lock_owned().await;
+                self.common_motion_admission().await?;
+                if let CraftingSource::Table { screen } = grid.source() {
+                    if super::lock_packet_state(&self.common_container_close)
+                        .await
+                        .as_ref()
+                        .is_some_and(|r| r.id.screen() == screen)
+                    {
+                        return Err(unavailable("old table opening has retained close intent"));
+                    }
+                }
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| unavailable(format!("crafting admission: {e:?}")))?;
+                if !self.inventory.read().await.pending_clicks.is_empty() {
+                    return Err(unavailable("native inventory click unresolved"));
+                }
+                let attempt = super::lock_packet_state(&self.common_crafting_take)
+                    .await
+                    .as_ref()
+                    .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
+                    .ok_or_else(|| unavailable("crafting take attempts exhausted"))?;
+                let initial = self.common_player_unlocked().await?;
+                let table = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(initial.session));
+                let registries = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let screen = take::screen_observation(&initial, table);
+                let record = match destination {
+                    CraftingResultDestination::Cursor => {
+                        take::prepare(initial, screen, registries, grid, mode, attempt)?
+                    }
+                    CraftingResultDestination::Inventory => {
+                        take::prepare_transfer(initial, screen, registries, grid, mode, attempt)?
+                    }
+                };
+                self.crafting_cache(&record).await?;
+                let id = record.id;
+                let work = self.begin_finite(
+                    crate::client::ledger::finite::Family::Crafting,
+                    id.attempt(),
+                );
+                *super::lock_packet_state(&self.common_crafting_take).await =
+                    Some(NativeCraftingTake {
+                        record,
+                        released: false,
+                    });
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite_work(work, async move {
+                    // Transfer the original admission lock to the connection owner:
+                    // queued receipts cannot change the predecessor between reservation and I/O.
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.common_crafting_send_owned(id, revision, gate).await,
+                    ));
+                });
+                result
+                    .await
+                    .map_err(|_| unavailable("crafting owner result unavailable"))?
+            })
             .await
-            .map_err(|e| unavailable(format!("crafting admission: {e:?}")))?;
-        if !self.inventory.read().await.pending_clicks.is_empty() {
-            return Err(unavailable("native inventory click unresolved"));
-        }
-        let attempt = super::lock_packet_state(&self.common_crafting_take)
-            .await
-            .as_ref()
-            .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
-            .ok_or_else(|| unavailable("crafting take attempts exhausted"))?;
-        let initial = self.common_player_unlocked().await?;
-        let table = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session));
-        let registries = self
-            .common_receipts
-            .lock()
-            .await
-            .registries
-            .capture(initial.session, initial.receive_sequence);
-        let screen = take::screen_observation(&initial, table);
-        let record = match destination {
-            CraftingResultDestination::Cursor => {
-                take::prepare(initial, screen, registries, grid, mode, attempt)?
-            }
-            CraftingResultDestination::Inventory => {
-                take::prepare_transfer(initial, screen, registries, grid, mode, attempt)?
-            }
-        };
-        self.crafting_cache(&record).await?;
-        let id = record.id;
-        *super::lock_packet_state(&self.common_crafting_take).await = Some(NativeCraftingTake {
-            record,
-            released: false,
-        });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            // Transfer the original admission lock to the connection owner:
-            // queued receipts cannot change the predecessor between reservation and I/O.
-            let _ = reply.send(bot.common_crafting_send_owned(id, revision, gate).await);
-        });
-        result
-            .await
-            .map_err(|_| unavailable("crafting owner result unavailable"))?
     }
     async fn crafting_take_record(&self) -> Result<Option<CraftingTakeRecord>> {
         if let Ok(gate) = self.coherent_state_gate.clone().try_lock_owned() {
             let bot = self.clone_internal();
             let (reply, result) = tokio::sync::oneshot::channel();
-            tokio::spawn(async move {
-                let _gate = gate;
-                let _ = reply.send(bot.common_crafting_context_received(true).await);
-            });
+            self.spawn_inspection(
+                crate::client::ledger::finite::Family::Crafting,
+                async move {
+                    let _gate = gate;
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.common_crafting_context_received().await,
+                    ));
+                },
+            );
             result
                 .await
                 .map_err(|_| unavailable("crafting inspection owner unavailable"))??;

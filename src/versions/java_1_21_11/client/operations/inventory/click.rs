@@ -131,68 +131,82 @@ impl crate::client::adapter::InventoryClickOps for Operations {
         slot: u16,
         button: InventoryClickButton,
     ) -> Result<InventoryClickRecord> {
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        if let InventoryClickSource::Container { screen } = source {
-            if state
-                .common_container_close
-                .as_ref()
-                .is_some_and(|r| r.id.screen() == screen)
-            {
-                return Err(contract::unavailable(
-                    "old opening has a retained close intent",
-                ));
-            }
-        }
-        let inventory = &state.operations.inventory;
-        if inventory.pending_swap.is_some()
-            || inventory.unsupported_components
-            || !inventory.pending_creative.is_empty()
-        {
-            return Err(contract::unavailable(
-                "native inventory mutation/data unresolved",
-            ));
-        }
-        let initial = self.common_player_unlocked(&state)?;
-        let screen = inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session));
-        let attempt = state
-            .common_inventory_click
-            .as_ref()
-            .map_or(Some(1), |s| s.id.attempt().checked_add(1))
-            .ok_or_else(|| contract::unavailable("inventory click attempts exhausted"))?;
-        let registries = state
-            .registries
-            .capture(initial.session, initial.receive_sequence);
-        let record = click::prepare_received(
-            (initial, registries),
-            mode,
-            source,
-            slot,
-            button,
-            attempt,
-            screen,
-        )?;
-        let bytes = payload(&record)?;
-        state.common_inventory_click = Some(record);
-        let result = self
-            .bot
+        self.bot
             .session
-            .send(ids::play_serverbound::WINDOW_CLICK, &bytes)
-            .await;
-        let record = state.common_inventory_click.as_mut().expect("retained");
-        match result {
-            Ok(()) => {
-                record.send.dispatched = true;
-                Ok(record.clone())
-            }
-            Err(e) => {
-                record.inspection(format!("click submission uncertain: {e}"));
-                Err(e)
-            }
-        }
+            .ledger
+            .work()
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                if let InventoryClickSource::Container { screen } = source {
+                    if state
+                        .common_container_close
+                        .as_ref()
+                        .is_some_and(|r| r.id.screen() == screen)
+                    {
+                        return Err(contract::unavailable(
+                            "old opening has a retained close intent",
+                        ));
+                    }
+                }
+                let inventory = &state.operations.inventory;
+                if inventory.pending_swap.is_some()
+                    || inventory.unsupported_components
+                    || !inventory.pending_creative.is_empty()
+                {
+                    return Err(contract::unavailable(
+                        "native inventory mutation/data unresolved",
+                    ));
+                }
+                let initial = self.common_player_unlocked(&state)?;
+                let screen = inventory
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(initial.session));
+                let attempt = state
+                    .common_inventory_click
+                    .as_ref()
+                    .map_or(Some(1), |s| s.id.attempt().checked_add(1))
+                    .ok_or_else(|| contract::unavailable("inventory click attempts exhausted"))?;
+                let registries = state
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let record = click::prepare_received(
+                    (initial, registries),
+                    mode,
+                    source,
+                    slot,
+                    button,
+                    attempt,
+                    screen,
+                )?;
+                let bytes = payload(&record)?;
+                let work = state.finite_work.begin(
+                    &self.bot.session.ledger,
+                    crate::client::ledger::finite::Family::Click,
+                    record.id.attempt(),
+                );
+                state.common_inventory_click = Some(record);
+                let result = work
+                    .run(
+                        self.bot
+                            .session
+                            .send(ids::play_serverbound::WINDOW_CLICK, &bytes),
+                    )
+                    .await;
+                let record = state.common_inventory_click.as_mut().expect("retained");
+                match result {
+                    Ok(()) => {
+                        record.send.dispatched = true;
+                        Ok(record.clone())
+                    }
+                    Err(e) => {
+                        record.inspection(format!("click submission uncertain: {e}"));
+                        Err(e)
+                    }
+                }
+            })
+            .await
     }
     async fn inventory_click_record(&self) -> Result<Option<InventoryClickRecord>> {
         let mut state = self.bot.session.state.lock().await;
@@ -207,6 +221,7 @@ impl crate::client::adapter::InventoryClickOps for Operations {
                 record.stage = InventoryClickStage::ObservedClicked;
             }
         }
+        state.reconcile_finite();
         Ok(state.common_inventory_click.clone())
     }
 }
