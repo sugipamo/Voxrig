@@ -327,7 +327,14 @@ impl Operations {
         inputs: &[SurvivalInput],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None, None)
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_scoped(async {
+                self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None, None)
+                    .await
+            })
             .await
     }
     /// Start a caller-selected multi-heading path, revalidating current geometry.
@@ -373,169 +380,178 @@ impl Operations {
         expected: Option<&SurvivalMovementPreview>,
         common_mode: Option<GameMode>,
     ) -> Result<SurvivalMotionRecord> {
-        if observer.is_some_and(|o| self.bot.session.id == o.bot.session.id) {
-            return Err(invalid("motion requires an independent observer"));
-        }
-        let identity = {
-            let state = self.bot.session.state.lock().await;
-            self.mutable(&state)?;
-            state
-                .identity
-                .clone()
-                .ok_or_else(|| invalid("motion login identity unavailable"))?
-        };
-        let (observer_dimension, initial_watch) = if let Some(observer) = observer {
-            let dimension = {
-                let state = observer.bot.session.state.lock().await;
-                observer.ready(&state)?;
-                let other = state
-                    .identity
-                    .as_ref()
-                    .ok_or_else(|| invalid("observer identity unavailable"))?;
-                if other.server != identity.server
-                    || other.uuid == identity.uuid
-                    || state.players.profile_name(&identity.uuid) != Some(identity.name.as_str())
-                {
-                    return Err(invalid(
-                        "motion observer must know the exact profile on the same endpoint",
-                    ));
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_scoped(async {
+                if observer.is_some_and(|o| self.bot.session.id == o.bot.session.id) {
+                    return Err(invalid("motion requires an independent observer"));
                 }
-                state
-                    .world
-                    .dimension
+                let identity = {
+                    let state = self.bot.session.state.lock().await;
+                    self.mutable(&state)?;
+                    state
+                        .identity
+                        .clone()
+                        .ok_or_else(|| invalid("motion login identity unavailable"))?
+                };
+                let (observer_dimension, initial_watch) = if let Some(observer) = observer {
+                    let dimension = {
+                        let state = observer.bot.session.state.lock().await;
+                        observer.ready(&state)?;
+                        let other = state
+                            .identity
+                            .as_ref()
+                            .ok_or_else(|| invalid("observer identity unavailable"))?;
+                        if other.server != identity.server
+                            || other.uuid == identity.uuid
+                            || state.players.profile_name(&identity.uuid)
+                                != Some(identity.name.as_str())
+                        {
+                            return Err(invalid(
+                                "motion observer must know the exact profile on the same endpoint",
+                            ));
+                        }
+                        state
+                            .world
+                            .dimension
+                            .as_ref()
+                            .map(|d| d.0.clone())
+                            .ok_or_else(|| invalid("observer dimension unavailable"))?
+                    };
+                    (
+                        Some(dimension),
+                        Some(observer.watch_player_motion(identity.uuid).await?),
+                    )
+                } else {
+                    (None, None)
+                };
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                if state.operations.inventory.pending_swap.is_some() {
+                    return Err(invalid("inventory swap unresolved"));
+                }
+                let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
+                let preview = preview_in_mode(
+                    &mut state,
+                    self.bot.session.id,
+                    tick,
+                    controls,
+                    common_mode.unwrap_or(GameMode::Survival),
+                )?;
+                if let Some(expected) = expected {
+                    if expected.generation != preview.generation
+                        || expected.initial.connection_id != preview.initial.connection_id
+                        || expected.initial.world_revision != preview.initial.world_revision
+                        || expected.initial.dimension != preview.initial.dimension
+                        || expected.initial.position != preview.initial.position
+                        || expected.initial.player != preview.initial.player
+                        || expected.frames != preview.frames
+                    {
+                        return Err(invalid(
+                            "motion preview changed; replan before submitting controls",
+                        ));
+                    }
+                }
+                if observer_dimension
                     .as_ref()
-                    .map(|d| d.0.clone())
-                    .ok_or_else(|| invalid("observer dimension unavailable"))?
-            };
-            (
-                Some(dimension),
-                Some(observer.watch_player_motion(identity.uuid).await?),
-            )
-        } else {
-            (None, None)
-        };
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        if state.operations.inventory.pending_swap.is_some() {
-            return Err(invalid("inventory swap unresolved"));
-        }
-        let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        let preview = preview_in_mode(
-            &mut state,
-            self.bot.session.id,
-            tick,
-            controls,
-            common_mode.unwrap_or(GameMode::Survival),
-        )?;
-        if let Some(expected) = expected {
-            if expected.generation != preview.generation
-                || expected.initial.connection_id != preview.initial.connection_id
-                || expected.initial.world_revision != preview.initial.world_revision
-                || expected.initial.dimension != preview.initial.dimension
-                || expected.initial.position != preview.initial.position
-                || expected.initial.player != preview.initial.player
-                || expected.frames != preview.frames
-            {
-                return Err(invalid(
-                    "motion preview changed; replan before submitting controls",
-                ));
-            }
-        }
-        if observer_dimension
-            .as_ref()
-            .is_some_and(|d| d != &preview.initial.dimension)
-        {
-            return Err(invalid("observer dimension differs"));
-        }
-        if !preview.frames.last().is_some_and(|f| f.resting) {
-            return Err(invalid("motion inputs must end in predicted released rest"));
-        }
-        terminal_clearance(&*state, preview.frames.last().unwrap())?;
-        let previous_id = state
-            .survival_motion
-            .as_ref()
-            .map(|r| r.run_id)
-            .or(state.retired_common_motion.as_ref().map(|r| r.run_id));
-        let run_id = previous_id
-            .map_or(Some(1), |id| id.checked_add(1))
-            .ok_or_else(|| invalid("motion run IDs exhausted"))?;
-        let common_initial = common_mode
-            .is_some()
-            .then(|| self.common_player_unlocked(&state))
-            .transpose()?;
-        let record = SurvivalMotionRecord {
-            run_id,
-            connection_id: self.bot.session.id,
-            generation: state.loading.generation,
-            preview,
-            dispatched_ticks: 0,
-            attempted_tick: 0,
-            status: SurvivalMotionStatus::Running,
-            contract: if observer.is_some() {
-                SurvivalMotionContract::IndependentlyObserved
-            } else {
-                SurvivalMotionContract::Predicted
-            },
-            observer_connection_id: observer.map(|o| o.bot.session.id),
-            initial_watch,
-            final_watch: None,
-            observed: None,
-            problem: None,
-            recheck: None,
-            common_initial,
-            flight_stop: state
-                .survival_motion
-                .as_ref()
-                .and_then(|r| r.flight_stop.clone()),
-            dismount_stop: state
-                .survival_motion
-                .as_ref()
-                .and_then(|r| r.dismount_stop.clone()),
-            observer_session: observer.map(|o| Arc::downgrade(&o.bot.session)),
-            received_pose_sequence: state
-                .motion
-                .received_pose
-                .as_ref()
-                .unwrap()
-                .receive_sequence,
-        };
-        if common_mode.is_none() {
-            if let Some(previous) = state
-                .survival_motion
-                .as_ref()
-                .filter(|r| r.common_initial.is_some())
-            {
-                let mut retired = common_record(previous.clone())?;
-                retired.status = SurvivalMotionStatus::RequiresInspection;
-                retired.problem.get_or_insert_with(|| {
-                    "common motion superseded by native-only motion owner".to_string()
-                });
-                state.retired_common_motion = Some(retired);
-            }
-        }
-        state.survival_motion = Some(record.clone());
-        let owner = self.clone();
-        let observer = observer.cloned();
-        let running = record.clone();
-        // No await between retaining the intent and spawning its finite owner.
-        tokio::spawn(async move {
-            if let Err(error) = owner
-                .run_survival_motion(&running, observer.as_ref(), identity.uuid)
-                .await
-            {
-                let mut state = owner.bot.session.state.lock().await;
-                if let Some(r) = state
+                    .is_some_and(|d| d != &preview.initial.dimension)
+                {
+                    return Err(invalid("observer dimension differs"));
+                }
+                if !preview.frames.last().is_some_and(|f| f.resting) {
+                    return Err(invalid("motion inputs must end in predicted released rest"));
+                }
+                terminal_clearance(&*state, preview.frames.last().unwrap())?;
+                let previous_id = state
                     .survival_motion
-                    .as_mut()
-                    .filter(|r| r.run_id == running.run_id)
-                {
-                    r.status = SurvivalMotionStatus::RequiresInspection;
-                    r.problem = Some(error.to_string());
+                    .as_ref()
+                    .map(|r| r.run_id)
+                    .or(state.retired_common_motion.as_ref().map(|r| r.run_id));
+                let run_id = previous_id
+                    .map_or(Some(1), |id| id.checked_add(1))
+                    .ok_or_else(|| invalid("motion run IDs exhausted"))?;
+                let common_initial = common_mode
+                    .is_some()
+                    .then(|| self.common_player_unlocked(&state))
+                    .transpose()?;
+                let record = SurvivalMotionRecord {
+                    run_id,
+                    connection_id: self.bot.session.id,
+                    generation: state.loading.generation,
+                    preview,
+                    dispatched_ticks: 0,
+                    attempted_tick: 0,
+                    status: SurvivalMotionStatus::Running,
+                    contract: if observer.is_some() {
+                        SurvivalMotionContract::IndependentlyObserved
+                    } else {
+                        SurvivalMotionContract::Predicted
+                    },
+                    observer_connection_id: observer.map(|o| o.bot.session.id),
+                    initial_watch,
+                    final_watch: None,
+                    observed: None,
+                    problem: None,
+                    recheck: None,
+                    common_initial,
+                    flight_stop: state
+                        .survival_motion
+                        .as_ref()
+                        .and_then(|r| r.flight_stop.clone()),
+                    dismount_stop: state
+                        .survival_motion
+                        .as_ref()
+                        .and_then(|r| r.dismount_stop.clone()),
+                    observer_session: observer.map(|o| Arc::downgrade(&o.bot.session)),
+                    received_pose_sequence: state
+                        .motion
+                        .received_pose
+                        .as_ref()
+                        .unwrap()
+                        .receive_sequence,
+                };
+                if common_mode.is_none() {
+                    if let Some(previous) = state
+                        .survival_motion
+                        .as_ref()
+                        .filter(|r| r.common_initial.is_some())
+                    {
+                        let mut retired = common_record(previous.clone())?;
+                        retired.status = SurvivalMotionStatus::RequiresInspection;
+                        retired.problem.get_or_insert_with(|| {
+                            "common motion superseded by native-only motion owner".to_string()
+                        });
+                        state.retired_common_motion = Some(retired);
+                    }
                 }
-                owner.bot.session.changed.notify_waiters();
-            }
-        });
-        Ok(record)
+                state.survival_motion = Some(record.clone());
+                let owner = self.clone();
+                let observer = observer.cloned();
+                let running = record.clone();
+                // No await between retaining the intent and spawning its finite owner.
+                self.bot.session.spawn_finite(async move {
+                    if let Err(error) = owner
+                        .run_survival_motion(&running, observer.as_ref(), identity.uuid)
+                        .await
+                    {
+                        let _ = crate::client::ledger::finite::checked::<(), _>(Err(&error));
+                        let mut state = owner.bot.session.state.lock().await;
+                        if let Some(r) = state
+                            .survival_motion
+                            .as_mut()
+                            .filter(|r| r.run_id == running.run_id)
+                        {
+                            r.status = SurvivalMotionStatus::RequiresInspection;
+                            r.problem = Some(error.to_string());
+                        }
+                        owner.bot.session.changed.notify_waiters();
+                    }
+                });
+                Ok(record)
+            })
+            .await
     }
     /// Inspect the retained run, including failure after connection closure. The
     /// returned diagnostic record cannot be imported to authorize another client.

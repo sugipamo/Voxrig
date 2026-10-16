@@ -1112,6 +1112,7 @@ pub struct Bot {
     own_velocity_receipt: Arc<Mutex<Option<VelocityReceipt>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
+    finite_work: Arc<std::sync::Mutex<crate::client::ledger::finite::Retained>>,
     common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
     common_inventory_click: Arc<Mutex<Option<common_click::NativeInventoryClick>>>,
     common_crafting_take: Arc<Mutex<Option<common_crafting::NativeCraftingTake>>>,
@@ -1234,6 +1235,7 @@ impl Bot {
             own_velocity_receipt: self.own_velocity_receipt.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
+            finite_work: self.finite_work.clone(),
             common_inventory_swap: self.common_inventory_swap.clone(),
             common_inventory_click: self.common_inventory_click.clone(),
             common_crafting_take: self.common_crafting_take.clone(),
@@ -1448,6 +1450,7 @@ impl Bot {
             own_velocity_receipt: Arc::default(),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
+            finite_work: Arc::default(),
             common_inventory_swap: Arc::new(Mutex::new(None)),
             common_inventory_click: Arc::new(Mutex::new(None)),
             common_crafting_take: Arc::new(Mutex::new(None)),
@@ -1760,119 +1763,135 @@ impl Bot {
         context: OperationContext,
         operation: EquipOperation,
     ) -> std::result::Result<DispatchOutcome, DispatchError> {
-        let coherent_state = self.coherent_state_gate.lock().await;
-        match operation {
-            EquipOperation::SelectEmptyHotbar { hotbar_slot } => {
-                let inventory = self.inventory.read().await;
-                if hotbar_slot > 8
-                    || !inventory
-                        .player_slots()
-                        .get(36 + usize::from(hotbar_slot))
-                        .is_some_and(Option::is_none)
-                {
-                    return Err(DispatchError::InvalidInput);
-                }
-                drop(inventory);
-                let outcome = self
-                    .dispatch_operation(context, Operation::SelectHotbar { hotbar_slot })
-                    .await?;
-                if outcome == DispatchOutcome::Dispatched {
-                    self.inventory.write().await.selected_hotbar = hotbar_slot;
-                }
-                drop(coherent_state);
-                Ok(outcome)
-            }
-            EquipOperation::SelectHotbar {
-                hotbar_slot,
-                expected_item,
-            } => {
-                let inventory = self.inventory.read().await;
-                let matches = inventory
-                    .player_slots()
-                    .get(36 + usize::from(hotbar_slot))
-                    .and_then(Option::as_ref)
-                    .is_some_and(|item| slot_matches(item, &expected_item));
-                if !matches {
-                    return Err(DispatchError::InvalidInput);
-                }
-                drop(inventory);
-                let outcome = self
-                    .dispatch_operation(context, Operation::SelectHotbar { hotbar_slot })
-                    .await?;
-                if outcome == DispatchOutcome::Dispatched {
-                    self.inventory.write().await.selected_hotbar = hotbar_slot;
-                }
-                drop(coherent_state);
-                Ok(outcome)
-            }
-            EquipOperation::SwapIntoSelectedHotbar {
-                inventory_slot,
-                selected_hotbar_slot,
-                expected_source,
-                expected_destination,
-                cursor_must_be_empty,
-            } => {
-                let inventory = self.inventory.read().await;
-                let selected_match = inventory.selected_hotbar == selected_hotbar_slot;
-                let cursor_empty = inventory.cursor.is_none();
-                let cursor_ok = !cursor_must_be_empty || cursor_empty;
-                let source = inventory
-                    .player_slots()
-                    .get(usize::from(inventory_slot))
-                    .and_then(Option::as_ref)
-                    .filter(|item| slot_matches(item, &expected_source))
-                    .cloned();
-                let destination = inventory
-                    .player_slots()
-                    .get(36 + usize::from(selected_hotbar_slot))
-                    .and_then(Option::as_ref)
-                    .cloned();
-                let destination_match =
-                    optional_slot_matches(destination.as_ref(), expected_destination.as_ref());
-                if !selected_match || !cursor_ok {
-                    return Err(DispatchError::InvalidInput);
-                }
-                let Some(source) = source else {
-                    return Err(DispatchError::InvalidInput);
-                };
-                if !destination_match {
-                    return Err(DispatchError::InvalidInput);
-                }
-                drop(inventory);
-                let transaction = match self
-                    .dispatch_acknowledged(
-                        context,
-                        AcknowledgedOperation::WindowClick {
-                            window_id: 0,
-                            slot: i16::try_from(inventory_slot)
-                                .map_err(|_| DispatchError::InvalidInput)?,
-                            button: i8::try_from(selected_hotbar_slot)
-                                .map_err(|_| DispatchError::InvalidInput)?,
-                            mode: ClickMode::Hotbar,
-                            clicked: Some(source.clone()),
-                        },
-                    )
-                    .await
-                {
-                    Ok(transaction) => transaction,
-                    Err(error) => return Err(error),
-                };
-                drop(coherent_state);
-                let outcome = transaction.wait().await;
-                if outcome == DispatchOutcome::Acknowledged {
-                    let _coherent_state = self.coherent_state_gate.lock().await;
-                    let mut inventory = self.inventory.write().await;
-                    apply_accepted_equip_swap(
-                        &mut inventory,
+        let result = self
+            .connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let coherent_state = self.coherent_state_gate.lock().await;
+                match operation {
+                    EquipOperation::SelectEmptyHotbar { hotbar_slot } => {
+                        let inventory = self.inventory.read().await;
+                        if hotbar_slot > 8
+                            || !inventory
+                                .player_slots()
+                                .get(36 + usize::from(hotbar_slot))
+                                .is_some_and(Option::is_none)
+                        {
+                            return Err(DispatchError::InvalidInput);
+                        }
+                        drop(inventory);
+                        let outcome = self
+                            .dispatch_operation(context, Operation::SelectHotbar { hotbar_slot })
+                            .await?;
+                        if outcome == DispatchOutcome::Dispatched {
+                            self.inventory.write().await.selected_hotbar = hotbar_slot;
+                        }
+                        drop(coherent_state);
+                        Ok(outcome)
+                    }
+                    EquipOperation::SelectHotbar {
+                        hotbar_slot,
+                        expected_item,
+                    } => {
+                        let inventory = self.inventory.read().await;
+                        let matches = inventory
+                            .player_slots()
+                            .get(36 + usize::from(hotbar_slot))
+                            .and_then(Option::as_ref)
+                            .is_some_and(|item| slot_matches(item, &expected_item));
+                        if !matches {
+                            return Err(DispatchError::InvalidInput);
+                        }
+                        drop(inventory);
+                        let outcome = self
+                            .dispatch_operation(context, Operation::SelectHotbar { hotbar_slot })
+                            .await?;
+                        if outcome == DispatchOutcome::Dispatched {
+                            self.inventory.write().await.selected_hotbar = hotbar_slot;
+                        }
+                        drop(coherent_state);
+                        Ok(outcome)
+                    }
+                    EquipOperation::SwapIntoSelectedHotbar {
                         inventory_slot,
                         selected_hotbar_slot,
-                        &source,
-                        destination.as_ref(),
-                    );
+                        expected_source,
+                        expected_destination,
+                        cursor_must_be_empty,
+                    } => {
+                        let inventory = self.inventory.read().await;
+                        let selected_match = inventory.selected_hotbar == selected_hotbar_slot;
+                        let cursor_empty = inventory.cursor.is_none();
+                        let cursor_ok = !cursor_must_be_empty || cursor_empty;
+                        let source = inventory
+                            .player_slots()
+                            .get(usize::from(inventory_slot))
+                            .and_then(Option::as_ref)
+                            .filter(|item| slot_matches(item, &expected_source))
+                            .cloned();
+                        let destination = inventory
+                            .player_slots()
+                            .get(36 + usize::from(selected_hotbar_slot))
+                            .and_then(Option::as_ref)
+                            .cloned();
+                        let destination_match = optional_slot_matches(
+                            destination.as_ref(),
+                            expected_destination.as_ref(),
+                        );
+                        if !selected_match || !cursor_ok {
+                            return Err(DispatchError::InvalidInput);
+                        }
+                        let Some(source) = source else {
+                            return Err(DispatchError::InvalidInput);
+                        };
+                        if !destination_match {
+                            return Err(DispatchError::InvalidInput);
+                        }
+                        drop(inventory);
+                        let transaction = match self
+                            .dispatch_acknowledged(
+                                context,
+                                AcknowledgedOperation::WindowClick {
+                                    window_id: 0,
+                                    slot: i16::try_from(inventory_slot)
+                                        .map_err(|_| DispatchError::InvalidInput)?,
+                                    button: i8::try_from(selected_hotbar_slot)
+                                        .map_err(|_| DispatchError::InvalidInput)?,
+                                    mode: ClickMode::Hotbar,
+                                    clicked: Some(source.clone()),
+                                },
+                            )
+                            .await
+                        {
+                            Ok(transaction) => transaction,
+                            Err(error) => return Err(error),
+                        };
+                        drop(coherent_state);
+                        let outcome = transaction.wait().await;
+                        if outcome == DispatchOutcome::Acknowledged {
+                            let _coherent_state = self.coherent_state_gate.lock().await;
+                            let mut inventory = self.inventory.write().await;
+                            apply_accepted_equip_swap(
+                                &mut inventory,
+                                inventory_slot,
+                                selected_hotbar_slot,
+                                &source,
+                                destination.as_ref(),
+                            );
+                        }
+                        Ok(outcome)
+                    }
                 }
-                Ok(outcome)
-            }
+            })
+            .await;
+
+        if matches!(result, Ok(DispatchOutcome::DeliveryUnknown)) {
+            self.connection
+                .ledger()
+                .fail(crate::client::ledger::Failure::TransactionUnconfirmed);
         }
+        result
     }
 
     /// Dispatches an ordered window click sequence. Every click is
@@ -1900,138 +1919,160 @@ impl Bot {
         close_window_after: bool,
         clicks: Vec<crate::WindowClick>,
     ) -> std::result::Result<DispatchOutcome, DispatchError> {
-        if clicks.is_empty() {
-            return Err(DispatchError::InvalidInput);
-        }
-        let _click_order = self.click_lock.lock().await;
-        let mut acknowledged = 0usize;
-        for (index, click) in clicks.iter().enumerate() {
-            let successor = clicks.get(index + 1).cloned();
-            let coherent_state = self.coherent_state_gate.lock().await;
-            let inventory = self.inventory.read().await;
-            if (window_id != 0
-                && inventory.open_window.as_ref().map(|window| window.id) != Some(window_id))
-                || (window_id == 0 && inventory.open_window.is_some())
-            {
-                return Ok(if acknowledged == 0 {
-                    DispatchOutcome::Rejected
-                } else {
-                    DispatchOutcome::DeliveryUnknown
-                });
-            }
-            let observed = inventory
-                .windows
-                .get(&window_id)
-                .and_then(|slots| {
-                    usize::try_from(click.slot)
-                        .ok()
-                        .and_then(|slot| slots.get(slot))
-                })
-                .and_then(Option::as_ref);
-            let slot_match = optional_slot_matches(observed, click.expected_item.as_ref());
-            let cursor_match =
-                optional_slot_matches(inventory.cursor.as_ref(), click.expected_cursor.as_ref());
-            if !slot_match || !cursor_match {
-                return Ok(if acknowledged == 0 {
-                    DispatchOutcome::Rejected
-                } else {
-                    DispatchOutcome::DeliveryUnknown
-                });
-            }
-            let clicked = observed.cloned();
-            let slot_before = clicked.clone();
-            let cursor_before = inventory.cursor.clone();
-            drop(inventory);
-            let transaction = match self
-                .dispatch_acknowledged(
-                    context,
-                    AcknowledgedOperation::WindowClick {
-                        window_id,
-                        slot: click.slot,
-                        button: click.button,
-                        mode: click.mode,
-                        clicked,
-                    },
-                )
-                .await
-            {
-                Ok(transaction) => transaction,
-                Err(error) if acknowledged == 0 => return Err(error),
-                Err(_) => return Ok(DispatchOutcome::DeliveryUnknown),
-            };
-            let action = transaction
-                .window_action()
-                .ok_or(DispatchError::InvalidInput)?;
-            self.inventory.write().await.pending_clicks.insert(
-                (window_id, action),
-                PendingClick {
-                    window_id,
-                    action,
-                    slot: click.slot,
-                    button: click.button,
-                    mode: click.mode,
-                    slot_before,
-                    cursor_before,
-                    prediction: click.prediction.clone(),
-                },
-            );
-            self.exact_window_barriers.lock().await.insert(
-                (window_id, action),
-                ExactWindowBarrier {
-                    _work: transaction.barrier_work(),
-                    successor,
-                    confirmation_seen: false,
-                },
-            );
-            drop(coherent_state);
-            let monitor = self.clone_internal();
-            let (outcome_tx, outcome_rx) = oneshot::channel();
-            tokio::spawn(async move {
-                let outcome = transaction.wait().await;
-                if outcome != DispatchOutcome::Acknowledged {
-                    let _gate = monitor.coherent_state_gate.lock().await;
-                    monitor
-                        .inventory
-                        .write()
+        let result = self
+            .connection
+            .ledger()
+            .work()
+            .run_result(async {
+                if clicks.is_empty() {
+                    return Err(DispatchError::InvalidInput);
+                }
+                let _click_order = self.click_lock.lock().await;
+                let mut acknowledged = 0usize;
+                for (index, click) in clicks.iter().enumerate() {
+                    let successor = clicks.get(index + 1).cloned();
+                    let coherent_state = self.coherent_state_gate.lock().await;
+                    let inventory = self.inventory.read().await;
+                    if (window_id != 0
+                        && inventory.open_window.as_ref().map(|window| window.id)
+                            != Some(window_id))
+                        || (window_id == 0 && inventory.open_window.is_some())
+                    {
+                        return Ok(if acknowledged == 0 {
+                            DispatchOutcome::Rejected
+                        } else {
+                            DispatchOutcome::DeliveryUnknown
+                        });
+                    }
+                    let observed = inventory
+                        .windows
+                        .get(&window_id)
+                        .and_then(|slots| {
+                            usize::try_from(click.slot)
+                                .ok()
+                                .and_then(|slot| slots.get(slot))
+                        })
+                        .and_then(Option::as_ref);
+                    let slot_match = optional_slot_matches(observed, click.expected_item.as_ref());
+                    let cursor_match = optional_slot_matches(
+                        inventory.cursor.as_ref(),
+                        click.expected_cursor.as_ref(),
+                    );
+                    if !slot_match || !cursor_match {
+                        return Ok(if acknowledged == 0 {
+                            DispatchOutcome::Rejected
+                        } else {
+                            DispatchOutcome::DeliveryUnknown
+                        });
+                    }
+                    let clicked = observed.cloned();
+                    let slot_before = clicked.clone();
+                    let cursor_before = inventory.cursor.clone();
+                    drop(inventory);
+                    let transaction = match self
+                        .dispatch_acknowledged(
+                            context,
+                            AcknowledgedOperation::WindowClick {
+                                window_id,
+                                slot: click.slot,
+                                button: click.button,
+                                mode: click.mode,
+                                clicked,
+                            },
+                        )
                         .await
-                        .pending_clicks
-                        .remove(&(window_id, action));
-                    monitor
-                        .exact_window_barriers
-                        .lock()
+                    {
+                        Ok(transaction) => transaction,
+                        Err(error) if acknowledged == 0 => return Err(error),
+                        Err(_) => return Ok(DispatchOutcome::DeliveryUnknown),
+                    };
+                    let action = transaction
+                        .window_action()
+                        .ok_or(DispatchError::InvalidInput)?;
+                    self.inventory.write().await.pending_clicks.insert(
+                        (window_id, action),
+                        PendingClick {
+                            window_id,
+                            action,
+                            slot: click.slot,
+                            button: click.button,
+                            mode: click.mode,
+                            slot_before,
+                            cursor_before,
+                            prediction: click.prediction.clone(),
+                        },
+                    );
+                    self.exact_window_barriers.lock().await.insert(
+                        (window_id, action),
+                        ExactWindowBarrier {
+                            _work: transaction.barrier_work(),
+                            successor,
+                            confirmation_seen: false,
+                        },
+                    );
+                    drop(coherent_state);
+                    let monitor = self.clone_internal();
+                    let (outcome_tx, outcome_rx) = oneshot::channel();
+                    self.spawn_finite(async move {
+                        let outcome = transaction.wait().await;
+                        if outcome != DispatchOutcome::Acknowledged {
+                            let _gate = monitor.coherent_state_gate.lock().await;
+                            monitor
+                                .inventory
+                                .write()
+                                .await
+                                .pending_clicks
+                                .remove(&(window_id, action));
+                            monitor
+                                .exact_window_barriers
+                                .lock()
+                                .await
+                                .remove(&(window_id, action));
+                        }
+                        let _ = outcome_tx.send(outcome);
+                    });
+                    match outcome_rx.await.unwrap_or(DispatchOutcome::DeliveryUnknown) {
+                        DispatchOutcome::Acknowledged => acknowledged += 1,
+                        DispatchOutcome::Rejected if acknowledged == 0 => {
+                            return Ok(DispatchOutcome::Rejected);
+                        }
+                        DispatchOutcome::Rejected | DispatchOutcome::DeliveryUnknown => {
+                            return Ok(DispatchOutcome::DeliveryUnknown);
+                        }
+                        DispatchOutcome::Dispatched => {
+                            return Ok(DispatchOutcome::DeliveryUnknown);
+                        }
+                    }
+                }
+                if close_window_after {
+                    let outcome = match self
+                        .connection
+                        .dispatch_operation(
+                            context,
+                            OperationClass::Cleanup,
+                            0x0a,
+                            &[window_id as u8],
+                        )
                         .await
-                        .remove(&(window_id, action));
+                    {
+                        Ok(outcome) => outcome,
+                        Err(_) => return Ok(DispatchOutcome::DeliveryUnknown),
+                    };
+                    if outcome != DispatchOutcome::Dispatched {
+                        return Ok(DispatchOutcome::DeliveryUnknown);
+                    }
+                    self.clear_local_window(window_id).await;
                 }
-                let _ = outcome_tx.send(outcome);
-            });
-            match outcome_rx.await.unwrap_or(DispatchOutcome::DeliveryUnknown) {
-                DispatchOutcome::Acknowledged => acknowledged += 1,
-                DispatchOutcome::Rejected if acknowledged == 0 => {
-                    return Ok(DispatchOutcome::Rejected);
-                }
-                DispatchOutcome::Rejected | DispatchOutcome::DeliveryUnknown => {
-                    return Ok(DispatchOutcome::DeliveryUnknown);
-                }
-                DispatchOutcome::Dispatched => {
-                    return Ok(DispatchOutcome::DeliveryUnknown);
-                }
-            }
+                Ok(DispatchOutcome::Acknowledged)
+            })
+            .await;
+
+        if matches!(result, Ok(DispatchOutcome::DeliveryUnknown)) {
+            self.connection
+                .ledger()
+                .fail(crate::client::ledger::Failure::TransactionUnconfirmed);
         }
-        if close_window_after {
-            let outcome = match self
-                .connection
-                .dispatch_operation(context, OperationClass::Cleanup, 0x0a, &[window_id as u8])
-                .await
-            {
-                Ok(outcome) => outcome,
-                Err(_) => return Ok(DispatchOutcome::DeliveryUnknown),
-            };
-            if outcome != DispatchOutcome::Dispatched {
-                return Ok(DispatchOutcome::DeliveryUnknown);
-            }
-            self.clear_local_window(window_id).await;
-        }
-        Ok(DispatchOutcome::Acknowledged)
+        result
     }
 
     async fn commit_satisfied_window_barriers(&self) {
@@ -2161,66 +2202,81 @@ impl Bot {
         operation: CleanupOperation,
         diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
     ) -> std::result::Result<CleanupDispatchOutcome, DispatchError> {
-        if matches!(operation, CleanupOperation::ControlClear) {
-            self.connection
-                .replace_control(context, OperationClass::Cleanup, ControlState::default())
-                .await
-                .map_err(DispatchError::Admission)?;
-            return Ok(CleanupDispatchOutcome::AppliedLocally);
-        }
-        let Some((packet_id, payload)) = operation
-            .encode()
-            .map_err(|_| DispatchError::InvalidInput)?
-        else {
-            unreachable!("ControlClear is handled above");
-        };
-        let dig_diagnostic = match (
-            &operation,
-            diagnostic_correlation.filter(|_| crate::lifecycle::dig_lifecycle_trace_enabled()),
-        ) {
-            (CleanupOperation::DigCancel { position, face }, Some(correlation)) => {
-                Some(crate::lifecycle::DigWriteDiagnostic::new(
-                    correlation,
-                    "cancel",
-                    crate::DiggingStatus::Cancelled as i32,
-                    *position,
-                    *face,
-                ))
-            }
-            _ => None,
-        };
-        let outcome = self
+        let result = self
             .connection
-            .dispatch_operation_with_diagnostic(
-                context,
-                OperationClass::Cleanup,
-                packet_id,
-                &payload,
-                dig_diagnostic,
-            )
-            .await
-            .map_err(DispatchError::Admission)?;
-        if matches!(operation, CleanupOperation::CloseWindow { .. })
-            && matches!(
-                outcome,
-                DispatchOutcome::Dispatched | DispatchOutcome::Acknowledged
-            )
-        {
-            // The close packet is a finite cleanup operation.  Keep the
-            // predicted cache aligned with the already-written packet so the
-            // The caller can observe the window as absent and schedule its bounded
-            // reopen interval.  This is local cache state, not proof that the
-            // server applied the close; an uncertain write remains unknown.
-            if let CleanupOperation::CloseWindow { window_id } = operation {
-                self.clear_local_window(window_id).await;
-            }
+            .ledger()
+            .work()
+            .run_result(async {
+                if matches!(operation, CleanupOperation::ControlClear) {
+                    self.connection
+                        .replace_control(context, OperationClass::Cleanup, ControlState::default())
+                        .await
+                        .map_err(DispatchError::Admission)?;
+                    return Ok(CleanupDispatchOutcome::AppliedLocally);
+                }
+                let Some((packet_id, payload)) = operation
+                    .encode()
+                    .map_err(|_| DispatchError::InvalidInput)?
+                else {
+                    unreachable!("ControlClear is handled above");
+                };
+                let dig_diagnostic = match (
+                    &operation,
+                    diagnostic_correlation
+                        .filter(|_| crate::lifecycle::dig_lifecycle_trace_enabled()),
+                ) {
+                    (CleanupOperation::DigCancel { position, face }, Some(correlation)) => {
+                        Some(crate::lifecycle::DigWriteDiagnostic::new(
+                            correlation,
+                            "cancel",
+                            crate::DiggingStatus::Cancelled as i32,
+                            *position,
+                            *face,
+                        ))
+                    }
+                    _ => None,
+                };
+                let outcome = self
+                    .connection
+                    .dispatch_operation_with_diagnostic(
+                        context,
+                        OperationClass::Cleanup,
+                        packet_id,
+                        &payload,
+                        dig_diagnostic,
+                    )
+                    .await
+                    .map_err(DispatchError::Admission)?;
+                if matches!(operation, CleanupOperation::CloseWindow { .. })
+                    && matches!(
+                        outcome,
+                        DispatchOutcome::Dispatched | DispatchOutcome::Acknowledged
+                    )
+                {
+                    // The close packet is a finite cleanup operation.  Keep the
+                    // predicted cache aligned with the already-written packet so the
+                    // The caller can observe the window as absent and schedule its bounded
+                    // reopen interval.  This is local cache state, not proof that the
+                    // server applied the close; an uncertain write remains unknown.
+                    if let CleanupOperation::CloseWindow { window_id } = operation {
+                        self.clear_local_window(window_id).await;
+                    }
+                }
+                Ok(match outcome {
+                    DispatchOutcome::Dispatched => CleanupDispatchOutcome::Dispatched,
+                    DispatchOutcome::Acknowledged => CleanupDispatchOutcome::Acknowledged,
+                    DispatchOutcome::Rejected => CleanupDispatchOutcome::Rejected,
+                    DispatchOutcome::DeliveryUnknown => CleanupDispatchOutcome::DeliveryUnknown,
+                })
+            })
+            .await;
+
+        if matches!(result, Ok(CleanupDispatchOutcome::DeliveryUnknown)) {
+            self.connection
+                .ledger()
+                .fail(crate::client::ledger::Failure::TransactionUnconfirmed);
         }
-        Ok(match outcome {
-            DispatchOutcome::Dispatched => CleanupDispatchOutcome::Dispatched,
-            DispatchOutcome::Acknowledged => CleanupDispatchOutcome::Acknowledged,
-            DispatchOutcome::Rejected => CleanupDispatchOutcome::Rejected,
-            DispatchOutcome::DeliveryUnknown => CleanupDispatchOutcome::DeliveryUnknown,
-        })
+        result
     }
 
     async fn clear_local_window(&self, window_id: i8) {
@@ -3587,55 +3643,69 @@ impl Bot {
     }
     /// Drops exactly `count` items from the selected hotbar stack.
     pub async fn drop_selected_count(&self, count: u32) -> Result<()> {
-        if count == 0 {
-            bail!("drop count must be positive");
-        }
-        let available = self
-            .inventory
-            .read()
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                if count == 0 {
+                    bail!("drop count must be positive");
+                }
+                let available = self
+                    .inventory
+                    .read()
+                    .await
+                    .selected_item()
+                    .map_or(0, |item| u32::from(item.count.max(0) as u8));
+                if count > available {
+                    bail!("drop count {count} exceeds selected stack size {available}");
+                }
+                if count == available {
+                    return self.drop_selected(true).await;
+                }
+                for _ in 0..count {
+                    self.drop_selected(false).await?;
+                }
+                Ok(())
+            })
             .await
-            .selected_item()
-            .map_or(0, |item| u32::from(item.count.max(0) as u8));
-        if count > available {
-            bail!("drop count {count} exceeds selected stack size {available}");
-        }
-        if count == available {
-            return self.drop_selected(true).await;
-        }
-        for _ in 0..count {
-            self.drop_selected(false).await?;
-        }
-        Ok(())
     }
 
     /// Moves/swaps one explicitly chosen player-inventory slot using acknowledged clicks.
     pub async fn move_player_item(&self, source: i16, destination: i16) -> Result<()> {
-        if !(0..=45).contains(&source) || !(0..=45).contains(&destination) || source == destination
-        {
-            bail!("player slots must be distinct values in 0..=45");
-        }
-        let inventory = self.inventory.read().await;
-        if inventory.cursor.is_some() {
-            bail!("inventory cursor must be empty before moving an item");
-        }
-        if inventory
-            .player_slots()
-            .get(source as usize)
-            .and_then(Option::as_ref)
-            .is_none()
-        {
-            bail!("source player slot is empty");
-        }
-        drop(inventory);
-        self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
-            .await?;
-        self.click_slot_and_wait(0, destination, 0, ClickMode::Normal)
-            .await?;
-        if self.inventory.read().await.cursor.is_some() {
-            self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
-                .await?;
-        }
-        Ok(())
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                if !(0..=45).contains(&source)
+                    || !(0..=45).contains(&destination)
+                    || source == destination
+                {
+                    bail!("player slots must be distinct values in 0..=45");
+                }
+                let inventory = self.inventory.read().await;
+                if inventory.cursor.is_some() {
+                    bail!("inventory cursor must be empty before moving an item");
+                }
+                if inventory
+                    .player_slots()
+                    .get(source as usize)
+                    .and_then(Option::as_ref)
+                    .is_none()
+                {
+                    bail!("source player slot is empty");
+                }
+                drop(inventory);
+                self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
+                    .await?;
+                self.click_slot_and_wait(0, destination, 0, ClickMode::Normal)
+                    .await?;
+                if self.inventory.read().await.cursor.is_some() {
+                    self.click_slot_and_wait(0, source, 0, ClickMode::Normal)
+                        .await?;
+                }
+                Ok(())
+            })
+            .await
     }
 
     /// Performs the `equip_from_player_slot` operation.
@@ -3673,61 +3743,71 @@ impl Bot {
         position: BlockPos,
         face: BlockFace,
     ) -> Result<DiggingAcknowledgement> {
-        let state_id = self
-            .block(position.x, position.y, position.z)
-            .await
-            .context("target block chunk is not loaded")?;
-        let tool_id = self
-            .inventory
-            .read()
-            .await
-            .selected_item()
-            .map(|item| item.item_id);
-        let ticks = crate::versions::java_1_16_1::registry::mining_ticks(state_id, tool_id)
-            .context("target block is not diggable")?;
-        let mut events = self.subscribe();
-        self.send_digging_packet(DiggingStatus::Started, position, face)
-            .await?;
-        tokio::time::sleep(Duration::from_millis(ticks.saturating_mul(50))).await;
-        let transaction = self
-            .dispatch_acknowledged(
-                self.operation_context(0),
-                AcknowledgedOperation::DigFinish { position, face },
-            )
-            .await
-            .map_err(|error| {
-                crate::Error::new(
-                    if matches!(error, DispatchError::DeliveryUnknown) {
-                        crate::ErrorKind::UncertainDispatch
-                    } else {
-                        crate::ErrorKind::State
-                    },
-                    anyhow::anyhow!(error),
-                )
-            })?;
-        match transaction.wait().await {
-            DispatchOutcome::Acknowledged => {}
-            DispatchOutcome::Rejected => {
-                bail!("server rejected digging action at {position:?}");
-            }
-            DispatchOutcome::DeliveryUnknown => {
-                bail!("delivery of digging acknowledgement is unknown");
-            }
-            DispatchOutcome::Dispatched => {
-                bail!("digging action was dispatched without acknowledgement");
-            }
-        }
-        timeout(self.connection_options.protocol_ack_timeout, async {
-            loop {
-                if let Event::DiggingAcknowledged(ack) = next_operation_event(&mut events).await? {
-                    if ack.position == position && ack.status == DiggingStatus::Finished as i32 {
-                        return Ok(ack);
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let state_id = self
+                    .block(position.x, position.y, position.z)
+                    .await
+                    .context("target block chunk is not loaded")?;
+                let tool_id = self
+                    .inventory
+                    .read()
+                    .await
+                    .selected_item()
+                    .map(|item| item.item_id);
+                let ticks = crate::versions::java_1_16_1::registry::mining_ticks(state_id, tool_id)
+                    .context("target block is not diggable")?;
+                let mut events = self.subscribe();
+                self.send_digging_packet(DiggingStatus::Started, position, face)
+                    .await?;
+                tokio::time::sleep(Duration::from_millis(ticks.saturating_mul(50))).await;
+                let transaction = self
+                    .dispatch_acknowledged(
+                        self.operation_context(0),
+                        AcknowledgedOperation::DigFinish { position, face },
+                    )
+                    .await
+                    .map_err(|error| {
+                        crate::Error::new(
+                            if matches!(error, DispatchError::DeliveryUnknown) {
+                                crate::ErrorKind::UncertainDispatch
+                            } else {
+                                crate::ErrorKind::State
+                            },
+                            anyhow::anyhow!(error),
+                        )
+                    })?;
+                match transaction.wait().await {
+                    DispatchOutcome::Acknowledged => {}
+                    DispatchOutcome::Rejected => {
+                        bail!("server rejected digging action at {position:?}");
+                    }
+                    DispatchOutcome::DeliveryUnknown => {
+                        bail!("delivery of digging acknowledgement is unknown");
+                    }
+                    DispatchOutcome::Dispatched => {
+                        bail!("digging action was dispatched without acknowledgement");
                     }
                 }
-            }
-        })
-        .await
-        .context("timed out waiting for digging response event")?
+                timeout(self.connection_options.protocol_ack_timeout, async {
+                    loop {
+                        if let Event::DiggingAcknowledged(ack) =
+                            next_operation_event(&mut events).await?
+                        {
+                            if ack.position == position
+                                && ack.status == DiggingStatus::Finished as i32
+                            {
+                                return Ok(ack);
+                            }
+                        }
+                    }
+                })
+                .await
+                .context("timed out waiting for digging response event")?
+            })
+            .await
     }
     /// Dispatches a block-placement interaction.
     ///
@@ -3761,16 +3841,22 @@ impl Bot {
         observed: BlockPos,
         wait: Duration,
     ) -> Result<Snapshot<Option<i32>>> {
-        let previous = self.block(observed.x, observed.y, observed.z).await;
-        self.place_block(
-            request.hand,
-            request.clicked,
-            request.face,
-            request.cursor,
-            request.inside_block,
-        )
-        .await?;
-        self.wait_for_block_change(observed, previous, wait).await
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let previous = self.block(observed.x, observed.y, observed.z).await;
+                self.place_block(
+                    request.hand,
+                    request.clicked,
+                    request.face,
+                    request.cursor,
+                    request.inside_block,
+                )
+                .await?;
+                self.wait_for_block_change(observed, previous, wait).await
+            })
+            .await
     }
     /// Dispatches a use-item action without waiting for its game result.
     pub async fn use_item(&self, hand: Hand) -> Result<()> {
@@ -3783,9 +3869,15 @@ impl Bot {
     /// Dropping this future after the first dispatch does not automatically send
     /// the release action.
     pub async fn use_item_for(&self, hand: Hand, duration: Duration) -> Result<()> {
-        self.use_item(hand).await?;
-        tokio::time::sleep(duration).await;
-        self.release_item().await
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                self.use_item(hand).await?;
+                tokio::time::sleep(duration).await;
+                self.release_item().await
+            })
+            .await
     }
     /// Dispatches release-use-item without waiting for acknowledgement.
     pub async fn release_item(&self) -> Result<()> {
@@ -3835,29 +3927,35 @@ impl Bot {
     /// Waits for the locally calculated attack cooldown, then dispatches attack
     /// and arm-swing packets. Success does not confirm damage.
     pub async fn attack(&self, entity_id: i32) -> Result<()> {
-        let survival = self.survival.read().await;
-        let attack_speed = survival
-            .attributes
-            .get("minecraft:generic.attack_speed")
-            .or_else(|| survival.attributes.get("generic.attack_speed"))
-            .map_or(4.0, |attribute| attribute.value())
-            .max(0.1);
-        drop(survival);
-        let cooldown = Duration::from_secs_f64(1.0 / attack_speed);
-        loop {
-            let mut last_attack = self.last_attack.lock().await;
-            let remaining = last_attack.map_or(Duration::ZERO, |last| {
-                cooldown.saturating_sub(last.elapsed())
-            });
-            if !remaining.is_zero() {
-                // Do not hold the dispatch lock while charging. An immediate
-                // defensive hit can reset the shared clock during this wait.
-                drop(last_attack);
-                tokio::time::sleep(remaining).await;
-                continue;
-            }
-            return self.dispatch_attack(entity_id, &mut last_attack).await;
-        }
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let survival = self.survival.read().await;
+                let attack_speed = survival
+                    .attributes
+                    .get("minecraft:generic.attack_speed")
+                    .or_else(|| survival.attributes.get("generic.attack_speed"))
+                    .map_or(4.0, |attribute| attribute.value())
+                    .max(0.1);
+                drop(survival);
+                let cooldown = Duration::from_secs_f64(1.0 / attack_speed);
+                loop {
+                    let mut last_attack = self.last_attack.lock().await;
+                    let remaining = last_attack.map_or(Duration::ZERO, |last| {
+                        cooldown.saturating_sub(last.elapsed())
+                    });
+                    if !remaining.is_zero() {
+                        // Do not hold the dispatch lock while charging. An immediate
+                        // defensive hit can reset the shared clock during this wait.
+                        drop(last_attack);
+                        tokio::time::sleep(remaining).await;
+                        continue;
+                    }
+                    return self.dispatch_attack(entity_id, &mut last_attack).await;
+                }
+            })
+            .await
     }
     /// Dispatches an attack without waiting for locally calculated charge.
     ///
@@ -3874,17 +3972,23 @@ impl Bot {
         entity_id: i32,
         last_attack: &mut Option<std::time::Instant>,
     ) -> Result<()> {
-        let mut payload = Vec::new();
-        put_varint(&mut payload, entity_id);
-        put_varint(&mut payload, 1);
-        payload.push(u8::from(
-            self.connection.control_snapshot().await.value.sneak,
-        ));
-        // Keep the clock conservative even if attack/swing dispatch is ambiguous.
-        *last_attack = Some(std::time::Instant::now());
-        self.send(0x0e, &payload).await?;
-        self.swing_arm(Hand::Main).await?;
-        Ok(())
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, entity_id);
+                put_varint(&mut payload, 1);
+                payload.push(u8::from(
+                    self.connection.control_snapshot().await.value.sneak,
+                ));
+                // Keep the clock conservative even if attack/swing dispatch is ambiguous.
+                *last_attack = Some(std::time::Instant::now());
+                self.send(0x0e, &payload).await?;
+                self.swing_arm(Hand::Main).await?;
+                Ok(())
+            })
+            .await
     }
     /// Dispatches a chat message after local length validation.
     pub async fn send_chat(&self, message: &str) -> Result<()> {
@@ -3945,7 +4049,7 @@ impl Bot {
         // delivery deadline expires; dropping a caller future must not cancel
         // the actor's pending transaction.
         let monitor = self.clone_internal();
-        tokio::spawn(async move {
+        self.spawn_finite(async move {
             if transaction.wait().await == DispatchOutcome::DeliveryUnknown {
                 monitor.rollback_pending_click(window_id, action).await;
             }
@@ -3969,121 +4073,127 @@ impl Bot {
         button: i8,
         mode: ClickMode,
     ) -> Result<(i16, ProtocolTransaction)> {
-        let _click_guard = self.click_lock.lock().await;
-        let _coherent_state = self.coherent_state_gate.lock().await;
-        let (clicked, slot_before, cursor_before) = {
-            let mut inventory = self.inventory.write().await;
-            if window_id != 0
-                && inventory.open_window.as_ref().map(|window| window.id) != Some(window_id)
-            {
-                bail!("window {window_id} is not open");
-            }
-            if inventory
-                .pending_clicks
-                .keys()
-                .any(|(pending_window, _)| *pending_window == window_id)
-            {
-                bail!("window {window_id} already has an unacknowledged click");
-            }
-            let clicked = if slot >= 0 {
-                inventory
-                    .windows
-                    .get(&window_id)
-                    .and_then(|slots| slots.get(slot as usize))
-                    .cloned()
-                    .flatten()
-            } else {
-                None
-            };
-            let slot_before = clicked.clone();
-            let cursor_before = inventory.cursor.clone();
-            if mode == ClickMode::Normal {
-                predict_normal_click(&mut inventory, window_id, slot, button)?;
-                sync_player_inventory_from_window(&mut inventory, window_id);
-            }
-            (clicked, slot_before, cursor_before)
-        };
-        let transaction = match self
-            .dispatch_acknowledged(
-                self.operation_context(0),
-                AcknowledgedOperation::WindowClick {
-                    window_id,
-                    slot,
-                    button,
-                    mode,
-                    clicked,
-                },
-            )
-            .await
-        {
-            Ok(transaction) => transaction,
-            Err(error) => {
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let _click_guard = self.click_lock.lock().await;
+                let _coherent_state = self.coherent_state_gate.lock().await;
+                let (clicked, slot_before, cursor_before) = {
+                    let mut inventory = self.inventory.write().await;
+                    if window_id != 0
+                        && inventory.open_window.as_ref().map(|window| window.id) != Some(window_id)
+                    {
+                        bail!("window {window_id} is not open");
+                    }
+                    if inventory
+                        .pending_clicks
+                        .keys()
+                        .any(|(pending_window, _)| *pending_window == window_id)
+                    {
+                        bail!("window {window_id} already has an unacknowledged click");
+                    }
+                    let clicked = if slot >= 0 {
+                        inventory
+                            .windows
+                            .get(&window_id)
+                            .and_then(|slots| slots.get(slot as usize))
+                            .cloned()
+                            .flatten()
+                    } else {
+                        None
+                    };
+                    let slot_before = clicked.clone();
+                    let cursor_before = inventory.cursor.clone();
+                    if mode == ClickMode::Normal {
+                        predict_normal_click(&mut inventory, window_id, slot, button)?;
+                        sync_player_inventory_from_window(&mut inventory, window_id);
+                    }
+                    (clicked, slot_before, cursor_before)
+                };
+                let transaction = match self
+                    .dispatch_acknowledged(
+                        self.operation_context(0),
+                        AcknowledgedOperation::WindowClick {
+                            window_id,
+                            slot,
+                            button,
+                            mode,
+                            clicked,
+                        },
+                    )
+                    .await
+                {
+                    Ok(transaction) => transaction,
+                    Err(error) => {
+                        let mut inventory = self.inventory.write().await;
+                        if mode == ClickMode::Normal {
+                            let pending = PendingClick {
+                                window_id,
+                                action: 0,
+                                slot,
+                                button,
+                                mode,
+                                slot_before,
+                                cursor_before,
+                                prediction: Default::default(),
+                            };
+                            rollback_click(&mut inventory, &pending);
+                            sync_player_inventory_from_window(&mut inventory, window_id);
+                        }
+                        let message = anyhow::anyhow!(error.to_string());
+                        return Err(crate::Error::new(
+                            if matches!(error, DispatchError::DeliveryUnknown) {
+                                crate::ErrorKind::UncertainDispatch
+                            } else {
+                                crate::ErrorKind::State
+                            },
+                            message,
+                        ));
+                    }
+                };
+                if !transaction.was_dispatched() {
+                    let mut inventory = self.inventory.write().await;
+                    if mode == ClickMode::Normal {
+                        let pending = PendingClick {
+                            window_id,
+                            action: 0,
+                            slot,
+                            button,
+                            mode,
+                            slot_before,
+                            cursor_before,
+                            prediction: Default::default(),
+                        };
+                        rollback_click(&mut inventory, &pending);
+                        sync_player_inventory_from_window(&mut inventory, window_id);
+                    }
+                    return Err(crate::Error::new(
+                        crate::ErrorKind::Connection,
+                        anyhow::anyhow!("window click delivery is unknown"),
+                    ));
+                }
+                let action = transaction
+                    .window_action()
+                    .context("window click transaction did not expose a local action")?;
                 let mut inventory = self.inventory.write().await;
-                if mode == ClickMode::Normal {
-                    let pending = PendingClick {
+                inventory.pending_clicks.insert(
+                    (window_id, action),
+                    PendingClick {
                         window_id,
-                        action: 0,
+                        action,
                         slot,
                         button,
                         mode,
                         slot_before,
                         cursor_before,
                         prediction: Default::default(),
-                    };
-                    rollback_click(&mut inventory, &pending);
-                    sync_player_inventory_from_window(&mut inventory, window_id);
-                }
-                let message = anyhow::anyhow!(error.to_string());
-                return Err(crate::Error::new(
-                    if matches!(error, DispatchError::DeliveryUnknown) {
-                        crate::ErrorKind::UncertainDispatch
-                    } else {
-                        crate::ErrorKind::State
                     },
-                    message,
-                ));
-            }
-        };
-        if !transaction.was_dispatched() {
-            let mut inventory = self.inventory.write().await;
-            if mode == ClickMode::Normal {
-                let pending = PendingClick {
-                    window_id,
-                    action: 0,
-                    slot,
-                    button,
-                    mode,
-                    slot_before,
-                    cursor_before,
-                    prediction: Default::default(),
-                };
-                rollback_click(&mut inventory, &pending);
-                sync_player_inventory_from_window(&mut inventory, window_id);
-            }
-            return Err(crate::Error::new(
-                crate::ErrorKind::Connection,
-                anyhow::anyhow!("window click delivery is unknown"),
-            ));
-        }
-        let action = transaction
-            .window_action()
-            .context("window click transaction did not expose a local action")?;
-        let mut inventory = self.inventory.write().await;
-        inventory.pending_clicks.insert(
-            (window_id, action),
-            PendingClick {
-                window_id,
-                action,
-                slot,
-                button,
-                mode,
-                slot_before,
-                cursor_before,
-                prediction: Default::default(),
-            },
-        );
-        drop(inventory);
-        Ok((action, transaction))
+                );
+                drop(inventory);
+                Ok((action, transaction))
+            })
+            .await
     }
 
     /// Dispatches a click and waits for the matching protocol transaction.
@@ -4094,6 +4204,7 @@ impl Bot {
         button: i8,
         mode: ClickMode,
     ) -> Result<i16> {
+        self.connection.ledger().work().run_result(async {
         let (action, transaction) = self
             .click_slot_transaction(window_id, slot, button, mode)
             .await?;
@@ -4112,6 +4223,8 @@ impl Bot {
                 bail!("window action {action} was dispatched without acknowledgement");
             }
         }
+
+        }).await
     }
     /// Performs the `craft_once` operation.
     pub async fn craft_once(
@@ -4121,212 +4234,200 @@ impl Bot {
         height: usize,
         ingredients: &[Option<i32>],
     ) -> Result<()> {
-        if !matches!((window_id, width, height), (0, 2, 2) | (_, 3, 3)) {
-            bail!("player crafting must be 2x2 and an open container must be 3x3");
-        }
-        if ingredients.len() != width * height {
-            bail!("ingredient grid length does not match dimensions");
-        }
-        let grid_end = 1 + ingredients.len();
-        self.compact_player_inventory(window_id).await?;
-        // A previous attempt can leave ingredients in the grid. Return them before
-        // placing a fresh recipe; never consume a partially reconciled recipe twice.
-        for slot in 1..grid_end {
-            self.return_slot_to_storage(window_id, slot).await?;
-        }
-        let source_start = if window_id == 0 { 9 } else { grid_end };
-        for (grid_index, ingredient) in ingredients.iter().enumerate() {
-            let Some(item_id) = ingredient else {
-                continue;
-            };
-            let source = self
-                .inventory()
-                .await
-                .windows
-                .get(&window_id)
-                .and_then(|slots| {
-                    slots
-                        .iter()
-                        .enumerate()
-                        .skip(source_start)
-                        .take(36)
-                        .find(|(_, item)| {
-                            item.as_ref().is_some_and(|item| item.item_id == *item_id)
-                        })
-                        .map(|(slot, _)| slot as i16)
-                })
-                .with_context(|| format!("ingredient item {item_id} is unavailable"))?;
-            self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
-                .await
-                .with_context(|| format!("pick ingredient {item_id} from slot {source}"))?;
-            self.click_slot_and_wait(window_id, (1 + grid_index) as i16, 1, ClickMode::Normal)
-                .await
-                .with_context(|| format!("place ingredient {item_id} into crafting grid"))?;
-            if self.inventory().await.cursor.is_some() {
-                self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
-                    .await
-                    .with_context(|| format!("return remaining ingredient {item_id}"))?;
-            }
-        }
-        timeout(Duration::from_secs(5), async {
-            let mut events = self.subscribe();
-            loop {
-                if self
-                    .inventory()
-                    .await
-                    .windows
-                    .get(&window_id)
-                    .and_then(|slots| slots.first())
-                    .is_some_and(Option::is_some)
-                {
-                    return Ok::<(), anyhow::Error>(());
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                if !matches!((window_id, width, height), (0, 2, 2) | (_, 3, 3)) {
+                    bail!("player crafting must be 2x2 and an open container must be 3x3");
                 }
-                let _ = next_operation_event(&mut events).await?;
-            }
-        })
-        .await
-        .context("timed out waiting for crafting result")??;
-        self.take_crafting_result(window_id, ingredients.len())
+                if ingredients.len() != width * height {
+                    bail!("ingredient grid length does not match dimensions");
+                }
+                let grid_end = 1 + ingredients.len();
+                self.compact_player_inventory(window_id).await?;
+                // A previous attempt can leave ingredients in the grid. Return them before
+                // placing a fresh recipe; never consume a partially reconciled recipe twice.
+                for slot in 1..grid_end {
+                    self.return_slot_to_storage(window_id, slot).await?;
+                }
+                let source_start = if window_id == 0 { 9 } else { grid_end };
+                for (grid_index, ingredient) in ingredients.iter().enumerate() {
+                    let Some(item_id) = ingredient else {
+                        continue;
+                    };
+                    let source = self
+                        .inventory()
+                        .await
+                        .windows
+                        .get(&window_id)
+                        .and_then(|slots| {
+                            slots
+                                .iter()
+                                .enumerate()
+                                .skip(source_start)
+                                .take(36)
+                                .find(|(_, item)| {
+                                    item.as_ref().is_some_and(|item| item.item_id == *item_id)
+                                })
+                                .map(|(slot, _)| slot as i16)
+                        })
+                        .with_context(|| format!("ingredient item {item_id} is unavailable"))?;
+                    self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
+                        .await
+                        .with_context(|| format!("pick ingredient {item_id} from slot {source}"))?;
+                    self.click_slot_and_wait(
+                        window_id,
+                        (1 + grid_index) as i16,
+                        1,
+                        ClickMode::Normal,
+                    )
+                    .await
+                    .with_context(|| format!("place ingredient {item_id} into crafting grid"))?;
+                    if self.inventory().await.cursor.is_some() {
+                        self.click_slot_and_wait(window_id, source, 0, ClickMode::Normal)
+                            .await
+                            .with_context(|| format!("return remaining ingredient {item_id}"))?;
+                    }
+                }
+                timeout(Duration::from_secs(5), async {
+                    let mut events = self.subscribe();
+                    loop {
+                        if self
+                            .inventory()
+                            .await
+                            .windows
+                            .get(&window_id)
+                            .and_then(|slots| slots.first())
+                            .is_some_and(Option::is_some)
+                        {
+                            return Ok::<(), anyhow::Error>(());
+                        }
+                        let _ = next_operation_event(&mut events).await?;
+                    }
+                })
+                .await
+                .context("timed out waiting for crafting result")??;
+                self.take_crafting_result(window_id, ingredients.len())
+                    .await
+            })
             .await
     }
     /// Performs the `take_crafting_result` operation.
     pub async fn take_crafting_result(&self, window_id: i8, grid_slots: usize) -> Result<()> {
-        let inventory = self.inventory().await;
-        check_inventory(inventory.cursor.is_none(), "crafting cursor is occupied")?;
-        let result = inventory
-            .windows
-            .get(&window_id)
-            .and_then(|s| s.first())
-            .and_then(Option::as_ref)
-            .context("crafting result is unavailable")?;
-        check_inventory(
-            storage_capacity(&inventory, window_id, result)? >= i16::from(result.count),
-            "insufficient compatible player storage for crafting result; result not taken",
-        )?;
-        self.click_slot_and_wait(window_id, 0, 0, ClickMode::Normal)
-            .await
-            .context("collect crafting result")?;
-        {
-            let _coherent_state = self.coherent_state_gate.lock().await;
-            // Accepted crafting-result clicks consume one item from every occupied
-            // recipe slot client-side; vanilla does not necessarily echo these slots.
-            let mut inventory = self.inventory.write().await;
-            if let Some(slots) = inventory.windows.get_mut(&window_id) {
-                for slot in slots.iter_mut().take(1 + grid_slots).skip(1).flatten() {
-                    slot.count -= 1;
-                }
-                for item in slots.iter_mut().take(1 + grid_slots).skip(1) {
-                    if item.as_ref().is_some_and(|item| item.count <= 0) {
-                        *item = None;
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let inventory = self.inventory().await;
+                check_inventory(inventory.cursor.is_none(), "crafting cursor is occupied")?;
+                let result = inventory
+                    .windows
+                    .get(&window_id)
+                    .and_then(|s| s.first())
+                    .and_then(Option::as_ref)
+                    .context("crafting result is unavailable")?;
+                check_inventory(
+                    storage_capacity(&inventory, window_id, result)? >= i16::from(result.count),
+                    "insufficient compatible player storage for crafting result; result not taken",
+                )?;
+                self.click_slot_and_wait(window_id, 0, 0, ClickMode::Normal)
+                    .await
+                    .context("collect crafting result")?;
+                {
+                    let _coherent_state = self.coherent_state_gate.lock().await;
+                    // Accepted crafting-result clicks consume one item from every occupied
+                    // recipe slot client-side; vanilla does not necessarily echo these slots.
+                    let mut inventory = self.inventory.write().await;
+                    if let Some(slots) = inventory.windows.get_mut(&window_id) {
+                        for slot in slots.iter_mut().take(1 + grid_slots).skip(1).flatten() {
+                            slot.count -= 1;
+                        }
+                        for item in slots.iter_mut().take(1 + grid_slots).skip(1) {
+                            if item.as_ref().is_some_and(|item| item.count <= 0) {
+                                *item = None;
+                            }
+                        }
+                        slots[0] = None;
                     }
+                    sync_player_inventory_from_window(&mut inventory, window_id);
                 }
-                slots[0] = None;
-            }
-            sync_player_inventory_from_window(&mut inventory, window_id);
-        }
-        self.store_cursor(window_id)
+                self.store_cursor(window_id)
+                    .await
+                    .context("store crafting result")?;
+                Ok(())
+            })
             .await
-            .context("store crafting result")?;
-        Ok(())
     }
 
     async fn store_cursor(&self, window: i8) -> Result<()> {
-        // Each successful click fills a destination or empties the cursor.
-        for _ in 0..=36 {
-            let inventory = self.inventory().await;
-            let Some(cursor) = inventory.cursor.as_ref() else {
-                return Ok(());
-            };
-            check_inventory(
-                storage_capacity(&inventory, window, cursor)? >= i16::from(cursor.count),
-                "insufficient compatible storage for cursor; no items discarded",
-            )?;
-            let slots = &inventory.windows[&window];
-            let range = storage_range(window, slots.len())?;
-            let destination = range
-                .clone()
-                .find(|i| slots[*i].is_some() && merge_room(slots[*i].as_ref(), cursor) > 0)
-                .or_else(|| range.clone().find(|i| slots[*i].is_none()))
-                .context("no cursor destination")?;
-            let moved =
-                merge_room(slots[destination].as_ref(), cursor).min(i16::from(cursor.count));
-            let mut expected_slot = cursor.clone();
-            expected_slot.count =
-                (i16::from(slots[destination].as_ref().map_or(0, |s| s.count)) + moved) as i8;
-            let mut expected_cursor = cursor.clone();
-            expected_cursor.count -= moved as i8;
-            self.click_slot_and_wait(window, destination as i16, 0, ClickMode::Normal)
-                .await?;
-            let after = self.inventory().await;
-            check_inventory(
-                after.windows.get(&window).and_then(|s| s.get(destination))
-                    == Some(&Some(expected_slot))
-                    && after.cursor == (expected_cursor.count > 0).then_some(expected_cursor),
-                "cursor transfer outcome changed; refusing further clicks",
-            )?;
-        }
-        bail!("cursor reconciliation budget exhausted")
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                // Each successful click fills a destination or empties the cursor.
+                for _ in 0..=36 {
+                    let inventory = self.inventory().await;
+                    let Some(cursor) = inventory.cursor.as_ref() else {
+                        return Ok(());
+                    };
+                    check_inventory(
+                        storage_capacity(&inventory, window, cursor)? >= i16::from(cursor.count),
+                        "insufficient compatible storage for cursor; no items discarded",
+                    )?;
+                    let slots = &inventory.windows[&window];
+                    let range = storage_range(window, slots.len())?;
+                    let destination = range
+                        .clone()
+                        .find(|i| slots[*i].is_some() && merge_room(slots[*i].as_ref(), cursor) > 0)
+                        .or_else(|| range.clone().find(|i| slots[*i].is_none()))
+                        .context("no cursor destination")?;
+                    let moved = merge_room(slots[destination].as_ref(), cursor)
+                        .min(i16::from(cursor.count));
+                    let mut expected_slot = cursor.clone();
+                    expected_slot.count =
+                        (i16::from(slots[destination].as_ref().map_or(0, |s| s.count)) + moved)
+                            as i8;
+                    let mut expected_cursor = cursor.clone();
+                    expected_cursor.count -= moved as i8;
+                    self.click_slot_and_wait(window, destination as i16, 0, ClickMode::Normal)
+                        .await?;
+                    let after = self.inventory().await;
+                    check_inventory(
+                        after.windows.get(&window).and_then(|s| s.get(destination))
+                            == Some(&Some(expected_slot))
+                            && after.cursor
+                                == (expected_cursor.count > 0).then_some(expected_cursor),
+                        "cursor transfer outcome changed; refusing further clicks",
+                    )?;
+                }
+                bail!("cursor reconciliation budget exhausted")
+            })
+            .await
     }
 
     async fn return_slot_to_storage(&self, window: i8, source: usize) -> Result<()> {
-        let inventory = self.inventory().await;
-        check_inventory(
-            inventory.cursor.is_none(),
-            "cursor must be reconciled first",
-        )?;
-        let Some(item) = inventory
-            .windows
-            .get(&window)
-            .and_then(|s| s.get(source))
-            .and_then(Option::as_ref)
-        else {
-            return Ok(());
-        };
-        check_inventory(
-            storage_capacity(&inventory, window, item)? >= i16::from(item.count),
-            &format!("insufficient compatible storage to return slot {source}"),
-        )?;
-        self.click_slot_and_wait(window, source as i16, 0, ClickMode::Normal)
-            .await?;
-        let after = self.inventory().await;
-        check_inventory(
-            after.cursor.as_ref() == Some(item)
-                && after
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let inventory = self.inventory().await;
+                check_inventory(
+                    inventory.cursor.is_none(),
+                    "cursor must be reconciled first",
+                )?;
+                let Some(item) = inventory
                     .windows
                     .get(&window)
                     .and_then(|s| s.get(source))
-                    .is_some_and(Option::is_none),
-            "source pickup outcome changed; refusing further clicks",
-        )?;
-        self.store_cursor(window).await
-    }
-
-    /// Reconcile the cursor and merge compatible ordinary-storage stacks.
-    /// Never drops items, uses equipment as spare storage, or merges different NBT.
-    /// Rejected/ambiguous clicks stop the operation; callers must not replay blindly.
-    pub async fn compact_player_inventory(&self, window: i8) -> Result<()> {
-        self.store_cursor(window).await?;
-        let inventory = self.inventory().await;
-        let range = storage_range(
-            window,
-            inventory
-                .windows
-                .get(&window)
-                .context("window unavailable")?
-                .len(),
-        )?;
-        for source in range.clone().rev() {
-            let inventory = self.inventory().await;
-            let slots = inventory
-                .windows
-                .get(&window)
-                .context("window changed during compaction")?;
-            let Some(item) = slots.get(source).and_then(Option::as_ref) else {
-                continue;
-            };
-            if (range.start..source)
-                .any(|i| slots[i].is_some() && merge_room(slots[i].as_ref(), item) > 0)
-            {
+                    .and_then(Option::as_ref)
+                else {
+                    return Ok(());
+                };
+                check_inventory(
+                    storage_capacity(&inventory, window, item)? >= i16::from(item.count),
+                    &format!("insufficient compatible storage to return slot {source}"),
+                )?;
                 self.click_slot_and_wait(window, source as i16, 0, ClickMode::Normal)
                     .await?;
                 let after = self.inventory().await;
@@ -4337,25 +4438,74 @@ impl Bot {
                             .get(&window)
                             .and_then(|s| s.get(source))
                             .is_some_and(Option::is_none),
-                    "compaction pickup outcome changed; refusing further clicks",
+                    "source pickup outcome changed; refusing further clicks",
                 )?;
+                self.store_cursor(window).await
+            })
+            .await
+    }
+
+    /// Reconcile the cursor and merge compatible ordinary-storage stacks.
+    /// Never drops items, uses equipment as spare storage, or merges different NBT.
+    /// Rejected/ambiguous clicks stop the operation; callers must not replay blindly.
+    pub async fn compact_player_inventory(&self, window: i8) -> Result<()> {
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
                 self.store_cursor(window).await?;
-            }
-        }
-        if window == 0 {
-            let inventory = self.inventory().await;
-            if let Some(item) = inventory
-                .windows
-                .get(&0)
-                .and_then(|s| s.get(45))
-                .and_then(Option::as_ref)
-            {
-                if storage_capacity(&inventory, 0, item)? >= i16::from(item.count) {
-                    self.return_slot_to_storage(0, 45).await?;
+                let inventory = self.inventory().await;
+                let range = storage_range(
+                    window,
+                    inventory
+                        .windows
+                        .get(&window)
+                        .context("window unavailable")?
+                        .len(),
+                )?;
+                for source in range.clone().rev() {
+                    let inventory = self.inventory().await;
+                    let slots = inventory
+                        .windows
+                        .get(&window)
+                        .context("window changed during compaction")?;
+                    let Some(item) = slots.get(source).and_then(Option::as_ref) else {
+                        continue;
+                    };
+                    if (range.start..source)
+                        .any(|i| slots[i].is_some() && merge_room(slots[i].as_ref(), item) > 0)
+                    {
+                        self.click_slot_and_wait(window, source as i16, 0, ClickMode::Normal)
+                            .await?;
+                        let after = self.inventory().await;
+                        check_inventory(
+                            after.cursor.as_ref() == Some(item)
+                                && after
+                                    .windows
+                                    .get(&window)
+                                    .and_then(|s| s.get(source))
+                                    .is_some_and(Option::is_none),
+                            "compaction pickup outcome changed; refusing further clicks",
+                        )?;
+                        self.store_cursor(window).await?;
+                    }
                 }
-            }
-        }
-        Ok(())
+                if window == 0 {
+                    let inventory = self.inventory().await;
+                    if let Some(item) = inventory
+                        .windows
+                        .get(&0)
+                        .and_then(|s| s.get(45))
+                        .and_then(Option::as_ref)
+                    {
+                        if storage_capacity(&inventory, 0, item)? >= i16::from(item.count) {
+                            self.return_slot_to_storage(0, 45).await?;
+                        }
+                    }
+                }
+                Ok(())
+            })
+            .await
     }
     /// Dispatches recipe placement without waiting for inventory synchronization.
     pub async fn place_recipe(&self, window_id: i8, recipe_id: &str, make_all: bool) -> Result<()> {
@@ -4366,33 +4516,39 @@ impl Bot {
     }
     /// Dispatches close-window and immediately clears the predicted local window.
     pub async fn close_window(&self) -> Result<()> {
-        let _coherent_state = self.coherent_state_gate.lock().await;
-        let window_id = self
-            .inventory
-            .read()
+        self.connection
+            .ledger()
+            .work()
+            .run_result(async {
+                let _coherent_state = self.coherent_state_gate.lock().await;
+                let window_id = self
+                    .inventory
+                    .read()
+                    .await
+                    .open_window
+                    .as_ref()
+                    .map(|window| window.id)
+                    .context("no window is open")?;
+                self.send(0x0a, &[window_id as u8]).await?;
+                let mut inventory = self.inventory.write().await;
+                inventory.open_window = None;
+                inventory.last_transaction = None;
+                inventory.merchant_offers = None;
+                inventory.windows.remove(&window_id);
+                inventory.properties.retain(|(id, _), _| *id != window_id);
+                inventory
+                    .pending_clicks
+                    .retain(|(id, _), _| *id != window_id);
+                let mut furnace_window_position = self.furnace_window_position.lock().await;
+                if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
+                    *furnace_window_position = None;
+                }
+                drop(furnace_window_position);
+                drop(inventory);
+                self.emit(Event::WindowClosed { window_id });
+                Ok(())
+            })
             .await
-            .open_window
-            .as_ref()
-            .map(|window| window.id)
-            .context("no window is open")?;
-        self.send(0x0a, &[window_id as u8]).await?;
-        let mut inventory = self.inventory.write().await;
-        inventory.open_window = None;
-        inventory.last_transaction = None;
-        inventory.merchant_offers = None;
-        inventory.windows.remove(&window_id);
-        inventory.properties.retain(|(id, _), _| *id != window_id);
-        inventory
-            .pending_clicks
-            .retain(|(id, _), _| *id != window_id);
-        let mut furnace_window_position = self.furnace_window_position.lock().await;
-        if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
-            *furnace_window_position = None;
-        }
-        drop(furnace_window_position);
-        drop(inventory);
-        self.emit(Event::WindowClosed { window_id });
-        Ok(())
     }
     /// Selects one server-advertised merchant offer without choosing it automatically.
     pub async fn select_trade(&self, index: usize) -> Result<()> {
@@ -5481,11 +5637,12 @@ impl Bot {
         self.common_placement_context_received().await?;
         self.common_inventory_context_received().await?;
         self.common_click_context_received().await?;
-        self.common_crafting_context_received(false).await?;
+        self.common_crafting_context_received().await?;
         self.common_recipe_placement_context_received().await?;
         self.common_transfer_context_received().await?;
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;
+        self.reconcile_finite().await;
         self.enforce_session_limits().await?;
         if matches!(id, 0x14 | 0x16) {
             self.observe_common_glide_equipment(packet_sequence).await;
@@ -10198,3 +10355,5 @@ mod tests {
             .unwrap();
     }
 }
+
+mod finite_work;

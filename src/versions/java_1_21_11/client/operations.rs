@@ -507,21 +507,28 @@ impl Operations {
         self.set_flying_in_mode(None, flying).await
     }
     async fn set_flying_in_mode(&self, mode: Option<GameMode>, flying: bool) -> Result<()> {
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, mode)?;
-        if flying && state.operations.abilities.is_none_or(|a| a & 4 == 0) {
-            return Err(invalid("server has not granted flight"));
-        }
         self.bot
             .session
-            .send(
-                ids::play_serverbound::ABILITIES,
-                &[if flying { 2 } else { 0 }],
-            )
-            .await?;
-        state.operations.requested_flying = flying;
-        Ok(())
+            .ledger
+            .work()
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, mode)?;
+                if flying && state.operations.abilities.is_none_or(|a| a & 4 == 0) {
+                    return Err(invalid("server has not granted flight"));
+                }
+                self.bot
+                    .session
+                    .send(
+                        ids::play_serverbound::ABILITIES,
+                        &[if flying { 2 } else { 0 }],
+                    )
+                    .await?;
+                state.operations.requested_flying = flying;
+                Ok(())
+            })
+            .await
     }
     /// Submit a short creative flight step, with rotation in degrees.
     /// This does not implement collision resolution or server-confirmed teleportation.
@@ -534,46 +541,53 @@ impl Operations {
         position: [f64; 3],
         rotation: [f32; 2],
     ) -> Result<()> {
-        validate_pose(position, rotation)?;
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, mode)?;
-        if !state.operations.requested_flying
-            || state.operations.abilities.is_none_or(|a| a & 4 == 0)
-        {
-            return Err(invalid("flight must be permitted and requested"));
-        }
-        let before = state.position.context("position unavailable")?;
-        if before
-            .iter()
-            .zip(position)
-            .map(|(a, b)| (a - b).powi(2))
-            .sum::<f64>()
-            > 16.0
-        {
-            return Err(invalid("flight step exceeds four blocks"));
-        }
-        let mut payload = Vec::new();
-        for v in position {
-            payload.extend(v.to_be_bytes());
-        }
-        for v in rotation {
-            payload.extend(v.to_be_bytes());
-        }
-        payload.push(0);
-        let generation = state.loading.generation;
-        let sequence = state.sequence;
-        state
-            .motion
-            .begin(generation, sequence, position, rotation)?;
         self.bot
             .session
-            .send(ids::play_serverbound::POSITION_LOOK, &payload)
-            .await?;
-        state.position = Some(position);
-        state.rotation = rotation;
-        state.motion.dispatched();
-        Ok(())
+            .ledger
+            .work()
+            .run_scoped(async {
+                validate_pose(position, rotation)?;
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, mode)?;
+                if !state.operations.requested_flying
+                    || state.operations.abilities.is_none_or(|a| a & 4 == 0)
+                {
+                    return Err(invalid("flight must be permitted and requested"));
+                }
+                let before = state.position.context("position unavailable")?;
+                if before
+                    .iter()
+                    .zip(position)
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum::<f64>()
+                    > 16.0
+                {
+                    return Err(invalid("flight step exceeds four blocks"));
+                }
+                let mut payload = Vec::new();
+                for v in position {
+                    payload.extend(v.to_be_bytes());
+                }
+                for v in rotation {
+                    payload.extend(v.to_be_bytes());
+                }
+                payload.push(0);
+                let generation = state.loading.generation;
+                let sequence = state.sequence;
+                state
+                    .motion
+                    .begin(generation, sequence, position, rotation)?;
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::POSITION_LOOK, &payload)
+                    .await?;
+                state.position = Some(position);
+                state.rotation = rotation;
+                state.motion.dispatched();
+                Ok(())
+            })
+            .await
     }
     /// Submit a view direction in native degrees, without changing position.
     /// Survival rechecks stationary standing geometry to derive the ground bit;
@@ -582,25 +596,32 @@ impl Operations {
         self.look_in_mode(None, rotation).await
     }
     async fn look_in_mode(&self, mode: Option<GameMode>, rotation: [f32; 2]) -> Result<()> {
-        validate_pose([0.0; 3], rotation)?;
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, mode)?;
-        let mut payload = Vec::new();
-        for v in rotation {
-            payload.extend(v.to_be_bytes());
-        }
-        payload.push(survival::look_flags(
-            &mut state,
-            self.bot.session.started.elapsed().as_millis() as u64 / 50,
-        )?);
         self.bot
             .session
-            .send(ids::play_serverbound::LOOK, &payload)
-            .await?;
-        state.rotation = rotation;
-        state.motion.rotation_source = Some(crate::client::ValueSource::Submitted);
-        Ok(())
+            .ledger
+            .work()
+            .run_scoped(async {
+                validate_pose([0.0; 3], rotation)?;
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, mode)?;
+                let mut payload = Vec::new();
+                for v in rotation {
+                    payload.extend(v.to_be_bytes());
+                }
+                payload.push(survival::look_flags(
+                    &mut state,
+                    self.bot.session.started.elapsed().as_millis() as u64 / 50,
+                )?);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::LOOK, &payload)
+                    .await?;
+                state.rotation = rotation;
+                state.motion.rotation_source = Some(crate::client::ValueSource::Submitted);
+                Ok(())
+            })
+            .await
     }
     /// Submit a default item to a creative hotbar slot (0..8). No inventory echo is invented.
     pub async fn set_creative_hotbar(&self, slot: u8, item: Option<(&str, u8)>) -> Result<()> {
@@ -618,14 +639,21 @@ impl Operations {
         }
         let mut state = self.bot.session.state.lock().await;
         self.creative(&state)?;
+        let work = state.finite_work.begin(
+            &self.bot.session.ledger,
+            crate::client::ledger::finite::Family::Creative(slot),
+            u64::from(slot) + 1,
+        );
         state.operations.inventory.slots[36 + usize::from(slot)] = InventorySlot::Unavailable;
         if !state.operations.inventory.pending_creative.contains(&slot) {
             state.operations.inventory.pending_creative.push(slot);
         }
-        self.bot
-            .session
-            .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload)
-            .await?;
+        work.run(
+            self.bot
+                .session
+                .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload),
+        )
+        .await?;
         Ok(())
     }
     /// Submit held hotbar selection. The server still decides which item is present.
@@ -633,41 +661,48 @@ impl Operations {
         self.select_hotbar_in_mode(None, slot).await
     }
     async fn select_hotbar_in_mode(&self, mode: Option<GameMode>, slot: u8) -> Result<()> {
-        if slot > 8 {
-            return Err(invalid("hotbar slot must be 0..8"));
-        }
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, mode)?;
-        if let Some(mode) = mode {
-            crate::client::operations::validate_hotbar_selection(mode, slot)?;
-        }
-        if state.operations.inventory.pending_swap.is_some() {
-            return Err(Error::new(
-                ErrorKind::State,
-                anyhow::anyhow!("inventory swap needs inspection"),
-            ));
-        }
-        state.operations.selected_hotbar = Some(HotbarSelection {
-            slot,
-            sequence: state.sequence,
-            dispatched: false,
-            from_server: false,
-        });
         self.bot
             .session
-            .send(
-                ids::play_serverbound::HELD_ITEM_SLOT,
-                &i16::from(slot).to_be_bytes(),
-            )
-            .await?;
-        state
-            .operations
-            .selected_hotbar
-            .as_mut()
-            .expect("selection attempt")
-            .dispatched = true;
-        Ok(())
+            .ledger
+            .work()
+            .run_scoped(async {
+                if slot > 8 {
+                    return Err(invalid("hotbar slot must be 0..8"));
+                }
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, mode)?;
+                if let Some(mode) = mode {
+                    crate::client::operations::validate_hotbar_selection(mode, slot)?;
+                }
+                if state.operations.inventory.pending_swap.is_some() {
+                    return Err(Error::new(
+                        ErrorKind::State,
+                        anyhow::anyhow!("inventory swap needs inspection"),
+                    ));
+                }
+                state.operations.selected_hotbar = Some(HotbarSelection {
+                    slot,
+                    sequence: state.sequence,
+                    dispatched: false,
+                    from_server: false,
+                });
+                self.bot
+                    .session
+                    .send(
+                        ids::play_serverbound::HELD_ITEM_SLOT,
+                        &i16::from(slot).to_be_bytes(),
+                    )
+                    .await?;
+                state
+                    .operations
+                    .selected_hotbar
+                    .as_mut()
+                    .expect("selection attempt")
+                    .dispatched = true;
+                Ok(())
+            })
+            .await
     }
     /// Start an ordinary creative block break. Returned sequence identifies submission only.
     pub async fn dig_creative(&self, position: [i32; 3], face: crate::BlockFace) -> Result<i32> {
@@ -1634,29 +1669,38 @@ impl crate::client::adapter::CoreOps for Operations {
         })
     }
     async fn respawn(&self) -> Result<crate::client::RespawnRecord> {
-        let owned = self.clone();
-        tokio::spawn(async move {
-            let state = owned.bot.session.state.lock().await;
-            owned.ready(&state)?;
-            if state.phase != Phase::Play {
-                return Err(invalid("respawn requires play context"));
-            }
-            let player = owned.common_player_unlocked(&state)?;
-            crate::client::respawn::prepare(&owned.bot.respawn_history, &player)?;
-            let result = owned
-                .bot
-                .session
-                .send(ids::play_serverbound::CLIENT_COMMAND, &[0])
-                .await;
-            crate::client::respawn::dispatched(&owned.bot.respawn_history, &result);
-            result?;
-            Ok(
-                crate::client::respawn::snapshot(&owned.bot.respawn_history)
-                    .expect("owned respawn"),
-            )
-        })
-        .await
-        .map_err(|error| Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_scoped(async {
+                let owned = self.clone();
+                self.bot
+                    .session
+                    .spawn_finite_result(async move {
+                        let state = owned.bot.session.state.lock().await;
+                        owned.ready(&state)?;
+                        if state.phase != Phase::Play {
+                            return Err(invalid("respawn requires play context"));
+                        }
+                        let player = owned.common_player_unlocked(&state)?;
+                        crate::client::respawn::prepare(&owned.bot.respawn_history, &player)?;
+                        let result = owned
+                            .bot
+                            .session
+                            .send(ids::play_serverbound::CLIENT_COMMAND, &[0])
+                            .await;
+                        crate::client::respawn::dispatched(&owned.bot.respawn_history, &result);
+                        result?;
+                        Ok(crate::client::respawn::snapshot(&owned.bot.respawn_history)
+                            .expect("owned respawn"))
+                    })
+                    .await
+                    .map_err(|error| {
+                        Error::from(anyhow::anyhow!("respawn owner failed: {error}"))
+                    })?
+            })
+            .await
     }
     async fn execute(
         &self,

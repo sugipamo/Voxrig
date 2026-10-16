@@ -33,6 +33,8 @@ use tokio::sync::watch;
 
 use crate::MinecraftVersion;
 
+pub(crate) mod finite;
+
 const MAX_ROOTS: usize = 1024;
 const MAX_GUARDS: usize = 4096;
 const MAX_PRODUCERS: usize = 128;

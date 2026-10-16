@@ -29,6 +29,9 @@ impl Bot {
 }
 
 impl DigOps for Bot {
+    fn dig_work(&self) -> crate::client::ledger::WorkGuard {
+        self.connection.ledger().work()
+    }
     fn dig_coordinator(&self) -> Arc<dig::Coordinator> {
         self.operational_dig.clone()
     }

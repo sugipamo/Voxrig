@@ -1031,89 +1031,98 @@ impl crate::client::adapter::PathMotionOps for Bot {
         mode: GameMode,
         controls: &[SurvivalControl],
     ) -> Result<MotionRecord> {
-        model::validate_controls(controls)?;
-        let _gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        // Read the actor revision before capture; a competing native operation
-        // between this boundary and exclusive acquisition refuses before sends.
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| motion_state(&format!("bounded admission rejected: {e:?}")))?;
-        let preview = self.common_preview_in_mode(controls, None, mode).await?;
-        if preview.initial.received_pose.is_none() {
-            return Err(motion_state(
-                "finite motion requires native own-pose receipt",
-            ));
-        }
-        if !matches!(
-            preview.terminal_clearance,
-            TerminalClearance::Admitted { .. }
-        ) {
-            return Err(motion_state(
-                "finite controls must end in released rest with full dry support",
-            ));
-        }
-        let previous_id = self
-            .common_motion
-            .lock()
-            .await
-            .as_ref()
-            .map(|r| r.record.run_id)
-            .or(self
-                .retired_common_motion
-                .lock()
-                .await
-                .as_ref()
-                .map(|r| r.run_id));
-        let run_id = previous_id
-            .map_or(Some(1), |id| id.checked_add(1))
-            .ok_or_else(|| motion_state("motion run IDs exhausted"))?;
-        let movement_attribute = legacy_movement_attribute(&**self.survival.read().await).cloned();
-        let flight_stop = self
-            .common_motion
-            .lock()
-            .await
-            .as_ref()
-            .and_then(|r| r.flight_stop.clone());
-        let run = NativeMotionRun {
-            flight_stop,
-            expected_motion_revision: self.motion.lock().await.revision(),
-            movement_attribute,
-            record: MotionRecord {
-                session: preview.initial.session,
-                run_id,
-                preview,
-                attempted_tick: 0,
-                dispatched_ticks: 0,
-                status: MotionStatus::Running,
-                problem: None,
-            },
-        };
-        *self.common_motion.lock().await = Some(run.clone());
-        let owner = self.clone_internal();
-        let record = run.record.clone();
-        // No await between retaining the intent and spawning its finite owner.
-        tokio::spawn(async move {
-            if let Err(error) = owner.run_common_path(run.clone(), revision).await {
-                let _gate = owner.coherent_state_gate.lock().await;
-                if let Some(current) = owner
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                model::validate_controls(controls)?;
+                let _gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                // Read the actor revision before capture; a competing native operation
+                // between this boundary and exclusive acquisition refuses before sends.
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| motion_state(&format!("bounded admission rejected: {e:?}")))?;
+                let preview = self.common_preview_in_mode(controls, None, mode).await?;
+                if preview.initial.received_pose.is_none() {
+                    return Err(motion_state(
+                        "finite motion requires native own-pose receipt",
+                    ));
+                }
+                if !matches!(
+                    preview.terminal_clearance,
+                    TerminalClearance::Admitted { .. }
+                ) {
+                    return Err(motion_state(
+                        "finite controls must end in released rest with full dry support",
+                    ));
+                }
+                let previous_id = self
                     .common_motion
                     .lock()
                     .await
-                    .as_mut()
-                    .filter(|current| current.record.run_id == run.record.run_id)
-                {
-                    current.record.status = MotionStatus::RequiresInspection;
-                    current
-                        .record
-                        .problem
-                        .get_or_insert_with(|| error.to_string());
-                }
-            }
-        });
-        Ok(record)
+                    .as_ref()
+                    .map(|r| r.record.run_id)
+                    .or(self
+                        .retired_common_motion
+                        .lock()
+                        .await
+                        .as_ref()
+                        .map(|r| r.run_id));
+                let run_id = previous_id
+                    .map_or(Some(1), |id| id.checked_add(1))
+                    .ok_or_else(|| motion_state("motion run IDs exhausted"))?;
+                let movement_attribute =
+                    legacy_movement_attribute(&**self.survival.read().await).cloned();
+                let flight_stop = self
+                    .common_motion
+                    .lock()
+                    .await
+                    .as_ref()
+                    .and_then(|r| r.flight_stop.clone());
+                let run = NativeMotionRun {
+                    flight_stop,
+                    expected_motion_revision: self.motion.lock().await.revision(),
+                    movement_attribute,
+                    record: MotionRecord {
+                        session: preview.initial.session,
+                        run_id,
+                        preview,
+                        attempted_tick: 0,
+                        dispatched_ticks: 0,
+                        status: MotionStatus::Running,
+                        problem: None,
+                    },
+                };
+                *self.common_motion.lock().await = Some(run.clone());
+                let owner = self.clone_internal();
+                let record = run.record.clone();
+                // No await between retaining the intent and spawning its finite owner.
+                self.spawn_finite(async move {
+                    if let Err(error) = owner.run_common_path(run.clone(), revision).await {
+                        let _ = crate::client::ledger::finite::checked::<(), _>(Err(&error));
+                        let _ = crate::client::ledger::finite::checked::<(), _>(Err(&error));
+                        let _gate = owner.coherent_state_gate.lock().await;
+                        if let Some(current) = owner
+                            .common_motion
+                            .lock()
+                            .await
+                            .as_mut()
+                            .filter(|current| current.record.run_id == run.record.run_id)
+                        {
+                            current.record.status = MotionStatus::RequiresInspection;
+                            current
+                                .record
+                                .problem
+                                .get_or_insert_with(|| error.to_string());
+                        }
+                    }
+                });
+                Ok(record)
+            })
+            .await
     }
     async fn motion_record(&self) -> Result<Option<MotionRecord>> {
         let _gate = self.coherent_state_gate.lock().await;

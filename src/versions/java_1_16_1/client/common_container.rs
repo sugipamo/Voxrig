@@ -22,116 +22,125 @@ impl Bot {
         Ok(())
     }
     pub(super) async fn common_container_open_context_received(&self) -> Result<()> {
-        let Some(before) = super::lock_packet_state(&self.common_container_open)
-            .await
-            .as_ref()
-            .filter(|o| !o.released && o.record.requires_inspection.is_none())
-            .map(|o| o.record.clone())
-        else {
-            return Ok(());
-        };
-        let query = self
-            .common_target_in_mode(
-                4.5,
-                Some(CommonOwner::ContainerOpen(before.id)),
-                before.mode,
-            )
-            .await;
-        let current = match query {
-            Ok(query)
-                if query.hit.as_ref().is_some_and(|h| {
-                    h.position == before.target.position
-                        && (h.state == before.target.state
-                            || (before.send.dispatched && h.state.name == "minecraft:barrel"))
-                        && h.face == before.target.face
-                        && h.point
-                            .iter()
-                            .zip(before.target.point)
-                            .all(|(a, b)| (a - b).abs() < 1e-9)
-                }) =>
-            {
-                let hit = query.hit.as_ref().expect("checked hit");
-                let mut guard = super::lock_packet_state(&self.common_container_open).await;
-                let record = &mut guard.as_mut().expect("retained").record;
-                if !record.observe_target_state(
-                    &hit.state,
-                    query.world_revision,
-                    query.initial.receive_sequence,
-                ) {
-                    record.inspection("storage target properties changed");
+        self.with_finite(
+            crate::client::ledger::finite::Family::ContainerOpen,
+            async {
+                let Some(before) = super::lock_packet_state(&self.common_container_open)
+                    .await
+                    .as_ref()
+                    .filter(|o| !o.released && o.record.requires_inspection.is_none())
+                    .map(|o| o.record.clone())
+                else {
                     return Ok(());
+                };
+                let query = self
+                    .common_target_in_mode(
+                        4.5,
+                        Some(CommonOwner::ContainerOpen(before.id)),
+                        before.mode,
+                    )
+                    .await;
+                let current = match query {
+                    Ok(query)
+                        if query.hit.as_ref().is_some_and(|h| {
+                            h.position == before.target.position
+                                && (h.state == before.target.state
+                                    || (before.send.dispatched
+                                        && h.state.name == "minecraft:barrel"))
+                                && h.face == before.target.face
+                                && h.point
+                                    .iter()
+                                    .zip(before.target.point)
+                                    .all(|(a, b)| (a - b).abs() < 1e-9)
+                        }) =>
+                    {
+                        let hit = query.hit.as_ref().expect("checked hit");
+                        let mut guard = super::lock_packet_state(&self.common_container_open).await;
+                        let record = &mut guard.as_mut().expect("retained").record;
+                        if !record.observe_target_state(
+                            &hit.state,
+                            query.world_revision,
+                            query.initial.receive_sequence,
+                        ) {
+                            record.inspection("storage target properties changed");
+                            return Ok(());
+                        }
+                        query.initial
+                    }
+                    Ok(_) => {
+                        super::lock_packet_state(&self.common_container_open)
+                            .await
+                            .as_mut()
+                            .expect("retained")
+                            .record
+                            .inspection("storage first-outline geometry changed");
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        super::lock_packet_state(&self.common_container_open)
+                            .await
+                            .as_mut()
+                            .expect("retained")
+                            .record
+                            .inspection(format!("storage native context unavailable: {e}"));
+                        return Ok(());
+                    }
+                };
+                let screen = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(current.session));
+                let selected = current.selected_hotbar.as_ref().map(|s| s.value);
+                let context = contract::open::OpenContext {
+                    session: current.session,
+                    mode: current.game_mode,
+                    position: current.position.as_ref().map(|p| p.value),
+                    rotation: current.rotation,
+                    pose: current.received_pose.as_ref(),
+                    selected,
+                    hand: selected
+                        .filter(|s| *s <= 8)
+                        .and_then(|s| current.inventory.slots[36 + usize::from(s)].as_ref()),
+                    offhand: current.inventory.slots[45].as_ref(),
+                    cursor: current.inventory.cursor.as_ref(),
+                    player_screen: current.inventory.player_screen,
+                    screen: screen.as_ref(),
+                };
+                {
+                    let mut guard = super::lock_packet_state(&self.common_container_open).await;
+                    guard
+                        .as_mut()
+                        .expect("retained")
+                        .record
+                        .context_received(context);
                 }
-                query.initial
-            }
-            Ok(_) => {
-                super::lock_packet_state(&self.common_container_open)
+                if super::lock_packet_state(&self.common_container_open)
                     .await
-                    .as_mut()
-                    .expect("retained")
-                    .record
-                    .inspection("storage first-outline geometry changed");
-                return Ok(());
-            }
-            Err(e) => {
-                super::lock_packet_state(&self.common_container_open)
-                    .await
-                    .as_mut()
-                    .expect("retained")
-                    .record
-                    .inspection(format!("storage native context unavailable: {e}"));
-                return Ok(());
-            }
-        };
-        let screen = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session));
-        let selected = current.selected_hotbar.as_ref().map(|s| s.value);
-        let context = contract::open::OpenContext {
-            session: current.session,
-            mode: current.game_mode,
-            position: current.position.as_ref().map(|p| p.value),
-            rotation: current.rotation,
-            pose: current.received_pose.as_ref(),
-            selected,
-            hand: selected
-                .filter(|s| *s <= 8)
-                .and_then(|s| current.inventory.slots[36 + usize::from(s)].as_ref()),
-            offhand: current.inventory.slots[45].as_ref(),
-            cursor: current.inventory.cursor.as_ref(),
-            player_screen: current.inventory.player_screen,
-            screen: screen.as_ref(),
-        };
-        {
-            let mut guard = super::lock_packet_state(&self.common_container_open).await;
-            guard
-                .as_mut()
-                .expect("retained")
-                .record
-                .context_received(context);
-        }
-        if super::lock_packet_state(&self.common_container_open)
-            .await
-            .as_ref()
-            .is_some_and(|o| o.record.stage == contract::ContainerOpenStage::ObservedContents)
-        {
-            let outcome = self
-                .connection
-                .finish_container_open(before.id.attempt())
-                .await;
-            let mut guard = super::lock_packet_state(&self.common_container_open).await;
-            let owner = guard.as_mut().expect("retained");
-            match outcome {
-                Ok(()) => owner.released = true,
-                Err(e) => owner
-                    .record
-                    .inspection(format!("storage owner release unavailable: {e:?}")),
-            }
-        }
-        Ok(())
+                    .as_ref()
+                    .is_some_and(|o| {
+                        o.record.stage == contract::ContainerOpenStage::ObservedContents
+                    })
+                {
+                    let outcome = self
+                        .connection
+                        .finish_container_open(before.id.attempt())
+                        .await;
+                    let mut guard = super::lock_packet_state(&self.common_container_open).await;
+                    let owner = guard.as_mut().expect("retained");
+                    match outcome {
+                        Ok(()) => owner.released = true,
+                        Err(e) => owner
+                            .record
+                            .inspection(format!("storage owner release unavailable: {e:?}")),
+                    }
+                }
+                Ok(())
+            },
+        )
+        .await
     }
     async fn close_native_basis(&self, window: i8, player: &api::PlayerObservation) -> Result<()> {
         let inventory = self.inventory.read().await;
@@ -427,99 +436,114 @@ impl crate::client::adapter::ContainerOps for Bot {
         mode: api::GameMode,
         target: [i32; 3],
     ) -> Result<contract::ContainerOpenRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| api::inventory::unavailable(format!("storage open admission: {e:?}")))?;
-        self.open_native_inventory_admission().await?;
-        let query = self.common_target_in_mode(4.5, None, mode).await?;
-        let before = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(query.initial.session).id);
-        let record = contract::open::prepare_open(
-            query,
-            target,
-            mode,
-            before,
-            super::lock_packet_state(&self.common_container_open)
-                .await
-                .as_ref()
-                .map(|o| &o.record),
-            None,
-        )?;
-        let id = record.id;
-        *super::lock_packet_state(&self.common_container_open).await = Some(NativeContainerOpen {
-            record,
-            released: false,
-        });
-        let bot = self.clone_internal();
-        let (reply, result) = oneshot::channel();
-        tokio::spawn(async move {
-            let _gate = bot.coherent_state_gate.lock().await;
-            let outcome = async {
-                bot.common_container_open_context_received().await?;
-                let record = bot
-                    .common_container_open
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| {
+                        api::inventory::unavailable(format!("storage open admission: {e:?}"))
+                    })?;
+                self.open_native_inventory_admission().await?;
+                let query = self.common_target_in_mode(4.5, None, mode).await?;
+                let before = self
+                    .common_receipts
                     .lock()
                     .await
+                    .container
                     .as_ref()
-                    .filter(|o| o.record.id == id)
-                    .map(|o| o.record.clone())
-                    .ok_or_else(|| api::inventory::unavailable("storage open intent superseded"))?;
-                if record.requires_inspection.is_some() {
-                    return Err(api::inventory::unavailable(
-                        "storage open context changed before I/O",
-                    ));
-                }
-                bot.open_native_inventory_admission().await?;
-                bot.common_container_open
-                    .lock()
-                    .await
-                    .as_mut()
-                    .expect("retained")
-                    .record
-                    .send
-                    .after_sequence = bot.protocol_packet_sequence.load(Ordering::Acquire);
-                bot.connection
-                    .bounded_container_open(
-                        id.attempt(),
-                        revision,
-                        BlockPos {
-                            x: record.target.position[0],
-                            y: record.target.position[1],
-                            z: record.target.position[2],
-                        },
-                        record.target.face as u8,
-                        record.cursor,
-                    )
-                    .await
-            }
-            .await;
-            let mut guard = bot.common_container_open.lock().await;
-            let record = &mut guard.as_mut().expect("retained").record;
-            let value = match outcome {
-                Ok(()) => {
-                    record.sent();
-                    Ok(record.clone())
-                }
-                Err(e) => {
-                    record.inspection(&e);
-                    Err(e)
-                }
-            };
-            let _ = reply.send(value);
-        });
-        drop(gate);
-        result
+                    .map(|s| s.capture(query.initial.session).id);
+                let record = contract::open::prepare_open(
+                    query,
+                    target,
+                    mode,
+                    before,
+                    super::lock_packet_state(&self.common_container_open)
+                        .await
+                        .as_ref()
+                        .map(|o| &o.record),
+                    None,
+                )?;
+                let id = record.id;
+                let work = self.begin_finite(
+                    crate::client::ledger::finite::Family::ContainerOpen,
+                    id.attempt(),
+                );
+                *super::lock_packet_state(&self.common_container_open).await =
+                    Some(NativeContainerOpen {
+                        record,
+                        released: false,
+                    });
+                let bot = self.clone_internal();
+                let (reply, result) = oneshot::channel();
+                self.spawn_finite_work(work, async move {
+                    let _gate = bot.coherent_state_gate.lock().await;
+                    let outcome = async {
+                        bot.common_container_open_context_received().await?;
+                        let record = bot
+                            .common_container_open
+                            .lock()
+                            .await
+                            .as_ref()
+                            .filter(|o| o.record.id == id)
+                            .map(|o| o.record.clone())
+                            .ok_or_else(|| {
+                                api::inventory::unavailable("storage open intent superseded")
+                            })?;
+                        if record.requires_inspection.is_some() {
+                            return Err(api::inventory::unavailable(
+                                "storage open context changed before I/O",
+                            ));
+                        }
+                        bot.open_native_inventory_admission().await?;
+                        bot.common_container_open
+                            .lock()
+                            .await
+                            .as_mut()
+                            .expect("retained")
+                            .record
+                            .send
+                            .after_sequence = bot.protocol_packet_sequence.load(Ordering::Acquire);
+                        bot.connection
+                            .bounded_container_open(
+                                id.attempt(),
+                                revision,
+                                BlockPos {
+                                    x: record.target.position[0],
+                                    y: record.target.position[1],
+                                    z: record.target.position[2],
+                                },
+                                record.target.face as u8,
+                                record.cursor,
+                            )
+                            .await
+                    }
+                    .await;
+                    let mut guard = bot.common_container_open.lock().await;
+                    let record = &mut guard.as_mut().expect("retained").record;
+                    let value = match outcome {
+                        Ok(()) => {
+                            record.sent();
+                            Ok(record.clone())
+                        }
+                        Err(e) => {
+                            record.inspection(&e);
+                            Err(e)
+                        }
+                    };
+                    let _ = reply.send(crate::client::ledger::finite::checked(value));
+                });
+                drop(gate);
+                result.await.map_err(|_| {
+                    api::inventory::unavailable("storage open owner result unavailable")
+                })?
+            })
             .await
-            .map_err(|_| api::inventory::unavailable("storage open owner result unavailable"))?
     }
     /// Inspect the retained record without queuing behind a stalled owned write.
     async fn container_open_record(&self) -> Result<Option<contract::ContainerOpenRecord>> {
@@ -537,65 +561,73 @@ impl crate::client::adapter::ContainerOps for Bot {
         mode: api::GameMode,
         screen: contract::ScreenId,
     ) -> Result<contract::ContainerCloseRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| api::inventory::unavailable(format!("close admission: {e:?}")))?;
-        let initial = self.common_player_unlocked().await?;
-        let captured = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session))
-            .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
-        let window = i8::try_from(screen.window_id())
-            .ok()
-            .filter(|w| *w > 0)
-            .ok_or_else(|| api::inventory::unavailable("native legacy window unavailable"))?;
-        self.close_native_basis(window, &initial).await?;
-        let registries = self
-            .common_receipts
-            .lock()
-            .await
-            .registries
-            .capture(initial.session, initial.receive_sequence);
-        let record = contract::prepare_close_received(
-            (initial, registries),
-            captured,
-            screen,
-            mode,
-            super::lock_packet_state(&self.common_container_close)
-                .await
-                .as_ref(),
-        )?;
-        let id = record.id;
-        *super::lock_packet_state(&self.common_container_close).await = Some(record);
-        let bot = self.clone_internal();
-        let (reply, result) = oneshot::channel();
-        tokio::spawn(async move {
-            let outcome = bot.return_and_close_owned(id, revision, window).await;
-            if let Err(e) = &outcome {
-                if let Some(record) = bot
-                    .common_container_close
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| api::inventory::unavailable(format!("close admission: {e:?}")))?;
+                let initial = self.common_player_unlocked().await?;
+                let captured = self
+                    .common_receipts
                     .lock()
                     .await
-                    .as_mut()
-                    .filter(|r| r.id == id)
-                {
-                    record.inspection(e);
-                }
-            }
-            let _ = reply.send(outcome);
-        });
-        drop(gate);
-        result
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(initial.session))
+                    .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
+                let window = i8::try_from(screen.window_id())
+                    .ok()
+                    .filter(|w| *w > 0)
+                    .ok_or_else(|| {
+                        api::inventory::unavailable("native legacy window unavailable")
+                    })?;
+                self.close_native_basis(window, &initial).await?;
+                let registries = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let record = contract::prepare_close_received(
+                    (initial, registries),
+                    captured,
+                    screen,
+                    mode,
+                    super::lock_packet_state(&self.common_container_close)
+                        .await
+                        .as_ref(),
+                )?;
+                let id = record.id;
+                *super::lock_packet_state(&self.common_container_close).await = Some(record);
+                let bot = self.clone_internal();
+                let (reply, result) = oneshot::channel();
+                self.spawn_finite(async move {
+                    let outcome = bot.return_and_close_owned(id, revision, window).await;
+                    if let Err(e) = &outcome {
+                        if let Some(record) = bot
+                            .common_container_close
+                            .lock()
+                            .await
+                            .as_mut()
+                            .filter(|r| r.id == id)
+                        {
+                            record.inspection(e);
+                        }
+                    }
+                    let _ = reply.send(crate::client::ledger::finite::checked(outcome));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
+            })
             .await
-            .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
     }
     async fn container_close_record(&self) -> Result<Option<contract::ContainerCloseRecord>> {
         if let Ok(_gate) = self.coherent_state_gate.try_lock() {

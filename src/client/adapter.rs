@@ -89,6 +89,7 @@ pub(crate) trait CoreOps {
 
 /// Facts the dig timing needs that only the adapter knows.
 pub(crate) trait DigOps {
+    fn dig_work(&self) -> super::ledger::WorkGuard;
     fn dig_coordinator(&self) -> std::sync::Arc<super::operational_dig::Coordinator>;
     async fn dig_snapshot(&self, target: [i32; 3]) -> Result<super::operational_dig::Inputs>;
     async fn dig_dispatch(

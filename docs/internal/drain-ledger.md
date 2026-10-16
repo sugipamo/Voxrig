@@ -1,10 +1,10 @@
-# Internal draft: admission ledger and writer integration (#131 PR 1–2)
+# Internal draft: admission ledger, writers and finite owners (#131 PR 1–3)
 
 This is an internal implementation contract and integration checklist, not a
 public API or a guarantee of current Client behavior. `src/client/ledger/` is
 crate-private and has no public re-exports. PR 2 wires both adapters' writers,
 legacy protocol transactions/exact barriers, modern inline pending swaps, and
-protocol responses. Finite workers/continuations belong to PR 3; producer park,
+protocol responses. PR 3 wires finite workers and retained continuations; producer park,
 restricted stop and public drain belong to PR 4. There is no public receipt yet.
 The approved direction is staged quiesce (option B); resume and automatic stop
 target selection are excluded. This foundation does not implement QuiesceHandle,
@@ -201,9 +201,10 @@ are internal choices; no public API is introduced here.
 
 ## Operation-family completion and dependency inventory
 
-This checklist comes from design §1.3 at baseline 9932ae4. It describes future
-integration obligations. PR 2 wires the protocol pending/writer boundaries
-described above; remaining operation-family worker/continuation ownership is PR 3. "Classify"
+This checklist comes from design §1.3 at baseline 9932ae4. PR 2 wires the
+protocol pending/writer boundaries described above; PR 3 implements the finite
+operation-family ownership described below. Producer and shutdown obligations
+remain for PR 4–5. "Classify"
 means retain certainty/uncertainty and required local dependencies, not a settled
 Golemkit ACK/outcome contract. Frame W and pending cleanup follow the approved interpretation above; public
 stop scope, BackendDrain and multi-party authority are not implemented here.
@@ -241,3 +242,73 @@ sites. No stop behavior, stop-permit holder, neutral movement/item/vehicle/dig
 release, resume, or final public seal is implemented in this PR. Test-only scoped threads, observations tests, and
 native trial spawn_blocking paths are not production owners. No public success
 may be exposed until all write-capable paths and dependency handoffs are audited.
+
+
+## PR 3 finite ownership and caller cancellation
+
+Finite admission scopes register before publishing intent. A connection-owned
+worker receives a child before spawning and retains a raw WorkGuard through its
+entire future, including timers, receiver waits, subsequent frames, release and
+history cleanup. Cancelling the public waiter does not cancel that worker.
+Worker cancellation/panic is OwnerLost; a failed finite result records sticky
+TransactionUnconfirmed while preserving the original public result. Existing
+explicit aborted stages and receipt timeouts cannot become clean drains.
+
+`ledger::finite` propagates the same existing root/child authority through a
+private Tokio task-local scope. `Ledger::work` inherits only when Arc identity
+matches the originating ledger, including after root closure; a different
+transport (even a separate ledger with the same diagnostic GenerationKey) admits
+its own root. This is context propagation for the existing attribution model,
+not a new attribution policy, a maintenance bypass, or a stop permit. Actual
+writes still allocate real permits at the unchanged SocketWriter boundary.
+
+The connection/state-owned Retained map holds guards independently of public
+records and send workers. It retains only live families/attempts (plus modern
+creative slots); replacing/resetting unresolved authority fails closed. Receiver
+and existing inspection reconciliation retire it only after required local
+completion or sticky uncertainty. Legacy inspection/actor cleanup inherits a
+child from retained authority, so it cannot vanish between send-worker exit and
+actor release. Completed/failed history carries no write authority. Neither
+retained maps nor their weak expiry observers retain a session through a guard.
+No getter or scan was added to Drain::inspect: its original synchronous prefix
+query and terminal checks are unchanged.
+
+Legacy crafting, swap, transfer, placement and exact-target mining reconcile at
+the receive boundary. Crafting no longer has a `confirm` flag that only a public
+getter could set. Modern common swaps use the same received-result predicate as
+their existing getter to release pending state; click/transfer/crafting/recipe,
+container opening and native/common placement/mining retire their ledger owners
+from received state. Pure historical observation after a completed dispatch is
+not a new continuation. Native pending swaps retain PR 2's explicit wait/cleanup
+contract and sticky timeout behavior; merely dropping the public submission
+handle never retires pending ownership.
+
+The existing legacy click/swap receipt deadlines also have weak, write-free
+ledger expiry observers: a drain fails on expiry even with no subsequent packet
+or getter. Successful retirement disarms them by dropping the pending owner;
+these observers cannot prolong a completed root. No public deadline, packet,
+retry, inspection result or cancellation action is added.
+
+The approved caller-owned timer decision is intentionally different from a
+connection-owned continuation. Native 1.16.1 dig_block/use_item_for and modern
+dig_survival_cube (and analogous caller-owned finite helpers) retain their
+existing cancellation behavior. Dropping such a future records sticky OwnerLost
+without scheduling FINISH, ABORT or release. Their existing rustdoc/contracts
+remain unchanged. Operational dig is already connection-owned: its root spans
+START, timed FINISH or cancellation ABORT, observation wait and cleanup history;
+its existing timeout/abort result also makes drain fail permanently.
+
+Finite flight landing spans disable, neutral and every ground tick. Finite
+vehicle inputs span every tick and neutral release; dismount/explicit release
+and resume-ground each own their accepted finite action. Respawn spans its owned
+send and history update on the original transport; a later received world is not
+a new ledger. A staged mining START or dismount request does not pre-admit a
+future caller-requested FINISH/ABORT/release. Only existing admitted stages and
+connection-owned continuations are debt. Recovery creates a fresh connection
+with a fresh ledger; no authority/receipt migrates from the old connection.
+
+Continuous control/passive physics/receiver response producer lifetimes,
+producer samples and queued jump parking, quiesce/neutral-stop selection, final
+maintenance seal, public APIs and shutdown registries remain PR 4–5. Existing
+individual writes from those paths still require real writer permits. No park,
+stop policy, resume behavior or public drain success is introduced here.

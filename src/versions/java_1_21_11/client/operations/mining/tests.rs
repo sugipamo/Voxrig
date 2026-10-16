@@ -2571,8 +2571,16 @@ async fn operational_cancel_is_owned_once_and_does_not_abort_a_replacement_world
         if world_changed {
             f.session.state.lock().await.loading.generation += 1;
         }
+        let writer = f.session.writer.lock().await;
+        let mut drain = f.session.ledger.cut(false);
+        assert!(drain.inspect().is_none());
         task.abort();
         let _ = task.await;
+        if !world_changed {
+            tokio::task::yield_now().await;
+            assert!(drain.inspect().is_none());
+        }
+        drop(writer);
         if !world_changed {
             let (id, abort) =
                 tokio::time::timeout(Duration::from_secs(2), read_packet(&mut f.peer, None))
@@ -2606,6 +2614,142 @@ async fn operational_cancel_is_owned_once_and_does_not_abort_a_replacement_world
                 .is_err()
         );
         assert!(client.survival().mining_record().await.unwrap().is_none());
+        assert!(
+            tokio::time::timeout(Duration::from_secs(2), drain.wait())
+                .await
+                .unwrap()
+                .is_err()
+        );
         f.stop().await;
     }
+}
+
+#[tokio::test]
+async fn ledger_native_caller_timer_cancellation_keeps_start_without_finish_or_abort() {
+    let mut f = Fixture::new().await;
+    let owner = f.api.clone();
+    let task = tokio::spawn(async move {
+        owner
+            .dig_survival_cube(TARGET, crate::BlockFace::West, Duration::from_secs(2))
+            .await
+    });
+    let (id, start) = read_packet(&mut f.peer, None).await.unwrap();
+    assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+    assert_eq!(start[0], 0);
+    let mut drain = f.session.ledger.cut(false);
+    assert!(drain.inspect().is_none());
+    let idle_writer = f.session.writer.lock().await;
+    drop(idle_writer);
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    assert!(drain.wait().await.is_err());
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn ledger_operational_timer_and_finish_remain_debt_with_an_idle_writer() {
+    let mut f = Fixture::new().await;
+    f.change(TARGET, &native("dirt")).await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let owner = client.clone();
+    let task =
+        tokio::spawn(async move { owner.survival().dig(TARGET, crate::BlockFace::Up).await });
+    let (_, start) = read_packet(&mut f.peer, None).await.unwrap();
+    assert_eq!(start[0], 0);
+    let mut drain = f.session.ledger.cut(false);
+    let idle_writer = f.session.writer.lock().await;
+    assert!(drain.inspect().is_none());
+    drop(idle_writer);
+    let (id, finish) = timeout(Duration::from_secs(3), read_packet(&mut f.peer, None))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+    assert_eq!(finish[0], 2);
+    assert!(drain.inspect().is_none());
+    f.change(TARGET, &native("air")).await;
+    assert!(task.await.unwrap().unwrap().removed);
+    timeout(Duration::from_secs(1), drain.wait())
+        .await
+        .unwrap()
+        .unwrap();
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn ledger_recovery_transport_write_does_not_inherit_the_source_connection_root() {
+    let source = Fixture::new_id(41).await;
+    let mut recovered = Fixture::new_id(43).await;
+    let original_w = source.session.ledger.test_written_through();
+    let recovered_w = recovered.session.ledger.test_written_through();
+    let owner = source.session.ledger.work();
+    let mut source_drain = source.session.ledger.cut(false);
+    owner
+        .run(async {
+            recovered.api.select_hotbar(1).await.unwrap();
+            assert_eq!(
+                read_packet(&mut recovered.peer, None).await.unwrap().0,
+                ids::play_serverbound::HELD_ITEM_SLOT
+            );
+            recovered.session.ledger.cut(false).wait().await.unwrap();
+            assert!(source_drain.inspect().is_none());
+        })
+        .await;
+    source_drain.wait().await.unwrap();
+    assert_eq!(source.session.ledger.test_written_through(), original_w);
+    assert_eq!(
+        recovered.session.ledger.test_written_through(),
+        recovered_w + 1
+    );
+    source.stop().await;
+    recovered.stop().await;
+}
+
+#[tokio::test]
+async fn ledger_dropped_operational_caller_waits_for_an_already_admitted_timed_finish_flush() {
+    let mut f = Fixture::new().await;
+    f.change(TARGET, &native("dirt")).await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let owner = client.clone();
+    let caller =
+        tokio::spawn(async move { owner.survival().dig(TARGET, crate::BlockFace::Up).await });
+    assert_eq!(read_packet(&mut f.peer, None).await.unwrap().1[0], 0);
+    let control = crate::client::ledger::testing::Control::default();
+    control.release(usize::MAX, false);
+    f.session
+        .writer
+        .lock()
+        .await
+        .stream
+        .test_replace(control.writer());
+    control.until(|c| c.progress().1 > 0).await;
+    let written = f.session.ledger.test_written_through();
+    let mut drain = f.session.ledger.cut(false);
+    caller.abort();
+    assert!(caller.await.unwrap_err().is_cancelled());
+    assert!(drain.inspect().is_none());
+    assert_eq!(f.session.ledger.test_written_through(), written);
+    let bytes = control.bytes();
+    let mut frame = bytes.as_slice();
+    crate::protocol::get_varint(&mut frame).unwrap();
+    assert_eq!(
+        crate::protocol::get_varint(&mut frame).unwrap(),
+        ids::play_serverbound::BLOCK_DIG
+    );
+    assert_eq!(frame[0], 2);
+    control.release(usize::MAX, true);
+    assert!(
+        timeout(Duration::from_secs(1), drain.wait())
+            .await
+            .unwrap()
+            .is_err()
+    );
+    assert_eq!(f.session.ledger.test_written_through(), written + 1);
+    assert!(client.survival().dig_cleanup_record().is_none());
+    f.stop().await;
 }

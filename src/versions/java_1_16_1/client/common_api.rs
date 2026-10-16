@@ -461,21 +461,29 @@ impl crate::client::adapter::CoreOps for Bot {
         ))
     }
     async fn respawn(&self) -> Result<api::RespawnRecord> {
-        let bot = self.clone();
-        tokio::spawn(async move {
-            let _gate = bot.coherent_state_gate.lock().await;
-            if bot.connection_state() != ConnectionState::Ready {
-                return Err(common_state("respawn requires ready play context"));
-            }
-            let player = bot.common_player_unlocked().await?;
-            api::respawn::prepare(&bot.respawn_history, &player)?;
-            let result = bot.respawn().await;
-            api::respawn::dispatched(&bot.respawn_history, &result);
-            result?;
-            Ok(api::respawn::snapshot(&bot.respawn_history).expect("owned respawn"))
-        })
-        .await
-        .map_err(|error| crate::Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let bot = self.clone();
+                self.spawn_finite_result(async move {
+                    let _gate = bot.coherent_state_gate.lock().await;
+                    if bot.connection_state() != ConnectionState::Ready {
+                        return Err(common_state("respawn requires ready play context"));
+                    }
+                    let player = bot.common_player_unlocked().await?;
+                    api::respawn::prepare(&bot.respawn_history, &player)?;
+                    let result = bot.respawn().await;
+                    api::respawn::dispatched(&bot.respawn_history, &result);
+                    result?;
+                    Ok(api::respawn::snapshot(&bot.respawn_history).expect("owned respawn"))
+                })
+                .await
+                .map_err(|error| {
+                    crate::Error::from(anyhow::anyhow!("respawn owner failed: {error}"))
+                })?
+            })
+            .await
     }
     async fn connection_identity(&self) -> Result<api::ConnectionIdentity> {
         let _gate = self.coherent_state_gate.lock().await;
@@ -2983,12 +2991,18 @@ mod tests {
                 .await
                 .is_err()
         );
+        let mut drain = bot.connection.ledger().cut(false);
         drop(wait);
+        assert!(drain.inspect().is_none());
         let pending = client.flight_record().unwrap();
         assert_eq!(pending.command, api::FlightCommand::Land);
         assert_eq!(pending.stage, api::FlightStage::Prepared);
         assert!(!pending.landing.as_ref().unwrap().disable_dispatched);
         drop(writer);
+        tokio::time::timeout(Duration::from_secs(2), drain.wait())
+            .await
+            .unwrap()
+            .unwrap();
         tokio::time::timeout(Duration::from_secs(2), async {
             loop {
                 let r = client.flight_record().unwrap();

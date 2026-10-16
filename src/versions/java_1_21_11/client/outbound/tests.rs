@@ -2792,12 +2792,18 @@ async fn cancelled_common_landing_wait_retains_disable_neutral_and_two_ground_ti
             .await
             .is_err()
     );
+    let mut drain = session.ledger.cut(false);
     drop(wait);
+    assert!(drain.inspect().is_none());
     let pending = client.flight_record().unwrap();
     assert_eq!(pending.command, crate::client::FlightCommand::Land);
     assert_eq!(pending.stage, crate::client::FlightStage::Prepared);
     assert!(!pending.landing.as_ref().unwrap().disable_dispatched);
     drop(writer);
+    tokio::time::timeout(Duration::from_secs(2), drain.wait())
+        .await
+        .unwrap()
+        .unwrap();
     tokio::time::timeout(Duration::from_secs(2), async {
         loop {
             let r = client.flight_record().unwrap();
@@ -4944,5 +4950,39 @@ async fn ledger_modern_position_response_batch_fails_midway_under_one_root() {
         assert_eq!(&control.bytes()[..first.len()], &first);
         assert_eq!(control.bytes().len(), first.len() + 1);
         assert_eq!(control.progress().2, 1);
+    }
+}
+
+#[tokio::test]
+async fn ledger_native_and_common_share_debt_across_finite_motion_ticks() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    api.look([0., 0.]).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let cached = client
+        .survival()
+        .start_predicted_path(
+            &[crate::client::survival::SurvivalControl {
+                yaw: 0.,
+                input: Default::default(),
+            }; 3],
+        )
+        .await
+        .unwrap();
+    assert_eq!(cached.dispatched_ticks, 0);
+    // Each modern tick includes a native input and a position frame.
+    for _ in 0..2 {
+        read_packet(&mut peer, None).await.unwrap();
+    }
+    let mut drain = session.ledger.cut(false);
+    let idle_writer = session.writer.lock().await;
+    assert!(drain.inspect().is_none());
+    drop(idle_writer);
+    timeout(Duration::from_secs(2), drain.wait())
+        .await
+        .unwrap()
+        .unwrap();
+    for _ in 0..4 {
+        read_packet(&mut peer, None).await.unwrap();
     }
 }

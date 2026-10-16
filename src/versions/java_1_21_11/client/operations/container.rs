@@ -344,68 +344,82 @@ impl crate::client::adapter::ContainerOps for Operations {
         mode: api::GameMode,
         target: [i32; 3],
     ) -> Result<contract::ContainerOpenRecord> {
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        let inventory = &state.operations.inventory;
-        if inventory.pending_swap.is_some()
-            || !inventory.pending_creative.is_empty()
-            || inventory.unsupported_components
-        {
-            return Err(api::inventory::unavailable(
-                "native inventory mutation/data unresolved",
-            ));
-        }
-        let query = self.common_target_unlocked(&mut state, mode, 4.5)?;
-        let before = state
-            .operations
-            .inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(query.initial.session).id);
-        let sequence = self.next_sequence()?;
-        let record = contract::open::prepare_open(
-            query,
-            target,
-            mode,
-            before,
-            state.common_container_open.as_ref(),
-            Some(sequence),
-        )?;
-        let mut payload = vec![0];
-        payload.extend(pack_position(target).to_be_bytes());
-        put_varint(&mut payload, record.target.face as i32);
-        for v in record.cursor {
-            payload.extend(v.to_be_bytes());
-        }
-        payload.extend([0, 0]);
-        put_varint(&mut payload, sequence);
-        state.common_container_open = Some(record);
-        // Cancellation before complete send retains Pending and native writer uncertainty.
-        match self
-            .bot
+        self.bot
             .session
-            .send(ids::play_serverbound::BLOCK_PLACE, &payload)
-            .await
-        {
-            Ok(()) => state
-                .common_container_open
-                .as_mut()
-                .expect("retained")
-                .sent(),
-            Err(e) => {
-                state
+            .ledger
+            .work()
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                let inventory = &state.operations.inventory;
+                if inventory.pending_swap.is_some()
+                    || !inventory.pending_creative.is_empty()
+                    || inventory.unsupported_components
+                {
+                    return Err(api::inventory::unavailable(
+                        "native inventory mutation/data unresolved",
+                    ));
+                }
+                let query = self.common_target_unlocked(&mut state, mode, 4.5)?;
+                let before = state
+                    .operations
+                    .inventory
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(query.initial.session).id);
+                let sequence = self.next_sequence()?;
+                let record = contract::open::prepare_open(
+                    query,
+                    target,
+                    mode,
+                    before,
+                    state.common_container_open.as_ref(),
+                    Some(sequence),
+                )?;
+                let mut payload = vec![0];
+                payload.extend(pack_position(target).to_be_bytes());
+                put_varint(&mut payload, record.target.face as i32);
+                for v in record.cursor {
+                    payload.extend(v.to_be_bytes());
+                }
+                payload.extend([0, 0]);
+                put_varint(&mut payload, sequence);
+                let work = state.finite_work.begin(
+                    &self.bot.session.ledger,
+                    crate::client::ledger::finite::Family::ContainerOpen,
+                    record.id.attempt(),
+                );
+                state.common_container_open = Some(record);
+                // Cancellation before complete send retains Pending and native writer uncertainty.
+                match work
+                    .run(
+                        self.bot
+                            .session
+                            .send(ids::play_serverbound::BLOCK_PLACE, &payload),
+                    )
+                    .await
+                {
+                    Ok(()) => state
+                        .common_container_open
+                        .as_mut()
+                        .expect("retained")
+                        .sent(),
+                    Err(e) => {
+                        state
+                            .common_container_open
+                            .as_mut()
+                            .expect("retained")
+                            .inspection(&e);
+                        return Err(e);
+                    }
+                }
+                Ok(state
                     .common_container_open
-                    .as_mut()
+                    .as_ref()
                     .expect("retained")
-                    .inspection(&e);
-                return Err(e);
-            }
-        }
-        Ok(state
-            .common_container_open
-            .as_ref()
-            .expect("retained")
-            .clone())
+                    .clone())
+            })
+            .await
     }
     async fn container_open_record(&self) -> Result<Option<contract::ContainerOpenRecord>> {
         let mut state = self.bot.session.state.lock().await;
@@ -426,53 +440,62 @@ impl crate::client::adapter::ContainerOps for Operations {
         mode: api::GameMode,
         screen: contract::ScreenId,
     ) -> Result<contract::ContainerCloseRecord> {
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        let inventory = &state.operations.inventory;
-        if inventory.pending_swap.is_some()
-            || !inventory.pending_creative.is_empty()
-            || inventory.unsupported_components
-        {
-            return Err(api::inventory::unavailable(
-                "native inventory data/mutation unresolved",
-            ));
-        }
-        let initial = self.common_player_unlocked(&state)?;
-        let captured = inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session))
-            .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
-        let registries = state
-            .registries
-            .capture(initial.session, initial.receive_sequence);
-        let record = contract::prepare_close_received(
-            (initial, registries),
-            captured,
-            screen,
-            mode,
-            state.common_container_close.as_ref(),
-        )?;
-        let id = record.id;
-        state.common_container_close = Some(record);
-        publish_close(&mut state);
-        let owner = self.clone();
-        let (reply, outcome) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
-            let result = owner.return_and_close_owned(id).await;
-            if let Err(error) = &result {
-                let mut state = owner.bot.session.state.lock().await;
-                if let Some(record) = state.common_container_close.as_mut().filter(|r| r.id == id) {
-                    record.inspection(error);
+        self.bot
+            .session
+            .ledger
+            .work()
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                let inventory = &state.operations.inventory;
+                if inventory.pending_swap.is_some()
+                    || !inventory.pending_creative.is_empty()
+                    || inventory.unsupported_components
+                {
+                    return Err(api::inventory::unavailable(
+                        "native inventory data/mutation unresolved",
+                    ));
                 }
+                let initial = self.common_player_unlocked(&state)?;
+                let captured = inventory
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(initial.session))
+                    .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
+                let registries = state
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let record = contract::prepare_close_received(
+                    (initial, registries),
+                    captured,
+                    screen,
+                    mode,
+                    state.common_container_close.as_ref(),
+                )?;
+                let id = record.id;
+                state.common_container_close = Some(record);
                 publish_close(&mut state);
-            }
-            let _ = reply.send(result);
-        });
-        drop(state);
-        outcome
+                let owner = self.clone();
+                let (reply, outcome) = tokio::sync::oneshot::channel();
+                self.bot.session.spawn_finite(async move {
+                    let result = owner.return_and_close_owned(id).await;
+                    if let Err(error) = &result {
+                        let mut state = owner.bot.session.state.lock().await;
+                        if let Some(record) =
+                            state.common_container_close.as_mut().filter(|r| r.id == id)
+                        {
+                            record.inspection(error);
+                        }
+                        publish_close(&mut state);
+                    }
+                    let _ = reply.send(crate::client::ledger::finite::checked(result));
+                });
+                drop(state);
+                outcome
+                    .await
+                    .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
+            })
             .await
-            .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
     }
     async fn container_close_record(&self) -> Result<Option<contract::ContainerCloseRecord>> {
         if let Ok(mut state) = self.bot.session.state.try_lock() {

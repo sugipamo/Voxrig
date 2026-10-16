@@ -382,62 +382,79 @@ impl Bot {
 
 impl crate::client::adapter::VehicleOps for Bot {
     async fn dismount(&self, mode: api::GameMode, mount: MountId) -> Result<DismountRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        if self.connection_state() != ConnectionState::Ready
-            || self.control().await != ControlState::default()
-        {
-            return Err(unavailable(
-                "dismount requires ready connection and released legacy controls",
-            ));
-        }
-        let (player, vehicle) = self.vehicle_capture_unlocked().await?;
-        let record = {
-            let mut history = self.dismount_history.lock().expect("dismount history");
-            let record = contract::prepare(&player, vehicle, mode, mount, history.as_ref())?;
-            *history = Some(record.clone());
-            record
-        };
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        let id = record.id;
-        tokio::spawn(async move {
-            let _ = reply.send(bot.dismount_send_owned(id, false).await);
-        });
-        drop(gate);
-        result
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                if self.connection_state() != ConnectionState::Ready
+                    || self.control().await != ControlState::default()
+                {
+                    return Err(unavailable(
+                        "dismount requires ready connection and released legacy controls",
+                    ));
+                }
+                let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+                let record = {
+                    let mut history = self.dismount_history.lock().expect("dismount history");
+                    let record =
+                        contract::prepare(&player, vehicle, mode, mount, history.as_ref())?;
+                    *history = Some(record.clone());
+                    record
+                };
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                let id = record.id;
+                self.spawn_finite(async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.dismount_send_owned(id, false).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| unavailable("dismount owner result unavailable"))?
+            })
             .await
-            .map_err(|_| unavailable("dismount owner result unavailable"))?
     }
     async fn complete_dismount(
         &self,
         mode: api::GameMode,
         id: DismountId,
     ) -> Result<DismountRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        let record = self.dismount_snapshot(id)?;
-        if record.mode != mode || record.release_claimed {
-            return Err(unavailable(
-                "dismount release already claimed or wrong handle mode",
-            ));
-        }
-        let (player, vehicle) = self.vehicle_capture_unlocked().await?;
-        contract::validate_before(&record, &player, &vehicle, true)?;
-        self.dismount_history
-            .lock()
-            .expect("dismount history")
-            .as_mut()
-            .expect("retained")
-            .release_claimed = true;
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.dismount_send_owned(id, true).await);
-        });
-        drop(gate);
-        result
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                let record = self.dismount_snapshot(id)?;
+                if record.mode != mode || record.release_claimed {
+                    return Err(unavailable(
+                        "dismount release already claimed or wrong handle mode",
+                    ));
+                }
+                let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+                contract::validate_before(&record, &player, &vehicle, true)?;
+                self.dismount_history
+                    .lock()
+                    .expect("dismount history")
+                    .as_mut()
+                    .expect("retained")
+                    .release_claimed = true;
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite(async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.dismount_send_owned(id, true).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| unavailable("dismount release owner result unavailable"))?
+            })
             .await
-            .map_err(|_| unavailable("dismount release owner result unavailable"))?
     }
     async fn dismount_record(&self) -> Result<Option<DismountRecord>> {
         if let Ok(_gate) = self.coherent_state_gate.try_lock() {
@@ -457,54 +474,64 @@ impl crate::client::adapter::VehicleOps for Bot {
         mount: MountId,
         inputs: &[api::VehicleInput],
     ) -> Result<api::VehicleControlRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        if self.connection_state() != ConnectionState::Ready
-            || self.control().await != ControlState::default()
-        {
-            return Err(unavailable(
-                "vehicle control requires ready released native controls",
-            ));
-        }
-        let (player, vehicle) = self.vehicle_capture_unlocked().await?;
-        let motion = match mount.vehicle() {
-            Some(target) => Some(self.common_receipts.lock().await.entities.capture_motion(
-                player.session,
-                target,
-                player.receive_sequence,
-            )?),
-            None => None,
-        };
-        let receipts = self.common_receipts.lock().await;
-        let record = {
-            let mut history = self
-                .vehicle_control_history
-                .lock()
-                .expect("vehicle control history");
-            let mut record = api::vehicle::control::prepare(
-                player,
-                vehicle,
-                mode,
-                mount,
-                inputs,
-                history.as_ref(),
-            )?;
-            api::vehicle::control::configure_boat(&mut record, motion, history.as_ref())?;
-            api::vehicle::control::bind_contacts(&mut record, &receipts.entities)?;
-            *history = Some(record.clone());
-            record
-        };
-        drop(receipts);
-        let id = record.id;
-        let bot = self.clone_internal();
-        let (reply, result) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.vehicle_control_send_owned(id).await);
-        });
-        drop(gate);
-        result
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                if self.connection_state() != ConnectionState::Ready
+                    || self.control().await != ControlState::default()
+                {
+                    return Err(unavailable(
+                        "vehicle control requires ready released native controls",
+                    ));
+                }
+                let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+                let motion = match mount.vehicle() {
+                    Some(target) => {
+                        Some(self.common_receipts.lock().await.entities.capture_motion(
+                            player.session,
+                            target,
+                            player.receive_sequence,
+                        )?)
+                    }
+                    None => None,
+                };
+                let receipts = self.common_receipts.lock().await;
+                let record = {
+                    let mut history = self
+                        .vehicle_control_history
+                        .lock()
+                        .expect("vehicle control history");
+                    let mut record = api::vehicle::control::prepare(
+                        player,
+                        vehicle,
+                        mode,
+                        mount,
+                        inputs,
+                        history.as_ref(),
+                    )?;
+                    api::vehicle::control::configure_boat(&mut record, motion, history.as_ref())?;
+                    api::vehicle::control::bind_contacts(&mut record, &receipts.entities)?;
+                    *history = Some(record.clone());
+                    record
+                };
+                drop(receipts);
+                let id = record.id;
+                let bot = self.clone_internal();
+                let (reply, result) = tokio::sync::oneshot::channel();
+                self.spawn_finite(async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.vehicle_control_send_owned(id).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| unavailable("vehicle control owner result unavailable"))?
+            })
             .await
-            .map_err(|_| unavailable("vehicle control owner result unavailable"))?
     }
     async fn vehicle_control_record(&self) -> Result<Option<api::VehicleControlRecord>> {
         if let Ok(_gate) = self.coherent_state_gate.try_lock() {
@@ -522,41 +549,49 @@ impl crate::client::adapter::VehicleOps for Bot {
         Ok(history.clone())
     }
     async fn resume_ground(&self, mode: api::GameMode, id: DismountId) -> Result<DismountRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let record = self.dismount_snapshot(id)?;
-        if record.mode != mode
-            || record.grounding.is_some()
-            || self.connection_state() != ConnectionState::Ready
-            || self.control().await != ControlState::default()
-        {
-            return Err(unavailable(
-                "ground stop already claimed, wrong mode or unavailable native owner",
-            ));
-        }
-        let (player, vehicle) = self.vehicle_capture_unlocked().await?;
-        if player.pending_dispatch {
-            return Err(unavailable("ground stop refuses pending dispatch"));
-        }
-        contract::validate_ground_before(&record, &player, &vehicle)?;
-        let run = self.dismount_ground_plan(player).await?;
-        self.dismount_history
-            .lock()
-            .expect("dismount history")
-            .as_mut()
-            .unwrap()
-            .grounding = Some(api::DismountGrounding {
-            declared_controller_velocity: [0.; 3],
-            motion: run.record.clone(),
-        });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.ground_send_owned(id, run).await);
-        });
-        drop(gate);
-        result
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_motion_admission().await?;
+                let record = self.dismount_snapshot(id)?;
+                if record.mode != mode
+                    || record.grounding.is_some()
+                    || self.connection_state() != ConnectionState::Ready
+                    || self.control().await != ControlState::default()
+                {
+                    return Err(unavailable(
+                        "ground stop already claimed, wrong mode or unavailable native owner",
+                    ));
+                }
+                let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+                if player.pending_dispatch {
+                    return Err(unavailable("ground stop refuses pending dispatch"));
+                }
+                contract::validate_ground_before(&record, &player, &vehicle)?;
+                let run = self.dismount_ground_plan(player).await?;
+                self.dismount_history
+                    .lock()
+                    .expect("dismount history")
+                    .as_mut()
+                    .unwrap()
+                    .grounding = Some(api::DismountGrounding {
+                    declared_controller_velocity: [0.; 3],
+                    motion: run.record.clone(),
+                });
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite(async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.ground_send_owned(id, run).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| unavailable("ground owner result unavailable"))?
+            })
             .await
-            .map_err(|_| unavailable("ground owner result unavailable"))?
     }
 }

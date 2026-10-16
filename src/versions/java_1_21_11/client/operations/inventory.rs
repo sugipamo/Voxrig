@@ -264,12 +264,7 @@ impl Operations {
             main_slot,
             hotbar,
         )?;
-        let work = self
-            .bot
-            .session
-            .ledger
-            .admit()
-            .expect("existing swap admission");
+        let work = self.bot.session.ledger.work();
         state.pending_swap_work = Some(PendingWork::new(work));
         state.operations.inventory.pending_swap = Some(submission.clone());
         let send_work = ScopedWork::new(
@@ -613,3 +608,7 @@ pub(super) fn receive(
 
 #[cfg(test)]
 mod tests;
+
+pub(in crate::versions::java_1_21_11::client) fn creative_pending(state: &State, slot: u8) -> bool {
+    state.operations.inventory.pending_creative.contains(&slot)
+}

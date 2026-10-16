@@ -126,6 +126,7 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
         source: InventorySource,
         slot: u16,
     ) -> Result<InventoryTransferRecord> {
+        self.bot.session.ledger.work().run_scoped(async {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
         if let InventorySource::Container { screen } = source {
@@ -172,11 +173,12 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
                 .map(|v| if v == 0 { 1 } else { 0 });
         }
         let bytes = payload(&record)?;
+        let work = state.finite_work.begin(&self.bot.session.ledger, crate::client::ledger::finite::Family::Transfer, record.id.attempt());
         state.common_inventory_transfer = Some(record);
-        let result = self
+        let result = work.run(self
             .bot
             .session
-            .send(ids::play_serverbound::WINDOW_CLICK, &bytes)
+            .send(ids::play_serverbound::WINDOW_CLICK, &bytes))
             .await;
         let record = state.common_inventory_transfer.as_mut().expect("retained");
         match result {
@@ -189,6 +191,8 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
                 Err(e)
             }
         }
+
+        }).await
     }
     async fn inventory_transfer_record(&self) -> Result<Option<InventoryTransferRecord>> {
         let mut state = self.bot.session.state.lock().await;
@@ -203,6 +207,7 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
                 record.stage = InventoryTransferStage::ObservedTransferred;
             }
         }
+        state.reconcile_finite();
         Ok(state.common_inventory_transfer.clone())
     }
 }

@@ -276,169 +276,160 @@ impl Bot {
         }
     }
     async fn reconcile_common_mining(&self, confirm_removal: bool) -> Result<()> {
-        let Some(snapshot) = super::lock_packet_state(&self.common_mining).await.clone() else {
-            return Ok(());
-        };
-        if snapshot.record.stage == MiningStage::ObservedRemoved {
-            return Ok(());
-        }
-        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
-            self.interrupt_common_mining("mining connection closed or unavailable")
+        self.with_finite(crate::client::ledger::finite::Family::Mining, async {
+            let Some(snapshot) = super::lock_packet_state(&self.common_mining).await.clone() else {
+                return Ok(());
+            };
+            if snapshot.record.stage == MiningStage::ObservedRemoved {
+                return Ok(());
+            }
+            if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+                self.interrupt_common_mining("mining connection closed or unavailable")
+                    .await;
+                return Ok(());
+            }
+            let current = self.common_player_unlocked().await?;
+            if current.session != snapshot.record.id.session()
+                || current.game_mode != Some(crate::client::GameMode::Survival)
+                || current.position.as_ref().map(|p| p.value)
+                    != snapshot.record.initial.position.as_ref().map(|p| p.value)
+                || current.rotation != snapshot.record.initial.rotation
+                || *self.local_pose.lock().await != Some(0)
+                || !current
+                    .health
+                    .as_ref()
+                    .is_some_and(|h| h.value.health > 0.0)
+                || self.motion.lock().await.revision() != snapshot.movement_revision
+            {
+                self.interrupt_common_mining("mining player/world context changed")
+                    .await;
+            }
+            if {
+                let survival = self.survival.read().await;
+                survival.flying
+                    || !survival.effects.is_empty()
+                    || super::common_motion::legacy_movement_attribute(&survival)
+                        != snapshot.movement_attribute.as_ref()
+            } || !self.player.lock().await.on_ground
+                || self.control().await != ControlState::default()
+            {
+                self.interrupt_common_mining(
+                    "mining flight/effects/attributes/grounded controls changed",
+                )
                 .await;
-            return Ok(());
-        }
-        let current = self.common_player_unlocked().await?;
-        if current.session != snapshot.record.id.session()
-            || current.game_mode != Some(crate::client::GameMode::Survival)
-            || current.position.as_ref().map(|p| p.value)
-                != snapshot.record.initial.position.as_ref().map(|p| p.value)
-            || current.rotation != snapshot.record.initial.rotation
-            || *self.local_pose.lock().await != Some(0)
-            || !current
-                .health
+            }
+            if let Err(error) = self
+                .common_preview_core(
+                    &[crate::client::survival::SurvivalControl {
+                        yaw: current.rotation[0],
+                        input: Default::default(),
+                    }],
+                    Some(snapshot.record.id),
+                )
+                .await
+            {
+                self.interrupt_common_mining(format!("mining standing geometry changed: {error}"))
+                    .await;
+            }
+            let selected = snapshot
+                .record
+                .initial
+                .selected_hotbar
                 .as_ref()
-                .is_some_and(|h| h.value.health > 0.0)
-            || self.motion.lock().await.revision() != snapshot.movement_revision
-        {
-            self.interrupt_common_mining("mining player/world context changed")
-                .await;
-        }
-        if {
-            let survival = self.survival.read().await;
-            survival.flying
-                || !survival.effects.is_empty()
-                || super::common_motion::legacy_movement_attribute(&survival)
-                    != snapshot.movement_attribute.as_ref()
-        } || !self.player.lock().await.on_ground
-            || self.control().await != ControlState::default()
-        {
-            self.interrupt_common_mining(
-                "mining flight/effects/attributes/grounded controls changed",
-            )
-            .await;
-        }
-        if let Err(error) = self
-            .common_preview_core(
-                &[crate::client::survival::SurvivalControl {
-                    yaw: current.rotation[0],
-                    input: Default::default(),
-                }],
-                Some(snapshot.record.id),
-            )
-            .await
-        {
-            self.interrupt_common_mining(format!("mining standing geometry changed: {error}"))
-                .await;
-        }
-        let selected = snapshot
-            .record
-            .initial
-            .selected_hotbar
-            .as_ref()
-            .expect("prepared selection")
-            .value;
-        let hand = current.inventory.slots[36 + usize::from(selected)].as_ref();
-        let kind = if current.selected_hotbar != snapshot.record.initial.selected_hotbar {
-            Some(MiningInventoryChangeKind::SelectionChanged)
-        } else if current.inventory.window_id != Some(0)
-            || !known_empty(current.inventory.cursor.as_ref())
-        {
-            Some(MiningInventoryChangeKind::PlayerScreenChanged)
-        } else if !self.inventory.read().await.pending_clicks.is_empty() {
-            Some(MiningInventoryChangeKind::InventoryUnavailable)
-        } else if !hand.is_some_and(|h| {
-            matches!(h.source, ValueSource::Received { .. })
-                && Some(&h.value)
-                    == snapshot.record.initial.inventory.slots[36 + usize::from(selected)]
-                        .as_ref()
-                        .map(|s| &s.value)
-        }) {
-            Some(MiningInventoryChangeKind::SelectedHandChanged)
-        } else {
-            None
-        };
-        if let Err(error) = self
-            .mining_estimate(&current, &snapshot.record.baseline)
-            .await
-        {
-            self.interrupt_common_mining(format!("mining tool prerequisites changed: {error}"))
-                .await;
-        }
-        if let Some(kind) = kind {
+                .expect("prepared selection")
+                .value;
+            let hand = current.inventory.slots[36 + usize::from(selected)].as_ref();
+            let kind = if current.selected_hotbar != snapshot.record.initial.selected_hotbar {
+                Some(MiningInventoryChangeKind::SelectionChanged)
+            } else if current.inventory.window_id != Some(0)
+                || !known_empty(current.inventory.cursor.as_ref())
+            {
+                Some(MiningInventoryChangeKind::PlayerScreenChanged)
+            } else if !self.inventory.read().await.pending_clicks.is_empty() {
+                Some(MiningInventoryChangeKind::InventoryUnavailable)
+            } else if !hand.is_some_and(|h| {
+                matches!(h.source, ValueSource::Received { .. })
+                    && Some(&h.value)
+                        == snapshot.record.initial.inventory.slots[36 + usize::from(selected)]
+                            .as_ref()
+                            .map(|s| &s.value)
+            }) {
+                Some(MiningInventoryChangeKind::SelectedHandChanged)
+            } else {
+                None
+            };
+            if let Err(error) = self
+                .mining_estimate(&current, &snapshot.record.baseline)
+                .await
+            {
+                self.interrupt_common_mining(format!("mining tool prerequisites changed: {error}"))
+                    .await;
+            }
+            if let Some(kind) = kind {
+                let mut guard = super::lock_packet_state(&self.common_mining).await;
+                let run = guard.as_mut().expect("retained mining");
+                if run.record.inventory_change.is_none() {
+                    run.record.inventory_change = Some(MiningInventoryChange {
+                        kind,
+                        receive_sequence: current.receive_sequence,
+                        selection: current.selected_hotbar.clone(),
+                        original_hand: hand.map_or(SlotKnowledge::Unavailable, |h| h.value.clone()),
+                        hand_receive_sequence: hand.and_then(|h| match h.source {
+                            ValueSource::Received { sequence } => Some(sequence),
+                            _ => None,
+                        }),
+                        window_id: current.inventory.window_id,
+                        cursor: current
+                            .inventory
+                            .cursor
+                            .as_ref()
+                            .map_or(SlotKnowledge::Unavailable, |c| c.value.clone()),
+                        unsupported_components: false,
+                        sole_cause: run.record.requires_inspection.is_none(),
+                    });
+                    run.record.requires_inspection.get_or_insert_with(|| {
+                        "received inventory prerequisites changed during mining".into()
+                    });
+                    run.record.stage = MiningStage::RequiresInspection;
+                }
+            }
             let mut guard = super::lock_packet_state(&self.common_mining).await;
             let run = guard.as_mut().expect("retained mining");
-            if run.record.inventory_change.is_none() {
-                run.record.inventory_change = Some(MiningInventoryChange {
-                    kind,
-                    receive_sequence: current.receive_sequence,
-                    selection: current.selected_hotbar.clone(),
-                    original_hand: hand.map_or(SlotKnowledge::Unavailable, |h| h.value.clone()),
-                    hand_receive_sequence: hand.and_then(|h| match h.source {
-                        ValueSource::Received { sequence } => Some(sequence),
-                        _ => None,
-                    }),
-                    window_id: current.inventory.window_id,
-                    cursor: current
-                        .inventory
-                        .cursor
-                        .as_ref()
-                        .map_or(SlotKnowledge::Unavailable, |c| c.value.clone()),
-                    unsupported_components: false,
-                    sole_cause: run.record.requires_inspection.is_none(),
-                });
-                run.record.requires_inspection.get_or_insert_with(|| {
-                    "received inventory prerequisites changed during mining".into()
-                });
-                run.record.stage = MiningStage::RequiresInspection;
-            }
-        }
-        let mut guard = super::lock_packet_state(&self.common_mining).await;
-        let run = guard.as_mut().expect("retained mining");
-        if run.record.requires_inspection.is_none() {
-            let target = run.record.target;
-            let id = self
-                .world
-                .lock()
-                .await
-                .block(target[0], target[1], target[2]);
-            if let Some(id) = id {
-                if let Some(receipt) = run.record.target_receipt.as_ref().filter(|r| {
-                    confirm_removal
-                        && run.record.start.dispatched
-                        && r.receive_sequence > run.record.start.after_sequence
-                }) {
-                    let state = crate::versions::java_1_16_1::native_state(id)?;
-                    if state == receipt.state
-                        && matches!(
-                            state.name.as_str(),
-                            "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
-                        )
-                    {
-                        run.record.stage = MiningStage::ObservedRemoved;
+            if run.record.requires_inspection.is_none() {
+                let target = run.record.target;
+                let id = self
+                    .world
+                    .lock()
+                    .await
+                    .block(target[0], target[1], target[2]);
+                if let Some(id) = id {
+                    if let Some(receipt) = run.record.target_receipt.as_ref().filter(|r| {
+                        confirm_removal
+                            && run.record.start.dispatched
+                            && r.receive_sequence > run.record.start.after_sequence
+                    }) {
+                        let state = crate::versions::java_1_16_1::native_state(id)?;
+                        if state == receipt.state
+                            && matches!(
+                                state.name.as_str(),
+                                "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
+                            )
+                        {
+                            run.record.stage = MiningStage::ObservedRemoved;
+                        }
                     }
+                } else {
+                    inspection(run, "mining target unloaded");
                 }
-            } else {
-                inspection(run, "mining target unloaded");
             }
-        }
-        Ok(())
+            Ok(())
+        })
+        .await
     }
     pub(super) async fn common_mining_context_received(&self) -> Result<()> {
-        // Per-packet latch runs before later packets can restore an empty hand/mode.
-        let tool = super::lock_packet_state(&self.common_mining)
-            .await
-            .as_ref()
-            .is_some_and(|r| {
-                let p = &r.record.initial;
-                p.selected_hotbar.as_ref().is_some_and(|s| {
-                    p.inventory.slots[36 + usize::from(s.value)]
-                        .as_ref()
-                        .is_some_and(|h| matches!(h.value, SlotKnowledge::Item { .. }))
-                })
-            });
-        // A tool may wear in a later slot packet. Preserve the already checked
-        // exact-target air at its own receive boundary before that later change.
-        self.reconcile_common_mining(tool).await
+        // Reconcile exact-target receipts at their receive boundary, including
+        // empty hands. Later packets and getter timing cannot change completion.
+        self.reconcile_common_mining(true).await
     }
     pub(super) async fn common_mining_chunk_changed(&self, chunk: [i32; 2]) {
         let mut guard = super::lock_packet_state(&self.common_mining).await;
@@ -508,113 +499,135 @@ impl Bot {
 
 impl crate::client::adapter::MiningOps for Bot {
     async fn start_mining(&self, target: [i32; 3], face: crate::BlockFace) -> Result<MiningRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        if self.operational_dig.active() {
-            return Err(mining::unavailable(
-                "operational dig owns this connection; no replacement mining admitted",
-            ));
-        }
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                if self.operational_dig.active() {
+                    return Err(mining::unavailable(
+                        "operational dig owns this connection; no replacement mining admitted",
+                    ));
+                }
+                self.common_motion_admission().await?;
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| {
+                        mining::unavailable(format!("mining admission rejected: {e:?}"))
+                    })?;
+                let query = self.mining_prepared(target, face, None).await?;
+                let initial = query.initial;
+                let baseline = query.hit.expect("prepared hit").state;
+                let estimate = self.mining_estimate(&initial, &baseline).await?;
+                let id = MiningId::new(initial.session, 1); // No in-session replacement/continuation.
+                let record = MiningRecord {
+                    id,
+                    target,
+                    face,
+                    estimated_wait_ms: estimate.wait_ms(),
+                    estimate,
+                    start: MiningSend {
+                        after_sequence: initial.receive_sequence,
+                        interaction_sequence: None,
+                        dispatched: false,
+                    },
+                    initial,
+                    baseline,
+                    finish: None,
+                    abort: None,
+                    target_receipt: None,
+                    protocol: None,
+                    inventory_change: None,
+                    requires_inspection: None,
+                    stage: MiningStage::Mining,
+                    recovery_attempt: None,
+                    continuation_validated: false,
+                };
+                *super::lock_packet_state(&self.common_mining).await = Some(NativeMiningRun {
+                    record,
+                    movement_revision: self.motion.lock().await.revision(),
+                    movement_attribute: super::common_motion::legacy_movement_attribute(
+                        &**self.survival.read().await,
+                    )
+                    .cloned(),
+                });
+                // Retain before spawning the owner. Cancellation of this waiter neither clears
+                // the intent nor resends. The task performs the single native command.
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite(async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.mining_send_owned(id, MiningAction::Start, Some(revision))
+                            .await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| mining::unavailable("mining owner result missing"))?
+            })
             .await
-            .map_err(|e| mining::unavailable(format!("mining admission rejected: {e:?}")))?;
-        let query = self.mining_prepared(target, face, None).await?;
-        let initial = query.initial;
-        let baseline = query.hit.expect("prepared hit").state;
-        let estimate = self.mining_estimate(&initial, &baseline).await?;
-        let id = MiningId::new(initial.session, 1); // No in-session replacement/continuation.
-        let record = MiningRecord {
-            id,
-            target,
-            face,
-            estimated_wait_ms: estimate.wait_ms(),
-            estimate,
-            start: MiningSend {
-                after_sequence: initial.receive_sequence,
-                interaction_sequence: None,
-                dispatched: false,
-            },
-            initial,
-            baseline,
-            finish: None,
-            abort: None,
-            target_receipt: None,
-            protocol: None,
-            inventory_change: None,
-            requires_inspection: None,
-            stage: MiningStage::Mining,
-            recovery_attempt: None,
-            continuation_validated: false,
-        };
-        *super::lock_packet_state(&self.common_mining).await = Some(NativeMiningRun {
-            record,
-            movement_revision: self.motion.lock().await.revision(),
-            movement_attribute: super::common_motion::legacy_movement_attribute(
-                &**self.survival.read().await,
-            )
-            .cloned(),
-        });
-        // Retain before spawning the owner. Cancellation of this waiter neither clears
-        // the intent nor resends. The task performs the single native command.
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(
-                bot.mining_send_owned(id, MiningAction::Start, Some(revision))
-                    .await,
-            );
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| mining::unavailable("mining owner result missing"))?
     }
     async fn mining_send(&self, id: MiningId, action: MiningAction) -> Result<MiningRecord> {
-        if action == MiningAction::Start {
-            return Err(mining::unavailable("START may not be replayed"));
-        }
-        let gate = self.coherent_state_gate.lock().await;
-        {
-            let mut guard = super::lock_packet_state(&self.common_mining).await;
-            let run = guard
-                .as_mut()
-                .filter(|m| m.record.id == id)
-                .ok_or_else(|| {
-                    mining::unavailable("mining id belongs to another connection/attempt")
-                })?;
-            if !run.record.start.dispatched
-                || run.record.stage == MiningStage::ObservedRemoved
-                || run.record.requires_inspection.is_some()
-                || run.record.abort.is_some()
-                || (action == MiningAction::Finish && run.record.finish.is_some())
-            {
-                return Err(mining::unavailable(
-                    "mining command cannot resume or replay this stage",
-                ));
-            }
-            let attempt = MiningSend {
-                after_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
-                interaction_sequence: None,
-                dispatched: false,
-            };
-            if action == MiningAction::Abort {
-                run.record.abort = Some(attempt);
-            } else {
-                run.record.finish = Some(attempt);
-                run.record.stage = MiningStage::PendingAfterFinish;
-            }
-        }
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.mining_send_owned(id, action, None).await);
-        });
-        drop(gate);
-        result
+        self.connection
+            .ledger()
+            .work()
+            .run_scoped(async {
+                if action == MiningAction::Start {
+                    return Err(mining::unavailable("START may not be replayed"));
+                }
+                let gate = self.coherent_state_gate.lock().await;
+                {
+                    let mut guard = super::lock_packet_state(&self.common_mining).await;
+                    let run = guard
+                        .as_mut()
+                        .filter(|m| m.record.id == id)
+                        .ok_or_else(|| {
+                            mining::unavailable("mining id belongs to another connection/attempt")
+                        })?;
+                    if !run.record.start.dispatched
+                        || run.record.stage == MiningStage::ObservedRemoved
+                        || run.record.requires_inspection.is_some()
+                        || run.record.abort.is_some()
+                        || (action == MiningAction::Finish && run.record.finish.is_some())
+                    {
+                        return Err(mining::unavailable(
+                            "mining command cannot resume or replay this stage",
+                        ));
+                    }
+                    let attempt = MiningSend {
+                        after_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+                        interaction_sequence: None,
+                        dispatched: false,
+                    };
+                    if action == MiningAction::Abort {
+                        let _ = crate::client::ledger::finite::checked::<(), _>(Err(()));
+                        run.record.abort = Some(attempt);
+                    } else {
+                        let work = self.begin_finite(
+                            crate::client::ledger::finite::Family::Mining,
+                            id.attempt(),
+                        );
+                        work.finish(crate::client::ledger::Outcome::Complete);
+                        run.record.finish = Some(attempt);
+                        run.record.stage = MiningStage::PendingAfterFinish;
+                    }
+                }
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite(async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.mining_send_owned(id, action, None).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| mining::unavailable("mining owner result missing"))?
+            })
             .await
-            .map_err(|_| mining::unavailable("mining owner result missing"))?
     }
     async fn mining_record(&self) -> Result<Option<MiningRecord>> {
         let _gate = self.coherent_state_gate.lock().await;
