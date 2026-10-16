@@ -84,11 +84,12 @@ oracle evidence. Owner equality alone does not feed the classifier.
   minecarts, not walking players or boats. Its metadata refreshes marker/small
   dimensions/blocksBuilding; none changes those unconditional exclusions.
   This proof is for the existing owner lane, not remote minecart simulation.
-  Unmodeled vehicles remain refused on walking; the existing boat rigid lane
+  Unmodeled vehicles pass through on walking; the existing boat rigid lane
   is unchanged. Geometry is explicitly Unknown rather than fabricated.
 * Status and animation are independent callback capabilities. For modeled
   species, only Step A's audited sheep status 10, listener-owned status 35 and
-  animations 4/5 are no-ops; all other codes refuse as typed Unsupported.
+  animations 4/5 have finite no-op proofs; all other codes now pass through
+  without applying effects (Step 6, Issue #128 option 3).
   See [packet side effects](contact-packet-audit.md). The finite audited subset
   does not qualify arbitrary entity callbacks. For the two excluded types,
   callback/geometry changes cannot turn the constant contact exclusions on;
@@ -122,15 +123,12 @@ exclusion probes), not proof that all WIP species are qualified.
 
 Step B separately proves finite default Spider/CaveSpider envelopes; see
 [envelope audit](contact-envelope-audit.md). Step D extends no envelope exemption.
-All other Unknown/BoundedUnknown bodies refuse globally, including at distance.
-Spider/CaveSpider refuse when intersecting or unprovable and may proceed only
-when the existing envelope proves nonintersection with every relevant query.
-A lifetime's refusal retains its original Spawn trigger, including after later
-metadata, mount or motion receipts, because that unsupported spawn remains the
-cause. Removal and native-ID reuse re-evaluate the new lifetime independently.
+Step 6 intentionally makes all other Unknown/BoundedUnknown bodies pass through,
+including at distance. Spider/CaveSpider retain their finite locality proof but
+fall back to omission when intersecting or unprovable. No new species is modeled.
 History/provenance/lifetime loss stays Permanent, missing received profile/game
-mode stays Transient, and unsupported capabilities stay Unsupported at their
-construction sites. No reason-string parsing or public schema changes occur.
+mode stays Transient, and unsupported modeled geometry/metadata stays Unsupported.
+See [the behavior and API migration](contact-policy-consumers.md#step-6-intentional-pass-through-issue-128-option-3).
 
 ## Step D ordinary mob review
 
@@ -149,7 +147,7 @@ passenger exception or alternate interpolation path. Chicken adds the reviewed
 aiStep tail and custom baby default-dimension owner described below.
 The complete constructors, wrappers and metadata callbacks were reviewed, not
 just push entry points. Existing unit-scale, equipment-completeness, spin-attack and mount guards remain
-in place; unaudited status/animation values still refuse.
+in place; unaudited status/animation values now pass through without applying effects.
 The existing Step A 35 and 4/5 handler proofs remain valid: status 35 and
 animations 4/5 are listener-owned; no subclass callback is dispatched.
 

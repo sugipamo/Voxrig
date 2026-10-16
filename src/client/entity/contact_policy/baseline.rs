@@ -1,4 +1,5 @@
 mod policy_baseline {
+    use crate::MinecraftVersion as V;
     use crate::client::entity::contact_policy::key::*;
     use crate::client::entity::contact_policy::{
         frozen_capabilities, frozen_locality, frozen_selectors, locality, table,
@@ -13,7 +14,6 @@ mod policy_baseline {
         EntityHistoryKind, EntityHistoryValue, EntityId, LivingInterpolationPose,
         MAX_ENTITY_HISTORY_READ, SessionStamp,
     };
-    use crate::{MinecraftVersion as V, MovementPacketTrigger, MovementRefusal};
     use std::fmt::Write;
 
     fn production_tick(
@@ -59,6 +59,7 @@ mod policy_baseline {
         // Only the fixed default-pose/far-query observation in step 1. This is
         // not an implementation of DeferredContact's lifetime/geometry proof.
         matches!(profile.locality, table::LocalityId::DefaultSpiderEnvelope)
+            || matches!(profile.unqualified, table::Decision::PassThrough)
             || (matches!(profile.effects.solid, table::Class::ProvenIrrelevant)
                 && matches!(
                     if boat {
@@ -161,7 +162,7 @@ mod policy_baseline {
     }
 
     #[test]
-    fn unresolved_and_absent_names_preserve_frozen_refusals() {
+    fn unresolved_and_absent_names_preserve_frozen_classifications_and_proofs() {
         for version in VERSIONS {
             for name in EntityType::ALL.iter().map(|entity| entity.name()).chain([
                 "",
@@ -201,10 +202,10 @@ mod policy_baseline {
     #[test]
     fn frozen_contact_policy_baseline() {
         let mut out = String::from(
-            "contact-policy-baseline-v1\n\
+            "contact-policy-baseline-v2\n\
 base=fbd854f; union=159; versions=2; lanes=5; effects=7; packets=521\n\
 packet-order=Spawn,Motion,Metadata,Equipment,Scale,Status(-128..127),Animation(0..255),Removed,Passengers,WorldChanged,OwnPositionCorrection\n\
-rows=version/entity/lane/effect: shared-classification, harmless-packet-runs\n\
+rows=version/entity/lane/effect: shared-classification, harmless-packet-runs, ignored-callback-runs\n\
 shared predicates are observations, not lane admission; spawn is owned walking; locality is default-pose far-query walking/boat\n",
         );
         let mut shadow = out.clone();
@@ -298,6 +299,7 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                     let profile = table::lookup(version, entity_type, lane);
                     for &effect in Effect::ALL {
                         let mut classification = None;
+                        let mut ignored = Vec::new();
                         let harmless = runs(PacketKey::ALL.into_iter().map(|packet| {
                             let caps = contact_capabilities::capabilities(version, name);
                             assert_eq!(caps, frozen_capabilities::lookup(version, name));
@@ -397,11 +399,18 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                                 decision, production,
                                 "{version:?}/{name}/{lane:?}/{effect:?}/{packet:?} packet"
                             );
+                            let ignore = super::super::ignore_callback(version, name, &kind);
+                            assert_eq!(
+                                ignore,
+                                matches!(packet, PacketKey::Status(_) | PacketKey::Animation(_))
+                            );
+                            ignored.push(ignore);
                             production
                         }));
+                        let ignored_runs = runs(ignored.into_iter());
                         writeln!(
                             out,
-                            "{lane:?}/{effect:?}: {:?}; {harmless}",
+                            "{lane:?}/{effect:?}: {:?}; {harmless}; {ignored_runs}",
                             classification.unwrap()
                         )
                         .unwrap();
@@ -409,9 +418,19 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                             EXPANDED_PACKETS[profile.packets as usize][effect.ordinal()]
                                 [packet.ordinal()]
                         }));
+                        let decisions = super::super::validate::expand_packets(
+                            table::PACKET_POLICIES[profile.packets as usize],
+                            table::EVIDENCE_REQUIREMENTS.len(),
+                        );
+                        let shadow_ignored = runs(PacketKey::ALL.into_iter().map(|packet| {
+                            !matches!(
+                                decisions[effect.ordinal()][packet.ordinal()],
+                                table::Decision::Refuse
+                            )
+                        }));
                         writeln!(
                             shadow,
-                            "{lane:?}/{effect:?}: {:?}; {shadow_harmless}",
+                            "{lane:?}/{effect:?}: {:?}; {shadow_harmless}; {shadow_ignored}",
                             profile.effects.get(effect)
                         )
                         .unwrap();
@@ -603,8 +622,14 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                         );
                         assert_eq!(deferred.relevant(boat), old_relevant);
                         assert_eq!(
-                            deferred.check(far, boat).is_ok(),
+                            deferred.proves_irrelevant(far, boat),
                             !old_relevant || (old_envelope && pose.is_some())
+                        );
+                        assert_eq!(
+                            deferred.check(far, boat).is_ok(),
+                            policy.pass_through(boat)
+                                || !old_relevant
+                                || (old_envelope && pose.is_some())
                         );
                         let near = Aabb {
                             min_x: 0.,
@@ -613,7 +638,11 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                             max_z: 1.,
                             ..far
                         };
-                        assert_eq!(deferred.check(near, boat).is_ok(), !old_relevant);
+                        assert_eq!(deferred.proves_irrelevant(near, boat), !old_relevant);
+                        assert_eq!(
+                            deferred.check(near, boat).is_ok(),
+                            policy.pass_through(boat) || !old_relevant
+                        );
                     }
                     for packet in PacketKey::ALL {
                         let old = old_envelope && frozen_locality::revokes(packet);
@@ -705,34 +734,9 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                         _ => panic!("unexpected revocation {packet:?}"),
                     }
                     model.refresh(10, &ledger, 3).unwrap();
-                    let error = step(&mut model, version).unwrap_err();
-                    assert!(
-                        matches!(
-                            error.movement_refusal(),
-                            Some(MovementRefusal::Unsupported { .. })
-                        ),
-                        "{version:?}/{entity:?}/{packet:?}"
-                    );
-                    let context = error.movement_refusal().unwrap().context();
-                    assert_eq!(context.native_entity_id, Some(7));
-                    assert_eq!(context.entity_type.as_deref(), Some(entity.name()));
-                    assert_eq!(context.receive_sequence, Some(3));
-                    let (packet_type, opcode) = match packet {
-                        PacketKey::Status(status) => ("Status", i32::from(status)),
-                        PacketKey::Animation(animation) => ("Animation", i32::from(animation)),
-                        PacketKey::Metadata => ("Metadata", 0),
-                        PacketKey::Equipment => ("Equipment", 0),
-                        PacketKey::Scale => ("Scale", 0),
-                        PacketKey::Passengers => ("Passengers", 0),
-                        _ => unreachable!(),
-                    };
-                    assert_eq!(
-                        context.packet,
-                        Some(MovementPacketTrigger {
-                            packet_type: packet_type.into(),
-                            opcode
-                        })
-                    );
+                    step(&mut model, version).unwrap();
+                    assert!(model.world.bodies.is_empty());
+                    assert_eq!(model.frame(0).bodies.len(), 0);
                 }
             }
         }
@@ -740,7 +744,7 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
     }
 
     #[test]
-    fn representative_callback_context() {
+    fn representative_callbacks_pass_through_with_finite_proofs_unchanged() {
         for version in VERSIONS {
             for (name, status, animation) in [
                 ("minecraft:rabbit", Some(1), None),
@@ -749,29 +753,13 @@ shared predicates are observations, not lane admission; spawn is owned walking; 
                 ("minecraft:sheep", None, Some(4)),
                 ("minecraft:sheep", None, Some(5)),
             ] {
-                let (mut ledger, session, entity) = spawn(version, name);
+                let (mut ledger, session, _) = spawn(version, name);
                 let mut model = OwnedContacts::new(session, 10, 99, &ledger, 2).unwrap();
                 ledger.history_context(version, 3, 3);
                 ledger.history_signal(7, status, animation);
                 let result = model.refresh(10, &ledger, 3);
-                if name == "minecraft:rabbit" {
-                    let error = result.unwrap_err();
-                    let refusal = error.movement_refusal().unwrap();
-                    assert!(matches!(refusal, MovementRefusal::Unsupported { .. }));
-                    let context = refusal.context();
-                    assert_eq!(context.entity, Some(entity));
-                    assert_eq!(context.entity_type.as_deref(), Some(name));
-                    assert_eq!(context.native_entity_id, Some(7));
-                    assert_eq!(
-                        context.packet,
-                        Some(MovementPacketTrigger {
-                            packet_type: "Status".into(),
-                            opcode: 1
-                        })
-                    );
-                } else {
-                    result.unwrap();
-                }
+                result.unwrap();
+                assert_eq!(model.world.bodies.len(), 1);
             }
             let caps = contact_capabilities::capabilities(version, "minecraft:wolf");
             use contact_capabilities::Classification::Unknown;

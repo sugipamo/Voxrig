@@ -48,6 +48,9 @@ impl DeferredPolicy {
     fn locality(self, boat: bool) -> &'static LocalityProfile {
         &table::LOCALITY_PROFILES[self.profile(boat).locality as usize]
     }
+    pub(in crate::client::entity) fn pass_through(self, boat: bool) -> bool {
+        matches!(self.profile(boat).unqualified, table::Decision::PassThrough)
+    }
     pub(in crate::client::entity) fn relevant(self, boat: bool) -> bool {
         let effects = self.profile(boat).effects;
         effects.solid != Class::ProvenIrrelevant

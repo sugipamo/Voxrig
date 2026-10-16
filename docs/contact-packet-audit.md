@@ -2,7 +2,7 @@
 
 Scope: exact contact reducer, Java 1.16.1 and 1.21.11 only. This is a deliberately
 small audited set, not a claim that all other opcodes affect movement. Unknown
-opcodes still refuse. Public entity history continues to retain every packet.
+opcodes now pass through without applying contact effects (Step 6, #128 option 3). Public entity history continues to retain every packet.
 
 <!-- contact-policy:packets:start -->
 | Version | Packet key (not wire ID) | Qualified targets |
@@ -21,7 +21,7 @@ These generated target/opcode sets describe the current private reducer in both
 versions. Each species must qualify its contact dispatch before entering it.
 No distance exemption, envelope, or approximate mode is used for these callbacks.
 Status 10 sets Sheep's eating timer; Status 35 and Animation 4/5 produce the
-visual/audio effects reviewed below. All other sub-opcodes retain refusal.
+visual/audio effects reviewed below. All other sub-opcodes use the separate PassThrough policy.
 `python3 -B scripts/audit_contact_packets.py --check` verifies these finite proof
 claims against the export without jars. `python3 -B scripts/contact_policy_export.py
 --check` checks the generated section; see [consumer checks](contact-policy-consumers.md).
@@ -64,16 +64,16 @@ constructors/tick were also inspected: emitters use their own random source,
 read target velocity/coordinates and write only particle state. Particle emitters
 read target coordinates for visual placement;
 they do not change the target contact state. This qualification does not exempt
-all animations: 2 calls the player's wake-up path and remains refused. Legacy 1
+all animations: 2 calls the player's wake-up path and is ignored by contact reduction. Legacy 1
 calls animateHurt; modern 1 is absent. Neither is in this allowlist. Swings 0/3
-remain unaudited and refused, despite their usual visual purpose. Status 3 death
-remains refused, as do unrecognized status/animation values.
+remain unaudited and now pass through. Status 3 death and unrecognized
+status/animation values are ignored without applying their original effects.
 
 ## Typed failure policy
 
 All explicit owned-contact failure sites construct a recovery class without
 parsing diagnostic strings. Missing remote profile/game mode is Transient;
-unsupported dispatch, geometry/pose/scale and serializers are Unsupported;
+unsupported modeled geometry/pose/scale and serializers are Unsupported;
 history loss, partial/retention loss, provenance, missing origin inputs, exhausted
 bounds, correction, world change and discarded owners are Permanent for that
 admission/owner. Lower contact errors retain their existing Unsupported category

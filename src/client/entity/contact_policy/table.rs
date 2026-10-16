@@ -1,7 +1,7 @@
 //! Option B declarations. Production reads capability, packet, semantics and locality choices.
 //!
-//! Capability and packet observations have exactly step 1's meaning: they are
-//! shared predicates, repeated across lanes/effects, not new admission claims.
+//! Capability and finite packet proofs retain step 1's meaning. Step 6 adds
+//! policy PassThrough, distinct from evidence, for unqualified contact/callbacks.
 //! Selectors name existing code; no arithmetic or dynamic proof lives here.
 use super::key::{Effect, EntityType, OwnerLane, PacketKey};
 use crate::MinecraftVersion;
@@ -191,6 +191,8 @@ pub(super) struct Profile {
     pub effects: EffectPolicy,
     /// These selectors describe owned_contacts, never public geometry/sampling.
     pub owned: Semantics,
+    /// Fallback when this owned body has no numerical qualification/locality proof.
+    pub unqualified: Decision,
     pub packets: PacketPolicyId,
     pub locality: LocalityId,
     pub evidence: EvidenceId,
@@ -201,6 +203,11 @@ const fn profile(id: ProfileId, effects: EffectPolicy, evidence: EvidenceId) -> 
         id,
         effects,
         owned: NO_SEMANTICS,
+        unqualified: if matches!(id, ProfileId::Absent) {
+            Decision::Refuse
+        } else {
+            Decision::PassThrough
+        },
         packets: PacketPolicyId::Refuse,
         locality: LocalityId::None,
         evidence,
@@ -210,6 +217,7 @@ const fn profile(id: ProfileId, effects: EffectPolicy, evidence: EvidenceId) -> 
 const fn living(id: ProfileId, tick: TickModel, scenarios: ScenarioSetId) -> Profile {
     Profile {
         owned: living_semantics(tick),
+        unqualified: Decision::Refuse,
         packets: PacketPolicyId::LivingCallbacks,
         scenarios,
         ..profile(id, LIVING, EvidenceId::CapabilityAudit)
@@ -260,6 +268,8 @@ pub(super) const PROFILES: &[Profile] = &[
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Decision {
     Refuse,
+    /// Policy omission, not a claim that the original effect is harmless.
+    PassThrough,
     Irrelevant(EvidenceId),
 }
 #[derive(Clone, Copy, Debug)]
@@ -272,6 +282,7 @@ pub(super) struct PacketRule {
 pub(super) struct PacketPolicy {
     pub id: PacketPolicyId,
     pub default: Decision,
+    pub unproven_callbacks: Decision,
     pub exact: &'static [PacketRule],
 }
 const fn callback(packet: PacketKey) -> PacketRule {
@@ -285,11 +296,13 @@ pub(super) const PACKET_POLICIES: &[PacketPolicy] = &[
     PacketPolicy {
         id: PacketPolicyId::Refuse,
         default: Decision::Refuse,
+        unproven_callbacks: Decision::PassThrough,
         exact: &[],
     },
     PacketPolicy {
         id: PacketPolicyId::LivingCallbacks,
         default: Decision::Refuse,
+        unproven_callbacks: Decision::PassThrough,
         exact: &[
             callback(PacketKey::Status(35)),
             callback(PacketKey::Animation(4)),
@@ -299,6 +312,7 @@ pub(super) const PACKET_POLICIES: &[PacketPolicy] = &[
     PacketPolicy {
         id: PacketPolicyId::SheepCallbacks,
         default: Decision::Refuse,
+        unproven_callbacks: Decision::PassThrough,
         exact: &[
             callback(PacketKey::Status(35)),
             callback(PacketKey::Status(10)),

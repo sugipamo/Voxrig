@@ -13,13 +13,31 @@ pub(super) const fn expand_packets(policy: PacketPolicy, evidence_count: usize) 
         "packet default must refuse"
     );
     let mut result = [[policy.default; PacketKey::COUNT]; Effect::ALL.len()];
+    assert!(
+        matches!(policy.unproven_callbacks, Decision::PassThrough),
+        "callback fallback must pass through"
+    );
+    let mut p = 0;
+    while p < PacketKey::COUNT {
+        if matches!(
+            PacketKey::ALL[p],
+            PacketKey::Status(_) | PacketKey::Animation(_)
+        ) {
+            let mut e = 0;
+            while e < Effect::ALL.len() {
+                result[e][p] = policy.unproven_callbacks;
+                e += 1;
+            }
+        }
+        p += 1;
+    }
     let mut seen = [[false; PacketKey::COUNT]; Effect::ALL.len()];
     let mut r = 0;
     while r < policy.exact.len() {
         let rule = policy.exact[r];
         assert!(!rule.effects.is_empty(), "empty packet effect set");
         match rule.decision {
-            Decision::Refuse => panic!("exact rules must carry proof"),
+            Decision::Refuse | Decision::PassThrough => panic!("exact rules must carry proof"),
             Decision::Irrelevant(id) => {
                 assert!((id as usize) < evidence_count, "packet evidence reference");
                 assert!(!matches!(id, EvidenceId::None), "packet proof missing");
@@ -48,7 +66,7 @@ pub(super) const fn expand_packets(policy: PacketPolicy, evidence_count: usize) 
                 "packet axis gap/duplicate"
             );
             match result[e][p] {
-                Decision::Refuse => {}
+                Decision::Refuse | Decision::PassThrough => {}
                 Decision::Irrelevant(id) => assert!((id as usize) < evidence_count),
             }
             p += 1;
@@ -234,6 +252,14 @@ pub(super) const fn validate_policy(
             "scenario reference"
         );
         let modeled = profile.effects.modeled();
+        assert!(
+            if modeled || matches!(profile.id, ProfileId::Absent) {
+                matches!(profile.unqualified, Decision::Refuse)
+            } else {
+                matches!(profile.unqualified, Decision::PassThrough)
+            },
+            "unqualified fallback conflicts with numerical/presence contract"
+        );
         assert!(
             modeled != matches!(profile.owned.tick, TickModel::NoTickBody),
             "tick/classification conflict"
@@ -505,6 +531,29 @@ mod tests {
                 SCENARIO_PROFILES
             ))
             .is_err()
+        );
+        for id in [
+            ProfileId::Unknown,
+            ProfileId::Spider,
+            ProfileId::Living,
+            ProfileId::Absent,
+        ] {
+            let mut profiles = PROFILES.to_vec();
+            profiles[id as usize].unqualified =
+                if profiles[id as usize].unqualified == Decision::Refuse {
+                    Decision::PassThrough
+                } else {
+                    Decision::Refuse
+                };
+            assert!(
+                std::panic::catch_unwind(|| validate(ENTITY_POLICIES, &profiles, PACKET_POLICIES))
+                    .is_err()
+            );
+        }
+        let mut packets = PACKET_POLICIES.to_vec();
+        packets[1].unproven_callbacks = Decision::Refuse;
+        assert!(
+            std::panic::catch_unwind(|| validate(ENTITY_POLICIES, PROFILES, &packets)).is_err()
         );
         const DUPLICATE: PacketRule = PacketRule {
             packet: PacketKey::Status(35),

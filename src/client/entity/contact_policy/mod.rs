@@ -61,29 +61,52 @@ pub(super) fn capabilities(
     }
 }
 
-pub(super) fn harmless_packet(
+fn callback_decision(
     version: crate::MinecraftVersion,
     name: &str,
     kind: &super::EntityHistoryKind,
-) -> bool {
+) -> table::Decision {
     use key::{Effect, EntityType, OwnerLane, PacketKey};
-    let Some(entity) = EntityType::from_name(version, name) else {
-        return false;
-    };
     // The original predicate observes only Status/Animation. Keep that boundary
     // explicit; a packet decision never implies discarding an entire receipt.
     let effect = match kind {
         super::EntityHistoryKind::Status { .. } => Effect::Status,
         super::EntityHistoryKind::Animation { .. } => Effect::Animation,
-        _ => return false,
+        _ => return table::Decision::Refuse,
+    };
+    let Some(entity) = EntityType::from_name(version, name) else {
+        return table::PACKET_POLICIES[table::PacketPolicyId::Refuse as usize].unproven_callbacks;
     };
     let profile = table::lookup(version, entity, OwnerLane::OwnedWalking);
     let policy = table::PACKET_POLICIES[profile.packets as usize];
     let packet = PacketKey::from_history(kind);
-    let decision = policy
+    policy
         .exact
         .iter()
         .find(|rule| rule.packet == packet && rule.effects.contains(&effect))
-        .map_or(policy.default, |rule| rule.decision);
-    matches!(decision, table::Decision::Irrelevant(_))
+        .map_or(policy.unproven_callbacks, |rule| rule.decision)
+}
+
+/// The finite evidence allowlist remains distinct from policy pass-through.
+pub(super) fn harmless_packet(
+    version: crate::MinecraftVersion,
+    name: &str,
+    kind: &super::EntityHistoryKind,
+) -> bool {
+    matches!(
+        callback_decision(version, name, kind),
+        table::Decision::Irrelevant(_)
+    )
+}
+
+/// Ignore only the contact reduction of a callback; never apply unknown effects.
+pub(super) fn ignore_callback(
+    version: crate::MinecraftVersion,
+    name: &str,
+    kind: &super::EntityHistoryKind,
+) -> bool {
+    matches!(
+        callback_decision(version, name, kind),
+        table::Decision::Irrelevant(_) | table::Decision::PassThrough
+    )
 }

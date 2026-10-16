@@ -4,14 +4,18 @@ Step B kept the Step C capability table private and left its classifications unc
 `BoundedUnknown` does not mean spatially bounded. This separate proof permits
 only default, unmounted Spider and CaveSpider lifetimes with complete supported
 motion receipts and no unproven callback to be excluded from a movement tick.
-Other Unknown/BoundedUnknown providers (including Horse, Ghast, projectiles,
-Slime, Shulker and unregistered names) retain global typed Unsupported refusal.
+Step 6 (Issue #128 option 3) now omits unqualified contact influence and keeps
+owned control alive, including for Horse, Ghast, projectiles, Slime, Shulker and
+unregistered names. Spider overlap or proof loss also falls back to pass-through.
+The proof below describes the retained finite exclusion evidence; it no longer
+constitutes a prerequisite for continuing control. See the
+[behavior/API migration](contact-policy-consumers.md#step-6-intentional-pass-through-issue-128-option-3).
 Historically, Step B left its then-existing six qualified numerical body types unchanged. No public API,
 geometry qualification, full NPC simulation or numerical guarantee is added.
 
 The current eligibility and revocation sets are generated from the private table.
 They select the existing proof handler; its dynamic obligations below remain
-mandatory. `python3 -B scripts/audit_contact_envelopes.py --check` compares the
+mandatory for claiming proven exclusion, rather than policy omission. `python3 -B scripts/audit_contact_envelopes.py --check` compares the
 independent evidence target sets and receipt domain with the export without jars.
 `python3 -B scripts/contact_policy_export.py --check` checks this section.
 
@@ -62,7 +66,7 @@ semantic review; a matching owner alone does not establish locality.
   proof, including empty/partial data and unknown opcodes. Any passenger update
   involving the entity as vehicle or child also removes it; unavailable child
   membership removes all finite proofs. We have **not** proved Unknown callbacks
-  near-only. Their global refusal retains the first proof-breaking packet and
+  near-only. The retained proof state records the first proof-breaking packet and
   its opcode, receive sequence and ordinal. Later motion cannot restore proof.
 
 ## Envelope and tick proof
@@ -89,7 +93,7 @@ positions therefore remain in this growing hull. It never shrinks based on
 elapsed ticks, distance, visibility, latest target or a guessed native clock.
 Nonfinite/out-of-domain/missing/unsupported motion removes the finite proof.
 
-A tick is allowed only if every relevant deferred envelope misses all of:
+The retained proof establishes exclusion only if every relevant deferred envelope misses all of:
 
 * Own initial box and the hull of own boxes before and after its native slot.
   Remote slots remain in their original dispatch order on both versions.
@@ -98,7 +102,7 @@ A tick is allowed only if every relevant deferred envelope misses all of:
   step-up/down alternatives and a border, before collision clipping. A guard
   wraps the terrain provider before any cell enters the per-tick cache. A cache
   hit was therefore already checked in this tick. This also covers noCollision,
-  support and boat water-snap queries; conservative extra refusals are allowed.
+  support and boat water-snap queries; conservative failure to prove exclusion is allowed.
   Thus clipping against a wall cannot hide an unsupported box further along
   the requested sweep. Spectator movement, which skips collision queries, is
   covered by its before/after straight path.
@@ -107,23 +111,23 @@ A tick is allowed only if every relevant deferred envelope misses all of:
 * **Every** qualified remote body's current box and full remaining interpolation
   hull, including the modern shifted target used by the collision query. A sleep
   metadata displacement can shift that target beyond the ordinary target hull.
-  Checking all peers deliberately refuses even a distant unrelated peer overlap.
+  Checking all peers invalidates exclusion even for a distant unrelated peer overlap.
   It proves there is no first edge from an omitted body to a numerically retained
   body, excluding indirect chains regardless of native order or chain length.
   Deferred spiders may interact with each other, but pair delta changes cannot
   move their feet in this lane or escape their independent possibility hulls.
 
-Closed overlap (including touching) refuses. Nonfinite or inverted query boxes
-cannot prove nonintersection and also refuse. Missing finite proof means global
-refusal, never an arbitrary distance threshold. The extra margins and peer test
-are deliberately conservative and may refuse geometrically harmless scenarios.
+Closed overlap (including touching), nonfinite or inverted query boxes, and
+missing finite proof cannot establish nonintersection. The extra margins and
+peer test are deliberately conservative. Step 6 permits these cases through
+the table's PassThrough fallback, without presenting them as proven harmless.
 
 ## Receipt, lifetime and I/O boundaries
 
 The owned boat sampler receives the exact deferred lifetimes from the retained
 contact stage and leaves their decision to its envelope guards. It does not
 apply the older latest-target distance fallback to those bodies or fabricate a
-living collision box for them. Any later swept-query failure still discards the
+living collision box for them. Other admission or numerical failures still discard the
 whole staged frame before retention/I/O.
 
 The same reducer runs bootstrap, checkpoint, suffix and refresh. Monotone hulls
@@ -133,12 +137,9 @@ World/provenance/history invalidation retains the existing typed terminal policy
 Metadata and mount changes are processed before a tick's queries. Qualified-body
 metadata changes are reflected in its peer geometry, including sleeping targets.
 
-A failed tick returns Step A's typed MovementRefusal::Unsupported with entity
-lifetime, native ID, type and causal packet information. No reason-text parsing
-is used. Existing control/vehicle code stages cloned bodies and contact models;
-only success retains a frame and proceeds to movement I/O. Existing refusal input
-clearing is unchanged. These guards may fail late in a staged numerical sweep;
-they must not be hoisted after the stage is retained or dispatched.
+A failed deferred proof no longer emits MovementRefusal::Unsupported. Existing
+control/vehicle code still stages cloned bodies and contact models; true
+admission/numerical failures retain their original recovery class and I/O guards.
 
 ## Reproduce
 
