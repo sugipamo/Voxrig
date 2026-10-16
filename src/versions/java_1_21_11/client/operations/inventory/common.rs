@@ -8,6 +8,11 @@ pub(in crate::versions::java_1_21_11::client) struct CommonSwap {
     submission: Option<InventorySwap>,
 }
 pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut State) {
+    if state.operations.inventory.pending_swap.is_none() {
+        if let Some(work) = state.pending_swap_work.take() {
+            work.finish(Outcome::Failed(Failure::TransactionUnconfirmed));
+        }
+    }
     let Some(mut common) = state.common_inventory_swap.take() else {
         return;
     };
@@ -129,14 +134,33 @@ impl crate::client::adapter::InventorySwapOps for Operations {
             after_close,
             true,
         )?;
+        let work = self
+            .bot
+            .session
+            .ledger
+            .admit()
+            .expect("existing swap admission");
+        state.pending_swap_work = Some(PendingWork::new(work));
         state.operations.inventory.pending_swap = Some(submission.clone());
         state.common_inventory_swap = Some(CommonSwap {
             record,
             submission: Some(submission),
         });
+        let send_work = ScopedWork::new(
+            state
+                .pending_swap_work
+                .as_ref()
+                .expect("pending swap owner")
+                .child()
+                .expect("pending swap write child"),
+        );
         self.bot
             .session
-            .send(ids::play_serverbound::WINDOW_CLICK, &payload)
+            .send_work(
+                ids::play_serverbound::WINDOW_CLICK,
+                &payload,
+                send_work.guard(),
+            )
             .await?;
         let common = state.common_inventory_swap.as_mut().expect("retained");
         common.record.send.dispatched = true;
@@ -238,6 +262,9 @@ impl crate::client::adapter::InventorySwapOps for Operations {
             let common = state.common_inventory_swap.as_mut().expect("retained");
             common.record.stage = InventorySwapStage::ObservedSwapped;
             state.operations.inventory.pending_swap = None;
+            if let Some(work) = state.pending_swap_work.take() {
+                work.finish(Outcome::Complete);
+            }
         }
         Ok(state
             .common_inventory_swap

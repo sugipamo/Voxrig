@@ -689,9 +689,13 @@ impl Fixture {
         let session = Arc::new(Session {
             operational_dig: Arc::default(),
             id,
+            ledger: Ledger::tracking(GenerationKey {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: id,
+            }),
             started: Instant::now(),
             writer: Mutex::new(Writer {
-                stream: writer,
+                stream: SocketWriter::new(writer),
                 compression: None,
             }),
             state: Mutex::new(state()),
@@ -1662,7 +1666,6 @@ async fn wait_motion_writer_blocked(fixture: &Fixture) {
 #[tokio::test]
 async fn operational_abort_write_failure_is_unconfirmed_and_retains_original_cause() {
     use crate::client::{DigCleanupStatus, adapter::DigOps};
-    use tokio::io::AsyncWriteExt;
     for break_writer in [false, true] {
         let mut f = Fixture::new().await;
         f.change(TARGET, &native("dirt")).await;

@@ -21,14 +21,15 @@ impl Bot {
             transaction.action,
             transaction.accepted,
         );
-        let confirmation_observed = self
+        let (confirmation_observed, response_work) = self
             .connection
-            .observe_window_confirmation(
+            .observe_window_confirmation_work(
                 transaction_context.0,
                 transaction_context.1,
                 transaction_context.2,
             )
             .await;
+        let response_work = response_work.map(crate::client::ledger::ScopedWork::new);
         let identity = (transaction.window_id, transaction.action);
         let exact = self
             .exact_window_barriers
@@ -78,7 +79,12 @@ impl Bot {
             payload.write_i8(transaction.window_id)?;
             payload.write_i16::<BigEndian>(transaction.action)?;
             payload.push(1);
-            self.send_protocol(0x07, &payload).await?;
+            let child = response_work
+                .as_ref()
+                .map(|work| work.guard().child().expect("protocol response child"));
+            self.connection
+                .dispatch_protocol_work(0x07, &payload, child)
+                .await?;
         }
         self.common_inventory_reply_received(transaction).await;
         self.common_click_reply_received(transaction).await;

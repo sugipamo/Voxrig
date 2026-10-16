@@ -264,10 +264,29 @@ impl Operations {
             main_slot,
             hotbar,
         )?;
+        let work = self
+            .bot
+            .session
+            .ledger
+            .admit()
+            .expect("existing swap admission");
+        state.pending_swap_work = Some(PendingWork::new(work));
         state.operations.inventory.pending_swap = Some(submission.clone());
+        let send_work = ScopedWork::new(
+            state
+                .pending_swap_work
+                .as_ref()
+                .expect("pending swap owner")
+                .child()
+                .expect("pending swap write child"),
+        );
         self.bot
             .session
-            .send(ids::play_serverbound::WINDOW_CLICK, &payload)
+            .send_work(
+                ids::play_serverbound::WINDOW_CLICK,
+                &payload,
+                send_work.guard(),
+            )
             .await?;
         Ok(submission)
     }
@@ -317,6 +336,9 @@ impl Operations {
                         observed(&state.operations.inventory, submission, state.sequence)
                     {
                         state.operations.inventory.pending_swap = None;
+                        if let Some(work) = state.pending_swap_work.take() {
+                            work.finish(Outcome::Complete);
+                        }
                         return Ok(result);
                     }
                 }
@@ -325,6 +347,10 @@ impl Operations {
         })
         .await
         .map_err(|_| {
+            self.bot
+                .session
+                .ledger
+                .fail(Failure::TransactionUnconfirmed);
             Error::new(
                 ErrorKind::Timeout,
                 anyhow::anyhow!(

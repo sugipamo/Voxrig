@@ -1,16 +1,18 @@
-# Internal draft: admission ledger foundation (#131 PR 1)
+# Internal draft: admission ledger and writer integration (#131 PR 1–2)
 
 This is an internal implementation contract and integration checklist, not a
 public API or a guarantee of current Client behavior. `src/client/ledger/` is
-private, has no re-exports, and is deliberately unused by production. No writer,
-transaction, worker, adapter, or connection lifecycle is wired to it in this PR.
+crate-private and has no public re-exports. PR 2 wires both adapters' writers,
+legacy protocol transactions/exact barriers, modern inline pending swaps, and
+protocol responses. Finite workers/continuations belong to PR 3; producer park,
+restricted stop and public drain belong to PR 4. There is no public receipt yet.
 The approved direction is staged quiesce (option B); resume and automatic stop
 target selection are excluded. This foundation does not implement QuiesceHandle,
 StopPermit, shutdown, or Golemkit BackendDrain.
 
 ## Identity, ownership, cuts, and completion
 
-One future session owns a Ledger for its immutable private GenerationKey
+One transport owns a Ledger for its immutable private GenerationKey
 (MinecraftVersion, connection_id). Guard/waiter Arcs retain only ledger state,
 never the session. Connection identity is distinct from world generation and
 controller identity; world changes must not reset counters. Different ledger
@@ -35,8 +37,11 @@ owner loss records OwnerLost; it is never success. A caller may explicitly repor
 NoWrite, CancelledBeforeWrite, or SuppressedBeforeWrite only with certainty that
 its authority produced no write. Complete and Rejected describe classified local
 retirement; neither proves game success. Dependency owners must remain live until
-all required local cleanup/reconciliation is complete. This foundation treats
-dependencies as opaque owners and makes no protocol-specific ACK decision.
+all required local cleanup/reconciliation is complete. Frame completion is local socket flush. Separately, root/drain completion waits
+for existing protocol pending state and exact-barrier cleanup, including the
+existing ACK/barrier commit or expiry. Dropping ProtocolTransaction::wait does
+not retire the actor's pending owner. Public transaction/inventory wait outcomes,
+deadlines and cancellation behavior remain unchanged.
 
 Failures include UncertainDispatch, TransactionUnconfirmed, RequiredReleaseFailed,
 OwnerLost, Revoked, ID exhaustion, and mutex poisoning. The first failure is
@@ -71,20 +76,24 @@ protocol dependencies that must instead be attributed to existing roots.
 
 ## Write ordinal and receipt semantics
 
-A future adapter must hold its writer/actor serialization before begin_write,
+Each adapter holds its writer/actor serialization before begin_write,
 through write_all + flush and commit. No ledger lock is held across I/O or await,
 or while acquiring writer/state locks. The ledger independently allows at most
 one live write attempt; a second attempt is WriterBusy and consumes no ordinal.
 Each attempt receives a checked monotonic ordinal. A permit owns a child guard,
 so even retirement of its parent cannot hide in-flight I/O. Commit publishes W
 under the same ledger gate used to inspect root completion. An unsuccessful or
-cancelled attempt must drop the permit, recording sticky UncertainDispatch.
+cancelled allocated attempt drops the permit, recording sticky UncertainDispatch.
 There is no post-allocation "cancelled before write" path for a permit: this is
 intentionally conservative until adapters can establish a narrower certainty.
 
 W means every frame in 1..=W completed locally, including flush. It is not the
 maximum observed ordinal or a count that skips failures. Dropping ordinal N
-cannot advance W past N-1; terminal failure rejects further attempts. Commit of
+cannot advance W past N-1. In the bounded foundation admission mode, terminal
+failure rejects further attempts. PR 2 production tracking preserves the existing
+adapter admission/error behavior: later permitted frames may still complete, but
+no unissued drain can succeed after any sticky failure, and W never crosses a
+failed frame. No packet can bypass a real permit in either mode. Commit of
 an already active attempt after an unrelated terminal failure may record its
 actual local completion, but no new success receipt may be issued. Frame
 completion does not imply server read, protocol ACK, or physical stillness.
@@ -94,13 +103,56 @@ required producers are parked, no terminal failure exists, and W is read in the
 same state. Every active target write holds an owner, so a separate counter read
 is unnecessary. A snapshot may observe an unrelated later root's completed W;
 it neither waits for that root nor prevents further writes. Even the internal
-closed receipt describes only this unwired model; it is not a public
+closed receipt describes only the ledger model; it is not a public
 SealedForFence certificate.
 
-Future writer integration must specify the tracked epoch, preferably all frames
-from session creation, with Ready admission as the initial supported boundary.
-This PR starts counters at zero only in an unused Ledger constructor; it makes
-no assertion about login/configuration writes in either adapter.
+Both adapters create their transport identity and ledger before the handshake.
+The same ledger follows handshake, login, configuration and play; compression,
+respawn and reconfiguration never reset its ordinals. Legacy keeps its ledger in
+the writer and actor; modern transfers it from login to Session. Ready remains
+the initial supported boundary for the future public drain API.
+
+The single policy isolation point is `CompletionPoint::SocketFlush`, the
+`COMPLETION_POINT` constant and `publish_completion` in
+`src/client/ledger/mod.rs`. SocketWriter calls this only after the unchanged
+protocol encoder finishes write_all and flush. This completion policy is
+**provisional pending Golemkit**. W does not wait for server ACK. Changing this
+policy later must not silently change public ProtocolTransaction::wait or
+inventory wait semantics. Pending guards are independent of frame permits.
+
+SocketWriter has no AsyncWrite implementation and exposes no mutable stream.
+Production framing accepts a WorkGuard, allocates a WritePermit while holding
+the adapter's existing writer serialization, and consumes it at that policy
+point. Its separate shutdown method preserves existing transport teardown.
+Raw protocol encoding remains available to test servers, not to a production
+socket outside this wrapper.
+
+Legacy write-capable queue entries register before enqueueing and own a scoped
+guard through actor processing, including normal/primitive/batch/protocol/
+bounded_motion writes. ACK, expiry and local cleanup commands retire existing
+pending authority without independently admitting roots, so they still run
+after root closure.
+Each acknowledged dispatch transfers a child to its pending map. The public
+ProtocolTransaction only keeps a Weak reference to that pending owner so merely
+holding the public handle after ACK cannot prolong debt. Exact barriers obtain
+children while pending remains live. Barrier removal precedes actor commit;
+expiry records TransactionUnconfirmed before reporting DeliveryUnknown. ACK
+rejection replies inherit children from the matching pending root before its
+retirement; unmatched replies use independent maintenance roots. Teleport confirm
+and position response, and login settings/brand responses, share maintenance
+roots across all their frames.
+
+Modern sends register before waiting on the writer mutex; cancellation of that
+queue wait retires only that scope. The existing interrupted-frame mechanism and
+public errors are preserved. Receiver response vectors (including position,
+configuration and loading responses) share a maintenance root. Inline native and
+common pending_swap state owns a guard before exposure/send, and its frame uses
+a child. Existing successful wait/record cleanup retires it; wait timeout records
+sticky TransactionUnconfirmed while preserving the public pending marker for
+resumed waits. Context reset which discards pending_swap also records uncertainty.
+No new expiry deadline, autonomous cleanup worker or public wait outcome is added.
+An expiry failure is sticky for all unissued drains, including a cut covering the
+expired state, and cannot turn clean after later ACK or idle state.
 
 ## Waiting, terminal errors, and bounded retention
 
@@ -110,14 +162,27 @@ are hints, never completion authority. send_replace publishes changes even with
 no receiver, and preserves a change between inspection and waiter registration.
 Multiple waiters have independent wakers. Dropping a waiter does not retire work,
 reopen admission, or cancel the session. The waiter caches its first issued
-result and can be awaited/inspected repeatedly. No runtime or timing assumption
-is needed in the tests; they poll futures with counting wakers and use explicit
+result and can be awaited/inspected repeatedly. `Drain::inspect` remains an
+internal synchronous non-blocking path: one short lock, a BTreeMap prefix query
+(O(log active roots)), and O(1) producer/failure checks; it never awaits or scans
+retired history. A no-runtime unit test covers pending, completion, sticky failure
+and historical cached success for the future PR 4 poll. No runtime or timing
+assumption is needed in the ledger core tests; they poll futures with counting wakers and use explicit
 handoffs rather than sleeps.
 
-Provisional internal bounds: 1,024 active roots, 4,096 live guards (including write
-permits), and 128 unparked producers. Capacity rejection happens before authority
-or IDs are created and is retryable; moving a guard works even at capacity.
-Per-root owner arithmetic is bounded by the global guard limit. Root, producer,
+The foundation admission mode retains provisional bounds: 1,024 active roots,
+4,096 live guards (including write permits), and 128 unparked producers. Capacity
+rejection happens before authority or IDs are created and is retryable; moving a guard works even at capacity.
+PR 2's tracking mode deliberately adds no transport capacity rejection: legacy
+already permits 1,024 pending transactions plus queued/unacknowledged traffic,
+and modern permits arbitrarily many caller futures waiting on its writer lock.
+Imposing the foundation caps would change observable admission/errors. Tracking
+retains only the actual live queue/writer/pending owners and removes them at
+retirement; it adds no per-packet history or detached background owners. It uses
+the identical root/child attribution model and real permits. Tracking does not
+ignore root closure, WriterBusy, checked ID exhaustion or sticky drain failure.
+It grants no maintenance/stop bypass; PR 4 must integrate its shared admission
+and final seal across these same writer boundaries. Root, producer,
 and write IDs use checked u64 allocation (0 is the empty prefix); u64::MAX is a
 valid final ID and the next request fails closed permanently. No wrapping,
 Atomic::try_update, new dependency, or post-1.85 API is used.
@@ -130,20 +195,22 @@ including write children, cumulatively at receipt issue (NOT exact cut/root
 statistics). Totals saturate without affecting authority or failure state. A
 single terminal summary retains the first cause and optional root forever.
 Receipt/waiter storage belongs to its caller and is not retained by the ledger.
-Fixed bounds, cumulative diagnostics, global failure conservatism, one write
-attempt, and one closed bit are reversible internal choices for later PRs.
+Admission-mode bounds, tracking of existing transport admission, cumulative
+diagnostics, global failure conservatism, one write attempt, and one closed bit
+are internal choices; no public API is introduced here.
 
 ## Operation-family completion and dependency inventory
 
 This checklist comes from design §1.3 at baseline 9932ae4. It describes future
-integration obligations; **none of these rows is wired by PR 1**. "Classify"
+integration obligations. PR 2 wires the protocol pending/writer boundaries
+described above; remaining operation-family worker/continuation ownership is PR 3. "Classify"
 means retain certainty/uncertainty and required local dependencies, not a settled
-Golemkit ACK/outcome contract. Protocol ACK semantics, stop scope, BackendDrain,
-and multi-party ownership remain undecided.
+Golemkit ACK/outcome contract. Frame W and pending cleanup follow the approved interpretation above; public
+stop scope, BackendDrain and multi-party authority are not implemented here.
 
 | Family / implementation anchors | Future owner and completion dependencies | Boundary or unresolved integration point |
 | --- | --- | --- |
-| Connection actor, protocol transactions, expiry (`java_1_16_1/lifecycle.rs`; modern operation state) | Pending entry owns a guard through reply/expiry classification, required barrier release and history update. | Dropping ProtocolTransaction::wait is not retirement; ACK mapping remains undecided, unknown delivery fails conservatively. |
+| Connection actor, protocol transactions, expiry (`java_1_16_1/lifecycle.rs`; modern operation state) | Pending entry owns a guard through reply/expiry classification, required barrier release and history update. | PR 2: dropping the public waiter does not retire pending debt; existing ACK/barrier cleanup retires it and expiry fails the ledger. |
 | Diagnostic dig expiry (legacy lifecycle) | No socket write debt; task termination belongs to shutdown registry. | Do not mistake diagnostic task completion for transaction certainty. |
 | Compatibility inventory transaction monitor (legacy client) | Inherit transaction owner through inventory/exact barrier cleanup. | Completion of transaction.wait alone is insufficient. |
 | Inventory swap / click (`common_inventory`, `common_click`; modern `operations/inventory.rs`) | Send, retained confirmation/reconciliation and inspection use root/children until no write/reservation remains. | Inline modern paths count as well as spawned workers; protocol-specific reply requirements remain open. |
@@ -166,9 +233,11 @@ and multi-party ownership remain undecided.
 | Post-revoke writer shutdown task (legacy lifecycle; modern outbound) | Retain shutdown result in future shutdown registry. | Spawn alone and drain receipts do not prove shutdown. |
 | Recovery / reconnect (common survival/recovery; modern profile_recovery/recovery) | Old ledger covers old transport only; fresh login/write uses a new ledger. | Reattach orchestration serializes claims; no receipt transfer across connections. |
 
-Later production integration must audit normal gameplay, primitive/batch sends,
-legacy bounded_motion direct writes, independent protocol maintenance (keepalive,
-teleport/config/loading), retained state, inspection and native bypasses, not
-merely tokio::spawn sites. Test-only scoped threads, observations tests, and
+PR 2 audits normal gameplay, primitive/batch sends, legacy bounded_motion writes
+and independent protocol maintenance (keepalive, teleport/config/loading) through
+SocketWriter. Remaining integration must audit retained worker/continuation state,
+inspection and producer parking, including native paths, not merely tokio::spawn
+sites. No stop behavior, stop-permit holder, neutral movement/item/vehicle/dig
+release, resume, or final public seal is implemented in this PR. Test-only scoped threads, observations tests, and
 native trial spawn_blocking paths are not production owners. No public success
 may be exposed until all write-capable paths and dependency handoffs are audited.

@@ -120,12 +120,17 @@ impl Fixture {
             .unwrap();
         let (peer, _) = listener.accept().await.unwrap();
         let (reader, writer) = stream.into_split();
+        let id = 72;
         let session = Arc::new(Session {
             operational_dig: Arc::default(),
-            id: 72,
+            id,
+            ledger: Ledger::tracking(GenerationKey {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: id,
+            }),
             started: Instant::now(),
             writer: Mutex::new(Writer {
-                stream: writer,
+                stream: SocketWriter::new(writer),
                 compression: None,
             }),
             state: Mutex::new(fixture_state()),

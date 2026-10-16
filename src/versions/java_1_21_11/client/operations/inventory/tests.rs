@@ -1120,12 +1120,17 @@ impl CommonFixture {
         let (reader, writer) = stream.into_split();
         let mut state = baseline();
         state.phase = Phase::Play;
+        let id = 42;
         let session = Arc::new(Session {
             operational_dig: Arc::default(),
-            id: 42,
+            id,
+            ledger: Ledger::tracking(GenerationKey {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: id,
+            }),
             started: Instant::now(),
             writer: Mutex::new(Writer {
-                stream: writer,
+                stream: SocketWriter::new(writer),
                 compression: None,
             }),
             state: Mutex::new(state),
@@ -1690,12 +1695,17 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
     let (reader, writer) = connection.into_split();
     let mut state = baseline();
     state.phase = Phase::Play;
+    let id = 42;
     let session = Arc::new(Session {
         operational_dig: Arc::default(),
-        id: 42,
+        id,
+        ledger: Ledger::tracking(GenerationKey {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: id,
+        }),
         started: Instant::now(),
         writer: Mutex::new(Writer {
-            stream: writer,
+            stream: SocketWriter::new(writer),
             compression: None,
         }),
         state: Mutex::new(state),
@@ -4572,4 +4582,80 @@ async fn crafting_result_shift_cancelled_waiter_keeps_one_native_move_and_actual
         CraftingTakeStage::ObservedTransferred
     );
     f.stop().await;
+}
+
+#[tokio::test]
+async fn ledger_modern_pending_swap_owns_cleanup_and_wait_expiry_remains_uncertain() {
+    for expire in [false, true] {
+        let mut f = CommonFixture::new().await;
+        let submission = f.api.swap_player_hotbar(9, 0).await.unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::WINDOW_CLICK
+        );
+        let ledger = f.api.bot.session.ledger.clone();
+        let mut drain = ledger.cut(false);
+        assert_eq!(ledger.test_written_through(), 1);
+        assert!(drain.inspect().is_none());
+        if expire {
+            assert_eq!(
+                f.api
+                    .wait_inventory_swap(&submission, Duration::from_millis(1))
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::Timeout
+            );
+            assert!(drain.inspect().unwrap().is_err());
+        } else {
+            let mut wait = Box::pin(
+                f.api
+                    .wait_inventory_swap(&submission, Duration::from_secs(1)),
+            );
+            std::future::poll_fn(|cx| {
+                assert!(wait.as_mut().poll(cx).is_pending());
+                std::task::Poll::Ready(())
+            })
+            .await;
+            drop(wait);
+            assert!(drain.inspect().is_none());
+        }
+        assert!(
+            f.api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .operations
+                .inventory
+                .pending_swap
+                .is_some()
+        );
+        f.slot(9, submission.hotbar_before.clone()).await;
+        f.slot(36, submission.main_before.clone()).await;
+        f.api
+            .wait_inventory_swap(&submission, Duration::from_secs(1))
+            .await
+            .unwrap();
+        assert!(
+            f.api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .operations
+                .inventory
+                .pending_swap
+                .is_none()
+        );
+        if expire {
+            assert!(ledger.cut(false).inspect().unwrap().is_err());
+        } else {
+            drain.wait().await.unwrap();
+        }
+        assert_eq!(ledger.test_written_through(), 1);
+        f.stop().await;
+    }
 }

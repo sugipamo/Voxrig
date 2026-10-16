@@ -22,7 +22,12 @@ use super::{
     wire::Reader,
     world::{Dimension, World},
 };
-use crate::protocol::{put_string, put_varint, read_packet, write_packet};
+use crate::client::ledger::{
+    Failure, GenerationKey, Ledger, Outcome, PendingWork, ScopedWork, SocketWriter, WorkGuard,
+};
+#[cfg(test)]
+use crate::protocol::write_packet;
+use crate::protocol::{put_string, put_varint, read_packet};
 use crate::{
     ConnectionConfig, Error, ErrorKind, MinecraftVersion, Observation, ObservedBlock, Region,
     Result,
@@ -37,7 +42,6 @@ use std::{
     time::Instant,
 };
 use tokio::{
-    io::AsyncWriteExt,
     net::{
         TcpStream,
         tcp::{OwnedReadHalf, OwnedWriteHalf},
@@ -71,6 +75,7 @@ struct State {
     common_placement: Option<operations::placement::CommonPlacementCapture>,
     retired_common_placement: Option<crate::client::survival::PlacementRecord>,
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
+    pending_swap_work: Option<PendingWork>,
     common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
     common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
     common_recipe_placement: Option<crate::client::crafting::RecipePlacementRecord>,
@@ -133,6 +138,7 @@ impl Default for State {
             common_placement: None,
             retired_common_placement: None,
             common_inventory_swap: None,
+            pending_swap_work: None,
             common_inventory_click: None,
             common_crafting_take: None,
             common_recipe_placement: None,
@@ -256,7 +262,7 @@ impl State {
     }
 }
 struct Writer {
-    stream: OwnedWriteHalf,
+    stream: SocketWriter<OwnedWriteHalf>,
     compression: Option<i32>,
 }
 #[derive(Clone)]
@@ -268,6 +274,7 @@ struct LoginIdentity {
 struct Session {
     operational_dig: Arc<crate::client::operational_dig::Coordinator>,
     id: u64,
+    ledger: Ledger,
     started: Instant,
     writer: Mutex<Writer>,
     state: Mutex<State>,
@@ -382,24 +389,32 @@ impl Bot {
         )
         .await
         .context("connect timed out")??;
-        let (mut reader, mut writer) = stream.into_split();
+        let (mut reader, writer) = stream.into_split();
+        let id = crate::connection::next_connection_id();
+        let ledger = Ledger::tracking(GenerationKey {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: id,
+        });
+        let login_work = ScopedWork::new(ledger.admit().expect("new connection"));
+        let mut writer = SocketWriter::new(writer);
         let mut handshake = Vec::new();
         put_varint(&mut handshake, 774);
         put_string(&mut handshake, &config.server.host);
         handshake.extend(config.server.port.to_be_bytes());
         put_varint(&mut handshake, 2);
-        write_packet(&mut writer, None, 0, &handshake).await?;
+        writer.send(login_work.guard(), None, 0, &handshake).await?;
         let mut login = Vec::new();
         put_string(&mut login, &config.username);
         // Offline servers derive the authenticated profile UUID from the name.
         login.extend([0u8; 16]);
-        write_packet(
-            &mut writer,
-            None,
-            ids::login_serverbound::LOGIN_START,
-            &login,
-        )
-        .await?;
+        writer
+            .send(
+                login_work.guard(),
+                None,
+                ids::login_serverbound::LOGIN_START,
+                &login,
+            )
+            .await?;
         let mut compression = None;
         let identity = loop {
             let (id, payload) = timeout(
@@ -427,13 +442,14 @@ impl Bot {
                         }
                     }
                     r.end()?;
-                    write_packet(
-                        &mut writer,
-                        compression,
-                        ids::login_serverbound::LOGIN_ACKNOWLEDGED,
-                        &[],
-                    )
-                    .await?;
+                    writer
+                        .send(
+                            login_work.guard(),
+                            compression,
+                            ids::login_serverbound::LOGIN_ACKNOWLEDGED,
+                            &[],
+                        )
+                        .await?;
                     break LoginIdentity {
                         uuid,
                         name: received,
@@ -469,26 +485,28 @@ impl Bot {
                     let mut response = Vec::new();
                     put_string(&mut response, &key);
                     response.push(0);
-                    write_packet(
-                        &mut writer,
-                        compression,
-                        ids::login_serverbound::COOKIE_RESPONSE,
-                        &response,
-                    )
-                    .await?;
+                    writer
+                        .send(
+                            login_work.guard(),
+                            compression,
+                            ids::login_serverbound::COOKIE_RESPONSE,
+                            &response,
+                        )
+                        .await?;
                 }
                 ids::login_clientbound::LOGIN_PLUGIN_REQUEST => {
                     let request = r.varint()?;
                     let mut response = Vec::new();
                     put_varint(&mut response, request);
                     response.push(0);
-                    write_packet(
-                        &mut writer,
-                        compression,
-                        ids::login_serverbound::LOGIN_PLUGIN_RESPONSE,
-                        &response,
-                    )
-                    .await?;
+                    writer
+                        .send(
+                            login_work.guard(),
+                            compression,
+                            ids::login_serverbound::LOGIN_PLUGIN_RESPONSE,
+                            &response,
+                        )
+                        .await?;
                 }
                 _ => {
                     return Err(Error::new(
@@ -498,9 +516,11 @@ impl Bot {
                 }
             }
         };
+        drop(login_work);
         let session = Arc::new(Session {
             operational_dig: Arc::default(),
-            id: crate::connection::next_connection_id(),
+            id,
+            ledger,
             started: Instant::now(),
             writer: Mutex::new(Writer {
                 stream: writer,
@@ -696,6 +716,8 @@ impl Session {
                 _=self.cancel.notified()=>return Ok(()),
                 packet=timeout(self.limits.play_packet_timeout,read_packet(&mut reader,compression))=>packet.context("play packet timed out")??,
             };
+            let response_work =
+                ScopedWork::new(self.ledger.admit().expect("existing receiver admission"));
             let responses = {
                 let mut state = self.state.lock().await;
                 if self.stopped.load(Ordering::Acquire) {
@@ -716,17 +738,18 @@ impl Session {
                     // Normal operations share this state lock and cannot
                     // overtake the server's outstanding teleport boundary.
                     for (id, payload) in responses.drain(..) {
-                        self.send(id, &payload).await?;
+                        self.send_work(id, &payload, response_work.guard()).await?;
                     }
                 }
                 responses
             };
             for (id, payload) in responses {
-                self.send(id, &payload).await?;
+                self.send_work(id, &payload, response_work.guard()).await?;
             }
             {
                 let mut state = self.state.lock().await;
-                self.complete_loading(&mut state).await?;
+                self.complete_loading_work(&mut state, response_work.guard())
+                    .await?;
             }
             self.changed.notify_waiters();
         }

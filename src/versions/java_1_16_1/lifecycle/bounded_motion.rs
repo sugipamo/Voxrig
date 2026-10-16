@@ -372,6 +372,7 @@ impl MotionGate {
     // Returns true only after possible delivery fails: the caller terminates the actor.
     pub(super) async fn process(
         &mut self,
+        work: &crate::client::ledger::WorkGuard,
         command: MotionCommand,
         state: ConnectionState,
         writer: &Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
@@ -429,14 +430,11 @@ impl MotionGate {
                     Ok(payload) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x09,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x09, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed = admitted && result.is_err();
@@ -497,14 +495,11 @@ impl MotionGate {
                     Ok(payload) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x0a,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x0a, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed = admitted && result.is_err();
@@ -568,14 +563,11 @@ impl MotionGate {
                     Ok(()) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        let result = crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x19,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from);
+                        let result = writer
+                            .inner
+                            .send(work, compression, 0x19, &payload)
+                            .await
+                            .map_err(crate::Error::from);
                         if result.is_ok() {
                             self.owner = Some(Owner::RecipePlacement { run_id, sent: true });
                         }
@@ -645,14 +637,11 @@ impl MotionGate {
                         payload.push(0);
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        let result = crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x2d,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from);
+                        let result = writer
+                            .inner
+                            .send(work, compression, 0x2d, &payload)
+                            .await
+                            .map_err(crate::Error::from);
                         if result.is_ok() {
                             self.owner = Some(Owner::ContainerOpen { run_id, sent: true });
                         }
@@ -699,14 +688,11 @@ impl MotionGate {
                     Ok(()) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x0a,
-                            &[window as u8],
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x0a, &[window as u8])
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed_write = admission.is_ok() && result.is_err();
@@ -756,14 +742,11 @@ impl MotionGate {
                     Ok(()) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x13,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x13, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed_write = admission.is_ok() && result.is_err();
@@ -845,14 +828,11 @@ impl MotionGate {
                     Ok(payload) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x1b,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x1b, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed_write = admitted && result.is_err();
@@ -903,14 +883,11 @@ impl MotionGate {
                         payload.push(0);
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x2d,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x2d, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed = admitted && result.is_err();
@@ -971,14 +948,11 @@ impl MotionGate {
                     Ok(payload) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x09,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x09, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed = admitted && result.is_err();
@@ -1049,14 +1023,11 @@ impl MotionGate {
                     Ok(payload) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x09,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x09, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed = admitted && result.is_err();
@@ -1122,14 +1093,11 @@ impl MotionGate {
                     Ok(payload) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
-                        crate::protocol::write_packet(
-                            &mut writer.inner,
-                            compression,
-                            0x09,
-                            &payload,
-                        )
-                        .await
-                        .map_err(crate::Error::from)
+                        writer
+                            .inner
+                            .send(work, compression, 0x09, &payload)
+                            .await
+                            .map_err(crate::Error::from)
                     }
                 };
                 let failed = admitted && result.is_err();

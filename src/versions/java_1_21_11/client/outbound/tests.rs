@@ -683,12 +683,17 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
         .unwrap();
     let (peer, _) = listener.accept().await.unwrap();
     let (reader, writer) = client.into_split();
+    let id = crate::connection::next_connection_id();
     let session = Arc::new(Session {
         operational_dig: Arc::default(),
-        id: crate::connection::next_connection_id(),
+        id,
+        ledger: Ledger::tracking(GenerationKey {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: id,
+        }),
         started: Instant::now(),
         writer: Mutex::new(Writer {
-            stream: writer,
+            stream: SocketWriter::new(writer),
             compression: None,
         }),
         state: Mutex::new(State::default()),
@@ -729,6 +734,8 @@ async fn common_revocation_fences_clones_with_capture_and_writer_locked() {
         pending(sender.as_mut()).await;
         queued.push(sender);
     }
+    let mut drain = session.ledger.cut(false);
+    assert!(drain.inspect().is_none());
     // Invoke outside the runtime with the immutable actual connection identity.
     let outside = client.clone();
     let connection_id = session.id;
@@ -741,6 +748,8 @@ async fn common_revocation_fences_clones_with_capture_and_writer_locked() {
     })
     .join()
     .unwrap();
+    assert!(drain.inspect().unwrap().is_err());
+    assert_eq!(session.ledger.test_written_through(), 0);
     for sender in queued {
         assert_eq!(
             timeout(Duration::from_secs(1), sender)
@@ -779,8 +788,9 @@ async fn common_revocation_keeps_partial_write_unknown_and_other_connection_live
     let (other, _reader, mut peer) = fixture().await;
     let other_client = crate::Client::from_java_1_21_11(operations(&other).bot);
     assert_ne!(session.id, other.id);
-    let (mut limited, mut prefix) = tokio::io::duplex(1);
-    let mut attempt = Box::pin(session.write_frame(&mut limited, None, 9, &[0; 100]));
+    let (limited, mut prefix) = tokio::io::duplex(1);
+    let mut limited = SocketWriter::new(limited);
+    let mut attempt = Box::pin(session.write_test_frame(&mut limited, None, 9, &[0; 100]));
     pending(attempt.as_mut()).await;
     crate::client::tests::common_revocation_scenario(
         &client,
@@ -845,11 +855,12 @@ fn operations(session: &Arc<Session>) -> operations::Operations {
 async fn completed_frames_decode_with_single_byte_fragmentation_and_compression() {
     let (session, _, _) = fixture().await;
     for compression in [None, Some(0), Some(256)] {
-        let (mut writer, mut reader) = tokio::io::duplex(1);
+        let (writer, mut reader) = tokio::io::duplex(1);
+        let mut writer = SocketWriter::new(writer);
         let sender = async {
             for id in [1, 2] {
                 session
-                    .write_frame(&mut writer, compression, id, &[42; 512])
+                    .write_test_frame(&mut writer, compression, id, &[42; 512])
                     .await
                     .unwrap();
             }
@@ -906,8 +917,9 @@ async fn cancelled_partial_frame_prevents_queued_requests_and_automatic_response
     // Keep the real writer lock, but deterministically interrupt its common
     // framing helper on a one-byte duplex stream instead of saturating TCP.
     let locked = session.writer.lock().await;
-    let (mut limited, mut received) = tokio::io::duplex(1);
-    let mut attempt = Box::pin(session.write_frame(&mut limited, None, 5, &[0; 100]));
+    let (limited, mut received) = tokio::io::duplex(1);
+    let mut limited = SocketWriter::new(limited);
+    let mut attempt = Box::pin(session.write_test_frame(&mut limited, None, 5, &[0; 100]));
     pending(attempt.as_mut()).await;
     let mut queued = Box::pin(session.send(6, &[7]));
     pending(queued.as_mut()).await;
@@ -994,29 +1006,29 @@ impl AsyncWrite for FailingWriter {
 async fn write_or_flush_error_preserves_first_uncertainty_and_never_appends() {
     for (limit, fail_flush) in [(0, false), (2, false), (100, true)] {
         let (session, _, _) = fixture().await;
-        let mut writer = FailingWriter {
+        let mut writer = SocketWriter::new(FailingWriter {
             bytes: vec![],
             limit,
             fail_flush,
-        };
+        });
         assert_eq!(
             session
-                .write_frame(&mut writer, None, 9, &[10; 8])
+                .write_test_frame(&mut writer, None, 9, &[10; 8])
                 .await
                 .unwrap_err()
                 .kind(),
             ErrorKind::UncertainDispatch
         );
-        let before = writer.bytes.clone();
+        let before = writer.test_inner().bytes.clone();
         assert_eq!(
             session
-                .write_frame(&mut writer, None, 11, &[])
+                .write_test_frame(&mut writer, None, 11, &[])
                 .await
                 .unwrap_err()
                 .kind(),
             ErrorKind::UncertainDispatch
         );
-        assert_eq!(writer.bytes, before);
+        assert_eq!(writer.test_inner().bytes, before);
         assert_eq!(session.interrupted_packet.load(Ordering::Acquire), 9);
         assert!(session.stopped.load(Ordering::Acquire));
     }
@@ -1061,8 +1073,9 @@ async fn explicit_disconnect_interrupts_a_blocked_frame_and_retains_inventory_hi
         .await
         .pending_inventory_swap
         .unwrap();
-    let (mut limited, _limited_reader) = tokio::io::duplex(1);
-    let mut attempt = Box::pin(session.write_frame(
+    let (limited, _limited_reader) = tokio::io::duplex(1);
+    let mut limited = SocketWriter::new(limited);
+    let mut attempt = Box::pin(session.write_test_frame(
         &mut limited,
         None,
         ids::play_serverbound::WINDOW_CLICK,
@@ -4797,4 +4810,139 @@ async fn held_creative_flight_landing_disables_before_movement_and_ends_owner() 
     assert_ne!(ground.session_id, start.session_id);
     handle.stop_control_for(ground.session_id).await.unwrap();
     session.stop();
+}
+
+#[tokio::test]
+async fn ledger_modern_frame_waits_for_header_body_and_socket_flush() {
+    for compression in [None, Some(0), Some(256)] {
+        let (session, _, _) = fixture().await;
+        let control = crate::client::ledger::testing::Control::default();
+        let mut writer = SocketWriter::new(control.writer());
+        let mut send = Box::pin(session.write_test_frame(&mut writer, compression, 9, &[42; 32]));
+        pending(send.as_mut()).await;
+        let mut drain = session.ledger.cut(false);
+        assert!(control.bytes().is_empty());
+        assert!(drain.inspect().is_none());
+        control.release(1, false);
+        pending(send.as_mut()).await;
+        assert_eq!(control.bytes().len(), 1);
+        assert_eq!(session.ledger.test_written_through(), 0);
+        control.release(usize::MAX, false);
+        pending(send.as_mut()).await;
+        assert!(control.progress().1 > 0);
+        assert!(drain.inspect().is_none());
+        assert_eq!(session.ledger.test_written_through(), 0);
+        control.release(usize::MAX, true);
+        send.await.unwrap();
+        assert_eq!(session.ledger.test_written_through(), 1);
+        assert!(drain.inspect().unwrap().is_ok());
+        let bytes = control.bytes();
+        assert_eq!(
+            read_packet(&mut bytes.as_slice(), compression)
+                .await
+                .unwrap(),
+            (9, vec![42; 32])
+        );
+    }
+}
+
+#[tokio::test]
+async fn ledger_modern_partial_and_flush_errors_fail_drain_without_publishing_frame() {
+    for compression in [None, Some(0), Some(256)] {
+        for (after, flush) in [
+            (Some(0), false),
+            (Some(1), false),
+            (Some(2), false),
+            (None, true),
+        ] {
+            let (session, _, _) = fixture().await;
+            let control = crate::client::ledger::testing::Control::default();
+            control.release(usize::MAX, true);
+            control.fail(after, flush);
+            let mut writer = SocketWriter::new(control.writer());
+            assert_eq!(
+                session
+                    .write_test_frame(&mut writer, compression, 9, &[42; 32])
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::UncertainDispatch
+            );
+            assert!(session.ledger.cut(false).inspect().unwrap().is_err());
+            assert_eq!(session.ledger.test_written_through(), 0);
+            let bytes = control.bytes();
+            assert!(session.send(10, &[]).await.is_err());
+            assert_eq!(control.bytes(), bytes);
+        }
+    }
+}
+
+#[tokio::test]
+async fn ledger_modern_queued_cancellation_retires_only_its_own_writer_debt() {
+    let (session, _, mut peer) = fixture().await;
+    let lock = session.writer.lock().await;
+    let mut send = Box::pin(session.send(9, &[42]));
+    pending(send.as_mut()).await;
+    let mut drain = session.ledger.cut(false);
+    assert!(drain.inspect().is_none());
+    assert_eq!(session.ledger.test_written_through(), 0);
+    drop(send);
+    assert!(drain.inspect().unwrap().is_ok());
+    drop(lock);
+    session.send(10, &[7]).await.unwrap();
+    assert_eq!(read_packet(&mut peer, None).await.unwrap(), (10, vec![7]));
+    assert_eq!(session.ledger.test_written_through(), 1);
+}
+
+#[tokio::test]
+async fn ledger_modern_position_response_batch_fails_midway_under_one_root() {
+    for compression in [None, Some(0), Some(256)] {
+        let (session, reader, mut peer) = fixture().await;
+        session.state.lock().await.phase = Phase::Play;
+        let expected = crate::client::ledger::testing::Control::default();
+        expected.release(usize::MAX, true);
+        write_packet(
+            &mut expected.writer(),
+            compression,
+            ids::play_serverbound::TELEPORT_CONFIRM,
+            &[0],
+        )
+        .await
+        .unwrap();
+        let first = expected.bytes();
+        let control = crate::client::ledger::testing::Control::default();
+        control.release(usize::MAX, false);
+        {
+            let mut writer = session.writer.lock().await;
+            writer.compression = compression;
+            writer.stream.test_replace(control.writer());
+        }
+        let receiving = session.clone();
+        let receiver = tokio::spawn(async move {
+            receiving.run_receiver(reader).await;
+        });
+        write_packet(
+            &mut peer,
+            compression,
+            ids::play_clientbound::POSITION,
+            &[0; 61],
+        )
+        .await
+        .unwrap();
+        control.until(|c| c.progress().1 > 0).await;
+        let mut drain = session.ledger.cut(false);
+        assert!(drain.inspect().is_none());
+        assert_eq!(session.ledger.test_written_through(), 0);
+        control.fail(Some(first.len() + 1), false);
+        control.release(usize::MAX, true);
+        timeout(Duration::from_secs(2), receiver)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(drain.inspect().unwrap().is_err());
+        assert_eq!(session.ledger.test_written_through(), 1);
+        assert_eq!(&control.bytes()[..first.len()], &first);
+        assert_eq!(control.bytes().len(), first.len() + 1);
+        assert_eq!(control.progress().2, 1);
+    }
 }

@@ -536,3 +536,57 @@ fn guards_and_waiters_survive_session_ledger_owner_drop() {
         );
     }
 }
+
+#[test]
+fn nonblocking_inspect_reports_pending_success_and_sticky_failure_without_runtime() {
+    let ledger = ledger();
+    let parent = ledger.admit().unwrap();
+    let pending = parent.child().unwrap();
+    let mut drain = ledger.cut(false);
+    // This is a synchronous inspect: no runtime, spawning, awaiting or wakeup.
+    for _ in 0..100 {
+        assert!(drain.inspect().is_none());
+    }
+    parent.finish(Outcome::Complete);
+    assert!(drain.inspect().is_none());
+    pending.finish(Outcome::Complete);
+    let receipt = drain.inspect().unwrap().unwrap();
+    let mut failed = ledger.cut(false);
+    ledger.fail(Failure::TransactionUnconfirmed);
+    assert!(failed.inspect().unwrap().is_err());
+    assert_eq!(drain.inspect().unwrap(), Ok(receipt));
+}
+
+#[test]
+fn tracking_preserves_existing_admission_after_expiry_but_never_issues_clean_drain() {
+    let ledger = Ledger::tracking(GenerationKey {
+        version: MinecraftVersion::Java1_21_11,
+        connection_id: 19,
+    });
+    let pending = ledger.admit().unwrap();
+    let mut drain = ledger.cut(false);
+    pending.finish(Outcome::Failed(Failure::TransactionUnconfirmed));
+    assert_eq!(cause(&mut drain), Failure::TransactionUnconfirmed);
+    let next = ledger.admit().unwrap();
+    next.begin_write().unwrap().commit();
+    next.finish(Outcome::Complete);
+    assert_eq!(ledger.test_written_through(), 1);
+    assert!(ledger.cut(false).inspect().unwrap().is_err());
+}
+
+#[test]
+fn tracking_retains_only_live_owners_without_introducing_transport_admission_capacity() {
+    let ledger = Ledger::tracking(GenerationKey {
+        version: MinecraftVersion::Java1_16_1,
+        connection_id: 20,
+    });
+    let owners = (0..MAX_ROOTS + 1)
+        .map(|_| ledger.admit().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(ledger.shared.lock().roots.len(), MAX_ROOTS + 1);
+    for owner in owners {
+        owner.finish(Outcome::NoWrite);
+    }
+    assert!(ledger.shared.lock().roots.is_empty());
+    assert!(ledger.cut(false).inspect().unwrap().is_ok());
+}

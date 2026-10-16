@@ -67,7 +67,7 @@ pub use chunks::{ChunkObservation, LoadedChunks};
 pub use placement_check::PlacementCheck;
 pub use player_control::PlayerControl;
 pub use player_facts::{PlayerAttribute, PlayerEffect};
-mod ledger;
+pub(crate) mod ledger;
 mod lifecycle;
 pub use lifecycle::{ConnectionRevocation, ConnectionStatus};
 pub(crate) mod login;

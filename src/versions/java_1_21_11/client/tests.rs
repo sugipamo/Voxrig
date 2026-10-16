@@ -782,3 +782,143 @@ fn own_correction_resolves_native_rotation_velocity_and_keeps_submission_separat
     assert_eq!(serde_json::to_value(&s.motion).unwrap(), prior);
     assert!(s.failure.is_some());
 }
+
+#[tokio::test]
+async fn ledger_modern_login_configuration_and_responses_keep_the_same_epoch() {
+    for compression in [None, Some(0), Some(256)] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (release, done) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            assert_eq!(read_packet(&mut stream, None).await.unwrap().0, 0);
+            assert_eq!(
+                read_packet(&mut stream, None).await.unwrap().0,
+                ids::login_serverbound::LOGIN_START
+            );
+            if let Some(threshold) = compression {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, threshold);
+                write_packet(
+                    &mut stream,
+                    None,
+                    ids::login_clientbound::COMPRESS,
+                    &payload,
+                )
+                .await
+                .unwrap();
+            }
+            let mut cookie = Vec::new();
+            put_string(&mut cookie, "minecraft:probe");
+            write_packet(
+                &mut stream,
+                compression,
+                ids::login_clientbound::COOKIE_REQUEST,
+                &cookie,
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                read_packet(&mut stream, compression).await.unwrap().0,
+                ids::login_serverbound::COOKIE_RESPONSE
+            );
+            let mut plugin = vec![7];
+            put_string(&mut plugin, "minecraft:probe");
+            write_packet(
+                &mut stream,
+                compression,
+                ids::login_clientbound::LOGIN_PLUGIN_REQUEST,
+                &plugin,
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                read_packet(&mut stream, compression).await.unwrap(),
+                (ids::login_serverbound::LOGIN_PLUGIN_RESPONSE, vec![7, 0])
+            );
+            let mut success = vec![0; 16];
+            put_string(&mut success, "LedgerProbe");
+            success.push(0);
+            write_packet(
+                &mut stream,
+                compression,
+                ids::login_clientbound::SUCCESS,
+                &success,
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                read_packet(&mut stream, compression).await.unwrap().0,
+                ids::login_serverbound::LOGIN_ACKNOWLEDGED
+            );
+            assert_eq!(
+                read_packet(&mut stream, compression).await.unwrap().0,
+                ids::configuration_serverbound::SETTINGS
+            );
+            write_packet(
+                &mut stream,
+                compression,
+                ids::configuration_clientbound::PING,
+                &[0; 4],
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                read_packet(&mut stream, compression).await.unwrap(),
+                (ids::configuration_serverbound::PONG, vec![0; 4])
+            );
+            let mut registry = Vec::new();
+            put_string(&mut registry, "minecraft:dimension_type");
+            registry.push(1);
+            put_string(&mut registry, "minecraft:overworld");
+            registry.extend([1, 10]);
+            for (key, value) in [("min_y", -64i32), ("height", 384)] {
+                registry.push(3);
+                registry.extend((key.len() as u16).to_be_bytes());
+                registry.extend(key.as_bytes());
+                registry.extend(value.to_be_bytes());
+            }
+            registry.push(0);
+            write_packet(
+                &mut stream,
+                compression,
+                ids::configuration_clientbound::REGISTRY_DATA,
+                &registry,
+            )
+            .await
+            .unwrap();
+            write_packet(
+                &mut stream,
+                compression,
+                ids::configuration_clientbound::FINISH_CONFIGURATION,
+                &[],
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                read_packet(&mut stream, compression).await.unwrap().0,
+                ids::configuration_serverbound::FINISH_CONFIGURATION
+            );
+            done.await.unwrap();
+        });
+        let bot = Bot::connect(ConnectionConfig::offline(
+            crate::Server::new("127.0.0.1", port),
+            "LedgerProbe",
+            MinecraftVersion::Java1_21_11,
+        ))
+        .await
+        .unwrap();
+        timeout(std::time::Duration::from_secs(2), async {
+            while bot.session.ledger.test_written_through() < 8 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(bot.session.ledger.test_written_through(), 8);
+        bot.session.ledger.cut(false).wait().await.unwrap();
+        release.send(()).unwrap();
+        bot.session.revoke();
+        server.await.unwrap();
+    }
+}
