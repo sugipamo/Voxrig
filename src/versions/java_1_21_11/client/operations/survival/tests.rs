@@ -345,12 +345,17 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
         .unwrap();
     let (mut peer, _) = listener.accept().await.unwrap();
     let (_, writer) = connection.into_split();
+    let id = 42;
     let session = Arc::new(Session {
         operational_dig: Arc::default(),
-        id: 42,
+        id,
+        ledger: Ledger::tracking(GenerationKey {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: id,
+        }),
         started: Instant::now(),
         writer: Mutex::new(Writer {
-            stream: writer,
+            stream: SocketWriter::new(writer),
             compression: None,
         }),
         state: Mutex::new(state()),

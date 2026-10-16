@@ -286,8 +286,8 @@ fn apply_accepted_equip_swap(
     }
 }
 
-#[derive(Clone)]
 struct ExactWindowBarrier {
+    _work: Option<crate::client::ledger::ScopedWork>,
     successor: Option<WindowClick>,
     confirmation_seen: bool,
 }
@@ -1055,7 +1055,9 @@ pub enum Event {
 }
 
 pub(crate) struct PacketWriter {
-    pub(crate) inner: OwnedWriteHalf,
+    pub(crate) inner: crate::client::ledger::SocketWriter<OwnedWriteHalf>,
+    pub(crate) generation: ConnectionGeneration,
+    pub(crate) ledger: crate::client::ledger::Ledger,
     pub(crate) compression: Option<i32>,
 }
 
@@ -1314,8 +1316,16 @@ impl Bot {
         let (reader, writer) = stream.into_split();
         // Keep the same buffer through login and play so prefetched frames survive.
         let mut reader = tokio::io::BufReader::new(reader);
+        let generation = ConnectionGeneration::allocate();
+        let ledger =
+            crate::client::ledger::Ledger::tracking(crate::client::ledger::GenerationKey {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: generation.get(),
+            });
         let writer = Arc::new(Mutex::new(PacketWriter {
-            inner: writer,
+            inner: crate::client::ledger::SocketWriter::new(writer),
+            generation,
+            ledger: ledger.clone(),
             compression: None,
         }));
         let mut handshake = Vec::new();
@@ -1323,10 +1333,23 @@ impl Bot {
         put_string(&mut handshake, &server.host);
         handshake.extend(server.port.to_be_bytes());
         put_varint(&mut handshake, 2);
-        write_packet(&mut writer.lock().await.inner, None, 0, &handshake).await?;
+        let login_work =
+            crate::client::ledger::ScopedWork::new(ledger.admit().expect("new connection"));
+        writer
+            .lock()
+            .await
+            .inner
+            .send(login_work.guard(), None, 0, &handshake)
+            .await?;
         let mut login = Vec::new();
         put_string(&mut login, &player.username);
-        write_packet(&mut writer.lock().await.inner, None, 0, &login).await?;
+        writer
+            .lock()
+            .await
+            .inner
+            .send(login_work.guard(), None, 0, &login)
+            .await?;
+        drop(login_work);
         let login_profile = loop {
             let compression = writer.lock().await.compression;
             let (id, payload) = timeout(
@@ -1955,6 +1978,7 @@ impl Bot {
             self.exact_window_barriers.lock().await.insert(
                 (window_id, action),
                 ExactWindowBarrier {
+                    _work: transaction.barrier_work(),
                     successor,
                     confirmation_seen: false,
                 },
@@ -2672,16 +2696,29 @@ impl Bot {
         payload.push(u8::from(settings.chat_colors));
         payload.push(settings.skin_parts);
         put_varint(&mut payload, settings.main_hand as i32);
-        if protocol_response {
-            self.send_protocol(0x05, &payload).await?;
+        let response_work = protocol_response.then(|| self.connection.protocol_work());
+        if let Some(work) = &response_work {
+            self.connection
+                .dispatch_protocol_work(
+                    0x05,
+                    &payload,
+                    Some(work.guard().child().expect("settings response child")),
+                )
+                .await?;
         } else {
             self.send(0x05, &payload).await?;
         }
         let mut brand = Vec::new();
         put_string(&mut brand, "minecraft:brand");
         put_string(&mut brand, &settings.brand);
-        if protocol_response {
-            self.send_protocol(0x0b, &brand).await?;
+        if let Some(work) = &response_work {
+            self.connection
+                .dispatch_protocol_work(
+                    0x0b,
+                    &brand,
+                    Some(work.guard().child().expect("brand response child")),
+                )
+                .await?;
         } else {
             self.send(0x0b, &brand).await?;
         }
@@ -5855,6 +5892,7 @@ impl Bot {
         Ok(())
     }
     async fn handle_position(&self, p: &[u8]) -> Result<()> {
+        let response_work = self.connection.protocol_work();
         let mut s = self.player.lock().await;
         let (position, rotation, teleport) =
             common_recording::decode_position(p, [s.x, s.y, s.z], [s.yaw, s.pitch])?;
@@ -5914,8 +5952,19 @@ impl Bot {
         self.ready.notify_waiters();
         let mut payload = Vec::new();
         put_varint(&mut payload, teleport);
-        self.send_protocol(0x00, &payload).await?;
-        self.send_position_protocol().await?;
+        self.connection
+            .dispatch_protocol_work(
+                0x00,
+                &payload,
+                Some(
+                    response_work
+                        .guard()
+                        .child()
+                        .expect("teleport response child"),
+                ),
+            )
+            .await?;
+        self.send_position_protocol(response_work.guard()).await?;
         self.emit(Event::Position(snapshot));
         Ok(())
     }
@@ -6001,7 +6050,7 @@ impl Bot {
         self.physics.lock().await.record_movement(p);
         Ok(())
     }
-    async fn send_position_protocol(&self) -> Result<()> {
+    async fn send_position_protocol(&self, work: &crate::client::ledger::WorkGuard) -> Result<()> {
         let p = self.player().await;
         let mut payload = Vec::new();
         payload.write_f64::<BigEndian>(p.x)?;
@@ -6010,7 +6059,13 @@ impl Bot {
         payload.write_f32::<BigEndian>(p.yaw)?;
         payload.write_f32::<BigEndian>(p.pitch)?;
         payload.push(p.on_ground as u8);
-        self.send_protocol(0x13, &payload).await?;
+        self.connection
+            .dispatch_protocol_work(
+                0x13,
+                &payload,
+                Some(work.child().expect("position response child")),
+            )
+            .await?;
         self.physics.lock().await.record_movement(p);
         Ok(())
     }
@@ -7133,6 +7188,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn ledger_legacy_login_and_protocol_settings_keep_the_same_epoch() {
+        let (bot, server, release) =
+            connected_test_bot(ConnectionOptions::default(), Vec::new()).await;
+        let ledger = bot.writer.lock().await.ledger.clone();
+        assert_eq!(ledger.test_written_through(), 2);
+        bot.set_client_settings_protocol(ClientSettings::default())
+            .await
+            .unwrap();
+        assert_eq!(ledger.test_written_through(), 4);
+        ledger.cut(false).wait().await.unwrap();
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn exact_empty_hotbar_selection_uses_existing_packet_and_updates_cache() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
         bot.inventory
@@ -7940,6 +8011,7 @@ mod tests {
         bot.exact_window_barriers.lock().await.insert(
             (0, action),
             ExactWindowBarrier {
+                _work: None,
                 successor: None,
                 confirmation_seen: false,
             },
@@ -7999,6 +8071,7 @@ mod tests {
         bot.exact_window_barriers.lock().await.insert(
             (0, second_action),
             ExactWindowBarrier {
+                _work: None,
                 successor: None,
                 confirmation_seen: false,
             },
@@ -8083,6 +8156,7 @@ mod tests {
         bot.exact_window_barriers.lock().await.insert(
             (0, action),
             ExactWindowBarrier {
+                _work: None,
                 successor: Some(WindowClick {
                     slot: 1,
                     button: 0,

@@ -56,7 +56,17 @@ impl InteractionLoading {
 impl Session {
     // Called after ordinary automatic responses. The loading gate blocks user
     // operations until this send completes, including teleport confirmation first.
-    pub(super) async fn complete_loading(&self, state: &mut State) -> Result<()> {
+    #[cfg(test)]
+    async fn complete_loading(&self, state: &mut State) -> Result<()> {
+        let work = ScopedWork::new(self.ledger.admit().expect("test loading response"));
+        self.complete_loading_work(state, work.guard()).await
+    }
+
+    pub(super) async fn complete_loading_work(
+        &self,
+        state: &mut State,
+        work: &WorkGuard,
+    ) -> Result<()> {
         if state.phase != Phase::Play
             || !state.ready
             || state.loading.initial_chunks_sequence.is_none()
@@ -78,7 +88,8 @@ impl Session {
             after_sequence: state.sequence,
             dispatched: false,
         });
-        self.send(ids::play_serverbound::PLAYER_LOADED, &[]).await?;
+        self.send_work(ids::play_serverbound::PLAYER_LOADED, &[], work)
+            .await?;
         state
             .loading
             .attempt

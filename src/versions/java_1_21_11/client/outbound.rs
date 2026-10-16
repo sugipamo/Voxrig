@@ -18,6 +18,7 @@ impl Drop for WriteAttempt<'_> {
                 Ordering::AcqRel,
                 Ordering::Acquire,
             );
+            self.session.ledger.fail(Failure::UncertainDispatch);
             self.session.stop();
         }
     }
@@ -39,6 +40,7 @@ impl Session {
         });
     }
     pub(super) fn stop(&self) {
+        self.ledger.fail(Failure::Revoked);
         self.stopped.store(true, Ordering::Release);
         // Wake both a blocked writer and the receive loop. Retain a permit for
         // teardown which has not yet started waiting.
@@ -68,6 +70,11 @@ impl Session {
     }
 
     pub(super) async fn send(&self, id: i32, payload: &[u8]) -> Result<()> {
+        let work = ScopedWork::new(self.ledger.admit().expect("existing sender admission"));
+        self.send_work(id, payload, work.guard()).await
+    }
+
+    pub(super) async fn send_work(&self, id: i32, payload: &[u8], work: &WorkGuard) -> Result<()> {
         let cancelled = self.cancel.notified();
         tokio::pin!(cancelled);
         cancelled.as_mut().enable();
@@ -79,18 +86,32 @@ impl Session {
             writer = self.writer.lock() => writer,
         };
         let compression = writer.compression;
-        self.write_frame(&mut writer.stream, compression, id, payload)
+        self.write_frame(&mut writer.stream, compression, id, payload, work)
             .await
     }
 
     // Shared by the real TCP sender and bounded stream tests. The caller owns
     // the writer lock for the complete attempt, including guard destruction.
-    async fn write_frame<W: AsyncWrite + Unpin>(
+    #[cfg(test)]
+    async fn write_test_frame<W: AsyncWrite + Unpin>(
         &self,
-        stream: &mut W,
+        stream: &mut SocketWriter<W>,
         compression: Option<i32>,
         id: i32,
         payload: &[u8],
+    ) -> Result<()> {
+        let work = ScopedWork::new(self.ledger.admit().expect("test sender admission"));
+        self.write_frame(stream, compression, id, payload, work.guard())
+            .await
+    }
+
+    async fn write_frame<W: AsyncWrite + Unpin>(
+        &self,
+        stream: &mut SocketWriter<W>,
+        compression: Option<i32>,
+        id: i32,
+        payload: &[u8],
+        work: &WorkGuard,
     ) -> Result<()> {
         let cancelled = self.cancel.notified();
         tokio::pin!(cancelled);
@@ -104,7 +125,7 @@ impl Session {
         let result = tokio::select! {
             biased;
             _ = &mut cancelled => Err(anyhow::anyhow!("connection closed during frame write")),
-            result = write_packet(stream, compression, id, payload) => result,
+            result = stream.send(work, compression, id, payload) => result,
         };
         match result {
             Ok(()) => {

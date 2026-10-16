@@ -1,8 +1,8 @@
-//! Internal, unwired admission ledger foundation for issue #131 PR 1.
+//! Internal admission ledger for issue #131.
 //!
-//! One future session owns one `Ledger`; guards and waiters retain its shared
-//! state, never a Client/session reference (no ownership cycle). No production
-//! operation uses this module yet, so its receipts establish no public guarantee.
+//! Each transport owns one `Ledger`; guards and waiters retain its shared
+//! state, never a Client/session reference (no ownership cycle). Writers and
+//! protocol pending states are wired; no public drain guarantee is exposed.
 //!
 //! Admission and cut capture share a short synchronous gate. A cut C covers all
 //! roots <= C and every descendant, including descendants created after the cut.
@@ -20,11 +20,12 @@
 //! inspect again. Each waiter owns a receiver. Results are cached per waiter;
 //! failure is sticky for every not-yet-issued receipt, even an older cut.
 //!
-//! Live roots, guards and producers have fixed bounds. Retired roots are removed
-//! immediately; cumulative outcome counters saturate, and the first failure is
+//! Foundation admission has fixed bounds; production tracks existing adapter
+//! admission without a new transport cap. Retired roots are removed immediately;
+//! cumulative outcome counters saturate, and the first failure is
 //! retained separately forever. No receipt/history registry is retained here.
 //! See docs/internal/drain-ledger.md for provisional choices and integration debt.
-#![allow(dead_code)] // Deliberately unwired until subsequent ledger integration PRs.
+#![allow(dead_code)] // Drain/producer integration remains private until PR 4.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -37,13 +38,13 @@ const MAX_GUARDS: usize = 4096;
 const MAX_PRODUCERS: usize = 128;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct GenerationKey {
-    version: MinecraftVersion,
-    connection_id: u64,
+pub(crate) struct GenerationKey {
+    pub(crate) version: MinecraftVersion,
+    pub(crate) connection_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Failure {
+pub(crate) enum Failure {
     OwnerLost,
     UncertainDispatch,
     TransactionUnconfirmed,
@@ -54,7 +55,7 @@ enum Failure {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Outcome {
+pub(crate) enum Outcome {
     Complete,
     NoWrite,
     Rejected,
@@ -88,13 +89,13 @@ impl Outcomes {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Terminal {
+pub(crate) struct Terminal {
     root: Option<u64>,
     cause: Failure,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AdmissionError {
+pub(crate) enum AdmissionError {
     Closed,
     Capacity,
     WriterBusy,
@@ -114,7 +115,7 @@ struct Cut {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct Receipt {
+pub(crate) struct Receipt {
     generation: GenerationKey,
     cut: Cut,
     written_through: u64,
@@ -123,7 +124,7 @@ struct Receipt {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct DrainFailure {
+pub(crate) struct DrainFailure {
     generation: GenerationKey,
     cut: Cut,
     written_through: u64,
@@ -131,6 +132,9 @@ struct DrainFailure {
 }
 
 struct State {
+    // PR 2 observes existing transport admission. A failed drain cannot change
+    // public send errors, and existing queued callers must not gain a new cap.
+    track_existing: bool,
     closed: bool,
     last_root: u64,
     last_producer: u64,
@@ -190,6 +194,9 @@ impl State {
     }
 
     fn healthy(&self) -> Result<(), AdmissionError> {
+        if self.track_existing {
+            return Ok(());
+        }
         self.terminal
             .map_or(Ok(()), |t| Err(AdmissionError::Terminal(t)))
     }
@@ -203,28 +210,30 @@ impl State {
 
     fn add_guard(&mut self, root: u64) -> Result<(), AdmissionError> {
         self.healthy()?;
-        if self.guards >= MAX_GUARDS {
+        if !self.track_existing && self.guards >= MAX_GUARDS {
             return Err(AdmissionError::Capacity);
         }
-        // Per-root counts cannot exceed the globally bounded guard count.
+        // A count represents actual live guards only, never retired history.
         *self.roots.get_mut(&root).expect("live parent root") += 1;
         self.guards += 1;
         Ok(())
     }
 }
 
-struct Ledger {
+#[derive(Clone)]
+pub(crate) struct Ledger {
     shared: Arc<Shared>,
 }
 
 impl Ledger {
-    fn new(generation: GenerationKey) -> Self {
+    pub(crate) fn new(generation: GenerationKey) -> Self {
         let (changed, _) = watch::channel(());
         Self {
             shared: Arc::new(Shared {
                 generation,
                 changed,
                 state: Mutex::new(State {
+                    track_existing: false,
                     closed: false,
                     last_root: 0,
                     last_producer: 0,
@@ -241,13 +250,27 @@ impl Ledger {
         }
     }
 
-    fn admit(&self) -> Result<WorkGuard, AdmissionError> {
+    #[cfg(test)]
+    pub(crate) fn test_written_through(&self) -> u64 {
+        self.shared.lock().written_through
+    }
+
+    // Track existing adapter admission with the same roots/children/permits.
+    // Failure still rejects every unissued drain, without changing public send
+    // errors or imposing a new queue capacity. Closing roots is still enforced.
+    pub(crate) fn tracking(generation: GenerationKey) -> Self {
+        let ledger = Self::new(generation);
+        ledger.shared.lock().track_existing = true;
+        ledger
+    }
+
+    pub(crate) fn admit(&self) -> Result<WorkGuard, AdmissionError> {
         let mut state = self.shared.lock();
         state.healthy()?;
         if state.closed {
             return Err(AdmissionError::Closed);
         }
-        if state.roots.len() >= MAX_ROOTS || state.guards >= MAX_GUARDS {
+        if !state.track_existing && (state.roots.len() >= MAX_ROOTS || state.guards >= MAX_GUARDS) {
             return Err(AdmissionError::Capacity);
         }
         let last = state.last_root;
@@ -286,7 +309,7 @@ impl Ledger {
         })
     }
 
-    fn cut(&self, close_roots: bool) -> Drain {
+    pub(crate) fn cut(&self, close_roots: bool) -> Drain {
         // Subscribe BEFORE evaluating readiness, even for an already idle cut.
         let changed = self.shared.changed.subscribe();
         let mut state = self.shared.lock();
@@ -310,20 +333,20 @@ impl Ledger {
         }
     }
 
-    fn fail(&self, cause: Failure) {
+    pub(crate) fn fail(&self, cause: Failure) {
         self.shared.lock().fail(None, cause);
         self.shared.notify();
     }
 }
 
-struct WorkGuard {
+pub(crate) struct WorkGuard {
     shared: Arc<Shared>,
     root: u64,
     retired: bool,
 }
 
 impl WorkGuard {
-    fn child(&self) -> Result<Self, AdmissionError> {
+    pub(crate) fn child(&self) -> Result<Self, AdmissionError> {
         self.shared.lock().add_guard(self.root)?;
         Ok(Self {
             shared: self.shared.clone(),
@@ -337,7 +360,7 @@ impl WorkGuard {
         self
     }
 
-    fn finish(mut self, outcome: Outcome) {
+    pub(crate) fn finish(mut self, outcome: Outcome) {
         self.shared.retire(self.root, outcome);
         self.retired = true;
     }
@@ -348,7 +371,7 @@ impl WorkGuard {
         if state.writing {
             return Err(AdmissionError::WriterBusy);
         }
-        if state.guards >= MAX_GUARDS {
+        if !state.track_existing && state.guards >= MAX_GUARDS {
             return Err(AdmissionError::Capacity);
         }
         let last = state.last_write;
@@ -388,7 +411,8 @@ impl WritePermit {
         let work = self.work.take().expect("live write permit");
         {
             let mut state = work.shared.lock();
-            // Only one attempt exists, and allocation stops at the first failure.
+            // Only one attempt exists. Tracking after a failure must never
+            // advance the contiguous prefix over an incomplete frame.
             if state.written_through.checked_add(1) == Some(self.ordinal) {
                 state.written_through = self.ordinal;
             } else {
@@ -444,7 +468,7 @@ impl Drop for Producer {
     }
 }
 
-struct Drain {
+pub(crate) struct Drain {
     shared: Arc<Shared>,
     changed: watch::Receiver<()>,
     cut: Cut,
@@ -452,7 +476,7 @@ struct Drain {
 }
 
 impl Drain {
-    fn inspect(&mut self) -> Option<Result<Receipt, DrainFailure>> {
+    pub(crate) fn inspect(&mut self) -> Option<Result<Receipt, DrainFailure>> {
         if self.result.is_some() {
             return self.result;
         }
@@ -483,7 +507,7 @@ impl Drain {
         self.result
     }
 
-    async fn wait(&mut self) -> Result<Receipt, DrainFailure> {
+    pub(crate) async fn wait(&mut self) -> Result<Receipt, DrainFailure> {
         loop {
             if let Some(result) = self.inspect() {
                 return result;
@@ -499,3 +523,111 @@ impl Drain {
 
 #[cfg(test)]
 mod tests;
+
+// A scoped writer/queue owner has no retained authority after it leaves scope.
+// A write attempt independently owns a child and records interruption first.
+pub(crate) struct ScopedWork(Option<WorkGuard>);
+impl ScopedWork {
+    pub(crate) fn new(work: WorkGuard) -> Self {
+        Self(Some(work))
+    }
+    pub(crate) fn guard(&self) -> &WorkGuard {
+        self.0.as_ref().expect("live scope")
+    }
+}
+impl Drop for ScopedWork {
+    fn drop(&mut self) {
+        if let Some(work) = self.0.take() {
+            work.finish(if std::thread::panicking() {
+                Outcome::Failed(Failure::OwnerLost)
+            } else {
+                Outcome::Complete
+            });
+        }
+    }
+}
+
+// Shared only with a protocol transaction handle. Retiring the pending state
+// releases its owner even if the public handle is never awaited or dropped.
+pub(crate) struct PendingWork(Mutex<Option<WorkGuard>>);
+impl PendingWork {
+    pub(crate) fn new(work: WorkGuard) -> Self {
+        Self(Mutex::new(Some(work)))
+    }
+    pub(crate) fn child(&self) -> Option<WorkGuard> {
+        self.0
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .as_ref()
+            .map(|work| work.child().expect("existing protocol owner"))
+    }
+    pub(crate) fn finish(&self, outcome: Outcome) {
+        if let Some(work) = self.0.lock().unwrap_or_else(|p| p.into_inner()).take() {
+            work.finish(outcome);
+        }
+    }
+}
+
+// The sole frame-completion policy. Provisional pending Golemkit: completing W
+// at socket flush never retires protocol pending/barrier owners or awaits ACK.
+enum CompletionPoint {
+    SocketFlush,
+}
+const COMPLETION_POINT: CompletionPoint = CompletionPoint::SocketFlush;
+fn publish_completion(permit: WritePermit) {
+    match COMPLETION_POINT {
+        CompletionPoint::SocketFlush => permit.commit(),
+    }
+}
+
+// No AsyncWrite implementation or mutable stream accessor: production socket
+// bytes can only be emitted by consuming a real permit here. Shutdown emits no
+// packet and retains the adapters' existing teardown semantics.
+pub(crate) struct SocketWriter<W> {
+    inner: W,
+    #[cfg(test)]
+    replacement: Option<testing::BoundedWriter>,
+}
+impl<W: tokio::io::AsyncWrite + Unpin> SocketWriter<W> {
+    pub(crate) fn new(inner: W) -> Self {
+        Self {
+            inner,
+            #[cfg(test)]
+            replacement: None,
+        }
+    }
+    pub(crate) async fn send(
+        &mut self,
+        work: &WorkGuard,
+        compression: Option<i32>,
+        id: i32,
+        payload: &[u8],
+    ) -> anyhow::Result<()> {
+        let permit = work
+            .begin_write()
+            .map_err(|e| anyhow::anyhow!("ledger write: {e:?}"))?;
+        #[cfg(test)]
+        if let Some(writer) = &mut self.replacement {
+            crate::protocol::write_packet(writer, compression, id, payload).await?;
+            publish_completion(permit);
+            return Ok(());
+        }
+        crate::protocol::write_packet(&mut self.inner, compression, id, payload).await?;
+        publish_completion(permit);
+        Ok(())
+    }
+    pub(crate) async fn shutdown(&mut self) -> std::io::Result<()> {
+        tokio::io::AsyncWriteExt::shutdown(&mut self.inner).await
+    }
+    #[cfg(test)]
+    pub(crate) fn test_replace(&mut self, writer: testing::BoundedWriter) {
+        self.replacement = Some(writer);
+    }
+    #[cfg(test)]
+    pub(crate) fn test_inner(&self) -> &W {
+        &self.inner
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod testing;

@@ -20,12 +20,17 @@ async fn fixture() -> (Bot, OwnedReadHalf, TcpStream) {
         .world
         .select_dimension("minecraft:overworld".into(), dimension);
     state.loading.reset(1);
+    let id = 900;
     let session = Arc::new(Session {
         operational_dig: Arc::default(),
-        id: 900,
+        id,
+        ledger: Ledger::tracking(GenerationKey {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: id,
+        }),
         started: Instant::now(),
         writer: Mutex::new(Writer {
-            stream: writer,
+            stream: SocketWriter::new(writer),
             compression: None,
         }),
         state: Mutex::new(state),

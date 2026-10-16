@@ -6,6 +6,7 @@
 //! irreversible generation fence independent of this owner's queued work.
 
 mod bounded_motion;
+use crate::client::ledger::{Failure, Ledger, Outcome, PendingWork, ScopedWork, WorkGuard};
 use bounded_motion::MotionGate;
 
 use std::{
@@ -15,7 +16,6 @@ use std::{
 };
 
 use tokio::{
-    io::AsyncWriteExt,
     sync::{Mutex, RwLock, mpsc, oneshot, watch},
     time::{Duration, Instant, sleep},
 };
@@ -229,6 +229,7 @@ enum TransactionIdentity {
 
 struct PendingTransaction {
     completion: oneshot::Sender<crate::DispatchOutcome>,
+    work: Arc<PendingWork>,
     confirmation_seen: bool,
     diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
 }
@@ -255,10 +256,18 @@ struct PendingFurnaceInteraction {
 pub struct ProtocolTransaction {
     identity: TransactionIdentity,
     dispatched: bool,
+    work: std::sync::Weak<PendingWork>,
     completion: oneshot::Receiver<crate::DispatchOutcome>,
 }
 
 impl ProtocolTransaction {
+    pub(crate) fn barrier_work(&self) -> Option<ScopedWork> {
+        self.work
+            .upgrade()
+            .and_then(|work| work.child())
+            .map(ScopedWork::new)
+    }
+
     /// Waits for acknowledgement, rejection, or the actor-owned delivery
     /// deadline. A dropped actor is treated as delivery unknown.
     pub async fn wait(self) -> crate::DispatchOutcome {
@@ -375,7 +384,7 @@ enum Command {
         window_id: i8,
         action: i16,
         accepted: bool,
-        reply: oneshot::Sender<bool>,
+        reply: oneshot::Sender<(bool, Option<WorkGuard>)>,
     },
     CommitWindowBarrier {
         window_id: i8,
@@ -499,11 +508,72 @@ pub(crate) fn emit_protocol_timing(make_value: impl FnOnce() -> serde_json::Valu
     }
 }
 
+struct QueuedCommand {
+    command: Command,
+    work: Option<ScopedWork>,
+}
+#[derive(Clone)]
+struct CommandSender {
+    sender: mpsc::Sender<QueuedCommand>,
+    ledger: Ledger,
+}
+impl CommandSender {
+    async fn send(&self, command: Command) -> Result<(), mpsc::error::SendError<Command>> {
+        // Local ACK/expiry/cleanup commands retire existing pending authority;
+        // they must remain processable after root admission closes.
+        let work = matches!(
+            &command,
+            Command::Motion(_)
+                | Command::Dispatch { .. }
+                | Command::DispatchPrimitive { .. }
+                | Command::DispatchInteractionBatch { .. }
+                | Command::DispatchAcknowledged { .. }
+                | Command::DispatchProtocol { .. }
+        )
+        .then(|| ScopedWork::new(self.ledger.admit().expect("existing actor admission")));
+        self.sender
+            .send(QueuedCommand { command, work })
+            .await
+            .map_err(|error| mpsc::error::SendError(error.0.command))
+    }
+    async fn send_work(
+        &self,
+        command: Command,
+        work: ScopedWork,
+    ) -> Result<(), mpsc::error::SendError<Command>> {
+        self.sender
+            .send(QueuedCommand {
+                command,
+                work: Some(work),
+            })
+            .await
+            .map_err(|error| mpsc::error::SendError(error.0.command))
+    }
+    #[cfg(test)]
+    fn try_send(&self, command: Command) -> Result<(), mpsc::error::TrySendError<Command>> {
+        let work = ScopedWork::new(self.ledger.admit().expect("existing actor admission"));
+        self.sender
+            .try_send(QueuedCommand {
+                command,
+                work: Some(work),
+            })
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(queued) => {
+                    mpsc::error::TrySendError::Full(queued.command)
+                }
+                mpsc::error::TrySendError::Closed(queued) => {
+                    mpsc::error::TrySendError::Closed(queued.command)
+                }
+            })
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct ConnectionActor {
     generation: ConnectionGeneration,
     control: Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
-    commands: mpsc::Sender<Command>,
+    commands: CommandSender,
+    ledger: Ledger,
     lifecycle: watch::Receiver<ConnectionState>,
     revoked: Arc<AtomicBool>,
     owner: tokio::task::AbortHandle,
@@ -517,8 +587,17 @@ impl ConnectionActor {
         acknowledgement_timeout: Duration,
         control: Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
     ) -> Self {
-        let generation = ConnectionGeneration::allocate();
-        let (commands, mut receiver) = mpsc::channel(64);
+        let (generation, ledger) = {
+            let writer = writer
+                .try_lock()
+                .expect("writer initialized before actor spawn");
+            (writer.generation, writer.ledger.clone())
+        };
+        let (sender, mut receiver) = mpsc::channel(64);
+        let commands = CommandSender {
+            sender,
+            ledger: ledger.clone(),
+        };
         let expiry_commands = commands.clone();
         let (lifecycle_tx, lifecycle) = watch::channel(ConnectionState::Connecting);
         let actor_control = control.clone();
@@ -538,7 +617,7 @@ impl ConnectionActor {
             let mut latest_observation_sequence = None;
             let mut active_output_sequence = None;
             let mut motion_gate = MotionGate::default();
-            while let Some(command) = receiver.recv().await {
+            while let Some(QueuedCommand { command, work }) = receiver.recv().await {
                 if actor_revoked.load(Ordering::Acquire) {
                     break;
                 }
@@ -632,6 +711,7 @@ impl ConnectionActor {
                     Command::Motion(command) => {
                         if motion_gate
                             .process(
+                                work.as_ref().expect("writer command owner").guard(),
                                 command,
                                 state,
                                 &writer,
@@ -777,14 +857,16 @@ impl ConnectionActor {
                                     return;
                                 }
                                 let compression = writer.compression;
-                                crate::protocol::write_packet(
-                                    &mut writer.inner,
-                                    compression,
-                                    packet_id,
-                                    &payload,
-                                )
-                                .await
-                                .map_err(crate::Error::from)
+                                writer
+                                    .inner
+                                    .send(
+                                        work.as_ref().expect("writer command owner").guard(),
+                                        compression,
+                                        packet_id,
+                                        &payload,
+                                    )
+                                    .await
+                                    .map_err(crate::Error::from)
                             }
                             Err(error) => Err(crate::Error::new(
                                 crate::ErrorKind::State,
@@ -837,13 +919,15 @@ impl ConnectionActor {
                                         return;
                                     }
                                     let compression = writer.compression;
-                                    crate::protocol::write_packet(
-                                        &mut writer.inner,
-                                        compression,
-                                        packet_id,
-                                        &payload,
-                                    )
-                                    .await
+                                    writer
+                                        .inner
+                                        .send(
+                                            work.as_ref().expect("writer command owner").guard(),
+                                            compression,
+                                            packet_id,
+                                            &payload,
+                                        )
+                                        .await
                                 };
                                 match write_result {
                                     Ok(()) => {
@@ -965,13 +1049,17 @@ impl ConnectionActor {
                                     let compression = writer.compression;
                                     let mut result = Ok(());
                                     for (packet_id, payload) in packets {
-                                        if let Err(error) = crate::protocol::write_packet(
-                                            &mut writer.inner,
-                                            compression,
-                                            packet_id,
-                                            &payload,
-                                        )
-                                        .await
+                                        if let Err(error) = writer
+                                            .inner
+                                            .send(
+                                                work.as_ref()
+                                                    .expect("writer command owner")
+                                                    .guard(),
+                                                compression,
+                                                packet_id,
+                                                &payload,
+                                            )
+                                            .await
                                         {
                                             result = Err(error);
                                             break;
@@ -1104,13 +1192,15 @@ impl ConnectionActor {
                                 return;
                             }
                             let compression = writer.compression;
-                            crate::protocol::write_packet(
-                                &mut writer.inner,
-                                compression,
-                                packet_id,
-                                &payload,
-                            )
-                            .await
+                            writer
+                                .inner
+                                .send(
+                                    work.as_ref().expect("writer command owner").guard(),
+                                    compression,
+                                    packet_id,
+                                    &payload,
+                                )
+                                .await
                         };
                         if write_result.is_err() {
                             emit_connection_diagnostic(
@@ -1133,6 +1223,7 @@ impl ConnectionActor {
                             let _ = reply.send(Ok(ProtocolTransaction {
                                 identity,
                                 dispatched: false,
+                                work: std::sync::Weak::new(),
                                 completion: completion_rx,
                             }));
                             break;
@@ -1141,10 +1232,18 @@ impl ConnectionActor {
                             next_actions.insert(window_id, action);
                         }
                         let (completion_tx, completion_rx) = oneshot::channel();
+                        let pending_work = Arc::new(PendingWork::new(
+                            work.as_ref()
+                                .expect("writer command owner")
+                                .guard()
+                                .child()
+                                .expect("transaction child"),
+                        ));
                         pending_transactions.insert(
                             identity,
                             PendingTransaction {
                                 completion: completion_tx,
+                                work: pending_work.clone(),
                                 confirmation_seen: false,
                                 diagnostic_correlation: diagnostic_correlation
                                     .filter(|_| dig_lifecycle_trace_enabled()),
@@ -1178,6 +1277,7 @@ impl ConnectionActor {
                         let _ = reply.send(Ok(ProtocolTransaction {
                             identity,
                             dispatched: true,
+                            work: Arc::downgrade(&pending_work),
                             completion: completion_rx,
                         }));
                     }
@@ -1188,6 +1288,9 @@ impl ConnectionActor {
                         reply,
                     } => {
                         let identity = TransactionIdentity::WindowClick { window_id, action };
+                        let response_work = pending_transactions
+                            .get(&identity)
+                            .and_then(|pending| pending.work.child());
                         let observed = if accepted {
                             if let Some(pending) = pending_transactions.get_mut(&identity) {
                                 pending.confirmation_seen = true;
@@ -1196,12 +1299,13 @@ impl ConnectionActor {
                                 false
                             }
                         } else if let Some(pending) = pending_transactions.remove(&identity) {
+                            pending.work.finish(Outcome::Rejected);
                             let _ = pending.completion.send(crate::DispatchOutcome::Rejected);
                             true
                         } else {
                             false
                         };
-                        let _ = reply.send(observed);
+                        let _ = reply.send((observed, response_work));
                     }
                     Command::CommitWindowBarrier {
                         window_id,
@@ -1214,6 +1318,7 @@ impl ConnectionActor {
                             .is_some_and(|pending| pending.confirmation_seen);
                         if committed {
                             if let Some(pending) = pending_transactions.remove(&identity) {
+                                pending.work.finish(Outcome::Complete);
                                 let _ = pending
                                     .completion
                                     .send(crate::DispatchOutcome::Acknowledged);
@@ -1236,6 +1341,7 @@ impl ConnectionActor {
                                 } else {
                                     crate::DispatchOutcome::Rejected
                                 };
+                                pending.work.finish(Outcome::Complete);
                                 let _ = pending.completion.send(outcome);
                                 DigConfirmation {
                                     matched: true,
@@ -1276,6 +1382,9 @@ impl ConnectionActor {
                     }
                     Command::ExpireTransaction(identity) => {
                         if let Some(pending) = pending_transactions.remove(&identity) {
+                            pending
+                                .work
+                                .finish(Outcome::Failed(Failure::TransactionUnconfirmed));
                             if let Some(correlation) = pending.diagnostic_correlation {
                                 emit_dig_lifecycle(|| {
                                     serde_json::json!({
@@ -1333,14 +1442,16 @@ impl ConnectionActor {
                                 return;
                             }
                             let compression = writer.compression;
-                            crate::protocol::write_packet(
-                                &mut writer.inner,
-                                compression,
-                                packet_id,
-                                &payload,
-                            )
-                            .await
-                            .map_err(crate::Error::from)
+                            writer
+                                .inner
+                                .send(
+                                    work.as_ref().expect("writer command owner").guard(),
+                                    compression,
+                                    packet_id,
+                                    &payload,
+                                )
+                                .await
+                                .map_err(crate::Error::from)
                         } else {
                             Err(crate::Error::new(
                                 crate::ErrorKind::State,
@@ -1371,7 +1482,11 @@ impl ConnectionActor {
                         }
                     }
                     Command::ShutdownWriter { reply } => {
-                        let result = AsyncWriteExt::shutdown(&mut writer.lock().await.inner)
+                        let result = writer
+                            .lock()
+                            .await
+                            .inner
+                            .shutdown()
                             .await
                             .map_err(crate::Error::from);
                         let _ = reply.send(result);
@@ -1414,6 +1529,7 @@ impl ConnectionActor {
         Self {
             generation,
             control,
+            ledger,
             commands,
             lifecycle,
             revoked,
@@ -1432,6 +1548,7 @@ impl ConnectionActor {
         if self.revoked.swap(true, Ordering::AcqRel) {
             return receipt;
         }
+        self.ledger.fail(Failure::Revoked);
         self.owner.abort();
         let writer = self.writer.clone();
         self.runtime.spawn(async move {
@@ -1714,12 +1831,28 @@ impl ConnectionActor {
         }
     }
 
-    pub(crate) async fn observe_window_confirmation(
+    #[cfg(test)]
+    async fn observe_window_confirmation(
         &self,
         window_id: i8,
         action: i16,
         accepted: bool,
     ) -> bool {
+        let (observed, work) = self
+            .observe_window_confirmation_work(window_id, action, accepted)
+            .await;
+        if let Some(work) = work {
+            work.finish(Outcome::NoWrite);
+        }
+        observed
+    }
+
+    pub(crate) async fn observe_window_confirmation_work(
+        &self,
+        window_id: i8,
+        action: i16,
+        accepted: bool,
+    ) -> (bool, Option<WorkGuard>) {
         let (reply, result) = oneshot::channel();
         if self
             .commands
@@ -1732,9 +1865,9 @@ impl ConnectionActor {
             .await
             .is_err()
         {
-            return false;
+            return (false, None);
         }
-        result.await.unwrap_or(false)
+        result.await.unwrap_or((false, None))
     }
 
     pub(crate) async fn commit_window_barrier(&self, window_id: i8, action: i16) -> bool {
@@ -1809,18 +1942,41 @@ impl ConnectionActor {
         result.await.unwrap_or(None)
     }
 
+    pub(crate) fn protocol_work(&self) -> ScopedWork {
+        ScopedWork::new(
+            self.ledger
+                .admit()
+                .expect("existing protocol response admission"),
+        )
+    }
+
     pub(crate) async fn dispatch_protocol(
         &self,
         packet_id: i32,
         payload: &[u8],
     ) -> crate::Result<()> {
+        self.dispatch_protocol_work(packet_id, payload, None).await
+    }
+
+    pub(crate) async fn dispatch_protocol_work(
+        &self,
+        packet_id: i32,
+        payload: &[u8],
+        work: Option<WorkGuard>,
+    ) -> crate::Result<()> {
         let (reply, result) = oneshot::channel();
+        let work = ScopedWork::new(
+            work.unwrap_or_else(|| self.ledger.admit().expect("existing protocol admission")),
+        );
         self.commands
-            .send(Command::DispatchProtocol {
-                packet_id,
-                payload: payload.to_vec(),
-                reply,
-            })
+            .send_work(
+                Command::DispatchProtocol {
+                    packet_id,
+                    payload: payload.to_vec(),
+                    reply,
+                },
+                work,
+            )
             .await
             .map_err(|_| {
                 crate::Error::new(
@@ -1999,9 +2155,16 @@ mod tests {
         let client = TcpStream::connect(address).await.unwrap();
         let (server, _) = listener.accept().await.unwrap();
         let (_, writer) = client.into_split();
+        let generation = ConnectionGeneration::allocate();
+        let ledger = Ledger::tracking(crate::client::ledger::GenerationKey {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: generation.get(),
+        });
         let writer = Arc::new(Mutex::new(
             crate::versions::java_1_16_1::client::PacketWriter {
-                inner: writer,
+                inner: crate::client::ledger::SocketWriter::new(writer),
+                generation,
+                ledger,
                 compression: None,
             },
         ));
@@ -2017,6 +2180,7 @@ mod tests {
     }
 
     include!("lifecycle/bounded_motion_tests.rs");
+    include!("lifecycle/ledger_tests.rs");
 
     async fn no_packet<R: AsyncRead + Unpin>(reader: &mut R) {
         match timeout(Duration::from_millis(50), read_packet(reader, None)).await {
@@ -3194,7 +3358,11 @@ mod tests {
                 .unwrap();
             replies.push(result);
         }
+        let mut drain = actor.ledger.cut(false);
+        assert!(drain.inspect().is_none());
         let receipt = actor.revoke();
+        assert!(drain.inspect().unwrap().is_err());
+        assert_eq!(actor.ledger.test_written_through(), 0);
         assert_eq!(receipt.generation(), actor.generation());
         assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
         assert_eq!(actor.revoke(), receipt);
