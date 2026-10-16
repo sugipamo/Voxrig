@@ -420,10 +420,7 @@ impl Operations {
         {
             Ok(result) => result,
             Err(_) => {
-                self.bot
-                    .session
-                    .ledger
-                    .fail(Failure::TransactionUnconfirmed);
+                self.bot.session.ledger.fail(Failure::TransactionExpired);
                 self.observe_survival_placement(intent).await
             }
         }

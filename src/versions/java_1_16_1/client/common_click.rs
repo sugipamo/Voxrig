@@ -422,7 +422,8 @@ impl crate::client::adapter::InventoryClickOps for Bot {
                 let _ = reply.send(crate::client::ledger::finite::checked(
                     bot.reconcile_common_inventory_click().await,
                 ));
-            });
+            })
+            .await;
             result
                 .await
                 .map_err(|_| contract::unavailable("click inspection owner unavailable"))??;

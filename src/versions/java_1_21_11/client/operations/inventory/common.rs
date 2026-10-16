@@ -10,7 +10,7 @@ pub(in crate::versions::java_1_21_11::client) struct CommonSwap {
 pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut State) {
     if state.operations.inventory.pending_swap.is_none() {
         if let Some(work) = state.pending_swap_work.take() {
-            work.finish(Outcome::Failed(Failure::TransactionUnconfirmed));
+            work.finish(Outcome::Failed(Failure::TransactionOutcomeUnknown));
         }
     }
     let Some(mut common) = state.common_inventory_swap.take() else {

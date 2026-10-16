@@ -954,7 +954,7 @@ impl Operations {
             drop(state);
             let ops = self.clone();
             let producer = self.bot.session.ledger.register_producer().map_err(crate::client::ledger::finite::admission_error)?;
-            tokio::spawn(async move { ops.run_control(id, generation, mode, kind, producer).await });
+            self.bot.session.ledger.tasks().spawn(async move { ops.run_control(id, generation, mode, kind, producer).await });
             Ok(record)
         }).await
     }
@@ -1037,7 +1037,11 @@ impl crate::client::adapter::ControlOps for Operations {
         let id = session.id;
         drop(state);
         let owner = self.clone();
-        tokio::spawn(async move { owner.stop_control_owned(id, None).await })
+        self.bot
+            .session
+            .ledger
+            .tasks()
+            .spawn(async move { owner.stop_control_owned(id, None).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
@@ -1045,7 +1049,11 @@ impl crate::client::adapter::ControlOps for Operations {
     #[cfg(test)]
     async fn stop_control_for(&self, session_id: u64) -> Result<ControlRecord> {
         let owner = self.clone();
-        tokio::spawn(async move { owner.stop_control_owned(session_id, None).await })
+        self.bot
+            .session
+            .ledger
+            .tasks()
+            .spawn(async move { owner.stop_control_owned(session_id, None).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))??
             .ok_or_else(|| invalid("selected control session is missing or was replaced"))

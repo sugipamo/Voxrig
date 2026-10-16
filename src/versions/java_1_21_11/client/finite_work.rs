@@ -6,7 +6,7 @@ impl Session {
     pub(super) fn spawn_finite_result<F, T, E>(
         self: &Arc<Self>,
         future: F,
-    ) -> tokio::task::JoinHandle<std::result::Result<T, E>>
+    ) -> crate::client::shutdown::Task<std::result::Result<T, E>>
     where
         F: Future<Output = std::result::Result<T, E>> + Send + 'static,
         T: Send + 'static,
@@ -14,7 +14,10 @@ impl Session {
     {
         self.spawn_finite(async move { crate::client::ledger::finite::checked(future.await) })
     }
-    pub(super) fn spawn_finite<F>(self: &Arc<Self>, future: F) -> tokio::task::JoinHandle<F::Output>
+    pub(super) fn spawn_finite<F>(
+        self: &Arc<Self>,
+        future: F,
+    ) -> crate::client::shutdown::Task<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
@@ -25,17 +28,17 @@ impl Session {
         self: &Arc<Self>,
         work: WorkGuard,
         future: F,
-    ) -> tokio::task::JoinHandle<F::Output>
+    ) -> crate::client::shutdown::Task<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
         let session = self.clone();
-        tokio::spawn(work.run(async move {
+        work.spawn(async move {
             let output = future.await;
             session.state.lock().await.reconcile_finite();
             output
-        }))
+        })
     }
 }
 impl State {

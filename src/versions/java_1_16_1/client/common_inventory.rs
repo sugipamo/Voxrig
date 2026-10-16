@@ -411,7 +411,8 @@ impl crate::client::adapter::InventorySwapOps for Bot {
             }
             .await;
             let _ = reply.send(crate::client::ledger::finite::checked(value));
-        });
+        })
+        .await;
         result
             .await
             .map_err(|_| contract::unavailable("inventory inspection owner unavailable"))?
@@ -421,6 +422,21 @@ impl crate::client::adapter::InventorySwapOps for Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn preclosed_empty_cursor_quiesces_seals_and_joins_shutdown() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let close = client.survival().close_container(id).await.unwrap();
+        assert!(close.dispatched);
+        assert!(close.server_close_sequence.is_none());
+        assert_eq!(packets.recv().await.unwrap(), (0x0a, vec![3]));
+        api::tests::preclosed_quiesce_shutdown_scenario(&client).await;
+        drop(release);
+        server.await.unwrap();
+    }
     #[tokio::test]
     async fn swap_receipt_deadline_is_configurable_without_resending() {
         let (mut bot, mut packets, release, server) =
@@ -1985,6 +2001,7 @@ mod tests {
                     .await
                     .is_err()
             );
+            api::tests::preclosed_quiesce_shutdown_scenario(&client).await;
             drop(release);
             drop(client);
             drop(bot);

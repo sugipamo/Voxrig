@@ -1,5 +1,6 @@
 use super::*;
 use crate::client::{DrainScope, StopTargetKind, adapter::ControlOps};
+use std::future::Future;
 async fn fixture() -> (
     Bot,
     tokio::sync::mpsc::UnboundedReceiver<(i32, Vec<u8>)>,
@@ -365,12 +366,12 @@ async fn quiesce_legacy_abort_cleanup_timeout_is_permanent_transaction_unconfirm
         .await
         .unwrap_err();
     assert!(
-        matches!(error, StopError::RequiredReleaseFailed { drain, .. } if drain.kind() == crate::client::DrainErrorKind::TransactionUnconfirmed)
+        matches!(error, StopError::RequiredReleaseFailed { drain, .. } if drain.kind() == crate::client::DrainErrorKind::TransactionExpired)
     );
     assert_eq!(packets.recv().await.unwrap().1[0], 1);
     assert_eq!(
         q.seal_for_fence().err().unwrap().kind(),
-        crate::client::DrainErrorKind::TransactionUnconfirmed
+        crate::client::DrainErrorKind::TransactionExpired
     );
     assert!(packets.try_recv().is_err());
     release.send(()).unwrap();
@@ -585,5 +586,59 @@ async fn quiesce_legacy_native_clear_keeps_stop_until_wire_posture_is_neutral() 
     drop(client);
     drop(q);
     drop(bot);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn shutdown_waiters_are_passive_cancel_safe_concurrent_and_cached() {
+    let (bot, _packets, release, server) = fixture().await;
+    let client = crate::Client::from_java_1_16_1(bot.clone());
+    let writer = bot.writer.lock().await;
+    let mut cancelled = Box::pin(client.wait_shutdown());
+    std::future::poll_fn(|cx| {
+        assert!(cancelled.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    let _fence = client.revoke_connection();
+    drop(cancelled);
+    let mut waiting = Box::pin(client.wait_shutdown());
+    std::future::poll_fn(|cx| {
+        assert!(waiting.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(waiting);
+    drop(writer);
+    let clone = client.clone();
+    let (first, second) = timeout(Duration::from_secs(2), async {
+        tokio::join!(client.wait_shutdown(), clone.wait_shutdown())
+    })
+    .await
+    .unwrap();
+    first.unwrap();
+    second.unwrap();
+    client.wait_shutdown().await.unwrap();
+    // The peer and idle native/common clones survive successful local completion.
+    release.send(()).unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn shutdown_success_cannot_repair_a_failed_drain() {
+    let (bot, _packets, release, server) = fixture().await;
+    let client = crate::Client::from_java_1_16_1(bot.clone());
+    let work = bot.connection.ledger().work();
+    let owner = client.begin_quiesce(client.generation_key()).unwrap();
+    drop(work);
+    let failed = owner.admitted_drain().wait().await.unwrap_err();
+    assert_eq!(failed.kind(), crate::client::DrainErrorKind::OwnerLost);
+    let _fence = client.revoke_connection();
+    timeout(Duration::from_secs(2), client.wait_shutdown())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(owner.admitted_drain().wait().await.unwrap_err(), failed);
+    release.send(()).unwrap();
     server.await.unwrap();
 }

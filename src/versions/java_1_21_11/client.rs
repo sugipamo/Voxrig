@@ -281,14 +281,13 @@ struct Session {
     id: u64,
     ledger: Ledger,
     started: Instant,
-    writer: Mutex<Writer>,
+    writer: Arc<Mutex<Writer>>,
     state: Mutex<State>,
     changed: Notify,
     cancel: Notify,
     stopped: AtomicBool,
     revoked: AtomicBool,
     receiver_abort: std::sync::OnceLock<tokio::task::AbortHandle>,
-    runtime: tokio::runtime::Handle,
     interrupted_packet: AtomicI32,
     limits: crate::client::ClientLimits,
     interaction_sequence: AtomicI32,
@@ -527,10 +526,10 @@ impl Bot {
             id,
             ledger,
             started: Instant::now(),
-            writer: Mutex::new(Writer {
+            writer: Arc::new(Mutex::new(Writer {
                 stream: writer,
                 compression,
-            }),
+            })),
             state: Mutex::new(State {
                 identity: Some(identity),
                 trace,
@@ -541,7 +540,6 @@ impl Bot {
             stopped: AtomicBool::new(false),
             revoked: AtomicBool::new(false),
             receiver_abort: std::sync::OnceLock::new(),
-            runtime: tokio::runtime::Handle::current(),
             interrupted_packet: AtomicI32::new(-1),
             limits: config.limits,
             interaction_sequence: AtomicI32::new(0),
@@ -584,10 +582,12 @@ impl Bot {
             session: session.clone(),
         };
         let receiving = session.clone();
-        let receiver = session.runtime.spawn(async move {
+        let receiver = session.ledger.tasks().spawn(async move {
             receiving.run_receiver(reader).await;
         });
-        let _ = session.receiver_abort.set(receiver.abort_handle());
+        if let Some(abort) = receiver.abort_handle() {
+            let _ = session.receiver_abort.set(abort);
+        }
         Ok(bot)
     }
 
@@ -702,16 +702,18 @@ impl Session {
         }
         outbound
     }
-    async fn run_receiver(&self, reader: OwnedReadHalf) {
+    async fn run_receiver(self: &Arc<Self>, reader: OwnedReadHalf) {
+        let session = self.clone();
+        let _exit = crate::client::shutdown::OnExit(Some(move || session.stop()));
         let result = self.receive_loop(reader).await;
-        self.stop();
         if let Err(error) = result {
             let mut state = self.state.lock().await;
             if state.failure.is_none() {
                 state.failure = Some(Error::from(error));
             }
         }
-        let _ = self.writer.lock().await.stream.shutdown().await;
+
+        self.stop();
     }
     async fn receive_loop(&self, mut reader: OwnedReadHalf) -> anyhow::Result<()> {
         let compression = self.writer.lock().await.compression;

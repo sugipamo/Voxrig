@@ -584,9 +584,7 @@ pub(crate) struct ConnectionActor {
     ledger: Ledger,
     lifecycle: watch::Receiver<ConnectionState>,
     revoked: Arc<AtomicBool>,
-    owner: tokio::task::AbortHandle,
     writer: Arc<Mutex<super::client::PacketWriter>>,
-    runtime: tokio::runtime::Handle,
 }
 
 impl ConnectionActor {
@@ -615,7 +613,13 @@ impl ConnectionActor {
         let revoked = Arc::new(AtomicBool::new(false));
         let actor_revoked = revoked.clone();
         let termination_writer = writer.clone();
-        let owner = tokio::spawn(async move {
+        let actor_ledger = ledger.clone();
+        let exit_ledger = ledger.clone();
+        let exit_writer = writer.clone();
+        ledger.tasks().spawn(async move {
+            let _exit = crate::client::shutdown::OnExit(Some(move || {
+                exit_ledger.tasks().start(async move { exit_writer.lock().await.inner.shutdown().await });
+            }));
             let mut state = ConnectionState::Connecting;
             let mut next_actions = HashMap::<i8, i16>::new();
             let mut pending_transactions =
@@ -998,7 +1002,7 @@ impl ConnectionActor {
                                                     );
                                                     let expiry_commands = expiry_commands.clone();
                                                     let correlation = diagnostic.correlation;
-                                                    tokio::spawn(async move {
+                                                    actor_ledger.tasks().spawn(async move {
                                                         sleep(acknowledgement_timeout).await;
                                                         let _ = expiry_commands
                                                             .send(Command::ExpireDigDiagnostic(
@@ -1282,7 +1286,7 @@ impl ConnectionActor {
                             });
                         }
                         let expiry_commands = expiry_commands.clone();
-                        tokio::spawn(async move {
+                        actor_ledger.tasks().spawn(async move {
                             sleep(acknowledgement_timeout).await;
                             let _ = expiry_commands
                                 .send(Command::ExpireTransaction(identity))
@@ -1398,7 +1402,7 @@ impl ConnectionActor {
                         if let Some(pending) = pending_transactions.remove(&identity) {
                             pending
                                 .work
-                                .finish(Outcome::Failed(Failure::TransactionUnconfirmed));
+                                .finish(Outcome::Failed(Failure::TransactionExpired));
                             if let Some(correlation) = pending.diagnostic_correlation {
                                 emit_dig_lifecycle(|| {
                                     serde_json::json!({
@@ -1547,9 +1551,7 @@ impl ConnectionActor {
             commands,
             lifecycle,
             revoked,
-            owner: owner.abort_handle(),
             writer: termination_writer,
-            runtime: tokio::runtime::Handle::current(),
         }
     }
 
@@ -1563,13 +1565,15 @@ impl ConnectionActor {
         if self.revoked.swap(true, Ordering::AcqRel) {
             return receipt;
         }
-        self.owner.abort();
-        let writer = self.writer.clone();
-        self.runtime.spawn(async move {
-            let mut writer = writer.lock().await;
-            let _ = writer.inner.shutdown().await;
-        });
+        self.start_shutdown();
         receipt
+    }
+
+    pub(crate) fn start_shutdown(&self) {
+        let writer = self.writer.clone();
+        self.ledger
+            .tasks()
+            .start(async move { writer.lock().await.inner.shutdown().await });
     }
 
     pub(crate) const fn generation(&self) -> ConnectionGeneration {

@@ -35,10 +35,6 @@ impl Session {
         if let Some(receiver) = self.receiver_abort.get() {
             receiver.abort();
         }
-        let session = self.clone();
-        self.runtime.spawn(async move {
-            let _ = session.writer.lock().await.stream.shutdown().await;
-        });
     }
     pub(super) fn stop(&self) {
         self.ledger.fail(Failure::Disconnected);
@@ -48,6 +44,10 @@ impl Session {
         self.cancel.notify_waiters();
         self.cancel.notify_one();
         self.changed.notify_waiters();
+        let writer = self.writer.clone();
+        self.ledger
+            .tasks()
+            .start(async move { writer.lock().await.stream.shutdown().await });
     }
 
     pub(super) fn check_outbound(&self) -> Result<()> {

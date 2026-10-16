@@ -161,6 +161,7 @@ impl Bot {
                 })
                 .await
                 .map_err(|_| {
+                    self.connection.ledger().fail(Failure::TransactionExpired);
                     crate::Error::new(
                         crate::ErrorKind::Timeout,
                         anyhow::anyhow!("neutral ABORT cleanup timeout"),
@@ -208,11 +209,11 @@ impl crate::client::adapter::DrainOps for Bot {
         {
             self.connection
                 .ledger()
-                .fail(Failure::TransactionUnconfirmed);
+                .fail(Failure::TransactionOutcomeUnknown);
             return Err(StopError::Drain(
                 self.connection
                     .ledger()
-                    .error(crate::client::DrainErrorKind::TransactionUnconfirmed),
+                    .error(crate::client::DrainErrorKind::TransactionOutcomeUnknown),
             ));
         }
         Ok(targets)

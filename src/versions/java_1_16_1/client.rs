@@ -1533,14 +1533,16 @@ impl Bot {
         };
         bot.emit(Event::Login);
         let background = bot.clone_internal();
-        let reader_task = tokio::spawn(async move {
+        let reader_task = bot.connection.ledger().tasks().spawn(async move {
             background
                 .read_loop(reader, capture_receiver, traversal_movement_facts_receiver)
                 .await
         });
-        let _ = bot.reader_abort.set(reader_task.abort_handle());
+        if let Some(abort) = reader_task.abort_handle() {
+            let _ = bot.reader_abort.set(abort);
+        }
         let supervisor = bot.clone_internal();
-        tokio::spawn(async move {
+        bot.connection.ledger().tasks().spawn(async move {
             match reader_task.await {
                 Ok(Ok(())) => {
                     if supervisor.connection.lifecycle() == ConnectionState::Disconnected {
@@ -1615,7 +1617,10 @@ impl Bot {
             .ledger()
             .register_producer()
             .map_err(crate::client::ledger::finite::admission_error)?;
-        tokio::spawn(async move { physics.control_loop(producer).await });
+        bot.connection
+            .ledger()
+            .tasks()
+            .spawn(async move { physics.control_loop(producer).await });
         Ok(bot)
     }
     /// Performs the `subscribe` operation.
@@ -5317,7 +5322,8 @@ impl Bot {
         cancelled.as_mut().enable();
         // Compression negotiation finishes before entering the play reader.
         let compression = self.writer.lock().await.compression;
-        let diagnostics = ReaderDiagnostics::new(self.connection_generation().get());
+        let diagnostics =
+            ReaderDiagnostics::new(self.connection_generation().get(), self.connection.ledger());
         // Set when cancellation interrupts reading: frames already received may still
         // carry the server's kick reason (see `drain_disconnect_reason`).
         let mut cancelled_frame: Option<Option<Frame>> = None;
@@ -9352,7 +9358,8 @@ mod tests {
                 .await
                 .is_err()
         );
-        assert!(observed_rx.await.unwrap().is_err());
+        // Teardown can now release the writer and produce EOF, never an application byte.
+        assert!(matches!(observed_rx.await.unwrap(), Err(_) | Ok(0)));
         release_tx.send(()).unwrap();
         drop(bot);
         server.await.unwrap();

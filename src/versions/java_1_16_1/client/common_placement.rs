@@ -465,7 +465,8 @@ impl crate::client::adapter::PlacementOps for Bot {
                 .await;
                 let _ = reply.send(crate::client::ledger::finite::checked(value));
             },
-        );
+        )
+        .await;
         result
             .await
             .map_err(|_| placement::unavailable("placement inspection owner unavailable"))?

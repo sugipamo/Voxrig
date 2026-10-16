@@ -1,12 +1,13 @@
-# Internal staged quiesce ledger (#131 PR 1–4)
+# Internal staged quiesce ledger and shutdown (#131 PR 1–5)
 
 This is the internal implementation contract and integration checklist for the
 public staged API in `voxrig::client`. PR 1–3 supply finite root/child ownership,
 real socket permits and protocol/retained cleanup. PR 4 adds ordinary-producer
 parking, explicit selected stops, independent-maintenance sealing and public
-stage observers. The ledger, guards, producer tokens and CompletionPoint remain
-crate-private. Resume, automatic target selection and shutdown observation are
-excluded; shutdown/task completion belongs to PR 5.
+stage observers. PR 5 adds passive `Client::wait_shutdown`, private task/resource
+ownership and evidence-based transaction classification. The ledger, guards,
+producer tokens, task registry and CompletionPoint remain crate-private. Resume
+and automatic target selection remain excluded.
 
 ## Identity, ownership, cuts, and completion
 
@@ -134,7 +135,7 @@ Each acknowledged dispatch transfers a child to its pending map. The public
 ProtocolTransaction only keeps a Weak reference to that pending owner so merely
 holding the public handle after ACK cannot prolong debt. Exact barriers obtain
 children while pending remains live. Barrier removal precedes actor commit;
-expiry records TransactionUnconfirmed before reporting DeliveryUnknown. ACK
+expiry records TransactionExpired before reporting DeliveryUnknown. ACK
 rejection replies inherit children from the matching pending root before its
 retirement; unmatched replies use independent maintenance roots. Teleport confirm
 and position response, and login settings/brand responses, share maintenance
@@ -146,8 +147,8 @@ public errors are preserved. Receiver response vectors (including position,
 configuration and loading responses) share a maintenance root. Inline native and
 common pending_swap state owns a guard before exposure/send, and its frame uses
 a child. Existing successful wait/record cleanup retires it; wait timeout records
-sticky TransactionUnconfirmed while preserving the public pending marker for
-resumed waits. Context reset which discards pending_swap also records uncertainty.
+sticky TransactionExpired while preserving the public pending marker for
+resumed waits. Context reset which discards pending_swap records TransactionOutcomeUnknown.
 No new expiry deadline, autonomous cleanup worker or public wait outcome is added.
 An expiry failure is sticky for all unissued drains, including a cut covering the
 expired state, and cannot turn clean after later ACK or idle state.
@@ -201,7 +202,7 @@ are internal choices; no public API is introduced here.
 
 This checklist comes from design §1.3 at baseline 9932ae4. PR 2 wires the
 protocol pending/writer boundaries described above; PR 3 implements the finite
-operation-family ownership described below. PR 4 supplies producer/stop obligations below; shutdown remains PR 5. "Classify"
+operation-family ownership described below. PR 4 supplies producer/stop obligations below; PR 5 supplies shutdown ownership below. "Classify"
 means retain certainty/uncertainty and required local dependencies, not a settled
 Golemkit ACK/outcome contract. Frame W and pending cleanup follow the approved
 interpretation above; the public stop scope is documented below. Golemkit
@@ -228,8 +229,8 @@ BackendDrain itself is external.
 | Dismount / release / vehicle control / resume ground (`common_vehicle`; modern `operations/vehicle`) | Finite inputs, neutral release and grounding run use roots/children through cleanup. | Selection of neutral/dismount/resume actions remains stop policy. |
 | Respawn (`common_api`; modern `operations.rs`) | Connection-owned send/history guard survives caller cancellation. | World reset must not discard old connection debt. |
 | Reader / supervisor (both clients) | Reader remains alive for dependency replies; each generated response gets a child or independent maintenance root. | Reader lifetime is shutdown debt; final maintenance seal needs protocol audit. |
-| Manager relay / diagnostics reporter (legacy manager/reader_diagnostics; common manager) | No socket write owner; handle termination in shutdown registry if required. | Exact shutdown task scope is undecided. |
-| Post-revoke writer shutdown task (legacy lifecycle; modern outbound) | Retain shutdown result in future shutdown registry. | Spawn alone and drain receipts do not prove shutdown. |
+| Manager relay / diagnostics reporter (legacy manager/reader_diagnostics; common manager) | Reporter is connection-owned and joined; manager event relay owns no socket/admission. | Manager relay and arbitrary subscriber lifetimes are outside Client shutdown. |
+| Writer teardown (legacy lifecycle; modern outbound) | One coordinator joins tasks and retains writer shutdown failure; the serialized writer slot releases the socket. | Abort/spawn alone and drain receipts do not prove shutdown. |
 | Recovery / reconnect (common survival/recovery; modern profile_recovery/recovery) | Old ledger covers old transport only; fresh login/write uses a new ledger. | Reattach orchestration serializes claims; no receipt transfer across connections. |
 
 PR 2 audits normal gameplay, primitive/batch sends, legacy bounded_motion writes
@@ -306,7 +307,7 @@ with a fresh ledger; no authority/receipt migrates from the old connection.
 PR 4 extends these finite owners with continuous/passive producer parking,
 queued-jump ownership, selected neutral stops and final maintenance sealing as
 described below. Individual writes retain the same real permits. Shutdown
-registries remain PR 5; resume remains excluded.
+ownership is described in PR 5 below; resume remains excluded.
 
 
 ## PR 4 staged integration and public receipt audit
@@ -362,14 +363,15 @@ required stop is sticky failure. No raw-packet or normal-control bypass exists.
 
 Intentional permit dig ABORT is the approved exception to PR 3's abort rule:
 a confirmed cleanup yields a clean StopReceipt and may yield a clean drain.
-Cleanup timeout remains TransactionUnconfirmed and unknown delivery remains
+Observed cleanup deadline expiry is TransactionExpired and unknown delivery remains
 UncertainDispatch. Other aborts/expiry/owner loss, including caller-dropped native
 helper futures, stay sticky. Item release is permitted despite gameplay effects.
 
 Revoke records its ledger cause before publishing the separate transport fence;
 receipt issue uses that same ledger gate. Issued stage facts remain historical;
 unissued stages fail. Disconnect/EOF is failure, never a completion certificate.
-No shutdown join, fresh-reattach readiness or server stillness is asserted here.
+These stage facts do not assert shutdown, fresh-reattach readiness or server stillness.
+PR 5 supplies the separate local shutdown observer below.
 The public surface is the approved minimal draft: no try_receipt, native bridge,
 public ledger/watch/guard/CompletionPoint, or additional prelude identities.
 
@@ -378,3 +380,113 @@ A request still waiting for that lock when begin closes admission has not yet
 been accepted and returns State. The producer cannot acknowledge park between
 acceptance and publication of a queued jump. This ordering is tested in both
 adapters, including the legacy native jump path.
+
+
+## PR 5 shutdown completion and Golemkit integration
+
+`Client::wait_shutdown()` passively observes the exact receiver's original
+`GenerationKey`; it never selects cleanup, begins quiesce, revokes, or reconnects.
+Before termination it remains pending. All clones and concurrent waiters observe
+one immutable cached terminal result. A call after completion returns the same
+`Ok(())` or retained error immediately. Dropping/timing out a wait affects only
+observation. Accepted teardown continues under connection ownership.
+
+Each transport's private registry serializes task registration with shutdown.
+Tasks are enqueued under that gate before callers receive their output observers.
+A child registers before its parent can retire; after closing, new child futures
+are dropped without running. The supervisor removes completed tasks as it awaits
+actual JoinHandles, keeping only live tasks and the first error. On termination
+it aborts remaining original tasks, awaits every actual handle (including
+synchronous destructors), then shuts down/releases the writer under its existing
+serialization. It does not hold the registry lock across joins or writer I/O.
+Output futures are caller-owned observers with no session/transport capture;
+no detached output-observer task is spawned. Dropping an output future cannot
+cancel accepted connection-owned work.
+Once finite authority has retired or the connection is terminal, read-only
+history inspection runs in the caller future instead of entering the closed
+registry. Interrupted active motion remains RequiresInspection in native/common
+history, even when shutdown aborts its worker before ordinary error cleanup.
+
+The registry covers the legacy actor, reader and supervisor, modern receiver,
+continuous/passive producers, finite and selected-stop workers, retained expiry
+observers, transaction/diagnostic timers and legacy reader diagnostics reporter.
+Natural receiver/actor exit, including unwind, starts teardown without a second
+revoke. Explicit revoke closes admission and starts the same teardown. Ordinary
+disconnect retains its existing API/behavior; use wait_shutdown for the separate
+completion fact. No application packet is emitted by teardown after final seal.
+The closed writer slot releases its write half even while idle Client/native
+clones survive; the joined receiver releases its read half. External finite guards
+are not shutdown lifetime debt, and later transport attempts remain fenced.
+
+`Ok(())` certifies local transport release and actual connection task exit, not
+peer EOF/ACK, remote game success, physical stillness or reattach readiness.
+Manager-owned event relays and application-owned futures/tasks/subscribers are
+excluded. The application must cancel/join its own source tasks. A stalled
+executor or externally held writer lock can delay completion without bound.
+The final publisher retains only result state after joins and teardown.
+`WriterShutdownFailed` retains a failed serialized writer shutdown even after
+socket release; `TaskFailed` retains panic/unexpected cancellation; requested
+shutdown aborts are expected termination after joining. Cleanup continues after
+ordinary errors. `Internal` fails closed when bookkeeping is untrustworthy and
+may return without proof of cessation. Every error withholds the success certificate.
+Errors preserve a shared immutable source for all waiters.
+
+E1 retains `TransactionUnconfirmed` for compatibility and unspecialized failures.
+Only an observed required protocol/cleanup deadline emits `TransactionExpired`
+(legacy transaction expiry, retained deadlines, modern swap/mining/placement
+waits, selected legacy dig ABORT timeout). Actual discarded unresolved swap
+context or lost held-input provenance emits `TransactionOutcomeUnknown`.
+Generic finite Err/failed booleans and generic Timeout errors without domain
+evidence retain `TransactionUnconfirmed`. Interrupted delivery remains
+`UncertainDispatch`. Outer observer timeouts latch neither transaction kind.
+The first recorded cause wins in stop errors and final drain diagnostics; later
+ACKs, idleness or successful shutdown cannot repair a failed drain.
+
+### C1 preflight and source handoff
+
+**Containers must be explicitly closed and ordinary item use ended before
+begin_quiesce.** Serialize application source admission first, settle existing
+inventory operations, close the original actual `ScreenId` with existing
+mode-specific close_container, and end item use. Keep source
+serialization through begin so another common/native clone cannot reopen a screen
+or restart use. Quiesce supplies no atomic pre-close gate or automatic cleanup;
+new ordinary container closes are rejected after begin.
+
+Use audited cursor-return receipts and complete close dispatch. Vanilla need not
+send a close echo: Dispatched is not ObservedClosed, and neither shutdown nor a
+drain proves server-side return of crafting inputs. Preflight error requires
+fencing and shutdown while preserving the failed handoff; it must not manufacture
+a successful close. No container StopTarget or permit-close method is added.
+
+Golemkit should retain the exact source Client and pair its key with its own
+source generation. After preflight, retain the QuiesceHandle, expose the first
+DrainHandle through a synchronous `Fn() -> Result<bool, BackendError> + Send + Sync`,
+explicitly neutralize selected original targets, then seal and await the final
+DrainHandle. Even after `is_drained()` returns true, call `wait()` for the receipt
+and retain scope/key/cut/W. A first-stage true cannot complete the handoff.
+
+On success, error, outer deadline or orchestration cancellation, a surviving
+application supervisor must preserve the preflight/stop/drain result, revoke that
+same source, cancel/join application-owned source tasks and await
+`source.wait_shutdown()`. Dropping an orchestration future does not execute its
+remaining cleanup lines. Keep primary and shutdown errors separately; successful
+shutdown after failed drain remains a failed handoff. Shutdown timeout/Err blocks
+a successful completion claim. Only then may policy attach a fresh generation.
+Never substitute a newly current backend for the original source during cleanup.
+
+Map TransactionExpired to Golemkit's timeout category; map
+TransactionOutcomeUnknown, TransactionUnconfirmed and UncertainDispatch to its
+operation-unconfirmed category; fail closed for other/future kinds. Preserve the
+original DrainError as source and never automatically retry uncertain mutations.
+No Golemkit dependency or BackendDrain implementation belongs in Voxrig. The
+available GitHub credentials returned 404 for the Golemkit repository during PR 5;
+its actual constructor/error names remain unverified. The API-contract example
+therefore describes the callback contract and requires consumer-side construction
+against Golemkit's real definitions.
+
+The only PR 5 public additions are Client::wait_shutdown, opaque ShutdownError
+with generation/kind and Clone/Debug/Display/Error, non-exhaustive
+ShutdownErrorKind::{WriterShutdownFailed, TaskFailed, Internal}, and the two
+DrainErrorKind variants. Shutdown types are exported from voxrig::client only,
+with no root alias, prelude expansion, native bridge, synchronous poll, shutdown
+handle/receipt, public trait or new dependency.

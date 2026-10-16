@@ -120,9 +120,9 @@ impl Ledger {
                 && !b.neutralized
                 && b.result.is_none()
         }) {
-            self.fail(Failure::TransactionUnconfirmed);
+            self.fail(Failure::TransactionOutcomeUnknown);
             return Err(StopError::Drain(
-                self.error(crate::client::DrainErrorKind::TransactionUnconfirmed),
+                self.error(crate::client::DrainErrorKind::TransactionOutcomeUnknown),
             ));
         }
         Ok(book
@@ -183,7 +183,7 @@ impl Ledger {
                 let ledger = self.clone();
                 // The raw owner spans the whole worker. Panic/task abort is OwnerLost;
                 // observer cancellation cannot abort this task or its accepted cleanup.
-                tokio::spawn(work.run(async move {
+                self.tasks().spawn(work.run(async move {
                     let result = future.await;
                     let result = match result {
                         Ok(()) => ledger.issue_stop(target),
@@ -367,7 +367,7 @@ impl Ledger {
         if let Some((session, mode, _)) = context {
             self.bind_movement(session, mode, None)
         } else {
-            self.fail(Failure::TransactionUnconfirmed);
+            self.fail(Failure::TransactionOutcomeUnknown);
             Ok(())
         }
     }
@@ -444,6 +444,32 @@ mod tests {
             )
             .unwrap();
         ledger.stop_targets().unwrap()[0]
+    }
+    #[test]
+    fn quiesce_concrete_movement_provenance_loss_is_outcome_unknown() {
+        let ledger = source();
+        let session = SessionStamp {
+            version: MinecraftVersion::Java1_16_1,
+            connection_id: ledger.generation().connection_id(),
+            world_generation: 1,
+        };
+        ledger
+            .bind_movement(session, GameMode::Survival, Some(1))
+            .unwrap();
+        ledger.observe_stop_context(session, Some(GameMode::Creative));
+        assert!(
+            matches!(ledger.stop_targets(), Err(StopError::Drain(error)) if error.kind() == crate::client::DrainErrorKind::TransactionOutcomeUnknown)
+        );
+        assert_eq!(
+            ledger
+                .cut(false)
+                .inspect()
+                .unwrap()
+                .unwrap_err()
+                .public()
+                .kind(),
+            crate::client::DrainErrorKind::TransactionOutcomeUnknown
+        );
     }
     #[test]
     fn quiesce_normal_item_release_retains_knowledge_until_server_flags_catch_up() {

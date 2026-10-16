@@ -344,7 +344,8 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
                         bot.reconcile_common_inventory_transfer().await,
                     ));
                 },
-            );
+            )
+            .await;
             result
                 .await
                 .map_err(|_| contract::unavailable("transfer inspection owner unavailable"))??;

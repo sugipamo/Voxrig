@@ -557,7 +557,7 @@ impl Operations {
     /// returned diagnostic record cannot be imported to authorize another client.
     pub async fn survival_motion(&self) -> Option<SurvivalMotionRecord> {
         let mut state = self.bot.session.state.lock().await;
-        inspect_motion(&mut state);
+        state.inspect_motion(self.bot.session.stopped.load(Ordering::Acquire));
         state.survival_motion.clone()
     }
     pub(in super::super) async fn run_survival_motion(
@@ -909,16 +909,32 @@ fn common_record(record: SurvivalMotionRecord) -> Result<crate::client::survival
     })
 }
 
-fn inspect_motion(state: &mut State) {
-    let problem = state
-        .survival_motion
-        .as_ref()
-        .filter(|r| r.status.is_continuation_candidate())
-        .and_then(|r| dispatched_rest(state, r).err());
-    if let Some(problem) = problem {
-        let r = state.survival_motion.as_mut().unwrap();
-        r.status = SurvivalMotionStatus::RequiresInspection;
-        r.problem.get_or_insert_with(|| problem.to_string());
+impl State {
+    pub(in super::super) fn inspect_motion(&mut self, stopped: bool) {
+        let state = self;
+        if stopped {
+            if let Some(record) = state.survival_motion.as_mut().filter(|record| {
+                matches!(
+                    record.status,
+                    SurvivalMotionStatus::Running | SurvivalMotionStatus::AwaitingObservation
+                )
+            }) {
+                record.status = SurvivalMotionStatus::RequiresInspection;
+                record
+                    .problem
+                    .get_or_insert_with(|| "motion worker ended with the connection".to_string());
+            }
+        }
+        let problem = state
+            .survival_motion
+            .as_ref()
+            .filter(|r| r.status.is_continuation_candidate())
+            .and_then(|r| dispatched_rest(state, r).err());
+        if let Some(problem) = problem {
+            let r = state.survival_motion.as_mut().unwrap();
+            r.status = SurvivalMotionStatus::RequiresInspection;
+            r.problem.get_or_insert_with(|| problem.to_string());
+        }
     }
 }
 
@@ -1193,7 +1209,7 @@ impl crate::client::adapter::PathMotionOps for Operations {
     }
     async fn motion_record(&self) -> Result<Option<crate::client::survival::MotionRecord>> {
         let mut state = self.bot.session.state.lock().await;
-        inspect_motion(&mut state);
+        state.inspect_motion(self.bot.session.stopped.load(Ordering::Acquire));
         if let Some(record) = state
             .survival_motion
             .as_ref()

@@ -199,10 +199,10 @@ internal completion point is `CompletionPoint::SocketFlush`.
 All new types are re-exported from `voxrig::client`. Only `QuiesceHandle`,
 `DrainHandle`, `StopPermit`, `DrainError`, `DrainErrorKind`, `StopError`,
 `StopTarget`, and `StopTargetKind` are added to the common/root prelude. There
-are no native-only bridges, new public traits, new existing-enum variants, or
-new dependencies. Shutdown observation remains PR 5: final drain is followed by
-explicit source revocation and eventual shutdown observation, not a claim that
-`disconnect` joins every task.
+are no native-only bridges, new public traits or new dependencies. PR 5 adds the two precise transaction
+error kinds described below and exports ShutdownError/ShutdownErrorKind from
+voxrig::client only. Follow final drain with explicit source revocation and
+`source.wait_shutdown().await`; disconnect alone is not the completion observer.
 
 Golemkit must expose both drain stages and retain their scopes. An illustrative
 Golemkit-side adapter (these types and constructors are **not in this crate**):
@@ -212,11 +212,15 @@ fn backend_poll(drain: voxrig::client::DrainHandle)
     -> impl Fn() -> Result<bool, BackendError> + Send + Sync
 {
     move || drain.is_drained().map_err(|error| match error.kind() {
-        DrainErrorKind::TransactionUnconfirmed => BackendError::Timeout(/* retain cause */),
-        DrainErrorKind::UncertainDispatch => BackendError::OperationUnconfirmed(/* retain cause */),
+        DrainErrorKind::TransactionExpired => BackendError::Timeout(/* retain cause */),
+        DrainErrorKind::TransactionOutcomeUnknown
+        | DrainErrorKind::TransactionUnconfirmed
+        | DrainErrorKind::UncertainDispatch => BackendError::OperationUnconfirmed(/* retain cause */),
         _ => map_other_drain_error(error),
     })
 }
+// BackendDrain/BackendError names are illustrative: consumer definitions
+// could not be fetched with the available credentials (GitHub returned 404).
 // Pass this closure to the actual Golemkit BackendDrain constructor.
 ```
 
@@ -229,3 +233,20 @@ A request still waiting for that lock when begin closes admission has not yet
 been accepted and returns State. The producer cannot acknowledge park between
 acceptance and publication of a queued jump. This ordering is tested in both
 adapters, including the legacy native jump path.
+
+
+Before `begin_quiesce`, serialize source operations, settle inventory work,
+explicitly close the original containers and end item use.
+Keep this serialization through begin. New ordinary closes are rejected after
+begin; no automatic close/release policy is provided. Complete dispatch and cursor
+return receipts do not imply a server close echo or returned crafting inputs.
+
+Run revoke, application source-task cancellation/join and wait_shutdown under a
+surviving application supervisor even on drain failure, timeout or cancellation.
+Keep the primary stage result and shutdown result separately. Shutdown observation
+is passive, targets the original Client generation, and is safe to cancel; all
+concurrent/later waiters see the same cached result. Successful local shutdown
+certifies released transport halves and connection task exit while clones survive,
+not game success or physical stillness. A failed drain stays failed after shutdown.
+See [the implementation contract](internal/drain-ledger.md#pr-5-shutdown-completion-and-golemkit-integration)
+for scope, error evidence, C1 preflight and the complete handoff sequence.
