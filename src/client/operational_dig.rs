@@ -176,7 +176,7 @@ impl super::Survival {
             _signal: signal,
         };
         let owner = self.clone();
-        let work = super::dispatch!(&self.client.adapter, a => DigOps::dig_work(a));
+        let work = super::dispatch!(&self.client.adapter, a => DigOps::dig_work(a))?;
         tokio::spawn(
             work.run_result(async move { owner.dig_owned(target, face, cancelled, receive).await }),
         )

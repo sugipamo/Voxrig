@@ -2753,3 +2753,5 @@ async fn ledger_dropped_operational_caller_waits_for_an_already_admitted_timed_f
     assert!(client.survival().dig_cleanup_record().is_none());
     f.stop().await;
 }
+
+include!("quiesce_tests.rs");

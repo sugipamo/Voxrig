@@ -153,7 +153,7 @@ impl crate::client::adapter::FlightOps for Bot {
     async fn flight(&self, command: FlightCommand) -> Result<FlightRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;

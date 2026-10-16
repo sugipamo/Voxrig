@@ -384,7 +384,7 @@ impl crate::client::adapter::VehicleOps for Bot {
     async fn dismount(&self, mode: api::GameMode, mount: MountId) -> Result<DismountRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;
@@ -425,7 +425,7 @@ impl crate::client::adapter::VehicleOps for Bot {
     ) -> Result<DismountRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 let record = self.dismount_snapshot(id)?;
@@ -476,7 +476,7 @@ impl crate::client::adapter::VehicleOps for Bot {
     ) -> Result<api::VehicleControlRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;
@@ -551,7 +551,7 @@ impl crate::client::adapter::VehicleOps for Bot {
     async fn resume_ground(&self, mode: api::GameMode, id: DismountId) -> Result<DismountRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;

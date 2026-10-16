@@ -313,14 +313,14 @@ pub(super) struct OperationState {
     server_time: Option<ServerTime>,
     messages: std::collections::VecDeque<Arc<SystemMessage>>,
     messages_dropped_through: u64,
-    game_mode: Option<GameMode>,
+    pub(super) game_mode: Option<GameMode>,
     abilities: Option<u8>,
     abilities_sequence: Option<u64>,
     requested_flying: bool,
-    ack: Option<i32>,
+    pub(super) ack: Option<i32>,
     ack_receive_sequence: Option<u64>,
-    inventory: Inventory,
-    selected_hotbar: Option<HotbarSelection>,
+    pub(super) inventory: Inventory,
+    pub(super) selected_hotbar: Option<HotbarSelection>,
     pub(super) local_player: LocalPlayerState,
 }
 impl OperationState {
@@ -462,45 +462,55 @@ impl Operations {
     /// Send an unsigned command on an offline connection. Server permissions still apply.
     /// No leading slash; dispatch does not imply command success.
     pub async fn send_command(&self, command: &str) -> Result<()> {
-        if command.is_empty()
-            || command.starts_with('/')
-            || command.chars().any(char::is_control)
-            || command.encode_utf16().count() > 32767
-        {
-            return Err(invalid("invalid command text"));
-        }
-        let state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        let mut payload = Vec::new();
-        put_string(&mut payload, command);
-        self.bot
-            .session
-            .send(ids::play_serverbound::CHAT_COMMAND, &payload)
-            .await?;
-        Ok(())
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                if command.is_empty()
+                    || command.starts_with('/')
+                    || command.chars().any(char::is_control)
+                    || command.encode_utf16().count() > 32767
+                {
+                    return Err(invalid("invalid command text"));
+                }
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                let mut payload = Vec::new();
+                put_string(&mut payload, command);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::CHAT_COMMAND, &payload)
+                    .await?;
+                Ok(())
+            })
+            .await
     }
     /// Send an unsigned chat line on an offline connection. The server may
     /// still reject or rewrite it; dispatch is not delivery.
     pub async fn send_chat(&self, message: &str) -> Result<()> {
-        crate::client::chat::validate_chat(message)?;
-        let state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_millis() as u64);
-        let mut payload = Vec::new();
-        put_string(&mut payload, message);
-        payload.extend_from_slice(&timestamp.to_be_bytes());
-        payload.extend_from_slice(&0u64.to_be_bytes()); // Salt; unused without a signature.
-        payload.push(0); // No signature.
-        payload.push(0); // Last-seen offset.
-        payload.extend_from_slice(&[0; 3]); // Acknowledged last-seen bitset (20 bits).
-        payload.push(0); // Last-seen checksum.
-        self.bot
-            .session
-            .send(ids::play_serverbound::CHAT_MESSAGE, &payload)
-            .await?;
-        Ok(())
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                crate::client::chat::validate_chat(message)?;
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                let timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |elapsed| elapsed.as_millis() as u64);
+                let mut payload = Vec::new();
+                put_string(&mut payload, message);
+                payload.extend_from_slice(&timestamp.to_be_bytes());
+                payload.extend_from_slice(&0u64.to_be_bytes()); // Salt; unused without a signature.
+                payload.push(0); // No signature.
+                payload.push(0); // Last-seen offset.
+                payload.extend_from_slice(&[0; 3]); // Acknowledged last-seen bitset (20 bits).
+                payload.push(0); // Last-seen checksum.
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::CHAT_MESSAGE, &payload)
+                    .await?;
+                Ok(())
+            })
+            .await
     }
     /// Request flight only when the server advertises the ability.
     pub async fn set_flying(&self, flying: bool) -> Result<()> {
@@ -510,7 +520,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
                 self.mutable(&state)?;
@@ -544,7 +554,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 validate_pose(position, rotation)?;
                 let mut state = self.bot.session.state.lock().await;
@@ -599,7 +609,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 validate_pose([0.0; 3], rotation)?;
                 let mut state = self.bot.session.state.lock().await;
@@ -625,36 +635,42 @@ impl Operations {
     }
     /// Submit a default item to a creative hotbar slot (0..8). No inventory echo is invented.
     pub async fn set_creative_hotbar(&self, slot: u8, item: Option<(&str, u8)>) -> Result<()> {
-        if slot > 8 {
-            return Err(invalid("hotbar slot must be 0..8"));
-        }
-        let mut payload = (36 + i16::from(slot)).to_be_bytes().to_vec();
-        if let Some((name, count)) = item {
-            let item = default_item(name, count)?;
-            put_varint(&mut payload, item.count);
-            put_varint(&mut payload, item.item_id);
-            payload.extend([0, 0]);
-        } else {
-            payload.push(0);
-        }
-        let mut state = self.bot.session.state.lock().await;
-        self.creative(&state)?;
-        let work = state.finite_work.begin(
-            &self.bot.session.ledger,
-            crate::client::ledger::finite::Family::Creative(slot),
-            u64::from(slot) + 1,
-        );
-        state.operations.inventory.slots[36 + usize::from(slot)] = InventorySlot::Unavailable;
-        if !state.operations.inventory.pending_creative.contains(&slot) {
-            state.operations.inventory.pending_creative.push(slot);
-        }
-        work.run(
-            self.bot
-                .session
-                .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload),
-        )
-        .await?;
-        Ok(())
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                if slot > 8 {
+                    return Err(invalid("hotbar slot must be 0..8"));
+                }
+                let mut payload = (36 + i16::from(slot)).to_be_bytes().to_vec();
+                if let Some((name, count)) = item {
+                    let item = default_item(name, count)?;
+                    put_varint(&mut payload, item.count);
+                    put_varint(&mut payload, item.item_id);
+                    payload.extend([0, 0]);
+                } else {
+                    payload.push(0);
+                }
+                let mut state = self.bot.session.state.lock().await;
+                self.creative(&state)?;
+                let work = state.finite_work.begin(
+                    &self.bot.session.ledger,
+                    crate::client::ledger::finite::Family::Creative(slot),
+                    u64::from(slot) + 1,
+                );
+                state.operations.inventory.slots[36 + usize::from(slot)] =
+                    InventorySlot::Unavailable;
+                if !state.operations.inventory.pending_creative.contains(&slot) {
+                    state.operations.inventory.pending_creative.push(slot);
+                }
+                work.run(
+                    self.bot
+                        .session
+                        .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload),
+                )
+                .await?;
+                Ok(())
+            })
+            .await
     }
     /// Submit held hotbar selection. The server still decides which item is present.
     pub async fn select_hotbar(&self, slot: u8) -> Result<()> {
@@ -664,7 +680,7 @@ impl Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 if slot > 8 {
                     return Err(invalid("hotbar slot must be 0..8"));
@@ -706,19 +722,24 @@ impl Operations {
     }
     /// Start an ordinary creative block break. Returned sequence identifies submission only.
     pub async fn dig_creative(&self, position: [i32; 3], face: crate::BlockFace) -> Result<i32> {
-        let state = self.bot.session.state.lock().await;
-        self.creative(&state)?;
-        check_reach(&state, position)?;
-        let seq = self.next_sequence()?;
-        let mut payload = vec![0];
-        payload.extend(pack_position(position).to_be_bytes());
-        payload.push(face as u8);
-        put_varint(&mut payload, seq);
-        self.bot
-            .session
-            .send(ids::play_serverbound::BLOCK_DIG, &payload)
-            .await?;
-        Ok(seq)
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                let state = self.bot.session.state.lock().await;
+                self.creative(&state)?;
+                check_reach(&state, position)?;
+                let seq = self.next_sequence()?;
+                let mut payload = vec![0];
+                payload.extend(pack_position(position).to_be_bytes());
+                payload.push(face as u8);
+                put_varint(&mut payload, seq);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::BLOCK_DIG, &payload)
+                    .await?;
+                Ok(seq)
+            })
+            .await
     }
     /// Use the held item against an exact face hit. Placement and activation share this packet.
     /// Cursor coordinates are local to the target cell, each within 0..1.
@@ -740,37 +761,40 @@ impl Operations {
         face: crate::BlockFace,
         cursor: [f32; 3],
     ) -> Result<i32> {
-        crate::client::item_use::validate_cursor(cursor)?;
-        let state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, mode)?;
-        if state.operations.inventory.pending_swap.is_some() {
-            return Err(Error::new(
-                ErrorKind::State,
-                anyhow::anyhow!("inventory swap needs inspection"),
-            ));
-        }
-        if mode.is_none() && state.operations.game_mode == Some(GameMode::Survival) {
-            return Err(invalid(
-                "survival placement requires place_survival_cube and received material accounting",
-            ));
-        }
-        check_hit_reach(&state, position, cursor)?;
-        let seq = self.next_sequence()?;
-        let mut payload = Vec::new();
-        put_varint(&mut payload, hand as i32);
-        payload.extend(pack_position(position).to_be_bytes());
-        put_varint(&mut payload, face as i32);
-        for v in cursor {
-            payload.extend(v.to_be_bytes());
-        }
-        payload.extend([0, 0]);
-        put_varint(&mut payload, seq);
-        self.bot
-            .session
-            .send(ids::play_serverbound::BLOCK_PLACE, &payload)
-            .await?;
-        Ok(seq)
+        let admission = self.bot.session.ledger.try_work()?;
+        admission.run_scoped(async {
+            crate::client::item_use::validate_cursor(cursor)?;
+            let state = self.bot.session.state.lock().await;
+            self.mutable(&state)?;
+            self.require_mode(&state, mode)?;
+            if state.operations.inventory.pending_swap.is_some() {
+                return Err(Error::new(
+                    ErrorKind::State,
+                    anyhow::anyhow!("inventory swap needs inspection"),
+                ));
+            }
+            if mode.is_none() && state.operations.game_mode == Some(GameMode::Survival) {
+                return Err(invalid(
+                    "survival placement requires place_survival_cube and received material accounting",
+                ));
+            }
+            check_hit_reach(&state, position, cursor)?;
+            let seq = self.next_sequence()?;
+            let mut payload = Vec::new();
+            put_varint(&mut payload, hand as i32);
+            payload.extend(pack_position(position).to_be_bytes());
+            put_varint(&mut payload, face as i32);
+            for v in cursor {
+                payload.extend(v.to_be_bytes());
+            }
+            payload.extend([0, 0]);
+            put_varint(&mut payload, seq);
+            self.bot
+                .session
+                .send(ids::play_serverbound::BLOCK_PLACE, &payload)
+                .await?;
+            Ok(seq)
+        }).await
     }
     /// PLAYER_ACTION START (0) or STOP (2) _DESTROY_BLOCK with its interaction sequence.
     async fn dig_survival(
@@ -780,60 +804,76 @@ impl Operations {
         face: crate::BlockFace,
         status: i32,
     ) -> Result<i32> {
-        let state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, Some(mode))?;
-        check_reach(&state, position)?;
-        let seq = self.next_sequence()?;
-        let mut payload = Vec::new();
-        put_varint(&mut payload, status);
-        payload.extend(pack_position(position).to_be_bytes());
-        payload.push(face as u8);
-        put_varint(&mut payload, seq);
-        self.bot
-            .session
-            .send(ids::play_serverbound::BLOCK_DIG, &payload)
-            .await?;
-        Ok(seq)
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                check_reach(&state, position)?;
+                let seq = self.next_sequence()?;
+                let mut payload = Vec::new();
+                put_varint(&mut payload, status);
+                payload.extend(pack_position(position).to_be_bytes());
+                payload.push(face as u8);
+                put_varint(&mut payload, seq);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::BLOCK_DIG, &payload)
+                    .await?;
+                Ok(seq)
+            })
+            .await
     }
     /// ServerboundUseItemPacket: hand, sequence, then the current rotation, which the
     /// server snaps the player to before using the item.
     async fn use_item_in(&self, mode: GameMode, hand: crate::client::Hand) -> Result<i32> {
-        let state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, Some(mode))?;
-        let seq = self.next_sequence()?;
-        let mut payload = Vec::new();
-        put_varint(&mut payload, hand as i32);
-        put_varint(&mut payload, seq);
-        for v in state.rotation {
-            payload.extend(v.to_be_bytes());
-        }
-        self.bot
-            .session
-            .send(ids::play_serverbound::USE_ITEM, &payload)
-            .await?;
-        Ok(seq)
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                let seq = self.next_sequence()?;
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                put_varint(&mut payload, seq);
+                for v in state.rotation {
+                    payload.extend(v.to_be_bytes());
+                }
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::USE_ITEM, &payload)
+                    .await?;
+                Ok(seq)
+            })
+            .await
     }
     /// PLAYER_ACTION RELEASE_USE_ITEM with the zero position, face DOWN and sequence 0,
     /// as the official client sends it.
     async fn release_use_item_in(&self, mode: GameMode) -> Result<()> {
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        self.require_mode(&state, Some(mode))?;
-        let mut payload = Vec::new();
-        put_varint(&mut payload, 5);
-        payload.extend(0u64.to_be_bytes());
-        payload.push(0);
-        put_varint(&mut payload, 0);
-        self.bot
-            .session
-            .send(ids::play_serverbound::BLOCK_DIG, &payload)
-            .await?;
-        continuous::item_released(&mut state);
-        Ok(())
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                let mut payload = Vec::new();
+                put_varint(&mut payload, 5);
+                payload.extend(0u64.to_be_bytes());
+                payload.push(0);
+                put_varint(&mut payload, 0);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::BLOCK_DIG, &payload)
+                    .await?;
+                continuous::item_released(&mut state);
+                Ok(())
+            })
+            .await
     }
     pub(super) fn ready(&self, state: &State) -> Result<()> {
+        self.bot.session.observe_stop_context(state);
         self.bot.session.check(state)?;
         if !state.ready {
             return Err(invalid("play state is not ready"));
@@ -864,6 +904,7 @@ impl Operations {
         flight_owner: bool,
         ground_owner: Option<crate::client::DismountId>,
     ) -> Result<()> {
+        self.bot.session.ledger.check_normal()?;
         self.ready(state)?;
         if state
             .operations
@@ -1029,7 +1070,7 @@ impl Operations {
     }
     // Atomic::try_update is unavailable on our Rust 1.85 MSRV.
     #[allow(deprecated)]
-    fn next_sequence(&self) -> Result<i32> {
+    pub(super) fn next_sequence(&self) -> Result<i32> {
         self.bot
             .session
             .interaction_sequence
@@ -1052,7 +1093,7 @@ fn validate_pose(position: [f64; 3], rotation: [f32; 2]) -> Result<()> {
     }
     Ok(())
 }
-fn pack_position(p: [i32; 3]) -> i64 {
+pub(super) fn pack_position(p: [i32; 3]) -> i64 {
     ((i64::from(p[0]) & 0x3ffffff) << 38)
         | ((i64::from(p[2]) & 0x3ffffff) << 12)
         | (i64::from(p[1]) & 0xfff)
@@ -1672,7 +1713,7 @@ impl crate::client::adapter::CoreOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let owned = self.clone();
                 self.bot
@@ -1707,94 +1748,101 @@ impl crate::client::adapter::CoreOps for Operations {
         mode: GameMode,
         action: crate::client::operations::Action<'_>,
     ) -> Result<Option<i32>> {
-        use crate::client::operations::Action;
-        match action {
-            Action::Entity(target, interaction) => {
-                let state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
-                self.require_mode(&state, Some(mode))?;
-                state.entities.validate(
-                    crate::client::SessionStamp {
-                        version: crate::MinecraftVersion::Java1_21_11,
-                        connection_id: self.bot.session.id,
-                        world_generation: state.loading.generation,
-                    },
-                    target,
-                )?;
-                self.bot
-                    .session
-                    .send(
-                        ids::play_serverbound::USE_ENTITY,
-                        &interaction.payload(target),
-                    )
-                    .await?;
-            }
+        let admission = self.bot.session.ledger.try_work()?;
+        admission
+            .run_scoped(async {
+                use crate::client::operations::Action;
+                match action {
+                    Action::Entity(target, interaction) => {
+                        let state = self.bot.session.state.lock().await;
+                        self.mutable(&state)?;
+                        self.require_mode(&state, Some(mode))?;
+                        state.entities.validate(
+                            crate::client::SessionStamp {
+                                version: crate::MinecraftVersion::Java1_21_11,
+                                connection_id: self.bot.session.id,
+                                world_generation: state.loading.generation,
+                            },
+                            target,
+                        )?;
+                        self.bot
+                            .session
+                            .send(
+                                ids::play_serverbound::USE_ENTITY,
+                                &interaction.payload(target),
+                            )
+                            .await?;
+                    }
 
-            Action::EntityPart(_, _) => {
-                return Err(crate::client::inventory::unavailable(
-                    "multipart model is not supported for Java 1.21.11",
-                ));
-            }
+                    Action::EntityPart(_, _) => {
+                        return Err(crate::client::inventory::unavailable(
+                            "multipart model is not supported for Java 1.21.11",
+                        ));
+                    }
 
-            Action::Look(rotation) => {
-                crate::client::operations::validate_rotation(rotation)?;
-                self.look_in_mode(Some(mode), rotation).await?;
-            }
-            Action::SelectHotbar(slot) => self.select_hotbar_in_mode(Some(mode), slot).await?,
-            Action::SetFlying(flying) => {
-                if mode != GameMode::Creative {
-                    return Err(invalid("creative operation required"));
+                    Action::Look(rotation) => {
+                        crate::client::operations::validate_rotation(rotation)?;
+                        self.look_in_mode(Some(mode), rotation).await?;
+                    }
+                    Action::SelectHotbar(slot) => {
+                        self.select_hotbar_in_mode(Some(mode), slot).await?
+                    }
+                    Action::SetFlying(flying) => {
+                        if mode != GameMode::Creative {
+                            return Err(invalid("creative operation required"));
+                        }
+                        self.flight(crate::client::FlightCommand::SetFlying { flying })
+                            .await?;
+                    }
+                    Action::MoveFlying(position, rotation) => {
+                        crate::client::operations::validate_rotation(rotation)?;
+                        if mode != GameMode::Creative {
+                            return Err(invalid("creative operation required"));
+                        }
+                        self.flight(crate::client::FlightCommand::Move { position, rotation })
+                            .await?;
+                    }
+                    Action::SetHotbar(slot, item) => {
+                        if let Some((name, _)) = item {
+                            crate::client::registry::Registry::for_version(
+                                crate::MinecraftVersion::Java1_21_11,
+                            )
+                            .item(name)?;
+                        }
+                        self.set_creative_hotbar(slot, item).await?;
+                    }
+                    Action::Dig(position, face) => {
+                        return self.dig_creative(position, face).await.map(Some);
+                    }
+                    Action::UseOnBlock(position, face, cursor, hand) => {
+                        return self
+                            .use_on_block_in(Some(mode), hand, position, face, cursor)
+                            .await
+                            .map(Some);
+                    }
+                    Action::UseItem(hand) => return self.use_item_in(mode, hand).await.map(Some),
+                    Action::ReleaseUseItem => self.release_use_item_in(mode).await?,
+                    Action::DigStart(position, face) => {
+                        return self.dig_survival(mode, position, face, 0).await.map(Some);
+                    }
+                    Action::DigFinish(position, face) => {
+                        return self.dig_survival(mode, position, face, 2).await.map(Some);
+                    }
+                    Action::Swing(hand) => {
+                        let state = self.bot.session.state.lock().await;
+                        self.mutable(&state)?;
+                        self.require_mode(&state, Some(mode))?;
+                        let mut payload = Vec::new();
+                        put_varint(&mut payload, hand as i32);
+                        self.bot
+                            .session
+                            .send(ids::play_serverbound::ARM_ANIMATION, &payload)
+                            .await?;
+                    }
                 }
-                self.flight(crate::client::FlightCommand::SetFlying { flying })
-                    .await?;
-            }
-            Action::MoveFlying(position, rotation) => {
-                crate::client::operations::validate_rotation(rotation)?;
-                if mode != GameMode::Creative {
-                    return Err(invalid("creative operation required"));
-                }
-                self.flight(crate::client::FlightCommand::Move { position, rotation })
-                    .await?;
-            }
-            Action::SetHotbar(slot, item) => {
-                if let Some((name, _)) = item {
-                    crate::client::registry::Registry::for_version(
-                        crate::MinecraftVersion::Java1_21_11,
-                    )
-                    .item(name)?;
-                }
-                self.set_creative_hotbar(slot, item).await?;
-            }
-            Action::Dig(position, face) => {
-                return self.dig_creative(position, face).await.map(Some);
-            }
-            Action::UseOnBlock(position, face, cursor, hand) => {
-                return self
-                    .use_on_block_in(Some(mode), hand, position, face, cursor)
-                    .await
-                    .map(Some);
-            }
-            Action::UseItem(hand) => return self.use_item_in(mode, hand).await.map(Some),
-            Action::ReleaseUseItem => self.release_use_item_in(mode).await?,
-            Action::DigStart(position, face) => {
-                return self.dig_survival(mode, position, face, 0).await.map(Some);
-            }
-            Action::DigFinish(position, face) => {
-                return self.dig_survival(mode, position, face, 2).await.map(Some);
-            }
-            Action::Swing(hand) => {
-                let state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
-                self.require_mode(&state, Some(mode))?;
-                let mut payload = Vec::new();
-                put_varint(&mut payload, hand as i32);
-                self.bot
-                    .session
-                    .send(ids::play_serverbound::ARM_ANIMATION, &payload)
-                    .await?;
-            }
-        }
-        Ok(None)
+                Ok(None)
+            })
+            .await
     }
     async fn connection_identity(&self) -> Result<crate::client::ConnectionIdentity> {
         let state = self.bot.session.state.lock().await;

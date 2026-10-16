@@ -41,8 +41,8 @@ impl Operations {
     }
 }
 impl DigOps for Operations {
-    fn dig_work(&self) -> crate::client::ledger::WorkGuard {
-        self.bot.session.ledger.work()
+    fn dig_work(&self) -> Result<crate::client::ledger::WorkGuard> {
+        self.bot.session.ledger.try_work()
     }
     fn dig_coordinator(&self) -> Arc<dig::Coordinator> {
         self.bot.session.operational_dig.clone()

@@ -721,8 +721,7 @@ impl Session {
                 _=self.cancel.notified()=>return Ok(()),
                 packet=timeout(self.limits.play_packet_timeout,read_packet(&mut reader,compression))=>packet.context("play packet timed out")??,
             };
-            let response_work =
-                ScopedWork::new(self.ledger.admit().expect("existing receiver admission"));
+            let response_work = self.ledger.maintenance().ok().map(ScopedWork::new);
             let responses = {
                 let mut state = self.state.lock().await;
                 if self.stopped.load(Ordering::Acquire) {
@@ -735,7 +734,18 @@ impl Session {
                     ..
                 } = &mut *state;
                 reconstruction.advance(world, target);
+                if packet.0 == ids::play_clientbound::START_CONFIGURATION
+                    || packet.0 == ids::play_clientbound::RESPAWN
+                {
+                    self.ledger.set_ready(false);
+                }
                 let mut responses = state.receive(packet.0, &packet.1, self.limits.max_chunks)?;
+                self.ledger
+                    .set_ready(state.ready && state.phase == Phase::Play);
+                self.observe_stop_context(&state);
+                if response_work.is_none() {
+                    responses.clear();
+                }
                 if packet.0 == ids::play_clientbound::POSITION && matches!(state.phase, Phase::Play)
                 {
                     // Publish a received correction only after its original
@@ -743,18 +753,27 @@ impl Session {
                     // Normal operations share this state lock and cannot
                     // overtake the server's outstanding teleport boundary.
                     for (id, payload) in responses.drain(..) {
-                        self.send_work(id, &payload, response_work.guard()).await?;
+                        self.send_work(
+                            id,
+                            &payload,
+                            response_work.as_ref().expect("admitted response").guard(),
+                        )
+                        .await?;
                     }
                 }
                 responses
             };
             for (id, payload) in responses {
-                self.send_work(id, &payload, response_work.guard()).await?;
+                self.send_work(
+                    id,
+                    &payload,
+                    response_work.as_ref().expect("admitted response").guard(),
+                )
+                .await?;
             }
-            {
+            if let Some(work) = &response_work {
                 let mut state = self.state.lock().await;
-                self.complete_loading_work(&mut state, response_work.guard())
-                    .await?;
+                self.complete_loading_work(&mut state, work.guard()).await?;
             }
             self.changed.notify_waiters();
         }
@@ -1467,3 +1486,4 @@ impl crate::client::adapter::UiOps for operations::Operations {
 }
 
 mod finite_work;
+mod quiesce;

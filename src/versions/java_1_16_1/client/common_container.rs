@@ -438,7 +438,7 @@ impl crate::client::adapter::ContainerOps for Bot {
     ) -> Result<contract::ContainerOpenRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;
@@ -563,7 +563,7 @@ impl crate::client::adapter::ContainerOps for Bot {
     ) -> Result<contract::ContainerCloseRecord> {
         self.connection
             .ledger()
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
                 self.common_motion_admission().await?;

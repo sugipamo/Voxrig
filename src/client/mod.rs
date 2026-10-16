@@ -67,8 +67,13 @@ pub use chunks::{ChunkObservation, LoadedChunks};
 pub use placement_check::PlacementCheck;
 pub use player_control::PlayerControl;
 pub use player_facts::{PlayerAttribute, PlayerEffect};
+mod drain;
 pub(crate) mod ledger;
 mod lifecycle;
+pub use drain::{
+    AdmissionId, DrainError, DrainErrorKind, DrainHandle, DrainReceipt, DrainScope, GenerationKey,
+    QuiesceHandle, StopError, StopPermit, StopReceipt, StopTarget, StopTargetKind, WriteOrdinal,
+};
 pub use lifecycle::{ConnectionRevocation, ConnectionStatus};
 pub(crate) mod login;
 pub use furnace::{FurnaceObservation, FurnaceSlot};
@@ -247,6 +252,10 @@ pub mod prelude {
         RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage,
         RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, RespawnRecord, RespawnStage,
         Server, Support, Survival, VehicleObservation, VehicleRelation,
+    };
+    pub use super::{
+        DrainError, DrainErrorKind, DrainHandle, QuiesceHandle, StopError, StopPermit, StopTarget,
+        StopTargetKind,
     };
     pub use super::{
         EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap,

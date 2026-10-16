@@ -382,7 +382,7 @@ impl crate::client::adapter::VehicleOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
                 self.mutable_for_dismount(&state)?;
@@ -418,7 +418,7 @@ impl crate::client::adapter::VehicleOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
                 self.ready(&state)?;
@@ -473,7 +473,7 @@ impl crate::client::adapter::VehicleOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
                 self.mutable_for_dismount(&state)?;
@@ -541,7 +541,7 @@ impl crate::client::adapter::VehicleOps for Operations {
         self.bot
             .session
             .ledger
-            .work()
+            .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
                 self.mutable_for_dismount(&state)?;

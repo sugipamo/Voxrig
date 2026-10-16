@@ -71,6 +71,10 @@ pub(super) enum MotionCommand {
         face: u8,
         reply: oneshot::Sender<Admission<()>>,
     },
+    NeutralMiningComplete {
+        run_id: u64,
+        reply: oneshot::Sender<Admission<()>>,
+    },
     MiningDig {
         run_id: u64,
         action: crate::client::survival::MiningAction,
@@ -783,6 +787,14 @@ impl MotionGate {
                         });
                         Ok(())
                     });
+                let _ = reply.send(result);
+            }
+            MotionCommand::NeutralMiningComplete { run_id, reply } => {
+                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    if !matches!(self.owner, Some(Owner::Mining { run_id: id, started: true, .. }) if id == run_id) { return Err(OperationAdmissionError::InvalidOperation); }
+                    self.owner = None;
+                    Ok(())
+                });
                 let _ = reply.send(result);
             }
             MotionCommand::MiningDig {
@@ -1535,6 +1547,10 @@ impl ConnectionActor {
             reply,
         })
         .await
+    }
+    pub(crate) async fn complete_neutral_mining(&self, run_id: u64) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::NeutralMiningComplete { run_id, reply })
+            .await
     }
     pub(crate) async fn bounded_mining(
         &self,
