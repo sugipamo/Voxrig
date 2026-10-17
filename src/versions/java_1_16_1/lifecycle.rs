@@ -416,7 +416,7 @@ enum Command {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct DigConfirmation {
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) matched: bool,
     pub(crate) diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
 }
@@ -1362,11 +1362,13 @@ impl ConnectionActor {
                                 pending.work.finish(Outcome::Complete);
                                 let _ = pending.completion.send(outcome);
                                 DigConfirmation {
+                                    #[cfg(test)]
                                     matched: true,
                                     diagnostic_correlation: correlation,
                                 }
                             } else {
                                 DigConfirmation {
+                                    #[cfg(test)]
                                     matched: false,
                                     diagnostic_correlation: match pending_dig_diagnostics
                                         .get(&identity)
