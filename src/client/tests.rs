@@ -1138,13 +1138,28 @@ pub(crate) async fn common_motion_dispatch_scenario(client: &Client) {
     assert!(ops.start_predicted_path(&controls).await.is_err());
     // Abort only a caller's observation wait. The finite owner must still dispatch.
     let waiting_ops = ops.clone();
+    let (entered, entered_wait) = tokio::sync::oneshot::channel();
     let waiting = tokio::spawn(async move {
+        let mut entered = Some(entered);
         loop {
             let _ = waiting_ops.motion_record().await;
-            tokio::task::yield_now().await;
+            let mut wait = std::pin::pin!(tokio::task::yield_now());
+            std::future::poll_fn(|cx| {
+                let poll = std::future::Future::poll(wait.as_mut(), cx);
+                // Signal only after observing the pending wait boundary.
+                if poll.is_pending() {
+                    if let Some(entered) = entered.take() {
+                        entered.send(()).unwrap();
+                    }
+                }
+                poll
+            })
+            .await;
         }
     });
+    entered_wait.await.unwrap();
     waiting.abort();
+    assert!(waiting.await.unwrap_err().is_cancelled());
     let finished = tokio::time::timeout(std::time::Duration::from_secs(6), async {
         loop {
             let run = ops.motion_record().await.unwrap().unwrap();
