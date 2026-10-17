@@ -1,4 +1,19 @@
 //! Common client entry points and data. Wire formats and physics belong to adapters.
+//!
+//! Passive observation reads include [`Client::connection_status`], [`Client::player_state`],
+//! [`Client::received_inventory`], [`Client::player_context`],
+//! [`Client::server_registry_state`], [`Client::screen_state`],
+//! [`Client::received_recipes`], [`Client::received_recipe_ghost`],
+//! [`Client::received_crafting_context`], [`Client::recipe_book_materials`],
+//! [`Client::received_crafting`], [`Client::capture`] and [`Client::observe_region`],
+//! plus the [`Survival::player_state`] and [`Creative::player_state`] wrappers.
+//! These reads never send packets, admit writes, initiate cleanup, or advance or
+//! reconcile work. The guarantee is that the read itself causes no sends: a read
+//! may wait for local state locks held by a receiver that sends protocol replies,
+//! and other connection tasks may send while the read is pending. It does not
+//! promise connection silence, fresh evidence, server acceptance or absence of
+//! pending work. This contract is specific to these reads; operation-record
+//! methods may reconcile work as documented on those methods.
 pub(crate) mod adapter;
 pub(crate) use adapter::dispatch;
 pub mod blocks;

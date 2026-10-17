@@ -181,6 +181,8 @@ impl crate::Client {
     /// Capture bounded received abilities, difficulty, experience, weather, spawn and view
     /// packets. Missing values stay absent; no present-time interpolation,
     /// permission or server outcome is inferred. Readable after closure.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn player_context(&self) -> crate::Result<PlayerContextObservation> {
         super::dispatch!(&self.adapter, a => super::adapter::CoreOps::player_context(a).await)
     }

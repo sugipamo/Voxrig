@@ -1,4 +1,5 @@
 //! Version-selected client API. Local observations never claim server confirmation.
+//! See the [`client`](crate::client) module for the passive observation-read contract.
 
 use crate::client::adapter::{CoreOps, SessionOps};
 use crate::versions::java_1_16_1 as legacy;
@@ -235,6 +236,8 @@ impl Client {
     }
     /// Capture registries and tags actually received on this connection.
     /// Static bundled registry IDs and server-assigned configuration IDs are distinct.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     ///
     /// ```no_run
     /// use voxrig::client::prelude::*;
@@ -295,6 +298,8 @@ impl Client {
         }
     }
     /// Common player and received inventory captured under one adapter lock boundary.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
         crate::client::dispatch!(&self.adapter, a => CoreOps::player_state(a).await)
     }
@@ -302,6 +307,8 @@ impl Client {
     /// Retain this immutable value when inspecting server-assigned IDs in item
     /// data; separately captured registries can belong to a later configuration.
     /// Local inventory predictions are excluded.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     ///
     /// ```no_run
     /// use voxrig::client::prelude::*;
@@ -319,12 +326,16 @@ impl Client {
     }
     /// Capture the actual received recipe catalogue and its registry/tag owner.
     /// Displays and book membership do not predict inventory or authorize crafting.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
         crate::client::dispatch!(&self.adapter, a => CoreOps::received_recipes(a).await)
     }
 
     /// Last actual ghost UI packet with its original opening and frozen context.
     /// It is display evidence, not received ingredients or crafted output.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn received_recipe_ghost(
         &self,
     ) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
@@ -333,6 +344,8 @@ impl Client {
     /// Capture recipes/tags, player inventory and the active player/table grid
     /// together. Other active UIs return None. This is read-only planning data,
     /// not permission to mutate the grid or evidence of recipe consumption.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn received_crafting_context(
         &self,
     ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
@@ -343,6 +356,8 @@ impl Client {
     /// Captures actual recipes/tags and main/hotbar receipts at one adapter boundary.
     /// Positive native batch sizes are required. Missing stock/requirements are errors.
     /// This excludes grid/cursor stock and is not a placement or consumption plan.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn recipe_book_materials(
         &self,
         recipe: &crate::client::RecipeId,
@@ -355,6 +370,8 @@ impl Client {
     /// Actual player/table crafting inputs and displayed result, with native
     /// topology and registry ownership captured together. Other active UIs
     /// return None. Missing receipts do not become empty ingredients.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     ///
     /// ```no_run
     /// use voxrig::client::prelude::*;
@@ -377,11 +394,15 @@ impl Client {
     }
     /// Actual open-container contents and cursor at one native capture boundary.
     /// Numeric window IDs may be reused; use the session-bound screen identity.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
         crate::client::dispatch!(&self.adapter, a => CoreOps::screen_state(a).await)
     }
     /// Capture player, inventory and a received region at one adapter boundary.
     /// Missing data stays unavailable; neither local physics nor a capture is server confirmation.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn capture(&self, region: Region) -> Result<crate::client::Capture> {
         region.volume()?;
         crate::client::dispatch!(&self.adapter, a => CoreOps::capture(a, region).await)
@@ -495,6 +516,9 @@ impl Client {
     }
 
     /// Where the connection is in its lifecycle.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
+    /// The returned status is a snapshot, not an atomic liveness check for later actions.
     pub async fn connection_status(&self) -> crate::client::ConnectionStatus {
         crate::client::dispatch!(&self.adapter, a => SessionOps::connection_status(a).await)
     }
@@ -525,7 +549,9 @@ impl Client {
         Ok(observation.blocks.into_iter().next().and_then(|b| b.state))
     }
 
-    /// Gets all cells under one world lock; this does not send confirmation commands.
+    /// Gets all cells under one world lock.
+    /// This passive read sends no packets, admits no writes, initiates no cleanup,
+    /// and never advances or reconciles work. Other tasks may send while it is pending.
     pub async fn observe_region(&self, region: Region) -> Result<Observation> {
         region.volume()?;
         match &self.adapter {
