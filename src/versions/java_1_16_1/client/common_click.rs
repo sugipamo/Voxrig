@@ -8,6 +8,23 @@ use contract::{
     InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,
     InventoryClickStage,
 };
+pub(super) fn legacy_comparison_stack(comparison: &api::SlotKnowledge) -> Option<ItemStack> {
+    match comparison {
+        api::SlotKnowledge::Empty => None,
+        api::SlotKnowledge::Item { item } => Some(ItemStack {
+            item_id: item.id.value(),
+            count: item.count as i8,
+            nbt: match &item.data {
+                api::ItemData::Default => None,
+                api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                api::ItemData::ModernComponents { .. } => {
+                    unreachable!("legacy received stack cannot contain modern components")
+                }
+            },
+        }),
+        api::SlotKnowledge::Unavailable => unreachable!("validated predecessor"),
+    }
+}
 #[derive(Clone)]
 pub(super) struct NativeInventoryClick {
     pub(super) record: InventoryClickRecord,
@@ -134,21 +151,7 @@ impl Bot {
             } else {
                 api::SlotKnowledge::Empty
             };
-            let native = match &comparison {
-                api::SlotKnowledge::Empty => None,
-                api::SlotKnowledge::Item { item } => Some(ItemStack {
-                    item_id: item.id.value(),
-                    count: item.count as i8,
-                    nbt: match &item.data {
-                        api::ItemData::Default => None,
-                        api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
-                        api::ItemData::ModernComponents { .. } => {
-                            unreachable!("legacy received stack cannot contain modern components")
-                        }
-                    },
-                }),
-                api::SlotKnowledge::Unavailable => unreachable!("validated predecessor"),
-            };
+            let native = legacy_comparison_stack(&comparison);
             let action = self
                 .connection
                 .begin_window_click(id.attempt(), revision, record.window_id() as i8)
