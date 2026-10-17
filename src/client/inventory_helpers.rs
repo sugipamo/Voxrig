@@ -30,6 +30,57 @@ pub struct CraftOnceRecord {
     pub take: CraftingTakeRecord,
 }
 
+/// Why a craft's retained record does not confirm completion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum CraftOnceUnknownCause {
+    /// The take was still pending when the observation deadline was reached.
+    Timeout,
+    /// The take record reported a conflict or uncertain delivery.
+    RequiresInspection,
+}
+
+/// Failure or unconfirmed outcome of [`super::Survival::craft_once_checked`].
+///
+/// Reaching the deadline does **not** mean the craft failed or was cancelled:
+/// the server may still apply it. Re-observe and reconcile using received
+/// inventory or operation status rather than blindly resending the craft.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum CraftOnceError {
+    /// Completion is unknown; retain the operation identity and last observed state.
+    OutcomeUnknown {
+        /// Grid fill and last take record, including `take.id` and `take.stage`.
+        record: Box<CraftOnceRecord>,
+        /// Why completion could not be confirmed.
+        cause: CraftOnceUnknownCause,
+    },
+    /// An ordinary failure, preserving the original error and its kind.
+    Failed(crate::Error),
+}
+
+impl std::fmt::Display for CraftOnceError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OutcomeUnknown { record, cause } => write!(
+                formatter,
+                "craft outcome unknown ({cause:?}); take {:?} last observed as {:?}; re-observe and reconcile before resending",
+                record.take.id, record.take.stage
+            ),
+            Self::Failed(error) => write!(formatter, "craft failed: {error}"),
+        }
+    }
+}
+
+impl std::error::Error for CraftOnceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::OutcomeUnknown { .. } => None,
+            Self::Failed(error) => Some(error),
+        }
+    }
+}
+
 fn error(kind: ErrorKind, message: impl std::fmt::Display) -> Error {
     Error::new(kind, anyhow::anyhow!("{message}"))
 }
@@ -321,6 +372,7 @@ impl super::Survival {
     /// `fill_crafting_grid`, then shift-take the result into the inventory once
     /// (`transfer_crafting_result`) and wait for its received outcome. No result
     /// is an error; the ingredients then stay in the grid.
+    /// See [`Self::craft_once_checked`] for a result requiring confirmed completion.
     pub async fn craft_once(&self, ingredients: &[Option<&str>]) -> Result<CraftOnceRecord> {
         use super::crafting::CraftingTakeStage;
         let fill = self.fill_crafting_grid(ingredients).await?;
@@ -347,6 +399,41 @@ impl super::Survival {
             }
         }
         Ok(CraftOnceRecord { fill, take })
+    }
+
+    /// Fill the grid and shift-take its result once, returning `Ok` only when the
+    /// retained take record confirms completion (`ObservedTransferred`).
+    /// Uses the same parameters, operations and deadlines as [`Self::craft_once`].
+    ///
+    /// A take still pending at the deadline returns
+    /// [`CraftOnceError::OutcomeUnknown`] with [`CraftOnceUnknownCause::Timeout`],
+    /// the operation ID (`record.take.id`) and last observed state (`record.take.stage`).
+    /// Reaching the deadline does **not** mean the craft failed or was cancelled:
+    /// the server may still apply it. Callers should re-observe and reconcile
+    /// (for example via received inventory or [`Self::crafting_take_record`])
+    /// rather than blindly resend. A take requiring inspection also returns
+    /// `OutcomeUnknown`; ordinary errors are preserved in [`CraftOnceError::Failed`].
+    pub async fn craft_once_checked(
+        &self,
+        ingredients: &[Option<&str>],
+    ) -> std::result::Result<CraftOnceRecord, CraftOnceError> {
+        use super::crafting::CraftingTakeStage;
+        let record = self
+            .craft_once(ingredients)
+            .await
+            .map_err(CraftOnceError::Failed)?;
+        if record.take.stage == CraftingTakeStage::ObservedTransferred {
+            return Ok(record);
+        }
+        let cause = if record.take.stage == CraftingTakeStage::Pending {
+            CraftOnceUnknownCause::Timeout
+        } else {
+            CraftOnceUnknownCause::RequiresInspection
+        };
+        Err(CraftOnceError::OutcomeUnknown {
+            record: Box::new(record),
+            cause,
+        })
     }
 }
 

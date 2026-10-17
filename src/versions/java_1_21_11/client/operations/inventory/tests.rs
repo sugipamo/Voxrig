@@ -4696,3 +4696,175 @@ async fn preclosed_empty_cursor_quiesces_seals_and_joins_shutdown() {
     crate::client::tests::preclosed_quiesce_shutdown_scenario(&client).await;
     f.stop().await;
 }
+
+// Exercise the public helpers over the real common adapter and retained take history.
+mod craft_once_helpers {
+    use super::*;
+    use crate::client::{CraftOnceError, CraftOnceUnknownCause, CraftingTakeStage};
+    use std::error::Error as _;
+
+    async fn fixture() -> CommonFixture {
+        let mut f = CommonFixture::new().await;
+        f.api.bot.session.state.lock().await.registries.finish();
+        // A received displayed result with empty inputs avoids unrelated fill clicks.
+        // Neither helper infers recipe validity from this display.
+        f.slot(0, plain("stick", 4)).await;
+        f
+    }
+
+    #[tokio::test]
+    async fn checked_confirmed_completion_is_ok_and_inspection_is_unknown() {
+        for inspection in [false, true] {
+            let mut f = fixture().await;
+            let client = f.client();
+            let ops = client.survival();
+            let waiter = tokio::spawn(async move { ops.craft_once_checked(&[None; 4]).await });
+            let (id, _) = timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            let sent = client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(sent.stage, CraftingTakeStage::Pending);
+            if inspection {
+                let mut cursor = Vec::new();
+                put_slot(&mut cursor, &plain("stone", 1));
+                f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+                    .await;
+            } else {
+                let mut inventory = Inventory {
+                    cursor: InventorySlot::Empty,
+                    ..Default::default()
+                };
+                inventory.slots.fill(InventorySlot::Empty);
+                inventory.slots[9] = plain("stone", 32);
+                inventory.slots[36] = plain("dirt", 12);
+                inventory.slots[44] = plain("stick", 4);
+                f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+                    .await;
+            }
+            let result = timeout(Duration::from_secs(1), waiter)
+                .await
+                .unwrap()
+                .unwrap();
+            let record = if inspection {
+                let error = result.unwrap_err();
+                assert!(error.source().is_none());
+                assert!(error.to_string().contains("re-observe and reconcile"));
+                let CraftOnceError::OutcomeUnknown {
+                    record,
+                    cause: CraftOnceUnknownCause::RequiresInspection,
+                } = error
+                else {
+                    panic!("expected unknown inspection outcome")
+                };
+                assert_eq!(record.take.stage, CraftingTakeStage::RequiresInspection);
+                assert!(record.take.requires_inspection.is_some());
+                *record
+            } else {
+                let record = result.unwrap();
+                assert_eq!(record.take.stage, CraftingTakeStage::ObservedTransferred);
+                assert_eq!(record.take.inventory_output_increase, Some(4));
+                assert!(record.take.after.is_some());
+                record
+            };
+            assert_eq!(record.take.id, sent.id);
+            assert!(record.fill.result.is_some());
+            assert!(record.fill.clicks.is_empty());
+            f.stop().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn checked_deadline_retains_pending_id_and_legacy_still_returns_ok() {
+        for checked in [true, false] {
+            let mut f = fixture().await;
+            let client = f.client();
+            let ops = client.survival();
+            let waiter = tokio::spawn(async move {
+                if checked {
+                    ops.craft_once_checked(&[None; 4]).await
+                } else {
+                    ops.craft_once(&[None; 4])
+                        .await
+                        .map_err(CraftOnceError::Failed)
+                }
+            });
+            let (id, _) = timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            let sent = client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .unwrap();
+            let result = timeout(Duration::from_secs(5), waiter)
+                .await
+                .unwrap()
+                .unwrap();
+            let record = if checked {
+                let CraftOnceError::OutcomeUnknown {
+                    record,
+                    cause: CraftOnceUnknownCause::Timeout,
+                } = result.unwrap_err()
+                else {
+                    panic!("expected unknown timeout outcome")
+                };
+                *record
+            } else {
+                result.unwrap()
+            };
+            assert_eq!(record.take.id, sent.id);
+            assert_eq!(record.take.stage, CraftingTakeStage::Pending);
+            assert!(record.take.send.dispatched);
+            assert!(record.take.after.is_none());
+            // Deadline handling must not dispatch a replacement craft.
+            assert!(
+                timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.stop().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn checked_ordinary_failure_preserves_legacy_kind_and_error_source() {
+        let f = fixture().await;
+        let client = f.client();
+        let legacy = client.survival().craft_once(&[]).await.unwrap_err();
+        let checked = client.survival().craft_once_checked(&[]).await.unwrap_err();
+        assert_eq!(legacy.kind(), crate::ErrorKind::InvalidInput);
+        assert_eq!(
+            checked
+                .source()
+                .unwrap()
+                .downcast_ref::<crate::Error>()
+                .unwrap()
+                .kind(),
+            legacy.kind()
+        );
+        let CraftOnceError::Failed(error) = checked else {
+            panic!("expected ordinary failure")
+        };
+        assert_eq!(error.kind(), legacy.kind());
+        assert_eq!(error.to_string(), legacy.to_string());
+        assert!(
+            client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        f.stop().await;
+    }
+}
