@@ -201,6 +201,12 @@ impl Fixture {
         .await
         .unwrap();
     }
+    async fn expected_packet(&mut self, context: &str) -> (i32, Vec<u8>) {
+        timeout(Duration::from_secs(1), read_packet(&mut self.peer, None))
+            .await
+            .unwrap_or_else(|_| panic!("timed out waiting for {context}"))
+            .unwrap_or_else(|error| panic!("failed to read {context}: {error}"))
+    }
     async fn start(&mut self) -> PlacementIntent {
         let intent = self
             .api
@@ -208,7 +214,9 @@ impl Fixture {
             .await
             .unwrap();
         assert_eq!(intent.target, TARGET);
-        let (id, p) = read_packet(&mut self.peer, None).await.unwrap();
+        let (id, p) = self
+            .expected_packet("BLOCK_PLACE after native placement")
+            .await;
         assert_eq!(id, ids::play_serverbound::BLOCK_PLACE);
         let mut r = Reader::new(&p);
         assert_eq!(r.varint().unwrap(), 0);
@@ -312,7 +320,9 @@ async fn placement_requires_both_receipts_and_processed_sequence_in_either_order
         );
         f.api.select_hotbar(1).await.unwrap();
         assert_eq!(
-            read_packet(&mut f.peer, None).await.unwrap().0,
+            f.expected_packet("HELD_ITEM_SLOT after releasing placement")
+                .await
+                .0,
             ids::play_serverbound::HELD_ITEM_SLOT
         );
         f.stop().await;
@@ -481,7 +491,9 @@ async fn common_placement_same_consumer_requires_real_processing_and_retains_nat
     .await;
     assert!(record.send.interaction_sequence.is_some());
     assert_eq!(
-        read_packet(&mut f.peer, None).await.unwrap().0,
+        f.expected_packet("BLOCK_PLACE after common placement")
+            .await
+            .0,
         ids::play_serverbound::BLOCK_PLACE
     );
     f.block(TARGET, "dirt").await;
@@ -490,7 +502,8 @@ async fn common_placement_same_consumer_requires_real_processing_and_retains_nat
     f.ack(record.send.interaction_sequence.unwrap()).await;
     let completed =
         crate::client::tests::common_placement_completed_scenario(&client, record.id).await;
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("HELD_ITEM_SLOT after completed placement")
+        .await;
     assert!(completed.processing.as_ref().unwrap().receive_sequence > record.send.after_sequence);
     f.block(TARGET, "air").await;
     assert_eq!(
@@ -505,7 +518,7 @@ async fn common_placement_same_consumer_requires_real_processing_and_retains_nat
     );
     f.block([-2, 2, 0], "stone").await;
     client.survival().look([90.0, 3.0]).await.unwrap();
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("LOOK before next placement").await;
     let next = client
         .survival()
         .place_cube([-2, 2, 0], crate::BlockFace::East)
@@ -513,7 +526,7 @@ async fn common_placement_same_consumer_requires_real_processing_and_retains_nat
         .unwrap();
     assert_ne!(next.id, record.id);
     assert_eq!(next.held_before.count, 4);
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("BLOCK_PLACE for next placement").await;
     f.stop().await;
 }
 #[tokio::test]
@@ -546,7 +559,7 @@ async fn common_placement_after_no_echo_close_keeps_opening_history_and_reopen_c
         );
         let close = client.survival().close_container(screen).await.unwrap();
         assert_eq!(
-            read_packet(&mut f.peer, None).await.unwrap(),
+            f.expected_packet("CLOSE_WINDOW after common close").await,
             (ids::play_serverbound::CLOSE_WINDOW, vec![3])
         );
         crate::client::tests::common_closed_player_screen_scenario(&client, close.id).await;
@@ -563,7 +576,9 @@ async fn common_placement_after_no_echo_close_keeps_opening_history_and_reopen_c
             .await
             .unwrap();
         assert_eq!(
-            read_packet(&mut f.peer, None).await.unwrap().0,
+            f.expected_packet("BLOCK_PLACE after submitted close")
+                .await
+                .0,
             ids::play_serverbound::BLOCK_PLACE
         );
         assert_eq!(record.initial.inventory.window_id, Some(3));
@@ -690,7 +705,7 @@ async fn common_placement_transient_support_loss_and_missing_cursor_cannot_be_er
         .place_cube(SUPPORT, crate::BlockFace::West)
         .await
         .unwrap();
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("BLOCK_PLACE before support loss").await;
     f.block([0, 0, 0], "air").await;
     f.block([0, 0, 0], "stone").await;
     f.block(TARGET, "dirt").await;
@@ -725,7 +740,8 @@ async fn common_placement_requires_fresh_ack_and_preserves_completed_common_hist
         .place_cube(SUPPORT, crate::BlockFace::West)
         .await
         .unwrap();
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("BLOCK_PLACE before fresh acknowledgement")
+        .await;
     f.block(TARGET, "dirt").await;
     f.stack(4).await;
     crate::client::tests::common_placement_pending_scenario(&client).await;
@@ -742,16 +758,18 @@ async fn common_placement_requires_fresh_ack_and_preserves_completed_common_hist
     f.ack(record.send.interaction_sequence.unwrap()).await;
     let completed =
         crate::client::tests::common_placement_completed_scenario(&client, record.id).await;
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("HELD_ITEM_SLOT after fresh acknowledgement")
+        .await;
     f.block([-2, 2, 0], "stone").await;
     client.survival().look([90.0, 3.0]).await.unwrap();
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("LOOK before native-only placement").await;
     let native = f
         .api
         .place_survival_cube([-2, 2, 0], crate::BlockFace::East)
         .await
         .unwrap();
-    read_packet(&mut f.peer, None).await.unwrap();
+    f.expected_packet("BLOCK_PLACE after native-only placement")
+        .await;
     assert_ne!(Some(native.sequence), completed.send.interaction_sequence);
     let historical = client.survival().placement_record().await.unwrap().unwrap();
     assert_eq!(historical.id, completed.id);
