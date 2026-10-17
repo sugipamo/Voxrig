@@ -135,4 +135,163 @@ mod tests {
         assert_eq!(closed.unwrap_err().kind(), ErrorKind::Disconnected);
         server.await.unwrap();
     }
+    impl Client {
+        // The adapter fixtures supply one loaded stone cell and one received chat.
+        // Updating inside the predicate puts progress precisely after capture and
+        // before wait_after can register a notification waiter.
+        pub(crate) async fn assert_common_state_waits(
+            client: &Client,
+            position: [i32; 3],
+            mut update: impl FnMut(),
+        ) {
+            let region = crate::Region {
+                min: position,
+                max: position,
+            };
+            let player = client.player_state().await.unwrap();
+            let initial = player.receive_sequence;
+            let ready = client
+                .wait_for_block(position, Duration::ZERO, |state| {
+                    state.is_some_and(|state| state.name == "minecraft:stone")
+                })
+                .await
+                .unwrap();
+            assert_eq!(ready.player.receive_sequence, initial);
+            let loaded = client
+                .wait_for_loaded(region, Duration::ZERO)
+                .await
+                .unwrap();
+            assert_eq!(
+                loaded.world.blocks[0].state.as_ref().unwrap().name,
+                "minecraft:stone"
+            );
+            let chat = client.wait_for_chat(0, Duration::ZERO).await.unwrap();
+            assert_eq!(chat.messages.len(), 1);
+            assert_eq!(chat.messages[0].kind, crate::client::ChatKind::System);
+            assert_eq!(chat.receive_sequence, initial);
+            assert_eq!(
+                client
+                    .wait_for_receive(initial - 1, Duration::ZERO)
+                    .await
+                    .unwrap(),
+                initial
+            );
+
+            let mut checks = 0;
+            let updated = client
+                .wait_for_block(position, Duration::from_secs(1), |state| {
+                    checks += 1;
+                    if checks == 1 {
+                        assert_eq!(state.unwrap().name, "minecraft:stone");
+                        update();
+                        false
+                    } else {
+                        state.is_some_and(|state| state.name == "minecraft:dirt")
+                    }
+                })
+                .await
+                .unwrap();
+            assert_eq!(checks, 2);
+            assert_eq!(updated.player.receive_sequence, initial + 1);
+            assert_eq!(
+                updated.world.blocks[0].state.as_ref().unwrap().name,
+                "minecraft:dirt"
+            );
+
+            // Fixtures pause Tokio time after establishing their loopback connection.
+            let missing = crate::Region {
+                min: [32, 64, 32],
+                max: [32, 64, 32],
+            };
+            let limit = Duration::from_millis(5);
+            assert_eq!(
+                client
+                    .wait_for_block(position, limit, |_| false)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::Timeout
+            );
+            assert_eq!(
+                client
+                    .wait_for_loaded(missing, limit)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::Timeout
+            );
+            assert_eq!(
+                client
+                    .wait_for_chat(initial + 1, limit)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::Timeout
+            );
+            assert_eq!(
+                client
+                    .wait_for_receive(initial + 1, limit)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::Timeout
+            );
+
+            use std::{cell::Cell, future::Future, task::Poll};
+            let checks = Cell::new(0);
+            let limit = Duration::from_secs(1);
+            let mut block = std::pin::pin!(client.wait_for_block(position, limit, |_| {
+                checks.set(checks.get() + 1);
+                false
+            }));
+            let mut loaded = std::pin::pin!(client.wait_for_loaded(missing, limit));
+            let mut chat = std::pin::pin!(client.wait_for_chat(initial + 1, limit));
+            let mut receive = std::pin::pin!(client.wait_for_receive(initial + 1, limit));
+            std::future::poll_fn(|cx| {
+                assert!(block.as_mut().poll(cx).is_pending());
+                assert!(loaded.as_mut().poll(cx).is_pending());
+                assert!(chat.as_mut().poll(cx).is_pending());
+                assert!(receive.as_mut().poll(cx).is_pending());
+                Poll::Ready(())
+            })
+            .await;
+            assert_eq!(checks.get(), 1, "block predicate ran before closure");
+            let _ = client.revoke_connection();
+            assert_eq!(block.await.unwrap_err().kind(), ErrorKind::Disconnected);
+            assert_eq!(loaded.await.unwrap_err().kind(), ErrorKind::Disconnected);
+            assert_eq!(chat.await.unwrap_err().kind(), ErrorKind::Disconnected);
+            assert_eq!(receive.await.unwrap_err().kind(), ErrorKind::Disconnected);
+
+            // Characterize the current distinction between waits already registered
+            // at closure and new state/chat reads made after closure on each adapter.
+            let state_error = match player.session.version {
+                MinecraftVersion::Java1_16_1 => ErrorKind::State,
+                MinecraftVersion::Java1_21_11 => ErrorKind::Disconnected,
+            };
+            assert_eq!(
+                client
+                    .wait_for_block(position, limit, |_| true)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                state_error
+            );
+            assert_eq!(
+                client
+                    .wait_for_loaded(region, limit)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                state_error
+            );
+            assert_eq!(
+                client.wait_for_chat(0, limit).await.unwrap_err().kind(),
+                state_error
+            );
+            assert_eq!(
+                client.wait_for_receive(0, limit).await.unwrap_err().kind(),
+                ErrorKind::Disconnected
+            );
+        }
+    }
 }
