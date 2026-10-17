@@ -4225,8 +4225,8 @@ impl Bot {
         let admission = self.connection.ledger().try_work()?;
         admission
             .run_scoped(async {
-                if message.is_empty() || message.chars().count() > 256 {
-                    bail!("chat message must contain 1..=256 characters");
+                if message.is_empty() || message.encode_utf16().count() > 256 {
+                    bail!("chat message must contain 1..=256 UTF-16 code units");
                 }
                 let mut payload = Vec::new();
                 put_string(&mut payload, message);
@@ -10281,6 +10281,39 @@ mod tests {
         .await
         .unwrap();
         (bot, received, release, server)
+    }
+
+    #[tokio::test]
+    async fn chat_utf16_limits_reject_before_dispatch_and_preserve_wire_text() {
+        let (bot, mut packets, _release, server) = operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let expected = crate::client::tests::common_chat_utf16_scenario(&client).await;
+        // The native legacy sender also needs the unit check, including the
+        // slash added by its command path, independently of common validation.
+        assert!(bot.send_chat(&"😀".repeat(129)).await.is_err());
+        assert!(bot.send_command(&"😀".repeat(128)).await.is_err());
+        assert!(
+            bot.send_command(&format!("/{}", "😀".repeat(128)))
+                .await
+                .is_err()
+        );
+        for (_, text) in expected {
+            let (id, payload) = timeout(Duration::from_secs(2), packets.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(id, 0x03);
+            let mut input = payload.as_slice();
+            assert_eq!(crate::protocol::get_string(&mut input).unwrap(), text);
+            assert!(input.is_empty());
+        }
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        server.abort();
     }
 
     #[tokio::test]

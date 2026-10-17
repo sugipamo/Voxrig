@@ -2096,3 +2096,61 @@ pub(crate) async fn preclosed_quiesce_shutdown_scenario(client: &Client) {
     // Successful shutdown preserves the historical final fact after fencing.
     assert_eq!(final_stage.wait().await.unwrap(), final_receipt);
 }
+
+/// Exercise the common UTF-16 contract through each adapter's real sender.
+/// Return the exact strings expected on the wire (including the legacy slash).
+pub(crate) async fn common_chat_utf16_scenario(client: &Client) -> Vec<(bool, String)> {
+    let mut expected = Vec::new();
+    let mixed =
+        |units: usize| format!("{}界", "😀".repeat((units - 1) / 2)) + &"x".repeat((units - 1) % 2);
+    for message in ["😀".repeat(128), mixed(255), mixed(256), "x".repeat(256)] {
+        client.send_chat(&message).await.unwrap();
+        expected.push((false, message));
+    }
+    for message in [
+        "😀".repeat(129),
+        "😀".repeat(256),
+        mixed(257),
+        "x".repeat(257),
+        String::new(),
+        "/say hi".into(),
+        "a\u{a7}b".into(),
+        "a\nb".into(),
+        "a\0b".into(),
+    ] {
+        assert_eq!(
+            client.send_chat(&message).await.unwrap_err().kind(),
+            crate::ErrorKind::InvalidInput,
+            "chat: {message:?}"
+        );
+    }
+    for leading_slash in [false, true] {
+        for command in ["😀".repeat(127), mixed(255), "x".repeat(255)] {
+            let input = format!("{}{command}", if leading_slash { "/" } else { "" });
+            client.send_command(&input).await.unwrap();
+            let wire = if client.version() == MinecraftVersion::Java1_16_1 {
+                format!("/{command}")
+            } else {
+                command
+            };
+            expected.push((true, wire));
+        }
+        for command in [
+            "😀".repeat(128),
+            mixed(256),
+            mixed(257),
+            "x".repeat(256),
+            String::new(),
+            "say\nhi".into(),
+            "say \u{a7}hi".into(),
+        ] {
+            let input = format!("{}{command}", if leading_slash { "/" } else { "" });
+            assert_eq!(
+                client.send_command(&input).await.unwrap_err().kind(),
+                crate::ErrorKind::InvalidInput,
+                "command: {input:?}"
+            );
+        }
+    }
+    expected
+}

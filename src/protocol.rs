@@ -56,8 +56,8 @@ pub fn get_string(input: &mut &[u8]) -> Result<String> {
         bail!("invalid string length {len}");
     }
     let value = std::str::from_utf8(&input[..len as usize])?.to_owned();
-    if value.chars().count() > 32_767 {
-        bail!("string exceeds 32767 characters");
+    if value.encode_utf16().count() > 32_767 {
+        bail!("string exceeds 32767 UTF-16 code units");
     }
     *input = &input[len as usize..];
     Ok(value)
@@ -225,6 +225,41 @@ mod tests {
     fn varint_rejects_truncation_and_sixth_byte() {
         assert!(get_varint(&mut [0x80].as_slice()).is_err());
         assert!(get_varint(&mut [0x80; 6].as_slice()).is_err());
+    }
+
+    #[test]
+    fn strings_enforce_utf16_units_and_preserve_trailing_input() {
+        for value in [
+            "x".repeat(32_767),
+            "界".repeat(32_767),
+            format!("{}界", "😀".repeat(16_383)),
+        ] {
+            let mut encoded = Vec::new();
+            put_string(&mut encoded, &value);
+            encoded.push(42);
+            let mut input = encoded.as_slice();
+            assert_eq!(get_string(&mut input).unwrap(), value);
+            assert_eq!(input, &[42]);
+        }
+        for value in ["x".repeat(32_768), "😀".repeat(16_384)] {
+            let mut encoded = Vec::new();
+            put_string(&mut encoded, &value);
+            assert!(get_string(&mut encoded.as_slice()).is_err());
+        }
+    }
+
+    #[test]
+    fn strings_retain_byte_utf8_and_truncation_bounds() {
+        for len in [-1, 32_767 * 4 + 1] {
+            let mut encoded = Vec::new();
+            put_varint(&mut encoded, len);
+            if len > 0 {
+                encoded.resize(encoded.len() + len as usize, b'x');
+            }
+            assert!(get_string(&mut encoded.as_slice()).is_err());
+        }
+        assert!(get_string(&mut [2, b'x'].as_slice()).is_err());
+        assert!(get_string(&mut [1, 0xff].as_slice()).is_err());
     }
 
     #[tokio::test]

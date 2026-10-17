@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 /// Maximum retained messages. Older entries are dropped and reported as truncation.
 pub const MAX_RETAINED_CHAT: usize = 256;
 const MAX_RETAINED_BYTES: usize = 4 << 20;
-/// Longest chat line accepted for dispatch, in characters (native limit).
+/// Longest chat line accepted for dispatch, in UTF-16 code units (native limit).
 pub const MAX_CHAT_LENGTH: usize = 256;
 
 /// Where the server placed a received message.
@@ -280,12 +280,12 @@ fn profileless_chat(payload: &[u8], sequence: u64) -> ReceivedChat {
 /// Validate a chat line before any adapter-specific encoding.
 pub(crate) fn validate_chat(message: &str) -> Result<()> {
     if message.is_empty()
-        || message.chars().count() > MAX_CHAT_LENGTH
+        || message.encode_utf16().count() > MAX_CHAT_LENGTH
         || message.starts_with('/')
         || message.chars().any(|c| c.is_control() || c == '\u{a7}')
     {
         return Err(super::recording::invalid(
-            "chat must be 1..=256 characters without control characters, section signs or a leading slash",
+            "chat must be 1..=256 UTF-16 code units without control characters, section signs or a leading slash",
         ));
     }
     Ok(())
@@ -295,11 +295,11 @@ pub(crate) fn validate_chat(message: &str) -> Result<()> {
 pub(crate) fn validate_command(command: &str) -> Result<&str> {
     let command = command.strip_prefix('/').unwrap_or(command);
     if command.is_empty()
-        || command.chars().count() > MAX_CHAT_LENGTH - 1
+        || command.encode_utf16().count() > MAX_CHAT_LENGTH - 1
         || command.chars().any(|c| c.is_control() || c == '\u{a7}')
     {
         return Err(super::recording::invalid(
-            "command must be 1..=255 characters without control characters or section signs",
+            "command must be 1..=255 UTF-16 code units without control characters or section signs",
         ));
     }
     Ok(command)
