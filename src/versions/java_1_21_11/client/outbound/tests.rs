@@ -159,7 +159,7 @@ async fn long_raycast_rejects_world_switch_between_height_and_capture() {
     session.stop();
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn control_restart_keeps_model_momentum_and_aim_after_decoded_velocity() {
     let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let client = crate::Client::from_java_1_21_11(api.bot.clone());
@@ -177,42 +177,25 @@ async fn control_restart_keeps_model_momentum_and_aim_after_decoded_velocity() {
     let survival = client.survival();
     let start = survival.start_control().await.unwrap();
     assert_eq!([start.controls.yaw, start.controls.pitch], [37.0, -12.0]);
-    timeout(Duration::from_secs(2), async {
-        while survival
-            .control_record()
-            .await
-            .unwrap()
-            .unwrap()
-            .dispatched_ticks
-            < 3
-        {
-            tokio::time::sleep(Duration::from_millis(5)).await;
+    // The first interval tick is immediate. Advance only after the preceding
+    // write is recorded, so scheduler delays cannot add friction steps.
+    for tick in 1..=3 {
+        if tick > 1 {
+            tokio::time::advance(Duration::from_millis(50)).await;
         }
-    })
-    .await
-    .unwrap();
+        wait_for_control_tick(&session, &survival, tick).await;
+    }
     let stopped = survival.stop_control().await.unwrap().unwrap();
+    assert_eq!(stopped.dispatched_ticks, 3);
     let previous = stopped.frame.unwrap();
     assert!(previous.velocity[0] > 0.0 && previous.velocity[0] < 0.08);
     let start = survival.start_control().await.unwrap();
     assert_ne!(start.session_id, stopped.session_id);
     assert_eq!([start.controls.yaw, start.controls.pitch], [37.0, -12.0]);
     assert_eq!((start.controls.forward, start.controls.strafe), (0, 0));
-    timeout(Duration::from_secs(2), async {
-        while survival
-            .control_record()
-            .await
-            .unwrap()
-            .unwrap()
-            .dispatched_ticks
-            == 0
-        {
-            tokio::time::sleep(Duration::from_millis(2)).await;
-        }
-    })
-    .await
-    .unwrap();
+    wait_for_control_tick(&session, &survival, 1).await;
     let resumed = survival.stop_control().await.unwrap().unwrap();
+    assert_eq!(resumed.dispatched_ticks, 1);
     let frame = resumed.frame.unwrap();
     assert_eq!((resumed.corrections, resumed.velocity_updates), (0, 0));
     assert!(frame.position[0] > previous.position[0]);
@@ -234,6 +217,31 @@ async fn control_restart_keeps_model_momentum_and_aim_after_decoded_velocity() {
     }
     assert!(survival.start_control().await.is_err());
     session.stop();
+}
+
+async fn wait_for_control_tick(
+    session: &Session,
+    survival: &crate::client::Survival,
+    expected: u64,
+) {
+    timeout(Duration::from_secs(2), async {
+        loop {
+            let changed = session.changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            let record = survival.control_record().await.unwrap().unwrap();
+            assert!(
+                record.dispatched_ticks <= expected,
+                "unexpected extra control tick"
+            );
+            if record.dispatched_ticks == expected {
+                break;
+            }
+            changed.await;
+        }
+    })
+    .await
+    .expect("control tick did not finish dispatching");
 }
 
 #[tokio::test]
