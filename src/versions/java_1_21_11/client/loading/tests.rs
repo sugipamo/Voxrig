@@ -242,3 +242,34 @@ async fn cancelled_notification_retains_attempt_and_configuration_invalidates_it
             .notification_dispatched()
     );
 }
+
+#[tokio::test]
+async fn common_state_waits_cover_present_racing_and_closed_state() {
+    let (bot, _reader, _peer) = fixture().await;
+    tokio::time::pause();
+    let position = [8, 64, 8];
+    {
+        let mut state = bot.session.state.lock().await;
+        state.world.seed_replay_cell(position, 1);
+        state
+            .receive(
+                ids::play_clientbound::SYSTEM_CHAT,
+                &[8, 0, 4, b'w', b'a', b'i', b't', 0],
+                256,
+            )
+            .unwrap();
+    }
+    let client = crate::Client::from_java_1_21_11(bot.clone());
+    let dirt = super::super::super::state_id(&crate::NativeBlockState {
+        name: "minecraft:dirt".into(),
+        properties: Default::default(),
+    })
+    .unwrap();
+    crate::Client::assert_common_state_waits(&client, position, || {
+        let mut state = bot.session.state.try_lock().unwrap();
+        state.world.seed_replay_cell(position, dirt);
+        state.sequence += 1;
+        bot.session.changed.notify_waiters();
+    })
+    .await;
+}

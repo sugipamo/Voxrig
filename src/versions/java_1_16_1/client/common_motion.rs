@@ -1163,6 +1163,43 @@ impl crate::client::adapter::PathMotionOps for Bot {
 pub(super) mod tests {
     use super::*;
     use crate::client::adapter::PathMotionOps;
+
+    #[tokio::test]
+    async fn common_state_waits_cover_present_racing_and_closed_state() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_motion(&bot).await;
+        tokio::time::pause();
+        let mut chat = Vec::new();
+        put_string(&mut chat, r#"{"text":"wait"}"#);
+        chat.push(1); // system chat
+        chat.extend([0; 16]);
+        bot.apply_packet(0x0e, chat).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let dirt = crate::versions::java_1_16_1::state_id(&crate::NativeBlockState {
+            name: "minecraft:dirt".into(),
+            properties: Default::default(),
+        })
+        .unwrap();
+        crate::Client::assert_common_state_waits(&client, [8, 64, 8], || {
+            let _gate = bot.coherent_state_gate.try_lock().unwrap();
+            bot.world
+                .try_lock()
+                .unwrap()
+                .set_block_for_test(BlockPos { x: 8, y: 64, z: 8 }, dirt);
+            bot.protocol_packet_sequence.fetch_add(1, Ordering::AcqRel);
+            bot.packet_applied.notify_waiters();
+        })
+        .await;
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn posture_metadata_still_retires_owned_movement() {
         let (bot, mut packets, release, server) =
