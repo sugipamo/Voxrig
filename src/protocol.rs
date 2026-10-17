@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
-use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
-use std::io::{Read, Write};
+use flate2::{Compression, Decompress, FlushDecompress, Status, write::ZlibEncoder};
+use std::io::Write;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 pub const MAX_PACKET_SIZE: usize = 2_097_152;
@@ -88,18 +88,20 @@ pub async fn read_packet<R: AsyncRead + Unpin>(
             if threshold >= 0 && uncompressed_len < threshold {
                 bail!("compressed packet is below compression threshold");
             }
-            let mut decoder = ZlibDecoder::new(cursor);
-            let mut decoded = Vec::with_capacity(uncompressed_len as usize);
-            decoder
-                .by_ref()
-                .take(uncompressed_len as u64 + 1)
-                .read_to_end(&mut decoded)?;
-            if decoded.len() != uncompressed_len as usize {
+            let mut decoder = Decompress::new(true);
+            // One extra byte detects excess output while keeping inflation bounded.
+            let mut decoded = vec![0; uncompressed_len as usize + 1];
+            let status = decoder.decompress(cursor, &mut decoded, FlushDecompress::Finish)?;
+            if decoder.total_out() != uncompressed_len as u64 {
                 bail!("decompressed length mismatch");
+            }
+            if status != Status::StreamEnd {
+                bail!("compressed packet has incomplete zlib stream");
             }
             if decoder.total_in() != cursor.len() as u64 {
                 bail!("compressed packet contains trailing data");
             }
+            decoded.truncate(uncompressed_len as usize);
             decoded
         }
     } else {
@@ -269,7 +271,7 @@ mod tests {
 
     #[tokio::test]
     async fn packet_round_trip_with_each_compression_mode() {
-        for compression in [None, Some(0), Some(256)] {
+        for compression in [None, Some(-1), Some(0), Some(3), Some(256)] {
             let (mut tx, mut rx) = tokio::io::duplex(4096);
             let payload = b"structured sound observation";
             write_packet(&mut tx, compression, 0x51, payload)
@@ -278,6 +280,117 @@ mod tests {
             let (id, decoded) = read_packet(&mut rx, compression).await.unwrap();
             assert_eq!(id, 0x51);
             assert_eq!(decoded, payload);
+        }
+    }
+
+    fn compressed_wire(declared: usize, compressed: &[u8]) -> Vec<u8> {
+        let mut frame = Vec::new();
+        put_varint(&mut frame, declared as i32);
+        frame.extend_from_slice(compressed);
+        let mut wire = Vec::new();
+        put_varint(&mut wire, frame.len() as i32);
+        wire.extend(frame);
+        wire
+    }
+
+    #[tokio::test]
+    async fn compressed_packet_requires_complete_stream_at_every_byte_boundary() {
+        for body in [vec![1, 2, 3], vec![1; 1024]] {
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(&body).unwrap();
+            let compressed = encoder.finish().unwrap();
+            for threshold in [0, body.len() as i32] {
+                let wire = compressed_wire(body.len(), &compressed);
+                assert_eq!(
+                    read_packet(&mut wire.as_slice(), Some(threshold))
+                        .await
+                        .unwrap(),
+                    (1, body[1..].to_vec())
+                );
+                for end in 0..compressed.len() {
+                    // Only the outer length changes; the declared output stays accurate.
+                    let wire = compressed_wire(body.len(), &compressed[..end]);
+                    assert!(
+                        read_packet(&mut wire.as_slice(), Some(threshold))
+                            .await
+                            .is_err(),
+                        "accepted {end}/{} compressed bytes at threshold {threshold}",
+                        compressed.len()
+                    );
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn compressed_packet_rejects_corrupt_checksum() {
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&[1, 2, 3]).unwrap();
+        let compressed = encoder.finish().unwrap();
+        for offset in compressed.len() - 4..compressed.len() {
+            let mut corrupt = compressed.clone();
+            corrupt[offset] ^= 1;
+            let wire = compressed_wire(3, &corrupt);
+            assert!(read_packet(&mut wire.as_slice(), Some(0)).await.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn compressed_packet_enforces_maximum_output() {
+        for length in [MAX_PACKET_SIZE, MAX_PACKET_SIZE + 1] {
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+            encoder.write_all(&vec![1; length]).unwrap();
+            let wire = compressed_wire(MAX_PACKET_SIZE, &encoder.finish().unwrap());
+            let result = read_packet(&mut wire.as_slice(), Some(0)).await;
+            if length == MAX_PACKET_SIZE {
+                let (id, payload) = result.unwrap();
+                assert_eq!(id, 1);
+                assert_eq!(payload, vec![1; MAX_PACKET_SIZE - 1]);
+            } else {
+                assert!(result.is_err());
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn both_adapters_reject_incomplete_compressed_login_packet() {
+        use crate::{Client, ConnectionConfig, MinecraftVersion, client::Server};
+        use std::time::Duration;
+        use tokio::{net::TcpListener, time::timeout};
+
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for missing in 1..=5 {
+                let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+                let port = listener.local_addr().unwrap().port();
+                let server = tokio::spawn(async move {
+                    let (mut stream, _) = listener.accept().await.unwrap();
+                    read_packet(&mut stream, None).await.unwrap(); // Handshake.
+                    read_packet(&mut stream, None).await.unwrap(); // Login start.
+                    write_packet(&mut stream, None, 3, &[0]).await.unwrap(); // Compression.
+                    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+                    encoder.write_all(&[1, 2, 3]).unwrap(); // Encryption request if dispatched.
+                    let mut compressed = encoder.finish().unwrap();
+                    compressed.truncate(compressed.len() - missing);
+                    stream
+                        .write_all(&compressed_wire(3, &compressed))
+                        .await
+                        .unwrap();
+                });
+                let config =
+                    ConnectionConfig::offline(Server::new("127.0.0.1", port), "ZlibProbe", version);
+                let result = timeout(Duration::from_secs(5), Client::connect(config))
+                    .await
+                    .unwrap();
+                let error = match result {
+                    Err(error) => error,
+                    Ok(_) => panic!("accepted incomplete login for {version:?}"),
+                };
+                assert!(
+                    format!("{:#}", error.diagnostic()).contains("incomplete zlib stream"),
+                    "{version:?}, missing {missing}: {error:?}"
+                );
+                server.await.unwrap();
+            }
         }
     }
 
@@ -292,24 +405,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn compressed_packet_rejects_output_larger_than_declared() {
+    async fn compressed_packet_rejects_declared_length_mismatches() {
         let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
         encoder.write_all(&[0, 1, 2]).unwrap();
         let compressed = encoder.finish().unwrap();
-        let mut frame = Vec::new();
-        put_varint(&mut frame, 2);
-        frame.extend(compressed);
-        let mut wire = Vec::new();
-        put_varint(&mut wire, frame.len() as i32);
-        wire.extend(frame);
-        assert!(read_packet(&mut wire.as_slice(), Some(0)).await.is_err());
+        for declared in [2, 4] {
+            let wire = compressed_wire(declared, &compressed);
+            assert!(read_packet(&mut wire.as_slice(), Some(0)).await.is_err());
+        }
     }
 
     #[tokio::test]
     async fn read_packet_rejects_oversized_and_truncated_frames() {
-        let mut oversized = Vec::new();
-        put_varint(&mut oversized, MAX_PACKET_SIZE as i32 + 1);
-        assert!(read_packet(&mut oversized.as_slice(), None).await.is_err());
+        for length in [-1, MAX_PACKET_SIZE as i32 + 1] {
+            let mut wire = Vec::new();
+            put_varint(&mut wire, length);
+            assert!(read_packet(&mut wire.as_slice(), None).await.is_err());
+        }
 
         let mut truncated = Vec::new();
         put_varint(&mut truncated, 2);
