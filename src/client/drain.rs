@@ -531,8 +531,12 @@ impl StopPermit<'_> {
     /// Accepted cleanup is connection-owned and survives waiter drop; retries join/cache it.
     /// Common and legacy native movement are distinct owners. A dormant native stop
     /// clears its local input; the selected common stop releases common wire posture.
-    /// Item release may fire a bow or otherwise affect gameplay. Intentional digging ABORT
-    /// is clean only when cleanup is confirmed; timeout/unknown outcome remain sticky errors.
+    /// For an [`ItemUse`](StopTargetKind::ItemUse) target, neutralize sends the native
+    /// release-use packet. Releasing a drawn bow may fire its arrow, and releasing
+    /// other items may also affect gameplay. The [`StopReceipt`] confirms local
+    /// dispatch and cleanup, not server acceptance or cancellation of those effects.
+    /// Intentional digging ABORT is clean only when cleanup is confirmed;
+    /// timeout/unknown outcome remain sticky errors.
     /// Stale, unsupported and refused requests fail closed without touching a replacement.
     pub fn neutralize(
         &mut self,

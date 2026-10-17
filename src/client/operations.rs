@@ -371,6 +371,9 @@ impl Survival {
         crate::client::dispatch!(&self.client.adapter, a => PathMotionOps::motion_record(a).await)
     }
     /// Capture player/inventory without inventing mode, item or position facts.
+    /// Uses the passive [`Client::player_state`] read: sends no packets, admits no
+    /// writes, initiates no cleanup, and never advances or reconciles work.
+    /// Other tasks may send while it is pending.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await
     }
@@ -667,6 +670,9 @@ impl Creative {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::inventory_swap_record(a).await)
     }
     /// Capture player/inventory. Holding this handle does not imply creative permission.
+    /// Uses the passive [`Client::player_state`] read: sends no packets, admits no
+    /// writes, initiates no cleanup, and never advances or reconciles work.
+    /// Other tasks may send while it is pending.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await
     }
