@@ -112,6 +112,28 @@ revisionは不要な再転送を避けるために使えます。通常のgetter
 
 ## Staged quiesce and source fencing (#131 PR 4)
 
+### retire／退役の用語
+
+Voxrigの接続ライフサイクルは`begin_quiesce`、`admitted_drain`／`seal_for_fence`の
+drain段階、`StopPermit`／`StopReceipt`、`revoke_connection`、
+`wait_shutdown`／`ShutdownError`で表します。汎用の「retire／退役」は定義しません。
+
+- Golemkitの「退役」は旧Bodyを使用不能にすることです。Voxrigでは接続・世代の
+  revokeと、古い証拠で新しい操作を許可しないことに対応し、shutdown完了とは別です。
+- evoltoの「退役」はshutdown確認完了後に許可される運用判断です（案2の確認付き
+  detach／`ShutdownReceipt`契約）。Voxrig側の対応する事実は、元の接続での
+  `Client::wait_shutdown()`の`Ok(())`です。これをdetachに結び付けた受領証にするのは
+  Golemkitの責務で、Voxrigは`ShutdownReceipt`を定義しません。
+  shutdown確認だけでevoltoの他の運用条件まで満たすわけではありません。
+- Voxrigの[採掘retirement](survival-mining-retirement.md)、
+  [ack identityのretirement](r3-primitive-dispatch.md)、entityやownerの退役は
+  各領域固有の用語で、上記2つの意味とは別です。ownerの退役はそのownerのwrite権限の
+  解放を指し、接続のshutdown完了を意味しません。
+
+実装側の定義は[用語注記](internal/drain-ledger.md#terminology-retire-and-retirement)を参照してください。
+
+### 段階と保証
+
 `Client::generation_key()` observes one immutable process-local transport key.
 World resets do not replace it. Retain the original source `Client` and key
 through handoff; neither a key nor a serialized receipt recreates authority.

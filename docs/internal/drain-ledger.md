@@ -9,6 +9,28 @@ ownership and evidence-based transaction classification. The ledger, guards,
 producer tokens, task registry and CompletionPoint remain crate-private. Resume
 and automatic target selection remain excluded.
 
+## Terminology: retire and retirement
+
+Voxrig names the client lifecycle with `begin_quiesce`, the `admitted_drain` /
+`seal_for_fence` drain stages, `StopPermit` / `StopReceipt`, `revoke_connection`,
+and `wait_shutdown` / `ShutdownError`. It defines no generic client "retire" step.
+
+- Golemkit's "retire" makes an old Body unusable. On the Voxrig side this
+  corresponds to connection/generation revocation and not using old evidence to
+  authorize new work; it does not establish shutdown completion.
+- evolto's "retire" is a policy decision permitted only after shutdown
+  confirmation completes (the option 2 confirmed-detach / `ShutdownReceipt`
+  contract). The corresponding Voxrig fact is `Client::wait_shutdown()` returning
+  `Ok(())` for the original source. Golemkit binds that fact to its detach receipt;
+  Voxrig defines no `ShutdownReceipt`. Confirmation alone does not satisfy other
+  evolto policy requirements.
+- Voxrig's existing retirement terms are domain-specific:
+  [mining retirement](../survival-mining-retirement.md),
+  [acknowledgement-identity retirement](../r3-primitive-dispatch.md),
+  entity retirement, and ledger owner/root retirement. Here owner retirement
+  means relinquishing that owner's write
+  authority, not either project's client/Body retirement or proof of shutdown.
+
 ## Identity, ownership, cuts, and completion
 
 One transport owns a Ledger for its immutable private GenerationKey

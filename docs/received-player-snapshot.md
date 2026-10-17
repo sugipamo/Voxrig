@@ -95,3 +95,6 @@ their behavior. Snapshots and their getters are owned, synchronous after capture
 and independent of later connection changes. **No snapshot proves present
 liveness, current server state, action acceptance, or permission to act.**
 Consumers own freshness requirements and synchronization with later use.
+Revocation does not refresh retained evidence or authorize its reuse for new work.
+For the distinct meanings of Body retirement and confirmed shutdown, see the
+[lifecycle terminology note](api-contracts.md#retire退役の用語).

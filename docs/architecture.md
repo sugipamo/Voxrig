@@ -74,5 +74,5 @@ nativeにだけ存在する受信境界、slot更新境界、observer sessionは
 
 `Recorded*`にDeserializeがあっても、nativeの計画・intent・watchや`Operations`を
 復元する逆変換はありません。単発操作のadmission、世代・接続の照合、単回消費と
-退役確認は従来どおりnative側で行います。保存済みの数値や結果ラベルは現在の証拠になりません。
+採掘セッションの退役確認は従来どおりnative側で行います。保存済みの数値や結果ラベルは現在の証拠になりません。
 診断型のschema選択、永続化と再計画は利用側の責務です。
