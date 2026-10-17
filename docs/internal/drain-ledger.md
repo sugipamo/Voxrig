@@ -512,3 +512,35 @@ ShutdownErrorKind::{WriterShutdownFailed, TaskFailed, Internal}, and the two
 DrainErrorKind variants. Shutdown types are exported from voxrig::client only,
 with no root alias, prelude expansion, native bridge, synchronous poll, shutdown
 handle/receipt, public trait or new dependency.
+
+## Synchronous selected-stop admission
+
+`StopPermit::enqueue_neutralize` completes ledger registration and checked task
+submission before returning an owned `StopCompletion`. Its disposition separates
+new admission from joins of pending/cached work. `neutralize` retains first-poll
+laziness by calling enqueue and then waiting. Neither completion ownership nor
+waiter cancellation controls accepted work or its covered debt.
+
+Admission retains stop-book -> ledger-state (released) -> task-registry order.
+No ledger-state guard spans submission. Registry close and submission share a
+mutex; successful submission puts the actual worker's join ownership into the
+registry before returning. Rejected futures and failed command/teardown payloads
+are destroyed outside that mutex, since their destructors can retire WorkGuards
+or re-enter shutdown. Rejection after root insertion is the explicit
+`StopError::AdmissionInterrupted`, cached as an error rather than an `Ok` join
+that would incorrectly certify registration. Worker failures after successful
+submission remain completion errors with the existing sticky drain mappings.
+
+Both adapters forward synchronously without native state/writer acquisition.
+Their workers retain context validation and protocol confirmation. Revoke
+publishes terminal ledger failure before starting registry shutdown, releasing
+ledger state first. Poisoned book/state bookkeeping rejects admission; registry
+poison closes submission and fails shutdown completion. The tests cover rejected
+WorkGuard destruction, shutdown re-entry, lost supervisor, and thread-barrier
+orders around root insertion, submission and revoke for both transport versions.
+
+The connection's captured Tokio runtime (or current runtime when none was
+captured) must remain running. Standard mutex contention can block the caller's
+thread. Caller gates must respect lock order and be released before waiting;
+SDK admission enforces no caller deadline. See [the public contracts](../api-contracts.md)
+and enqueue rustdoc for the full outcome and caller-gate contract.

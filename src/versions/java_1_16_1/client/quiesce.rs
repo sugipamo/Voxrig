@@ -1,7 +1,7 @@
 //! Public drain integration without native-only authority bridges.
 use super::*;
 use crate::client::ledger::{Failure, stops::StopAction};
-use crate::client::{SessionStamp, StopError, StopReceipt, StopTarget};
+use crate::client::{SessionStamp, StopCompletion, StopError, StopTarget};
 
 impl Bot {
     pub(super) async fn observe_stop_context(&self) {
@@ -218,14 +218,16 @@ impl crate::client::adapter::DrainOps for Bot {
         }
         Ok(targets)
     }
-    async fn neutralize(&self, target: StopTarget) -> std::result::Result<StopReceipt, StopError> {
+    fn enqueue_neutralize(
+        &self,
+        target: StopTarget,
+    ) -> std::result::Result<StopCompletion, StopError> {
         let owner = self.clone_internal();
         self.connection
             .ledger()
-            .neutralize(target, move |action| async move {
+            .enqueue_neutralize(target, move |action| async move {
                 owner.selected_stop(target, action).await
             })
-            .await
     }
 }
 

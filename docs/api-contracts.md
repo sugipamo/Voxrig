@@ -170,6 +170,10 @@ The two stages are deliberately separate:
    stop holder. `neutralize(target).await` admits at first poll, owns accepted
    cleanup independently of its waiter, and joins/caches repeated requests for
    the same binding without resending. Dropping an unused permit sends nothing.
+   For synchronous admission under a caller gate, use
+   `permit.enqueue_neutralize(target)?`, inspect `completion.admission()`, release
+   the gate, then `completion.wait().await`. The owned completion does not borrow
+   the permit and can be dropped before final seal without cancelling work.
 3. `q.seal_for_fence()` closes stop and independent maintenance admission and
    fixes the final cut. Its `SealedForFence` receipt waits for accepted stops and
    dependencies and certifies **no later Voxrig application write** on the source,
@@ -177,6 +181,37 @@ The two stages are deliberately separate:
    Accepted response batches remain counted across every frame/flush. Receivers
    continue processing dependency receipts; new unrelated responses are suppressed
    before obtaining write authority. Repeat seal calls observe the same cut/cache.
+
+`enqueue_neutralize` returns `NewlyAdmitted` only after a new ledger root and
+connection-task registry submission are complete. `JoinedExisting` observes an
+existing pending/cached result with no additional root or worker. A registry
+failure after root insertion returns `StopError::AdmissionInterrupted { target,
+drain }`: work may have been admitted/started, so this is never a no-work refusal.
+The failure is sticky and retries return the same error (never an `Ok` join
+without certified registry submission). Other enqueue
+errors create no new work in that invocation; wrong/stale targets still fail the
+unissued drain. Worker/reset/revoke errors after `Ok` are completion errors.
+Historical cached receipts remain historical after revocation.
+
+The synchronous lock order is stop-book -> ledger state (released) -> task
+registry; no ledger-state guard spans submission or rejected-worker destruction.
+These ordinary mutexes may block the caller's thread. Enqueue does not await,
+block on async locks, refresh native state or perform I/O. Caller-held gates must
+respect this order and must not re-enter Voxrig in a conflicting way. Release the
+gate before waiting. Workers retain native original-context checks under their
+existing state/writer locks and may start before enqueue returns. The connection's
+captured Tokio runtime (or current runtime if none was captured) must remain
+running; absence of either at submission returns `AdmissionInterrupted`.
+Poisoned stop-book/ledger state rejects admission with `Drain(Internal)` unless
+an earlier sticky failure already determines the drain error; registry poison
+closes submission and returns `AdmissionInterrupted` after root insertion, with
+shutdown reporting `Internal`.
+
+The SDK enforces no caller deadline. The caller's admission hook must check it;
+time can cross that deadline during mutex contention. A timeout around
+`completion.wait()` only cancels observation. Accepted work and drain debt survive.
+`neutralize` remains a lazy first-poll wrapper over enqueue and wait, including
+no target validation, sticky failure, or work when dropped before its first poll.
 
 Common and legacy native movement have separate original-owner bindings. A
 native clear cannot remove a common binding; an ended common owner is retired.

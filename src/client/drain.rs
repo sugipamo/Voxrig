@@ -320,12 +320,74 @@ impl StopReceipt {
         self.written_through
     }
 }
+/// How this enqueue relates to connection-owned work; neither case certifies completion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StopAdmission {
+    /// This call registered a new ledger root and submitted its worker.
+    NewlyAdmitted,
+    /// This call joined an existing pending or cached result without new work.
+    JoinedExisting,
+}
+
+/// Owned, passive observation of an already submitted selected stop.
+/// Dropping this value (or its wait future) never cancels accepted work or debt.
+#[must_use = "accepted stop work continues even if completion is not observed"]
+pub struct StopCompletion {
+    ledger: ledger::Ledger,
+    admission: StopAdmission,
+    receiver: tokio::sync::watch::Receiver<Option<Result<StopReceipt, StopError>>>,
+}
+impl StopCompletion {
+    pub(crate) fn new(
+        ledger: ledger::Ledger,
+        admission: StopAdmission,
+        receiver: tokio::sync::watch::Receiver<Option<Result<StopReceipt, StopError>>>,
+    ) -> Self {
+        Self {
+            ledger,
+            admission,
+            receiver,
+        }
+    }
+    /// Synchronous disposition fixed by enqueue; a join may refer to historical work.
+    pub fn admission(&self) -> StopAdmission {
+        self.admission
+    }
+    /// Observe the cached result or await completion. Performs no admission.
+    /// A caller timeout only cancels observation, never the worker or drain debt.
+    /// Release caller-held admission/policy gates before awaiting this future.
+    /// Progress requires the connection's Tokio runtime to remain running.
+    pub fn wait(mut self) -> impl Future<Output = Result<StopReceipt, StopError>> + Send + 'static {
+        async move {
+            loop {
+                if let Some(result) = self.receiver.borrow_and_update().clone() {
+                    return result;
+                }
+                if self.receiver.changed().await.is_err() {
+                    return Err(StopError::Drain(
+                        self.ledger.error(DrainErrorKind::OwnerLost),
+                    ));
+                }
+            }
+        }
+    }
+}
+
 /// A selected stop could not supply clean completion.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum StopError {
     /// Phase, provenance inspection, transport or sticky ledger failure.
     Drain(DrainError),
+    /// A new root was registered, but worker submission could not be certified.
+    /// Work may have been admitted or started. This is never a no-work refusal;
+    /// the ledger remains failed and a retry returns this cached error.
+    AdmissionInterrupted {
+        /// Original selected binding.
+        target: StopTarget,
+        /// Sticky underlying cause; commonly OwnerLost on registry rejection.
+        drain: DrainError,
+    },
     /// Target was not issued for this original transport/owner binding.
     WrongTarget {
         /// Original selected binding.
@@ -365,6 +427,7 @@ impl std::error::Error for StopError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Drain(e)
+            | Self::AdmissionInterrupted { drain: e, .. }
             | Self::RequiredReleaseFailed { drain: e, .. }
             | Self::WorkAborted { drain: e, .. } => Some(e),
             _ => None,
@@ -527,7 +590,56 @@ pub struct StopPermit<'a> {
     quiesce: &'a mut QuiesceHandle,
 }
 impl StopPermit<'_> {
+    /// Synchronously admit this exact target's once-only neutral action and submit
+    /// its connection-owned worker, or join its pending/cached result.
+    /// Before `Ok` returns, ledger registration and task-registry submission are
+    /// complete. Workers can run immediately, even before this method returns.
+    /// [`StopAdmission::NewlyAdmitted`] identifies new work; [`StopAdmission::JoinedExisting`]
+    /// adds no root or worker. Admission is not delivery or successful completion.
+    ///
+    /// `Err(StopError::AdmissionInterrupted { .. })` means a root was registered
+    /// but registry acceptance failed; work may have started and drain stays failed.
+    /// Other errors create no new work in this call (earlier work may still exist).
+    /// Wrong/stale targets retain their sticky required-release failure. Execution,
+    /// reset, revoke and worker-loss errors after successful enqueue surface through
+    /// [`StopCompletion::wait`]; a historical cached success remains historical.
+    ///
+    /// This method uses only ordinary synchronous mutexes: stop-book -> ledger
+    /// state (released) -> task registry. It never holds ledger state across registry
+    /// submission, awaits, blocks on async locks, or performs I/O. Mutex contention
+    /// can block the calling thread; this is not a hard real-time bound. Callers
+    /// must not re-enter Voxrig from within any caller-held gate in a way that
+    /// conflicts with this lock order, and must release their gate before awaiting
+    /// completion. Native state/writer locks and I/O are used only by the worker.
+    ///
+    /// A live Tokio runtime is required for worker progress. Submission uses the
+    /// connection's captured runtime, or the current runtime if none was captured;
+    /// a missing runtime yields `AdmissionInterrupted` after root registration.
+    /// Keep that runtime running through completion/shutdown.
+    /// The SDK enforces no caller deadline: check it in the caller's hook before
+    /// enqueue. A timeout around `wait()` cancels observation only.
+    /// Native action effects and original-owner validation are as documented by
+    /// [`Self::neutralize`], including release-use side effects.
+    ///
+    /// ```no_run
+    /// # use voxrig::client::{QuiesceHandle, StopTarget, StopError};
+    /// # async fn stop(q: &mut QuiesceHandle, target: StopTarget) -> Result<(), StopError> {
+    /// let completion = q.stop_permit().map_err(StopError::Drain)?
+    ///     .enqueue_neutralize(target)?;
+    /// let admission = completion.admission(); // Fixed before wait() is constructed.
+    /// let final_drain = q.seal_for_fence().map_err(StopError::Drain)?;
+    /// completion.wait().await?;
+    /// final_drain.wait().await.map_err(StopError::Drain)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn enqueue_neutralize(&mut self, target: StopTarget) -> Result<StopCompletion, StopError> {
+        super::dispatch!(&self.quiesce.client.adapter, a => DrainOps::enqueue_neutralize(a, target))
+    }
+
     /// Admit this exact target's neutral action at first poll, at most once per binding.
+    /// Construction/drop before first poll has no admission or sticky-error effects.
+    /// On first poll this calls [`Self::enqueue_neutralize`], then observes completion.
     /// Accepted cleanup is connection-owned and survives waiter drop; retries join/cache it.
     /// Common and legacy native movement are distinct owners. A dormant native stop
     /// clears its local input; the selected common stop releases common wire posture.
@@ -542,9 +654,7 @@ impl StopPermit<'_> {
         &mut self,
         target: StopTarget,
     ) -> impl Future<Output = Result<StopReceipt, StopError>> + Send + '_ {
-        async move {
-            super::dispatch!(&self.quiesce.client.adapter, a => DrainOps::neutralize(a, target).await)
-        }
+        async move { self.enqueue_neutralize(target)?.wait().await }
     }
 }
 impl Client {
@@ -624,6 +734,8 @@ mod tests {
         traits::<DrainReceipt>();
         traits::<StopTarget>();
         traits::<StopError>();
+        traits::<StopAdmission>();
+        traits::<StopCompletion>();
         fn permit_traits<T: Send + Sync + Unpin>() {}
         permit_traits::<StopPermit<'_>>();
         let ledger = ledger();
