@@ -197,6 +197,43 @@ fn invalid(message: &str) -> Error {
 const MAX_BYTES: usize = 1024 * 1024;
 const MAX_NODES: usize = 65_536;
 const MAX_DEPTH: usize = 64;
+/// Decode one u16-length-bounded Java modified UTF-8 field into exact UTF-16 units.
+/// Like DataInput.readUTF, this retains unpaired surrogates for native NBT values.
+pub(crate) fn decode_modified_utf8(bytes: &[u8]) -> anyhow::Result<Vec<u16>> {
+    let n = bytes.len();
+    if n > usize::from(u16::MAX) {
+        bail!("modified UTF-8 string exceeds byte limit");
+    }
+    let mut i = 0;
+    let mut units = Vec::with_capacity(n);
+    while i < n {
+        let a = bytes[i];
+        i += 1;
+        let unit = if a < 128 {
+            u16::from(a)
+        } else if a & 224 == 192 {
+            let b = *bytes.get(i).context("truncated modified UTF-8")?;
+            i += 1;
+            if b & 192 != 128 {
+                bail!("invalid modified UTF-8 continuation");
+            }
+            (u16::from(a & 31) << 6) | u16::from(b & 63)
+        } else if a & 240 == 224 {
+            let b = *bytes.get(i).context("truncated modified UTF-8")?;
+            let c = *bytes.get(i + 1).context("truncated modified UTF-8")?;
+            i += 2;
+            if b & 192 != 128 || c & 192 != 128 {
+                bail!("invalid modified UTF-8 continuation");
+            }
+            (u16::from(a & 15) << 12) | (u16::from(b & 63) << 6) | u16::from(c & 63)
+        } else {
+            bail!("invalid modified UTF-8 lead byte");
+        };
+        units.push(unit);
+    }
+    Ok(units)
+}
+
 struct Decoder<'a> {
     rest: &'a [u8],
     nodes: usize,
@@ -225,34 +262,7 @@ impl<'a> Decoder<'a> {
     fn string(&mut self) -> anyhow::Result<NbtString> {
         let n = u16::from_be_bytes(self.take(2)?.try_into()?) as usize;
         let bytes = self.take(n)?;
-        let mut i = 0;
-        let mut units = Vec::with_capacity(n);
-        while i < n {
-            let a = bytes[i];
-            i += 1;
-            let unit = if a < 128 {
-                u16::from(a)
-            } else if a & 224 == 192 {
-                let b = *bytes.get(i).context("truncated modified UTF-8")?;
-                i += 1;
-                if b & 192 != 128 {
-                    bail!("invalid modified UTF-8 continuation");
-                }
-                (u16::from(a & 31) << 6) | u16::from(b & 63)
-            } else if a & 240 == 224 {
-                let b = *bytes.get(i).context("truncated modified UTF-8")?;
-                let c = *bytes.get(i + 1).context("truncated modified UTF-8")?;
-                i += 2;
-                if b & 192 != 128 || c & 192 != 128 {
-                    bail!("invalid modified UTF-8 continuation");
-                }
-                (u16::from(a & 15) << 12) | (u16::from(b & 63) << 6) | u16::from(c & 63)
-            } else {
-                bail!("invalid modified UTF-8 lead byte");
-            };
-            units.push(unit);
-        }
-        Ok(NbtString(units))
+        Ok(NbtString(decode_modified_utf8(bytes)?))
     }
     fn value(&mut self, kind: u8, depth: usize) -> anyhow::Result<Arc<NbtValue>> {
         if depth > MAX_DEPTH || self.nodes == 0 {
@@ -589,6 +599,72 @@ mod tests {
         })
         .unwrap()
     }
+    #[test]
+    fn modified_utf8_values_and_keys_preserve_exact_units_in_both_versions() {
+        let fixtures = [
+            ("0a08000474657874000568656c6c6f00", "hello"),
+            ("0a080004746578740006eda0bdedb88000", "😀"),
+            ("0a08000474657874000461c0806200", "a\0b"),
+        ];
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let named = |mut bytes: Vec<u8>| {
+                if version == MinecraftVersion::Java1_16_1 {
+                    bytes.splice(1..1, [0, 0]);
+                }
+                bytes
+            };
+            for (fixture, text) in fixtures {
+                let bytes = named(hex::decode(fixture).unwrap());
+                let data = decode(&bytes, version).unwrap();
+                let value = data.root().get("text").unwrap().as_string().unwrap();
+                assert_eq!(value.text().unwrap(), text);
+                assert_eq!(value.utf16(), text.encode_utf16().collect::<Vec<_>>());
+                for end in 0..bytes.len() {
+                    assert!(decode(&bytes[..end], version).is_err());
+                }
+            }
+            let bytes =
+                named(b"\x0a\x08\x00\x08\xed\xa0\xbd\xed\xb8\x80\xc0\x80\x00\x01x\x00".to_vec());
+            let data = decode(&bytes, version).unwrap();
+            assert_eq!(data.root().entries()[0].key().text().unwrap(), "😀\0");
+            assert_eq!(
+                data.root()
+                    .get("😀\0")
+                    .unwrap()
+                    .as_string()
+                    .unwrap()
+                    .text()
+                    .unwrap(),
+                "x"
+            );
+            // Native NBT keeps lone surrogates in both keys and values exactly.
+            let bytes = named(b"\x0a\x08\x00\x03\xed\xa0\x80\x00\x03\xed\xb0\x80\x00".to_vec());
+            let data = decode(&bytes, version).unwrap();
+            let entry = &data.root().entries()[0];
+            assert_eq!(entry.key().utf16(), &[0xd800]);
+            assert!(entry.key().text().is_err());
+            let value = entry.value().as_string().unwrap();
+            assert_eq!(value.utf16(), &[0xdc00]);
+            assert!(value.text().is_err());
+            for invalid in [
+                &b"\xc0"[..],
+                b"\xe0",
+                b"\xe0\x80",
+                b"\xc0A",
+                b"\xe0A\x80",
+                b"\xe0\x80A",
+                b"\x80",
+                b"\xf0\x9f\x98\x80",
+            ] {
+                let mut bytes = b"\x0a\x08\x00\x04text".to_vec();
+                bytes.extend((invalid.len() as u16).to_be_bytes());
+                bytes.extend(invalid);
+                bytes.push(0);
+                assert!(decode(&named(bytes), version).is_err());
+            }
+        }
+    }
+
     #[test]
     fn every_original_unnamed_tag_kind_uses_the_same_logical_nbt_decoder() {
         use std::io::Read;

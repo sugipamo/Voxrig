@@ -56,6 +56,43 @@ fn value(r: &mut Reader<'_>, kind: u8, depth: usize, budget: &mut usize) -> Resu
 mod tests {
     use super::*;
     #[test]
+    fn modified_utf8_text_and_keys_project_without_replacing_surrogates() {
+        for (fixture, text) in [
+            ("0a08000474657874000568656c6c6f00", "hello"),
+            ("0a080004746578740006eda0bdedb88000", "😀"),
+            ("0a08000474657874000461c0806200", "a\0b"),
+        ] {
+            let bytes = hex::decode(fixture).unwrap();
+            let mut r = Reader::new(&bytes);
+            assert_eq!(read(&mut r).unwrap(), serde_json::json!({"text":text}));
+            r.end().unwrap();
+            for end in 0..bytes.len() {
+                assert!(read(&mut Reader::new(&bytes[..end])).is_err());
+            }
+        }
+        let bytes = b"\x0a\x08\x00\x08\xed\xa0\xbd\xed\xb8\x80\xc0\x80\x00\x01x\x00";
+        assert_eq!(
+            read(&mut Reader::new(bytes)).unwrap(),
+            serde_json::json!({"😀\0":"x"})
+        );
+        for units in [&b"\xed\xa0\x80"[..], b"\xed\xb0\x80"] {
+            let mut value = vec![8, 0, 3];
+            value.extend(units);
+            let error = read(&mut Reader::new(&value)).unwrap_err();
+            assert!(error.to_string().contains("unpaired surrogate"));
+            let mut key = vec![10, 1, 0, 3];
+            key.extend(units);
+            key.extend([1, 0]);
+            assert!(
+                read(&mut Reader::new(&key))
+                    .unwrap_err()
+                    .to_string()
+                    .contains("unpaired surrogate")
+            );
+        }
+    }
+
+    #[test]
     fn preserves_literal_components_and_rejects_truncation_and_depth() {
         let data = b"\x0a\x08\x00\x04text\x00\x05hello\x00";
         assert_eq!(

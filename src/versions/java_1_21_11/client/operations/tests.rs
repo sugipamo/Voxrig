@@ -251,6 +251,65 @@ fn item_registry_ids_are_unique_and_player_pose_rejects_nonfinite_values() {
 }
 
 #[test]
+fn system_chat_modified_utf8_preserves_literal_text_overlay_and_receive_ordinal() {
+    let mut state = State {
+        phase: Phase::Play,
+        sequence: 40,
+        ..State::default()
+    };
+    for (fixture, text) in [
+        ("0a08000474657874000568656c6c6f00", "hello"),
+        ("0a080004746578740006eda0bdedb88000", "😀"),
+        ("0a08000474657874000461c0806200", "a\0b"),
+    ] {
+        for overlay in [false, true] {
+            let mut payload = hex::decode(fixture).unwrap();
+            payload.push(u8::from(overlay));
+            let ordinal = state.sequence + 1;
+            state
+                .receive(ids::play_clientbound::SYSTEM_CHAT, &payload, 64)
+                .unwrap();
+            let message = state.operations.messages.back().unwrap();
+            assert_eq!(message.component, Some(serde_json::json!({"text":text})));
+            assert_eq!(message.literal_text(), Some(text));
+            assert_eq!(message.overlay, overlay);
+            assert_eq!(message.receive_sequence, ordinal);
+            assert_eq!(state.sequence, ordinal);
+        }
+    }
+    // A valid Java string with an unpaired surrogate is retained as raw NBT,
+    // but cannot be projected to JSON or exposed as literal Unicode text.
+    let payload = b"\x0a\x08\x00\x04text\x00\x03\xed\xa0\x80\x00\x01";
+    state
+        .receive(ids::play_clientbound::SYSTEM_CHAT, payload, 64)
+        .unwrap();
+    let message = state.operations.messages.back().unwrap();
+    assert!(message.component.is_none());
+    assert!(message.literal_text().is_none());
+    assert!(message.overlay);
+    assert_eq!(message.receive_sequence, 47);
+    let log = state
+        .chat
+        .after(
+            46,
+            crate::client::SessionStamp {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: 1,
+                world_generation: 0,
+            },
+            state.sequence,
+        )
+        .unwrap();
+    assert_eq!(log.messages[0].receive_sequence, 47);
+    assert_eq!(
+        log.messages[0].message,
+        crate::client::chat::ChatText::Component(crate::client::ui::UiText::NativeNbt {
+            bytes: payload[..payload.len() - 1].to_vec(),
+        })
+    );
+}
+
+#[test]
 fn system_messages_preserve_native_components_and_mark_dropped_history() {
     let mut state = State::default();
     let message = b"\x0a\x08\x00\x04text\x00\x05hello\x00\x00";

@@ -105,7 +105,9 @@ impl<'a> Reader<'a> {
     }
     pub(super) fn nbt_string(&mut self) -> Result<String> {
         let length = self.u16()? as usize;
-        Ok(std::str::from_utf8(self.take(length)?)?.to_owned())
+        let units = crate::client::nbt::decode_modified_utf8(self.take(length)?)?;
+        // JSON/text projections require Unicode scalar values; never replace surrogates.
+        String::from_utf16(&units).context("unpaired surrogate in NBT string")
     }
     pub(super) fn nbt_field(&mut self) -> Result<Option<(u8, String)>> {
         let kind = self.u8()?;
@@ -248,6 +250,45 @@ pub(crate) fn velocity(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn nbt_modified_utf8_rejects_malformed_sequences_and_leaves_protocol_utf8_separate() {
+        for bytes in [
+            &b"\x00\x01\xc0"[..],
+            b"\x00\x01\xe0",
+            b"\x00\x02\xe0\x80",
+            b"\x00\x02\xc0A",
+            b"\x00\x03\xe0A\x80",
+            b"\x00\x03\xe0\x80A",
+            b"\x00\x01\x80",
+            b"\x00\x04\xf0\x9f\x98\x80",
+        ] {
+            assert!(Reader::new(bytes).nbt_string().is_err());
+        }
+        let mut protocol = Vec::new();
+        crate::protocol::put_string(&mut protocol, "😀\0");
+        let mut r = Reader::new(&protocol);
+        assert_eq!(r.string().unwrap(), "😀\0");
+        r.end().unwrap();
+        assert!(
+            Reader::new(b"\x06\xed\xa0\xbd\xed\xb8\x80")
+                .string()
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn dimension_nbt_skips_modified_utf8_keys_and_keeps_height_fields() {
+        let mut bytes =
+            b"\x0a\x01\x00\x08\xed\xa0\xbd\xed\xb8\x80\xc0\x80\x01\x03\x00\x05min_y".to_vec();
+        bytes.extend((-64i32).to_be_bytes());
+        bytes.extend(b"\x03\x00\x06height");
+        bytes.extend(384i32.to_be_bytes());
+        bytes.push(0);
+        let mut r = Reader::new(&bytes);
+        assert_eq!(r.dimension_nbt().unwrap(), (Some(-64), Some(384)));
+        r.end().unwrap();
+    }
+
     #[test]
     fn rejects_negative_counts_truncation_non_finite_and_nbt_bombs() {
         assert!(Reader::new(&[255, 255, 255, 255, 15]).count(5).is_err());
