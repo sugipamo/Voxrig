@@ -65,7 +65,9 @@ mod hash_ops;
 pub(crate) mod identifier;
 pub mod inventory;
 mod inventory_helpers;
-pub use inventory_helpers::{CraftOnceRecord, CraftingFillRecord};
+pub use inventory_helpers::{
+    CraftOnceError, CraftOnceRecord, CraftOnceUnknownCause, CraftingFillRecord,
+};
 mod item;
 pub(crate) mod item_components;
 pub(crate) mod item_constructor;
@@ -262,9 +264,9 @@ pub mod prelude {
         BoatCollisionBody, BoatCollisionGeometry, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES,
     };
     pub use super::{
-        BlockFace, ChunkObservation, ConnectionStatus, CraftOnceRecord, CraftingFillRecord,
-        DigEstimate, DigRecord, Hand, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,
-        PlayerControl, PlayerEffect, ValueSource,
+        BlockFace, ChunkObservation, ConnectionStatus, CraftOnceError, CraftOnceRecord,
+        CraftOnceUnknownCause, CraftingFillRecord, DigEstimate, DigRecord, Hand, LoadedChunks,
+        ObservedValue, PlacementCheck, PlayerAttribute, PlayerControl, PlayerEffect, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
