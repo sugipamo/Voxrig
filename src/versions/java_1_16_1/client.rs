@@ -18,6 +18,7 @@ mod common_placement;
 mod common_recipe_placement;
 mod common_recording;
 mod common_scene;
+mod received_snapshot;
 pub(crate) use common_recording::replay_packets;
 pub(crate) use common_scene::LegacyCapturedScene;
 mod common_transfer;
@@ -1564,6 +1565,25 @@ impl Bot {
                     }
                 }
                 Ok(Err(error)) => {
+                    {
+                        let _gate = supervisor.coherent_state_gate.lock().await;
+                        let mut receipts = supervisor.common_receipts.lock().await;
+                        if receipts.snapshot_failure.is_none() {
+                            receipts
+                                .snapshot_failure
+                                .get_or_insert_with(|| (error.kind(), error.to_string()));
+                            let session = crate::client::SessionStamp {
+                                version: crate::MinecraftVersion::Java1_16_1,
+                                connection_id: supervisor.connection_id(),
+                                world_generation: receipts.generation,
+                            };
+                            receipts.snapshot.terminate(
+                                crate::client::InvalidationReason::ReaderFailure,
+                                session,
+                                None,
+                            );
+                        }
+                    }
                     let requested_transport_end = supervisor.connection.lifecycle()
                         == ConnectionState::Disconnecting
                         && error.diagnostic().chain().any(|cause| {
@@ -1654,6 +1674,16 @@ impl Bot {
     pub fn revoke_connection(&self) -> GenerationRevocation {
         let receipt = self.connection.revoke();
         self.stopped.store(true, Ordering::Release);
+        if let Ok(mut receipts) = self.common_receipts.try_lock() {
+            let session = crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            };
+            receipts
+                .snapshot
+                .terminate(crate::client::InvalidationReason::Revoke, session, None);
+        }
         if let Some(reader) = self.reader_abort.get() {
             reader.abort();
         }
@@ -2310,6 +2340,15 @@ impl Bot {
             return;
         }
         inventory.open_window = None;
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            let session = crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            };
+            receipts.snapshot.local_close(session);
+        }
         inventory.last_transaction = None;
         inventory.merchant_offers = None;
         inventory.windows.remove(&window_id);
@@ -5529,7 +5568,39 @@ impl Bot {
                     "keepalive_id":p.as_slice().try_into().ok().map(i64::from_be_bytes)})
             });
         }
-        let _coherent_state = self.coherent_state_gate.lock().await;
+        let _gate = self.coherent_state_gate.lock().await;
+        let before = self.protocol_packet_sequence.load(Ordering::Acquire);
+        let result = self
+            .apply_packet_unlocked(id, p, diagnostics, keepalive_started)
+            .await;
+        if let Err(error) = &result {
+            let mut receipts = self.common_receipts.lock().await;
+            receipts
+                .snapshot_failure
+                .get_or_insert_with(|| (error.kind(), format!("{error:#}")));
+            let session = crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            };
+            let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+            receipts.snapshot.terminate(
+                crate::client::InvalidationReason::ReaderFailure,
+                session,
+                (sequence > before)
+                    .then(|| crate::client::received_snapshot::Receipt::new(session, sequence)),
+            );
+        }
+        result
+    }
+
+    async fn apply_packet_unlocked(
+        &self,
+        id: i32,
+        p: Vec<u8>,
+        diagnostics: Option<&ReaderDiagnostics>,
+        keepalive_started: Option<std::time::Instant>,
+    ) -> Result<bool> {
         if let Some(diagnostics) = diagnostics {
             diagnostics.enter(ReaderPhase::Applying, Some(id));
         }
@@ -5540,11 +5611,15 @@ impl Bot {
                     "elapsed_ms":started.elapsed().as_millis()})
             });
         }
+        // The coherent gate makes this a single writer. Check before storing:
+        // even exhaustion cannot wrap the connection's receipt stream.
         let packet_sequence = self
             .protocol_packet_sequence
-            .fetch_add(1, Ordering::AcqRel)
+            .load(Ordering::Acquire)
             .checked_add(1)
             .context("protocol packet sequence exhausted")?;
+        self.protocol_packet_sequence
+            .store(packet_sequence, Ordering::Release);
         if let Some(trace) = lock_packet_state(&self.packet_trace).await.as_mut() {
             let local_player_basis = if id == 0x35 {
                 let player = self.player.lock().await;
@@ -5976,6 +6051,8 @@ impl Bot {
             0x5b => self.receive_tags(&p, packet_sequence).await?,
             _ => {}
         }
+        self.commit_received_snapshot(id, &p, packet_sequence)
+            .await?;
         self.common_dismount_context_received().await;
         self.common_mining_context_received().await?;
         self.common_placement_context_received().await?;

@@ -324,6 +324,8 @@ impl Operations {
             .session
             .send(ids::play_serverbound::CLOSE_WINDOW, &payload)
             .await?;
+        let session = state.snapshot_session();
+        state.snapshot.local_close(session);
         state
             .common_container_close
             .as_mut()

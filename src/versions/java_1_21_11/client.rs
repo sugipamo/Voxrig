@@ -14,6 +14,7 @@ mod outbound;
 mod packet_replay;
 pub mod players;
 pub mod raycast;
+mod received_snapshot;
 mod recipes;
 pub mod recording;
 use super::{
@@ -60,6 +61,9 @@ use crate::client::recording::{LocalPlayerBasis, PacketPhase, TraceCapture};
 pub use crate::client::recording::{PacketRecord, PacketTrace};
 
 struct State {
+    connection_id: u64,
+    snapshot: crate::client::received_snapshot::Ledger,
+    geometry: Vec<crate::client::FieldReceipt<crate::client::ReceivedDimensionGeometry>>,
     context: crate::client::context::ContextLedger,
     /// Last received own death message (DEATH_COMBAT_EVENT).
     death_message: Option<crate::client::ObservedValue<crate::client::ui::UiText>>,
@@ -126,6 +130,9 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            connection_id: 0,
+            snapshot: Default::default(),
+            geometry: Vec::new(),
             context: Default::default(),
             death_message: None,
             disconnect_reason: None,
@@ -193,7 +200,13 @@ impl State {
         if self.failure.is_some() {
             bail!("cannot apply packets after a failed receive");
         }
-        self.sequence += 1;
+        self.sequence = self.sequence.checked_add(1).ok_or_else(|| {
+            self.failure = Some(Error::new(
+                ErrorKind::Protocol,
+                anyhow::anyhow!("receive ordinal exhausted"),
+            ));
+            anyhow::anyhow!("receive ordinal exhausted")
+        })?;
         if let Some(own) = self.operations.local_player.entity_id {
             self.entities.contact_local_player(own);
         }
@@ -228,7 +241,11 @@ impl State {
         let result = match self.phase {
             Phase::Configuration => apply_configuration(self, id, payload),
             Phase::Play => apply_play(self, id, payload, max_chunks),
-        };
+        }
+        .and_then(|responses| {
+            self.commit_received_snapshot(id, payload, in_play)?;
+            Ok(responses)
+        });
         if result.is_ok() {
             if self.phase == Phase::Play && id == ids::play_clientbound::RESPAWN {
                 crate::client::respawn::received(
@@ -257,6 +274,15 @@ impl State {
             }
         }
         if let Err(error) = &result {
+            let session = self.snapshot_session();
+            self.snapshot.terminate(
+                crate::client::InvalidationReason::ReaderFailure,
+                session,
+                Some(crate::client::received_snapshot::Receipt::new(
+                    session,
+                    self.sequence,
+                )),
+            );
             self.failure = Some(Error::new(
                 ErrorKind::Protocol,
                 anyhow::anyhow!("{error:#}"),
@@ -531,6 +557,7 @@ impl Bot {
                 compression,
             })),
             state: Mutex::new(State {
+                connection_id: id,
                 identity: Some(identity),
                 trace,
                 ..State::default()

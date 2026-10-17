@@ -153,13 +153,13 @@ diagnostic_record! {
     }
     native_only {
         #[serde(skip)]
-        slot_sequences: Vec<Option<u64>>,
+        pub(super) slot_sequences: Vec<Option<u64>>,
         #[serde(skip)]
-        cursor_sequence: Option<u64>,
+        pub(super) cursor_sequence: Option<u64>,
         #[serde(skip)]
         pub(crate) container: Option<crate::client::container::ScreenReceipts>,
         #[serde(skip)]
-        player_revision: Option<crate::client::ObservedValue<i32>>,
+        pub(super) player_revision: Option<crate::client::ObservedValue<i32>>,
     }
     diagnostic_serde {}
 }
@@ -310,7 +310,7 @@ impl SystemMessage {
 #[derive(Clone, Default)]
 pub(super) struct OperationState {
     pub features: Option<Vec<String>>,
-    server_time: Option<ServerTime>,
+    pub(super) server_time: Option<ServerTime>,
     messages: std::collections::VecDeque<Arc<SystemMessage>>,
     messages_dropped_through: u64,
     pub(super) game_mode: Option<GameMode>,
@@ -1891,6 +1891,18 @@ impl crate::client::adapter::CoreOps for Operations {
             state.operations.local_player.entity_id,
             &state.entities,
         ))
+    }
+    async fn received_player_snapshot(&self) -> Result<crate::client::ReceivedPlayerSnapshot> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.check_received_snapshot(&state)?;
+        let session = state.snapshot_session();
+        let snapshot = state.snapshot.capture(
+            session,
+            state.sequence,
+            state.registries.capture(session, state.sequence),
+        );
+        self.bot.check_received_snapshot(&state)?;
+        Ok(snapshot)
     }
     async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
         let state = self.bot.session.state.lock().await;

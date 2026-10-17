@@ -28,10 +28,10 @@ impl Session {
     pub(super) fn revoke(self: &Arc<Self>) {
         // Receipt issue and revocation share the ledger gate.
         self.ledger.fail(Failure::Revoked);
-        self.stop();
         if self.revoked.swap(true, Ordering::AcqRel) {
             return;
         }
+        self.stop();
         if let Some(receiver) = self.receiver_abort.get() {
             receiver.abort();
         }
@@ -39,6 +39,17 @@ impl Session {
     pub(super) fn stop(&self) {
         self.ledger.fail(Failure::Disconnected);
         self.stopped.store(true, Ordering::Release);
+        if let Ok(mut state) = self.state.try_lock() {
+            let session = state.snapshot_session();
+            let reason = if self.revoked.load(Ordering::Acquire) {
+                crate::client::InvalidationReason::Revoke
+            } else {
+                crate::client::InvalidationReason::Disconnect
+            };
+            if state.failure.is_none() || reason == crate::client::InvalidationReason::Revoke {
+                state.snapshot.terminate(reason, session, None);
+            }
+        }
         // Wake both a blocked writer and the receive loop. Retain a permit for
         // teardown which has not yet started waiting.
         self.cancel.notify_waiters();

@@ -324,6 +324,14 @@ impl Client {
     pub async fn received_inventory(&self) -> Result<crate::client::ReceivedInventory> {
         crate::client::dispatch!(&self.adapter, a => CoreOps::received_inventory(a).await)
     }
+    /// Copy received player facts and original per-field receipts under one
+    /// coherent boundary. This passive read sends nothing and never refreshes
+    /// evidence. Missing and invalidated fields remain explicit. Terminal or
+    /// failed connections return an error. A copy cannot prove later liveness.
+    pub async fn received_player_snapshot(&self) -> Result<crate::client::ReceivedPlayerSnapshot> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_player_snapshot(a).await)
+    }
+
     /// Capture the actual received recipe catalogue and its registry/tag owner.
     /// Displays and book membership do not predict inventory or authorize crafting.
     /// This passive read sends no packets, admits no writes, initiates no cleanup,

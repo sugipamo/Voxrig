@@ -568,6 +568,27 @@ impl crate::client::adapter::CoreOps for Bot {
             cursor: receipts.inventory.cursor.clone(),
         })
     }
+    async fn received_player_snapshot(&self) -> Result<api::ReceivedPlayerSnapshot> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let receipts = self.common_receipts.lock().await;
+        if let Some((kind, error)) = &receipts.snapshot_failure {
+            return Err(crate::Error::new(*kind, anyhow::anyhow!("{error}")));
+        }
+        self.check_received_snapshot()?;
+        let session = api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: receipts.generation,
+        };
+        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        let snapshot = receipts.snapshot.capture(
+            session,
+            sequence,
+            receipts.registries.capture(session, sequence),
+        );
+        self.check_received_snapshot()?;
+        Ok(snapshot)
+    }
     async fn player_state(&self) -> Result<api::PlayerObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         self.common_player_unlocked().await

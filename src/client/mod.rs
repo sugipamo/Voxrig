@@ -99,6 +99,13 @@ pub mod maps;
 pub use manager::ClientManager;
 pub use maps::{MAX_RECEIVED_MAPS, MapIconKind, MapIdentity, MapObservation, ReceivedMapIcon};
 pub mod nbt;
+pub mod received_snapshot;
+pub use received_snapshot::{
+    ContainerStatus, CorrectionComponent, Coverage, FieldReceipt, FieldState, Invalidation,
+    InvalidationReason, Presence, Receipt, ReceiveBoundary, ReceivedAttribute,
+    ReceivedContainerSnapshot, ReceivedCorrectionFields, ReceivedDimensionGeometry,
+    ReceivedDimensionSelection, ReceivedInventorySnapshot, ReceivedPlayerSnapshot,
+};
 pub(crate) mod observation;
 pub(crate) mod operations;
 pub(crate) mod profile;
@@ -215,6 +222,12 @@ pub mod prelude {
     };
     pub use super::nbt::{NbtCompound, NbtData, NbtEntry, NbtString, NbtValue};
     pub use super::observation::SlotKnowledge;
+    pub use super::received_snapshot::{
+        ContainerStatus, CorrectionComponent, Coverage, FieldReceipt, FieldState, Invalidation,
+        InvalidationReason, Presence, Receipt, ReceiveBoundary, ReceivedAttribute,
+        ReceivedContainerSnapshot, ReceivedCorrectionFields, ReceivedDimensionGeometry,
+        ReceivedDimensionSelection, ReceivedInventorySnapshot, ReceivedPlayerSnapshot,
+    };
     pub use super::recording::{
         LocalPlayerBasis, PacketPhase, PacketRecord, PacketTrace, RecordedItemData,
         RecordedItemStack, RecordedSlotKnowledge, RecordedValue, ReplayedBlock, ReplayedInventory,
