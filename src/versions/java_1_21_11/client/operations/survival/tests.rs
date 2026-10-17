@@ -405,7 +405,13 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
         },
     };
     operations.look([45.0, -20.0]).await.unwrap();
-    let (id, payload) = read_packet(&mut peer, None).await.unwrap();
+    let (id, payload) = timeout(
+        std::time::Duration::from_secs(1),
+        read_packet(&mut peer, None),
+    )
+    .await
+    .expect("timed out waiting for LOOK packet after successful look")
+    .expect("failed to read LOOK packet after successful look");
     assert_eq!(id, ids::play_serverbound::LOOK);
     assert_eq!(
         payload,
