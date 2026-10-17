@@ -403,6 +403,8 @@ pub(crate) fn received<T>(value: T, sequence: u64) -> ObservedValue<T> {
 
 #[derive(Default)]
 pub(crate) struct LegacyReceipts {
+    pub snapshot: super::received_snapshot::Ledger,
+    pub snapshot_failure: Option<(crate::ErrorKind, String)>,
     pub context: super::context::ContextLedger,
     pub entities: super::entity::SpawnLedger,
     pub vehicles: super::vehicle::PassengerLedger,
