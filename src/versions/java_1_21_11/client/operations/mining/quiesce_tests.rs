@@ -55,6 +55,8 @@ async fn quiesce_modern_queued_ground_jump_retires_on_one_tick_before_park() {
     ControlOps::request_ground_jump(&f.api, GameMode::Survival, record.session_id).await.unwrap();
     let mut q = client.begin_quiesce(client.generation_key()).unwrap();
     assert!(!q.admitted_drain().is_drained().unwrap());
+    assert_eq!(q.stop_permit().err().unwrap().kind(), crate::client::DrainErrorKind::FirstDrainPending);
+    assert_eq!(q.seal_for_fence().err().unwrap().kind(), crate::client::DrainErrorKind::FirstDrainPending);
     let first = timeout(Duration::from_secs(1), q.admitted_drain().wait()).await.unwrap().unwrap();
     let (id, _) = read_packet(&mut f.peer, None).await.unwrap();
     assert_eq!(id, ids::play_serverbound::PLAYER_INPUT);
@@ -128,7 +130,11 @@ async fn quiesce_modern_stale_target_mode_round_trip_latches_required_release_fa
     let mut q = client.begin_quiesce(client.generation_key()).unwrap(); q.admitted_drain().wait().await.unwrap();
     let target = q.stop_targets().await.unwrap().into_iter().find(|t| t.kind() == crate::client::StopTargetKind::ItemUse).unwrap();
     for mode in [1f32, 0.] { let mut p = vec![3]; p.extend(mode.to_be_bytes()); f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p).await; }
-    assert!(matches!(q.stop_permit().unwrap().neutralize(target).await, Err(crate::client::StopError::ContextChanged { .. })));
+    let mut permit = q.stop_permit().unwrap();
+    drop(permit.neutralize(target));
+    assert!(f.session.ledger.check_terminal().is_ok());
+    assert!(matches!(permit.enqueue_neutralize(target), Err(crate::client::StopError::ContextChanged { .. })));
+    drop(permit);
     assert_eq!(q.seal_for_fence().err().unwrap().kind(), crate::client::DrainErrorKind::RequiredReleaseFailed);
     assert!(timeout(Duration::from_millis(20), read_packet(&mut f.peer, None)).await.is_err());
     f.stop().await;
@@ -192,6 +198,135 @@ async fn quiesce_modern_movement_mount_round_trip_cannot_stop_replacement_contex
     f.receive(ids::play_clientbound::SET_PASSENGERS, &[12, 0]).await;
     assert!(matches!(q.stop_permit().unwrap().neutralize(target).await, Err(crate::client::StopError::ContextChanged { .. })));
     assert_eq!(q.seal_for_fence().err().unwrap().kind(), crate::client::DrainErrorKind::RequiredReleaseFailed);
+    assert!(timeout(Duration::from_millis(20), read_packet(&mut f.peer, None)).await.is_err());
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn enqueue_modern_is_synchronous_under_native_locks_and_completion_drop_is_passive() {
+    use crate::client::{StopAdmission, StopTargetKind, adapter::ControlOps};
+    let mut f = Fixture::new().await;
+    let control = ControlOps::start_control(&f.api, GameMode::Survival).await.unwrap();
+    let client = quiesce_client(&f);
+    client.survival().use_item(crate::client::Hand::Main).await.unwrap();
+    assert_eq!(read_packet(&mut f.peer, None).await.unwrap().0, ids::play_serverbound::USE_ITEM);
+    let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+    q.admitted_drain().wait().await.unwrap();
+    let targets = q.stop_targets().await.unwrap();
+    let item = *targets.iter().find(|t| t.kind() == StopTargetKind::ItemUse).unwrap();
+    let movement = *targets.iter().find(|t| t.control_session_id() == Some(control.session_id)).unwrap();
+    let state = f.session.state.lock().await;
+    let writer = f.session.writer.lock().await;
+    let before = f.session.ledger.test_stop_debt();
+    let mut permit = q.stop_permit().unwrap();
+    drop(permit.neutralize(item));
+    assert_eq!(f.session.ledger.test_stop_debt(), before);
+    let completion = permit.enqueue_neutralize(item).unwrap();
+    assert_eq!(completion.admission(), StopAdmission::NewlyAdmitted);
+    drop(completion);
+    let duplicate = permit.enqueue_neutralize(item).unwrap();
+    assert_eq!(duplicate.admission(), StopAdmission::JoinedExisting);
+    assert_eq!(f.session.ledger.test_stop_debt(), (before.0 + 1, before.1 + 1));
+    let second = permit.enqueue_neutralize(movement).unwrap();
+    assert_eq!(second.admission(), StopAdmission::NewlyAdmitted);
+    assert_eq!(f.session.ledger.test_stop_debt(), (before.0 + 2, before.1 + 2));
+    drop(duplicate); drop(second); drop(permit);
+    let final_drain = q.seal_for_fence().unwrap();
+    assert!(!final_drain.is_drained().unwrap());
+    drop(writer); drop(state);
+    timeout(Duration::from_secs(2), final_drain.wait()).await.unwrap().unwrap();
+    let mut releases = 0;
+    while let Ok(Ok((id, payload))) = timeout(Duration::from_millis(30), read_packet(&mut f.peer, None)).await {
+        if id == ids::play_serverbound::BLOCK_DIG && payload[0] == 5 { releases += 1; }
+    }
+    assert_eq!(releases, 1);
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn enqueue_modern_stop_book_poison_is_a_defined_closed_error() {
+    let mut f = Fixture::new().await;
+    let client = quiesce_client(&f);
+    client.survival().use_item(crate::client::Hand::Main).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+    q.admitted_drain().wait().await.unwrap();
+    let target = q.stop_targets().await.unwrap()[0];
+    let mut permit = q.stop_permit().unwrap();
+    f.session.ledger.test_poison_stops();
+    assert!(matches!(permit.enqueue_neutralize(target), Err(crate::client::StopError::Drain(e))
+        if e.kind() == crate::client::DrainErrorKind::Internal));
+    drop(permit);
+    assert_eq!(q.seal_for_fence().err().unwrap().kind(), crate::client::DrainErrorKind::Internal);
+    assert!(timeout(Duration::from_millis(20), read_packet(&mut f.peer, None)).await.is_err());
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn enqueue_modern_revoke_order_is_fixed_before_completion_observation() {
+    use crate::client::{StopAdmission, StopError};
+    for revoke_first in [true, false] {
+        let mut f = Fixture::new().await;
+        let client = quiesce_client(&f);
+        client.survival().use_item(crate::client::Hand::Main).await.unwrap();
+        read_packet(&mut f.peer, None).await.unwrap();
+        let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+        q.admitted_drain().wait().await.unwrap();
+        let target = q.stop_targets().await.unwrap()[0];
+        let state = f.session.state.lock().await;
+        let writer = f.session.writer.lock().await;
+        let before = f.session.ledger.test_stop_debt().0;
+        let barrier = Arc::new(std::sync::Barrier::new(2));
+        let revoker = {
+            let client = client.clone();
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                let _ = client.revoke_connection();
+                barrier.wait();
+            })
+        };
+        let mut permit = q.stop_permit().unwrap();
+        drop(permit.neutralize(target));
+        if revoke_first { barrier.wait(); barrier.wait(); }
+        let result = permit.enqueue_neutralize(target);
+        if !revoke_first { barrier.wait(); barrier.wait(); }
+        revoker.join().unwrap();
+        drop(permit); drop(writer); drop(state);
+        if revoke_first {
+            assert!(matches!(result, Err(StopError::Drain(e))
+                if e.kind() == crate::client::DrainErrorKind::RevokedBeforeDrain));
+            assert_eq!(f.session.ledger.test_stop_debt().0, before);
+        } else {
+            let completion = result.unwrap();
+            assert_eq!(completion.admission(), StopAdmission::NewlyAdmitted);
+            assert_eq!(f.session.ledger.test_stop_debt().0, before + 1);
+            assert!(matches!(completion.wait().await, Err(StopError::Drain(e))
+                if e.kind() == crate::client::DrainErrorKind::RevokedBeforeDrain));
+        }
+        client.wait_shutdown().await.unwrap();
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn enqueue_modern_world_reset_after_acceptance_fails_worker_without_frames() {
+    let mut f = Fixture::new().await;
+    let client = quiesce_client(&f);
+    client.survival().use_item(crate::client::Hand::Main).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+    q.admitted_drain().wait().await.unwrap();
+    let target = q.stop_targets().await.unwrap()[0];
+    let mut state = f.session.state.lock().await;
+    let writer = f.session.writer.lock().await;
+    let completion = q.stop_permit().unwrap().enqueue_neutralize(target).unwrap();
+    assert_eq!(completion.admission(), crate::client::StopAdmission::NewlyAdmitted);
+    state.loading.generation += 1;
+    let final_drain = q.seal_for_fence().unwrap();
+    drop(writer); drop(state);
+    assert!(matches!(completion.wait().await, Err(crate::client::StopError::ContextChanged { .. })));
+    assert_eq!(final_drain.wait().await.unwrap_err().kind(), crate::client::DrainErrorKind::RequiredReleaseFailed);
     assert!(timeout(Duration::from_millis(20), read_packet(&mut f.peer, None)).await.is_err());
     f.stop().await;
 }

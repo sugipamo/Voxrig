@@ -1,7 +1,7 @@
 //! Adapter-specific neutral packets and original-owner validation.
 use super::*;
 use crate::client::ledger::stops::StopAction;
-use crate::client::{SessionStamp, StopError, StopReceipt, StopTarget, VehicleRelation};
+use crate::client::{SessionStamp, StopCompletion, StopError, StopTarget, VehicleRelation};
 impl Session {
     pub(super) fn observe_stop_context(&self, state: &State) {
         let session = SessionStamp {
@@ -178,14 +178,16 @@ impl crate::client::adapter::DrainOps for operations::Operations {
         }
         Ok(targets)
     }
-    async fn neutralize(&self, target: StopTarget) -> std::result::Result<StopReceipt, StopError> {
+    fn enqueue_neutralize(
+        &self,
+        target: StopTarget,
+    ) -> std::result::Result<StopCompletion, StopError> {
         let owner = self.clone();
         self.bot
             .session
             .ledger
-            .neutralize(target, move |action| async move {
+            .enqueue_neutralize(target, move |action| async move {
                 owner.selected_stop(target, action).await
             })
-            .await
     }
 }

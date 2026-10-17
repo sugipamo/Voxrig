@@ -172,45 +172,78 @@ impl Registry {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        let mut state = self.lock();
-        let (send, receive) = oneshot::channel();
-        let abort = if !state.closing {
-            let task = tokio::spawn(future);
-            let abort = task.abort_handle();
-            let termination_requested = self.termination_requested.clone();
-            let join = Box::pin(async move {
-                match task.await {
-                    Ok(output) => {
-                        let _ = send.send(Ok(output));
-                        None
-                    }
-                    Err(cause) => {
-                        let cause = Arc::new(cause);
-                        let expected = cause.is_cancelled()
-                            && termination_requested.load(std::sync::atomic::Ordering::Acquire);
-                        let _ = send.send(Err(TaskError(cause.clone())));
-                        Some(TaskFailure { cause, expected })
-                    }
-                }
-            });
-            if self
-                .sender(&mut state)
-                .send(Command::Task {
-                    abort: abort.clone(),
-                    join,
-                })
-                .is_err()
-            {
-                abort.abort();
-                self.internal("shutdown task observer lost");
+        self.try_spawn(future).unwrap_or_else(|_| {
+            let (_, receive) = oneshot::channel();
+            Task {
+                receive,
+                abort: None,
             }
-            Some(abort)
-        } else {
+        })
+    }
+    /// Successful submission and close are serialized by the registry gate.
+    /// Never destroy a rejected future/command under that gate: destructors may
+    /// retire ledger debt or re-enter shutdown (including last-owner Drop).
+    pub(crate) fn try_spawn<F>(&self, future: F) -> std::result::Result<Task<F::Output>, TaskError>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let mut state = self.lock();
+        if state.closing {
+            drop(state);
             drop(future);
-            drop(send);
-            None
+            return Err(TaskError(Arc::new(std::io::Error::other(
+                "task registry closed",
+            ))));
+        }
+        let runtime = self
+            .runtime
+            .clone()
+            .or_else(|| tokio::runtime::Handle::try_current().ok());
+        let Some(runtime) = runtime else {
+            drop(state);
+            drop(future);
+            return Err(TaskError(Arc::new(std::io::Error::other(
+                "no Tokio runtime for task submission",
+            ))));
         };
-        Task { receive, abort }
+        let sender = self.sender(&mut state);
+        let (send, receive) = oneshot::channel();
+        let task = runtime.spawn(future);
+        let abort = task.abort_handle();
+        let termination_requested = self.termination_requested.clone();
+        let join = Box::pin(async move {
+            match task.await {
+                Ok(output) => {
+                    let _ = send.send(Ok(output));
+                    None
+                }
+                Err(cause) => {
+                    let cause = Arc::new(cause);
+                    let expected = cause.is_cancelled()
+                        && termination_requested.load(std::sync::atomic::Ordering::Acquire);
+                    let _ = send.send(Err(TaskError(cause.clone())));
+                    Some(TaskFailure { cause, expected })
+                }
+            }
+        });
+        if let Err(rejected) = sender.send(Command::Task {
+            abort: abort.clone(),
+            join,
+        }) {
+            state.closing = true;
+            abort.abort();
+            self.internal("shutdown task observer lost");
+            drop(state);
+            drop(rejected);
+            return Err(TaskError(Arc::new(std::io::Error::other(
+                "shutdown task observer lost",
+            ))));
+        }
+        Ok(Task {
+            receive,
+            abort: Some(abort),
+        })
     }
     pub(crate) fn start(
         &self,
@@ -223,13 +256,14 @@ impl Registry {
         state.closing = true;
         self.termination_requested
             .store(true, std::sync::atomic::Ordering::Release);
-        if self
+        let submitted = self
             .sender(&mut state)
-            .send(Command::Stop(Box::pin(teardown)))
-            .is_err()
-        {
+            .send(Command::Stop(Box::pin(teardown)));
+        if submitted.is_err() {
             self.internal("shutdown coordinator lost");
         }
+        drop(state);
+        drop(submitted); // Teardown destructors must also run outside the registry.
     }
     pub(crate) async fn wait(&self) -> Result {
         let mut result = self.result.subscribe();
@@ -500,5 +534,113 @@ mod tests {
         .await;
         fresh.start(async { Ok(()) });
         wait.await.unwrap();
+    }
+    #[tokio::test]
+    async fn checked_submission_rejection_drops_outside_registry_and_retires_work() {
+        for version in [
+            crate::MinecraftVersion::Java1_16_1,
+            crate::MinecraftVersion::Java1_21_11,
+        ] {
+            for poisoned in [false, true] {
+                let ledger =
+                    crate::client::ledger::Ledger::tracking(crate::client::ledger::GenerationKey {
+                        version,
+                        connection_id: 42,
+                    });
+                let registry = ledger.tasks();
+                if poisoned {
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let _lock = registry.state.lock().unwrap();
+                        panic!("injected registry poison");
+                    }));
+                } else {
+                    registry.start(async { Ok(()) });
+                }
+                let work = ledger.work();
+                let dropped = Arc::new(AtomicBool::new(false));
+                let flag = dropped.clone();
+                let source = ledger.clone();
+                let cleanup = OnExit(Some(move || {
+                    // A rejected unpolled future may re-enter shutdown on Drop.
+                    source.tasks().start(async { Ok(()) });
+                    drop(work);
+                    flag.store(true, Ordering::Release);
+                }));
+                let rejected = registry.try_spawn(async move {
+                    let _cleanup = cleanup;
+                    std::future::pending::<()>().await;
+                });
+                assert!(rejected.is_err());
+                assert!(dropped.load(Ordering::Acquire));
+                assert_eq!(ledger.test_stop_debt().1, 0);
+                assert_eq!(
+                    ledger.check_terminal().unwrap_err().kind(),
+                    crate::client::DrainErrorKind::OwnerLost
+                );
+                if poisoned {
+                    assert_eq!(
+                        registry.wait().await.unwrap_err().kind(),
+                        ShutdownErrorKind::Internal
+                    );
+                } else {
+                    registry.wait().await.unwrap();
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn checked_submission_and_shutdown_race_is_registered_or_rejected() {
+        for _ in 0..32 {
+            let registry = Arc::new(registry());
+            let gate = Arc::new(std::sync::Barrier::new(3));
+            let dropped = Arc::new(AtomicBool::new(false));
+            let flag = dropped.clone();
+            let cleanup = OnExit(Some(move || {
+                flag.store(true, Ordering::Release);
+            }));
+            let submitter = {
+                let registry = registry.clone();
+                let gate = gate.clone();
+                std::thread::spawn(move || {
+                    gate.wait();
+                    registry.try_spawn(async move {
+                        let _cleanup = cleanup;
+                        std::future::pending::<()>().await;
+                    })
+                })
+            };
+            let closer = {
+                let registry = registry.clone();
+                let gate = gate.clone();
+                std::thread::spawn(move || {
+                    gate.wait();
+                    registry.start(async { Ok(()) });
+                })
+            };
+            gate.wait();
+            let submission = submitter.join().unwrap();
+            closer.join().unwrap();
+            if let Ok(task) = submission {
+                assert!(task.abort_handle().is_some());
+                assert!(task.await.is_err());
+            }
+            registry.wait().await.unwrap();
+            assert!(dropped.load(Ordering::Acquire));
+        }
+    }
+
+    #[tokio::test]
+    async fn checked_submission_detects_lost_supervisor() {
+        let registry = registry();
+        let (sender, receiver) = mpsc::unbounded_channel();
+        drop(receiver);
+        registry.lock().sender = Some(sender);
+        assert!(registry.try_spawn(std::future::pending::<()>()).is_err());
+        assert!(registry.lock().closing);
+        assert_eq!(
+            registry.wait().await.unwrap_err().kind(),
+            ShutdownErrorKind::Internal
+        );
     }
 }

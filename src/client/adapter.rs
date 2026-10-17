@@ -51,11 +51,11 @@ pub(crate) trait DrainOps {
     ) -> impl std::future::Future<
         Output = std::result::Result<Vec<super::StopTarget>, super::StopError>,
     > + Send;
-    fn neutralize(
+    #[allow(clippy::result_large_err)] // Preserve the public inline StopError diagnostics.
+    fn enqueue_neutralize(
         &self,
         target: super::StopTarget,
-    ) -> impl std::future::Future<Output = std::result::Result<super::StopReceipt, super::StopError>>
-    + Send;
+    ) -> std::result::Result<super::StopCompletion, super::StopError>;
 }
 
 /// Connection lifecycle and packet diagnostics.

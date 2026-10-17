@@ -101,6 +101,14 @@ async fn quiesce_legacy_queued_jump_writes_once_then_parks_and_selected_movement
         .unwrap();
     let mut q = client.begin_quiesce(client.generation_key()).unwrap();
     assert!(!q.admitted_drain().is_drained().unwrap());
+    assert_eq!(
+        q.stop_permit().err().unwrap().kind(),
+        crate::client::DrainErrorKind::FirstDrainPending
+    );
+    assert_eq!(
+        q.seal_for_fence().err().unwrap().kind(),
+        crate::client::DrainErrorKind::FirstDrainPending
+    );
     timeout(Duration::from_secs(1), q.admitted_drain().wait())
         .await
         .unwrap()
@@ -284,10 +292,14 @@ async fn quiesce_legacy_stale_target_cannot_be_restored_by_mode_round_trip() {
         p.extend(mode.to_be_bytes());
         bot.apply_packet(0x1e, p).await.unwrap();
     }
+    let mut permit = q.stop_permit().unwrap();
+    drop(permit.neutralize(target));
+    assert!(bot.connection.ledger().check_terminal().is_ok());
     assert!(matches!(
-        q.stop_permit().unwrap().neutralize(target).await,
+        permit.enqueue_neutralize(target),
         Err(StopError::ContextChanged { .. })
     ));
+    drop(permit);
     assert_eq!(
         q.seal_for_fence().err().unwrap().kind(),
         crate::client::DrainErrorKind::RequiredReleaseFailed
@@ -640,5 +652,202 @@ async fn shutdown_success_cannot_repair_a_failed_drain() {
         .unwrap();
     assert_eq!(owner.admitted_drain().wait().await.unwrap_err(), failed);
     release.send(()).unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn enqueue_legacy_is_synchronous_under_native_locks_and_completion_drop_is_passive() {
+    use crate::client::StopAdmission;
+    let (bot, mut packets, release, server) = fixture().await;
+    bot.player.lock().await.entity_id = Some(7);
+    let control = ControlOps::start_control(&bot, crate::client::GameMode::Survival)
+        .await
+        .unwrap();
+    bot.use_item(Hand::Main).await.unwrap();
+    assert_eq!(packets.recv().await.unwrap().0, 0x2e);
+    let client = crate::Client::from_java_1_16_1(bot.clone());
+    let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+    q.admitted_drain().wait().await.unwrap();
+    let targets = q.stop_targets().await.unwrap();
+    let item = *targets
+        .iter()
+        .find(|t| t.kind() == StopTargetKind::ItemUse)
+        .unwrap();
+    let movement = *targets
+        .iter()
+        .find(|t| t.control_session_id() == Some(control.session_id))
+        .unwrap();
+    while packets.try_recv().is_ok() {}
+    let gate = bot.coherent_state_gate.lock().await;
+    let state = bot.player.lock().await;
+    let writer = bot.writer.lock().await;
+    let ledger = bot.connection.ledger();
+    let before = ledger.test_stop_debt();
+    let mut permit = q.stop_permit().unwrap();
+    // Compatibility wrapper remains lazy, including errors, before first poll.
+    drop(permit.neutralize(item));
+    assert_eq!(ledger.test_stop_debt(), before);
+    let completion = permit.enqueue_neutralize(item).unwrap();
+    assert_eq!(completion.admission(), StopAdmission::NewlyAdmitted);
+    drop(completion);
+    let duplicate = permit.enqueue_neutralize(item).unwrap();
+    assert_eq!(duplicate.admission(), StopAdmission::JoinedExisting);
+    assert_eq!(ledger.test_stop_debt(), (before.0 + 1, before.1 + 1));
+    // One permit can admit a distinct target while the first is pending.
+    let second = permit.enqueue_neutralize(movement).unwrap();
+    assert_eq!(second.admission(), StopAdmission::NewlyAdmitted);
+    assert_eq!(ledger.test_stop_debt(), (before.0 + 2, before.1 + 2));
+    drop(duplicate);
+    drop(second);
+    drop(permit);
+    let final_drain = q.seal_for_fence().unwrap();
+    assert!(!final_drain.is_drained().unwrap());
+    assert!(packets.try_recv().is_err());
+    drop(writer);
+    drop(state);
+    drop(gate);
+    timeout(Duration::from_secs(2), final_drain.wait())
+        .await
+        .unwrap()
+        .unwrap();
+    let mut releases = 0;
+    while let Ok(Some((id, payload))) = timeout(Duration::from_millis(30), packets.recv()).await {
+        if id == 0x1b && payload[0] == 5 {
+            releases += 1;
+        }
+    }
+    assert_eq!(releases, 1);
+    release.send(()).unwrap();
+    drop(client);
+    drop(q);
+    drop(bot);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn enqueue_legacy_stop_book_poison_is_a_defined_closed_error() {
+    let (bot, mut packets, release, server) = fixture().await;
+    bot.use_item(Hand::Main).await.unwrap();
+    packets.recv().await.unwrap();
+    let client = crate::Client::from_java_1_16_1(bot.clone());
+    let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+    q.admitted_drain().wait().await.unwrap();
+    let target = q.stop_targets().await.unwrap()[0];
+    let mut permit = q.stop_permit().unwrap();
+    bot.connection.ledger().test_poison_stops();
+    assert!(
+        matches!(permit.enqueue_neutralize(target), Err(StopError::Drain(e))
+        if e.kind() == crate::client::DrainErrorKind::Internal)
+    );
+    drop(permit);
+    assert_eq!(
+        q.seal_for_fence().err().unwrap().kind(),
+        crate::client::DrainErrorKind::Internal
+    );
+    assert!(packets.try_recv().is_err());
+    release.send(()).unwrap();
+    drop(client);
+    drop(q);
+    drop(bot);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn enqueue_legacy_revoke_order_is_fixed_before_completion_observation() {
+    for revoke_first in [true, false] {
+        let (bot, mut packets, release, server) = fixture().await;
+        bot.use_item(Hand::Main).await.unwrap();
+        packets.recv().await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+        q.admitted_drain().wait().await.unwrap();
+        let target = q.stop_targets().await.unwrap()[0];
+        let gate = bot.coherent_state_gate.lock().await;
+        let writer = bot.writer.lock().await;
+        let before = bot.connection.ledger().test_stop_debt().0;
+        let barrier = Arc::new(std::sync::Barrier::new(2));
+        let revoker = {
+            let client = client.clone();
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                let _ = client.revoke_connection();
+                barrier.wait();
+            })
+        };
+        let mut permit = q.stop_permit().unwrap();
+        // Constructing a lazy wrapper cannot race ahead and admit work.
+        drop(permit.neutralize(target));
+        if revoke_first {
+            barrier.wait();
+            barrier.wait();
+        }
+        let result = permit.enqueue_neutralize(target);
+        if !revoke_first {
+            barrier.wait();
+            barrier.wait();
+        }
+        revoker.join().unwrap();
+        drop(permit);
+        drop(writer);
+        drop(gate);
+        if revoke_first {
+            assert!(matches!(result, Err(StopError::Drain(e))
+                if e.kind() == crate::client::DrainErrorKind::RevokedBeforeDrain));
+            assert_eq!(bot.connection.ledger().test_stop_debt().0, before);
+        } else {
+            let completion = result.unwrap();
+            assert_eq!(
+                completion.admission(),
+                crate::client::StopAdmission::NewlyAdmitted
+            );
+            assert_eq!(bot.connection.ledger().test_stop_debt().0, before + 1);
+            assert!(matches!(completion.wait().await, Err(StopError::Drain(e))
+                if e.kind() == crate::client::DrainErrorKind::RevokedBeforeDrain));
+        }
+        client.wait_shutdown().await.unwrap();
+        assert!(packets.try_recv().is_err());
+        release.send(()).unwrap();
+        drop(client);
+        drop(q);
+        drop(bot);
+        server.await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn enqueue_legacy_world_reset_after_acceptance_fails_worker_without_frames() {
+    let (bot, mut packets, release, server) = fixture().await;
+    bot.use_item(Hand::Main).await.unwrap();
+    packets.recv().await.unwrap();
+    let client = crate::Client::from_java_1_16_1(bot.clone());
+    let mut q = client.begin_quiesce(client.generation_key()).unwrap();
+    q.admitted_drain().wait().await.unwrap();
+    let target = q.stop_targets().await.unwrap()[0];
+    let gate = bot.coherent_state_gate.lock().await;
+    let writer = bot.writer.lock().await;
+    let completion = q.stop_permit().unwrap().enqueue_neutralize(target).unwrap();
+    assert_eq!(
+        completion.admission(),
+        crate::client::StopAdmission::NewlyAdmitted
+    );
+    // Simulate receiver world replacement while the accepted worker is blocked.
+    bot.common_receipts.lock().await.generation += 1;
+    let final_drain = q.seal_for_fence().unwrap();
+    drop(writer);
+    drop(gate);
+    assert!(matches!(
+        completion.wait().await,
+        Err(StopError::ContextChanged { .. })
+    ));
+    assert_eq!(
+        final_drain.wait().await.unwrap_err().kind(),
+        crate::client::DrainErrorKind::RequiredReleaseFailed
+    );
+    assert!(packets.try_recv().is_err());
+    release.send(()).unwrap();
+    drop(client);
+    drop(q);
+    drop(bot);
     server.await.unwrap();
 }

@@ -297,6 +297,18 @@ impl Ledger {
         self.shared.lock().written_through
     }
 
+    #[cfg(test)]
+    pub(crate) fn test_stop_debt(&self) -> (u64, usize) {
+        let state = self.shared.lock();
+        (state.last_root, state.roots.len())
+    }
+    #[cfg(test)]
+    pub(crate) fn test_poison_stops(&self) {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = self.shared.stops.lock().unwrap();
+            panic!("injected stop-book poison");
+        }));
+    }
     // Track existing adapter admission with the same roots/children/permits.
     // Failure still rejects every unissued drain, without changing public send
     // errors or imposing a new queue capacity. Closing roots is still enforced.
