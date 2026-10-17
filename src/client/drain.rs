@@ -57,9 +57,9 @@ impl WriteOrdinal {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub enum DrainScope {
-    /// Ordinary producers parked and the first cut retired; maintenance may still write.
+    /// Ordinary producers parked and work through the first cut completed; maintenance may still write.
     ProducersParked,
-    /// All admission sealed and remaining authority retired; no later Voxrig writes.
+    /// All admission sealed and remaining write authority relinquished; no later Voxrig writes.
     SealedForFence,
 }
 /// Immutable historical completion fact, issued atomically with the write prefix.
@@ -76,7 +76,7 @@ impl DrainReceipt {
     pub const fn generation(&self) -> GenerationKey {
         self.generation
     }
-    /// All roots through this cut and their late descendants retired cleanly.
+    /// All roots through this cut and their late descendants completed cleanly.
     pub const fn admitted_through(&self) -> AdmissionId {
         self.admitted_through
     }
@@ -563,6 +563,13 @@ impl Client {
     /// relays and caller-owned tasks/futures are outside this scope: callers must
     /// cancel/join their own source tasks. A caller holding writer serialization
     /// can delay completion. No bounded completion time or timeout is provided.
+    ///
+    /// Voxrig defines no generic client "retire" step. Golemkit's old-Body
+    /// retirement corresponds to revocation and not authorizing work with old
+    /// evidence; evolto's retirement policy requires confirmed shutdown, whose
+    /// Voxrig completion fact is this method returning `Ok(())`. A drain or stop
+    /// receipt alone does not supply that fact. Mining, acknowledgement-identity,
+    /// entity and ledger-owner retirement have separate domain-specific meanings.
     pub fn wait_shutdown(
         &self,
     ) -> impl Future<Output = Result<(), super::ShutdownError>> + Send + '_ {
