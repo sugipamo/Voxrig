@@ -11,6 +11,7 @@ pub mod java_1_21_11;
 #[allow(dead_code, unused_imports, clippy::enum_variant_names)] // The native surface.
 pub(crate) mod java_1_21_11;
 pub(crate) mod table;
+pub(crate) mod ui_decode;
 
 /// Explicit Minecraft wire and registry version for one connection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
