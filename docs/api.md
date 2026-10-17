@@ -183,7 +183,7 @@ window-0 inventory/NBT、entity、block state、exact collision shape、raw regi
 region、entity radius、entity数には上限があり、各blockは`Loaded`、`Unloaded`、`Unknown`を区別します。
 Loaded blockのregistry factには、所属するminecraft-data block typeのraw minimum state ID、material tool-speed map、および`empty`／`block`のraw bounding-box classificationも含まれます。entity factにはregistry width／heightが含まれます。未知またはregistry外の値は`None`であり、clientはphysical／safeを判定しません。
 どちらも解決不能な場合は明示的な`None`として返し、providerは安全側に停止します。
-`safe`、`liquid`、`replaceable`、`climbable`、landingなどの意味判断は返さず、Mineflayer互換の利用側の
+`safe`、`liquid`、`replaceable`、`climbable`、landingなどの意味判断は返さず、Golemkit などの利用側の
 単一正本に残ります。このAPIはJSON wireや利用側の契約を追加せず、provider parityが完了するまでproduction
 providerには接続しません。
 
