@@ -1,7 +1,6 @@
-use crate::{
-    MinecraftVersion,
-    client::{EntityHistoryKind, registry::Registry},
-};
+#[cfg(test)]
+use crate::client::registry::Registry;
+use crate::{MinecraftVersion, client::EntityHistoryKind};
 
 macro_rules! entities {
     ($($variant:ident => ($name:literal, $legacy:expr, $modern:expr)),* $(,)?) => {
@@ -187,6 +186,7 @@ entities! {
     ZombifiedPiglin => ("minecraft:zombified_piglin", Some(104), Some(154)),
 }
 impl EntityType {
+    #[cfg(test)]
     pub(crate) fn from_native_id(version: MinecraftVersion, id: i32) -> Option<Self> {
         let registry = Registry::for_version(version);
         let id = registry
@@ -290,6 +290,7 @@ impl PacketKey {
 pub(crate) const VERSIONS: [MinecraftVersion; 2] =
     [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11];
 /// Dense full union product, including explicitly absent entity/version pairs.
+#[cfg(test)]
 pub(crate) const fn index(
     version: MinecraftVersion,
     entity: EntityType,
