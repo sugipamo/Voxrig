@@ -233,8 +233,16 @@ impl super::Client {
                 if !log.events.is_empty() {
                     return Ok(log);
                 }
-                self.wait_for_receive(log.receive_sequence, Duration::MAX)
-                    .await?;
+                if let Err(error) = self
+                    .wait_for_receive(log.receive_sequence, Duration::MAX)
+                    .await
+                {
+                    // Closure may only be recorded when the event log is read.
+                    return match self.events_after(cursor).await {
+                        Ok(log) if !log.events.is_empty() => Ok(log),
+                        _ => Err(error),
+                    };
+                }
             }
         })
         .await
@@ -250,6 +258,118 @@ impl super::Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    async fn disconnect_wait_scenario(version: crate::MinecraftVersion, pending: bool) {
+        use crate::client::{ConnectionStatus, Server};
+        use crate::protocol::{put_string, read_packet, write_packet};
+        use crate::{Client, ConnectionConfig};
+        use std::future::{Future, poll_fn};
+        use std::task::Poll;
+        use tokio::net::TcpListener;
+
+        let limit = Duration::from_secs(5);
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (close, closing) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            read_packet(&mut stream, None).await.unwrap(); // handshake
+            read_packet(&mut stream, None).await.unwrap(); // login start
+            let mut success = vec![3; 16];
+            put_string(&mut success, "EventWaiter");
+            if version == crate::MinecraftVersion::Java1_21_11 {
+                success.push(0); // profile properties
+            }
+            write_packet(&mut stream, None, 2, &success).await.unwrap();
+            if version == crate::MinecraftVersion::Java1_21_11 {
+                read_packet(&mut stream, None).await.unwrap(); // login acknowledged
+                read_packet(&mut stream, None).await.unwrap(); // configuration settings
+            }
+            closing.await.unwrap();
+            // Drop the peer while the client is waiting, without another packet.
+        });
+        let client = Client::connect(ConnectionConfig::offline(
+            Server::new("127.0.0.1", port),
+            "EventWaiter",
+            version,
+        ))
+        .await
+        .unwrap();
+        let cursor = client.events_after(0).await.unwrap().cursor;
+        assert_eq!(
+            client
+                .wait_for_events(cursor, Duration::from_millis(10))
+                .await
+                .unwrap_err()
+                .kind(),
+            ErrorKind::Timeout
+        );
+        let log = if pending {
+            let wait = client.wait_for_events(cursor, limit);
+            tokio::pin!(wait);
+            // Poll the actual wait to Pending before allowing the peer to close.
+            poll_fn(|cx| {
+                assert!(wait.as_mut().poll(cx).is_pending());
+                Poll::Ready(())
+            })
+            .await;
+            close.send(()).unwrap();
+            wait.await.unwrap()
+        } else {
+            close.send(()).unwrap();
+            // Observe termination without reading/recording the final event.
+            tokio::time::timeout(limit, async {
+                while !matches!(
+                    client.connection_status().await,
+                    ConnectionStatus::Closed | ConnectionStatus::Unknown
+                ) {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            client.wait_for_events(cursor, limit).await.unwrap()
+        };
+        assert!(log.cursor > cursor);
+        assert_eq!(log.events.len(), 1);
+        assert_eq!(log.events[0].kind, EventKind::Disconnected);
+        let original = client
+            .wait_for_receive(log.receive_sequence, limit)
+            .await
+            .unwrap_err();
+        let error = client.wait_for_events(log.cursor, limit).await.unwrap_err();
+        assert_eq!(error.kind(), original.kind());
+        assert_eq!(error.to_string(), original.to_string());
+        assert!(
+            client
+                .events_after(log.cursor)
+                .await
+                .unwrap()
+                .events
+                .is_empty()
+        );
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn legacy_wait_for_events_disconnect_while_pending() {
+        disconnect_wait_scenario(crate::MinecraftVersion::Java1_16_1, true).await;
+    }
+
+    #[tokio::test]
+    async fn legacy_wait_for_events_disconnect_before_wait() {
+        disconnect_wait_scenario(crate::MinecraftVersion::Java1_16_1, false).await;
+    }
+
+    #[tokio::test]
+    async fn modern_wait_for_events_disconnect_while_pending() {
+        disconnect_wait_scenario(crate::MinecraftVersion::Java1_21_11, true).await;
+    }
+
+    #[tokio::test]
+    async fn modern_wait_for_events_disconnect_before_wait() {
+        disconnect_wait_scenario(crate::MinecraftVersion::Java1_21_11, false).await;
+    }
 
     #[test]
     fn cursors_read_each_event_once_and_report_dropped_history() {
