@@ -1,14 +1,11 @@
 //! Common lifecycle ownership with per-connection version and registry isolation.
-use super::{Client, ConnectionConfig};
-use crate::{Error, ErrorKind, Result};
+use super::{Client, ConnectionConfig, inventory::unavailable};
+use crate::Result;
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
 };
 use tokio::sync::{Notify, watch};
-fn unavailable(message: impl std::fmt::Display) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
-}
 #[derive(PartialEq, Eq)]
 struct Profile {
     host: String,
