@@ -5031,3 +5031,40 @@ async fn shutdown_natural_eof_requires_no_second_revoke() {
         .unwrap();
     assert!(session.writer.lock().await.stream.is_released());
 }
+
+#[tokio::test]
+async fn chat_utf16_limits_reject_before_dispatch_and_preserve_wire_text() {
+    let (_session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let expected = crate::client::tests::common_chat_utf16_scenario(&client).await;
+    assert_eq!(
+        api.send_chat(&"😀".repeat(129)).await.unwrap_err().kind(),
+        crate::ErrorKind::InvalidInput
+    );
+    for (command, text) in expected {
+        let (id, payload) = timeout(Duration::from_secs(2), read_packet(&mut peer, None))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            id,
+            if command {
+                ids::play_serverbound::CHAT_COMMAND
+            } else {
+                ids::play_serverbound::CHAT_MESSAGE
+            }
+        );
+        let mut input = payload.as_slice();
+        assert_eq!(crate::protocol::get_string(&mut input).unwrap(), text);
+        if command {
+            assert!(input.is_empty());
+        } else {
+            assert_eq!(input.len(), 22); // Timestamp, salt and unsigned chat metadata.
+        }
+    }
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+}
