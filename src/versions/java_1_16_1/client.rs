@@ -3084,10 +3084,30 @@ impl Bot {
         });
     }
     /// Waits until login, spawn, and the initial authoritative position complete.
+    ///
+    /// After the connection has stopped, the error says whether the session had
+    /// already become ready and includes the retained reader failure, if any.
     pub async fn wait_until_ready(&self) -> Result<()> {
         loop {
             if self.stopped.load(Ordering::Acquire) {
-                bail!("connection closed before initial position");
+                // `spawned` and `positioned` are never reset for a connection, so
+                // together they mean this session had already become ready.
+                let phase = if self.player.lock().await.spawned && *self.positioned.lock().await {
+                    "after"
+                } else {
+                    "before"
+                };
+                let cause = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .snapshot_failure
+                    .as_ref()
+                    .map(|(_, error)| error.clone());
+                match cause {
+                    Some(cause) => bail!("connection closed {phase} initial position: {cause}"),
+                    None => bail!("connection closed {phase} initial position"),
+                }
             }
             let notified = self.ready.notified();
             let spawned = self.player.lock().await.spawned;
