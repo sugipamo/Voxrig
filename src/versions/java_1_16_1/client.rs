@@ -7907,6 +7907,109 @@ mod tests {
         .await;
     }
 
+    async fn ready_bot_with_peer_frame(
+        frame: Option<(i32, Vec<u8>)>,
+        ready: bool,
+    ) -> (
+        Bot,
+        oneshot::Receiver<bool>,
+        oneshot::Sender<()>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (eof_tx, eof_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel::<()>();
+        let (go_tx, go_rx) = oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
+            go_rx.await.unwrap();
+            match frame {
+                Some((id, payload)) => write_packet(&mut writer, None, id, &payload).await.unwrap(),
+                None => drop(writer),
+            }
+            // The client must close its write half after the reader ends,
+            // while the caller still retains the Bot.
+            let mut buf = [0_u8; 4096];
+            let eof = loop {
+                match tokio::time::timeout(Duration::from_secs(2), reader.read(&mut buf)).await {
+                    Ok(Ok(0)) | Ok(Err(_)) => break true,
+                    Ok(Ok(_)) => continue,
+                    Err(_) => break false,
+                }
+            };
+            let _ = eof_tx.send(eof);
+            let _ = release_rx.await;
+        });
+        let bot = Bot::connect(
+            Server::new("127.0.0.1", port),
+            Player::offline("ReadyClose"),
+            Arc::new(crate::SharedChunkStorage::default()),
+            ConnectionOptions::default(),
+        )
+        .await
+        .unwrap();
+        if ready {
+            bot.player.lock().await.spawned = true;
+            *bot.positioned.lock().await = true;
+            bot.wait_until_ready().await.unwrap();
+        }
+        go_tx.send(()).unwrap();
+        (bot, eof_rx, release_tx, server)
+    }
+
+    #[tokio::test]
+    async fn wait_until_ready_after_ready_reader_error_names_phase_and_cause() {
+        // Entity metadata whose 0xff terminator is missing.
+        let (bot, eof, release, server) =
+            ready_bot_with_peer_frame(Some((0x44, vec![0x0f, 0x08, 0x02, 0x41, 0x20, 0, 0])), true)
+                .await;
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(5), bot.wait_for_transport_end())
+                .await
+                .unwrap(),
+            ConnectionState::ConnectionStateUnknown
+        );
+        let message = bot.wait_until_ready().await.unwrap_err().to_string();
+        assert!(
+            message.starts_with("connection closed after initial position"),
+            "{message}"
+        );
+        assert!(message.contains("truncated metadata"), "{message}");
+        assert!(eof.await.unwrap(), "writer stayed open after reader error");
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn wait_until_ready_before_ready_terminal_keeps_initial_position_wording() {
+        let (bot, eof, release, server) = ready_bot_with_peer_frame(None, false).await;
+        tokio::time::timeout(Duration::from_secs(5), bot.wait_for_transport_end())
+            .await
+            .unwrap();
+        let message = bot.wait_until_ready().await.unwrap_err().to_string();
+        assert!(
+            message.starts_with("connection closed before initial position"),
+            "{message}"
+        );
+        assert!(eof.await.unwrap());
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
     pub(super) async fn ready_test_bot(
         connection_options: ConnectionOptions,
     ) -> (Bot, tokio::task::JoinHandle<()>, oneshot::Sender<()>) {
