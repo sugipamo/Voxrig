@@ -1,9 +1,10 @@
 //! Inventory helpers composed from `Survival::click_inventory`: store the cursor,
 //! merge partial stacks, fill a crafting grid by hand and craft once. Each click waits
 //! for its received outcome before the next. See docs/common-inventory-helpers.md.
+use super::container::ScreenObservation;
 use super::crafting::CraftingTakeRecord;
 use super::inventory::{InventoryClickButton, InventoryClickRecord, InventoryClickSource};
-use super::{ItemStack, SlotKnowledge};
+use super::{ItemStack, ObservedValue, SlotKnowledge};
 use crate::{Error, ErrorKind, Result};
 use std::time::Duration;
 
@@ -122,54 +123,65 @@ fn item_name(name: &str) -> String {
     }
 }
 
+fn container_storage_view(screen: &ScreenObservation) -> Result<Option<View>> {
+    let cursor = known(screen.cursor.as_ref());
+    if let Some(container) = screen.screen.as_ref().filter(|container| {
+        screen.player_screen.is_none() && screen.active_window == Some(container.id.window_id())
+    }) {
+        let layout = container
+            .layout
+            .as_ref()
+            .ok_or_else(|| error(ErrorKind::Unsupported, "open screen has no verified layout"))?;
+        let mut slots = layout.player_slots.clone();
+        slots.sort_by_key(|s| s.player_slot);
+        let storage = slots
+            .iter()
+            .map(|s| {
+                Ok((
+                    u16::try_from(s.screen_slot)
+                        .map_err(|_| error(ErrorKind::Protocol, "screen slot out of range"))?,
+                    known(container.slots.get(s.screen_slot).and_then(Option::as_ref)),
+                ))
+            })
+            .collect::<Result<_>>()?;
+        return Ok(Some(View {
+            source: InventoryClickSource::Container {
+                screen: container.id,
+            },
+            storage,
+            cursor,
+        }));
+    }
+    Ok(None)
+}
+
+fn player_storage_view(
+    screen: &ScreenObservation,
+    player_slots: &[Option<ObservedValue<SlotKnowledge>>],
+) -> View {
+    let storage = (9u16..45)
+        .map(|slot| {
+            (
+                slot,
+                known(player_slots.get(usize::from(slot)).and_then(Option::as_ref)),
+            )
+        })
+        .collect();
+    View {
+        source: InventoryClickSource::Player,
+        storage,
+        cursor: known(screen.cursor.as_ref()),
+    }
+}
+
 impl super::Survival {
     async fn storage_view(&self) -> Result<View> {
         let screen = self.client.screen_state().await?;
-        let cursor = known(screen.cursor.as_ref());
-        if let Some(container) = screen.screen {
-            let layout = container.layout.as_ref().ok_or_else(|| {
-                error(ErrorKind::Unsupported, "open screen has no verified layout")
-            })?;
-            let mut slots = layout.player_slots.clone();
-            slots.sort_by_key(|s| s.player_slot);
-            let storage = slots
-                .iter()
-                .map(|s| {
-                    Ok((
-                        u16::try_from(s.screen_slot)
-                            .map_err(|_| error(ErrorKind::Protocol, "screen slot out of range"))?,
-                        known(container.slots.get(s.screen_slot).and_then(Option::as_ref)),
-                    ))
-                })
-                .collect::<Result<_>>()?;
-            return Ok(View {
-                source: InventoryClickSource::Container {
-                    screen: container.id,
-                },
-                storage,
-                cursor,
-            });
+        if let Some(view) = container_storage_view(&screen)? {
+            return Ok(view);
         }
         let player = self.client.player_state().await?;
-        let storage = (9u16..45)
-            .map(|slot| {
-                (
-                    slot,
-                    known(
-                        player
-                            .inventory
-                            .slots
-                            .get(usize::from(slot))
-                            .and_then(Option::as_ref),
-                    ),
-                )
-            })
-            .collect();
-        Ok(View {
-            source: InventoryClickSource::Player,
-            storage,
-            cursor,
-        })
+        Ok(player_storage_view(&screen, &player.inventory.slots))
     }
 
     /// One `click_inventory`, then wait until its record leaves `Pending`.
@@ -439,6 +451,149 @@ impl super::Survival {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::MinecraftVersion;
+    use crate::client::{
+        GameMode, InventoryObservation, PlayerObservation, SessionStamp,
+        container::{
+            PlayerScreenAccess, ScreenReceipts, ScreenTitle, player_screen_access, prepare_close,
+        },
+        received,
+    };
+
+    fn storage_fixture(version: MinecraftVersion) -> (ScreenObservation, PlayerObservation) {
+        let session = SessionStamp {
+            version,
+            connection_id: 7,
+            world_generation: 2,
+        };
+        let mut container = ScreenReceipts::open(version, 3, Some(2), ScreenTitle::Unavailable, 8);
+        container
+            .full_items(
+                vec![Some(received(SlotKnowledge::Empty, 10)); 63],
+                (version == MinecraftVersion::Java1_21_11).then_some(7),
+                10,
+            )
+            .unwrap();
+        let screen = ScreenObservation {
+            session,
+            receive_sequence: 10,
+            active_window: Some(3),
+            player_screen: None,
+            screen: Some(container.capture(session)),
+            cursor: Some(received(SlotKnowledge::Empty, 10)),
+        };
+        let player = PlayerObservation {
+            using_item: None,
+            fall_flying: None,
+            entity_id: None,
+            attributes: Default::default(),
+            effects: Default::default(),
+            air_supply: None,
+            world_time: None,
+            session,
+            receive_sequence: 10,
+            pending_dispatch: false,
+            dimension: None,
+            position: None,
+            received_pose: None,
+            rotation: [0.; 2],
+            rotation_source: None,
+            on_ground: None,
+            game_mode: Some(GameMode::Survival),
+            may_fly: None,
+            health: None,
+            selected_hotbar: None,
+            inventory: InventoryObservation {
+                slots: vec![Some(received(SlotKnowledge::Empty, 10)); 46],
+                cursor: screen.cursor.clone(),
+                window_id: screen.active_window,
+                player_screen: None,
+                ..Default::default()
+            },
+        };
+        (screen, player)
+    }
+
+    #[test]
+    fn storage_view_open_container_uses_container_player_mapping() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let (screen, _) = storage_fixture(version);
+            let container = screen.screen.as_ref().unwrap();
+            let view = container_storage_view(&screen).unwrap().unwrap();
+            assert_eq!(
+                view.source,
+                InventoryClickSource::Container {
+                    screen: container.id,
+                }
+            );
+            let mut mappings = container.layout.as_ref().unwrap().player_slots.clone();
+            mappings.sort_by_key(|mapping| mapping.player_slot);
+            assert_eq!(
+                view.storage,
+                mappings
+                    .iter()
+                    .map(|mapping| (
+                        u16::try_from(mapping.screen_slot).unwrap(),
+                        known(container.slots[mapping.screen_slot].as_ref()),
+                    ))
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                view.storage
+                    .iter()
+                    .map(|(slot, _)| *slot)
+                    .collect::<Vec<_>>(),
+                (27..63).collect::<Vec<_>>()
+            );
+            assert_eq!(view.cursor, SlotKnowledge::Empty);
+        }
+    }
+
+    #[test]
+    fn storage_view_submitted_close_uses_player_slots() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let (mut screen, mut player) = storage_fixture(version);
+            let container = screen.screen.as_ref().unwrap();
+            let mut close = prepare_close(
+                player.clone(),
+                container.clone(),
+                container.id,
+                GameMode::Survival,
+                None,
+            )
+            .unwrap();
+            close.sent();
+            screen.player_screen = player_screen_access(
+                screen.session,
+                screen.active_window,
+                Some(container.id),
+                Some(&close),
+            );
+            assert_eq!(
+                screen.player_screen,
+                Some(PlayerScreenAccess::SubmittedClose { close: close.id })
+            );
+            assert_eq!(screen.active_window, Some(container.id.window_id()));
+            assert_eq!(screen.screen.as_ref().unwrap().id, close.id.screen());
+            player.inventory.slots[9] = None;
+            let view = container_storage_view(&screen)
+                .unwrap()
+                .unwrap_or_else(|| player_storage_view(&screen, &player.inventory.slots));
+            assert_eq!(view.source, InventoryClickSource::Player);
+            assert_eq!(
+                view.storage,
+                (9u16..45)
+                    .map(|slot| (
+                        slot,
+                        known(player.inventory.slots[usize::from(slot)].as_ref()),
+                    ))
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(view.cursor, SlotKnowledge::Empty);
+        }
+    }
+
     #[test]
     fn item_names_default_to_the_minecraft_namespace() {
         assert_eq!(super::item_name("oak_planks"), "minecraft:oak_planks");
