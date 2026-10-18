@@ -3,7 +3,7 @@
 この文書は旧Java 1.16.1 native APIの拡張記録です。現在の両版共通`Client`の完了表は
 [利用クライアント向け網羅表](downstream-client-coverage.md)と[能力表](common-capabilities.md)を参照してください。
 
-MineflayerやAzaleaとの比較から、pathfinding・計画・意味判断を除外し、protocol-facingな身体・sensorとして必要な公開面を整理します。
+Voxrigはprotocol-facingな身体・sensorを担い、pathfinding・計画・意味判断はGolemkitなどの利用側が担います。この責務分担に沿って、Voxrigに必要な公開面を整理します。
 
 ## 完了
 
