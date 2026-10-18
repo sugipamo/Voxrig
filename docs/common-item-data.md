@@ -201,8 +201,10 @@ AIR/empty sentinelを通常のitem capacityとして扱わず、未知ID/dataも
 （各版のAIR sentinelを含む）と、実item stream decoderで読んだ1,428 legacy・1,288 modern
 dataケースのnative getter結果。modernの3,490種類のprototype component値も元codecで保存する。
 prototype内のraw registry参照は固定vanilla oracleのcontextに属し、実接続へIDを注入しない。
-今回のproperty getterが使うprototype値は参照のないscalar/presenceだけ。
-全componentの意味・item比較/hash・slot規則とdata付き操作は残作業である。
+property getterが使うprototype値は参照のないscalar/presenceだけ。
+受信itemのnative比較は上記の`ReceivedItem`のmethodで実装済みで、
+data付き在庫操作にも下記の限定範囲で対応する。未解決constructor、実server cacheに対応する
+item hash、一般のslot規則・data付き操作全体には対応していない。
 tool/input/JAR digestは`item_properties_source.json`に保存し、再生成は
 `scripts/export_item_properties.py`、保存出力照合は`--normalize-only --check`で行う。
 JVMは512 MiB・CPU 1で順番に実行する。
@@ -469,15 +471,25 @@ registry参照は元の数値/inline/tag表現を保持する。
 検証fixtureのvanilla registry IDsを実接続へ注入したり、名前を推測したりしない。
 実受信のentry lookupは`Client::server_registry_state()`に追加した。
 `ServerRegistryId`をconnection/configurationへ束縛し、再設定後の旧IDを拒否する。
-一般componentのinline/tag表現の解釈やlegacy codecの個別entry resolverは引き続き別作業。
+比較時のregistry参照・inline値・named tagは受信ownerに結び付けて扱い、
+不足したregistryや未宣言tagはエラーにする。
 詳細は[接続先から受信したregistry](common-server-registries.md)を参照。
 容量・耐久の共通property getterとtyped NBTは実装済み。
-一般component/text等価性、完全なprototype統合、item/cache hashとslot規則は残作業。
+`ReceivedItem::native_equivalent` / `native_data_equivalent`は同じconnection/configuration内で
+legacyのconstructor補正後のNBTとmodernのprototype/patchを統合したtyped値を比較する。
+対応するtextも比較するが、任意のtext内item/dialog constructor、tag再読込をまたぐnamed-holderの
+寿命、実server cacheに対応するitem hashは未対応。未解決値を等価・不等価と推測しない。
 
-この段階は受信・保持を追加する。既存のdefault-onlyクリック/転送/返却/設置等が、
-component付きstackをdefaultと扱うことはない。
-native-only default SWAPとdefault cursor hashも送信前に拒否する。
-component付きitemの操作、任意legacy NBTの操作、crafting等は後続の統合作業で実装・検証する。
+両版・両modeの`swap_hotbar` / `swap_container_hotbar`、通常Left/Rightの`click_inventory`、
+`transfer_inventory`と`close_container`のcursor返却は、受信registryとconstructorで意味を解決できる
+legacy NBT/modern component付きstackにも対応する。実受信predecessor、対応するscreen/slot、
+実効容量・native受入れ規則など各操作の条件を検査し、予測・完全送信・実受信結果を区別する。
+詳細は[交換](common-inventory-swaps.md)、[通常クリック](common-inventory-clicks.md)、
+[Shift転送](common-inventory-transfers.md)、[cursor返却とclose](common-container-close.md)を参照。
+未解決dataや未対応の特殊item PICKUP override、bundle内部への収納などの一般操作は未対応。
+native-only default SWAPとdefault cursor hashはcomponent付きstackを拒否する。
+共通のdata付きmodern PICKUP等はcomponent/cache hashを生成せず、revision不一致によるfull resyncを要求する。
+crafting結果の取得・転送は専用APIの条件に従い、任意のdata付き操作へ一般化しない。
 
 ## 独立検証
 

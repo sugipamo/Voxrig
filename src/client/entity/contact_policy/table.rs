@@ -22,7 +22,7 @@ macro_rules! ids {
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     Class {
         Qualified,
@@ -65,7 +65,7 @@ ids!(ScenarioSetId {
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     TickModel {
         NoTickBody,
@@ -77,7 +77,7 @@ ids!(
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     GeometryModel {
         NotApplicable,
@@ -89,7 +89,7 @@ ids!(
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     MetadataModel {
         NotApplicable,
@@ -99,7 +99,7 @@ ids!(
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     TeamModel {
         NotApplicable,
@@ -109,7 +109,7 @@ ids!(
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     IdentityModel {
         NotApplicable,
@@ -123,7 +123,7 @@ ids!(LocalityId {
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     EnvelopeHandler {
         None,
@@ -133,7 +133,7 @@ ids!(
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     LaneContract {
         OwnedContact,
@@ -144,7 +144,7 @@ ids!(
 ids!(
     #[expect(
         dead_code,
-        reason = "Retained frozen policy inventory; no current readers"
+        reason = "Kept intentionally as a reference inventory table of frozen policy ids; no runtime readers"
     )]
     VehicleModel {
         Unknown,
