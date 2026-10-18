@@ -117,10 +117,34 @@ fn face(axis: usize, positive: bool) -> BlockFace {
 
 fn raycast_region(origin: [f64; 3], direction: [f64; 3], max_distance: f64) -> Region {
     let end = [0, 1, 2].map(|a| origin[a] + direction[a] * max_distance);
-    Region {
+    let mut region = Region {
         min: [0, 1, 2].map(|a| origin[a].min(end[a]).floor() as i32),
         max: [0, 1, 2].map(|a| origin[a].max(end[a]).floor() as i32),
+    };
+    // Leave invalid geometry for the caller's validation before walking cells.
+    if region.volume().is_err() {
+        return region;
     }
+    // Replay each axis using raycast's arithmetic, including its inclusive
+    // distance limit. Axis interleaving does not change these crossing times.
+    // This covers both rounded endpoints and drift from repeated additions.
+    for axis in 0..3 {
+        if direction[axis] == 0.0 {
+            continue;
+        }
+        let mut position = origin[axis].floor() as i32;
+        let step = if direction[axis] > 0.0 { 1 } else { -1 };
+        let delta = 1.0 / direction[axis].abs();
+        let boundary = f64::from(position) + if step > 0 { 1.0 } else { 0.0 };
+        let mut next = (boundary - origin[axis]) / direction[axis];
+        while next <= max_distance {
+            position += step;
+            next += delta;
+        }
+        region.min[axis] = region.min[axis].min(position);
+        region.max[axis] = region.max[axis].max(position);
+    }
+    region
 }
 
 /// Traverse cells along the ray (Amanatides–Woo) and test each cell's boxes,
@@ -442,6 +466,57 @@ mod tests {
     #[test]
     fn bounded_negative_endpoint_face_hits() {
         assert_bounded_endpoint_hit(-1.0, [-1, 65, 0], BlockFace::East);
+    }
+
+    #[test]
+    fn bounded_rays_cover_endpoint_rounding_and_accumulated_drift() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            // The +x endpoint rounds below 1; the -x eighth crossing occurs
+            // before the computed endpoint reaches -7 because of DDA drift.
+            for (direction, distance, last_cell) in [
+                ([0.6, 0.8, 0.0], 1.5, [1, 66, 0]),
+                ([-0.6, 0.8, 0.0], 11.833333333333332, [-8, 74, 0]),
+            ] {
+                let origin = [0.1, 65.5, 0.5];
+                let region = raycast_region(origin, direction, distance);
+                let lookup = bounded_world(region, None);
+                let visited_last = std::cell::Cell::new(false);
+                let result = raycast(version, origin, direction, distance, |p| {
+                    if p == last_cell {
+                        visited_last.set(true);
+                    }
+                    lookup(p)
+                });
+                assert_eq!(result.unwrap(), BlockRaycast::Miss, "{version:?}");
+                assert!(visited_last.get(), "{version:?}: {direction:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn bounded_max_length_rays_fit_region_volume_limit() {
+        for x in -1..=1 {
+            for y in -1..=1 {
+                for z in -1..=1 {
+                    let direction = [f64::from(x), f64::from(y), f64::from(z)];
+                    let length = direction.iter().map(|v| v * v).sum::<f64>().sqrt();
+                    if length == 0.0 {
+                        continue;
+                    }
+                    let direction = direction.map(|v| v / length);
+                    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+                        for origin in [[0.0, 65.0, 0.0], [0.5, 65.5, 0.5]] {
+                            assert_eq!(
+                                bounded_ray(version, origin, direction, MAX_RAYCAST_DISTANCE, None)
+                                    .unwrap(),
+                                BlockRaycast::Miss,
+                                "{version:?}: {origin:?}, {direction:?}",
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]
