@@ -1,10 +1,7 @@
 //! Shared native fresh-miner admission and once-only recovery ownership.
 use super::*;
 use crate::diagnostic_projection::diagnostic_record;
-
-fn unavailable(message: &str) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
-}
+use crate::error::state_error;
 
 pub use crate::client::survival::{
     MiningRecoveryAttempt, MiningRecoveryMethod, MiningRecoveryTarget,
@@ -81,7 +78,7 @@ pub(super) fn identity(state: &State) -> Result<LoginIdentity> {
     state
         .identity
         .clone()
-        .ok_or_else(|| unavailable("authenticated login identity unavailable"))
+        .ok_or_else(|| state_error("authenticated login identity unavailable"))
 }
 pub(super) struct FreshMiningConnection {
     pub(super) operations: Operations,
@@ -152,7 +149,7 @@ pub(super) async fn connect_fresh_miner(
         || state.operations.game_mode != Some(GameMode::Survival)
         || state.world.dimension.as_ref().map(|d| &d.0) != Some(&intent.dimension)
     {
-        return Err(unavailable(
+        return Err(state_error(
             "fresh miner identity, mode or dimension differs",
         ));
     }
@@ -185,7 +182,7 @@ pub(super) async fn connect_fresh_miner(
             .slots
             .contains(&InventorySlot::Unavailable)
     {
-        return Err(unavailable(
+        return Err(state_error(
             "fresh survival site/player/inventory needs inspection and a new plan",
         ));
     }
@@ -217,7 +214,7 @@ impl Operations {
             || authenticated.name != miner.name
             || authenticated.server != miner.server
         {
-            return Err(unavailable(
+            return Err(state_error(
                 "recovery requires the closed original authenticated miner",
             ));
         }
@@ -225,9 +222,9 @@ impl Operations {
             .mining
             .as_mut()
             .filter(|m| m.intent == *intent)
-            .ok_or_else(|| unavailable("recovery belongs to another mining attempt"))?;
+            .ok_or_else(|| state_error("recovery belongs to another mining attempt"))?;
         if record.recovery_attempt.is_some() {
-            return Err(unavailable(
+            return Err(state_error(
                 "mining recovery already attempted; no second login",
             ));
         }

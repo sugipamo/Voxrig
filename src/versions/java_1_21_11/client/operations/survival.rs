@@ -355,7 +355,7 @@ pub(super) fn look_flags(state: &mut State, tick: u64) -> Result<u8> {
 }
 
 fn unavailable(message: impl std::fmt::Display) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 struct StandingRegion {
     bounds: [f64; 6],

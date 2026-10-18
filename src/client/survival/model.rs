@@ -1,12 +1,10 @@
 //! Version-selected bounded dry-terrain motion rules, shared by adapter admission.
 //! Native float/trig/input and collision fixtures are independently generated.
 use super::{MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, SurvivalControl, SurvivalInput};
+use crate::error::invalid_input;
 use crate::versions::table::{SmallVelocity, StepSearch};
 use crate::{Error, ErrorKind, MinecraftVersion, Result};
 
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
-}
 pub(crate) fn validate_controls(controls: &[SurvivalControl]) -> Result<()> {
     if controls.is_empty()
         || controls.len() > MAX_SURVIVAL_CONTROL_TICKS
@@ -16,7 +14,9 @@ pub(crate) fn validate_controls(controls: &[SurvivalControl]) -> Result<()> {
                 || !(-1..=1).contains(&control.input.strafe)
         })
     {
-        return Err(invalid("motion requires 1..120 bounded digital inputs"));
+        return Err(invalid_input(
+            "motion requires 1..120 bounded digital inputs",
+        ));
     }
     Ok(())
 }
@@ -32,12 +32,14 @@ pub(crate) fn predict(
     for control in controls {
         let proposed = model.intent(control.input, control.yaw);
         if proposed.iter().any(|value| value.abs() > 1.0) {
-            return Err(invalid("motion exceeds bounded dry preview step"));
+            return Err(invalid_input("motion exceeds bounded dry preview step"));
         }
         let boxes = geometry(model.version, &mut block_at, model.frame.position, proposed)?;
         model.advance(control.input, proposed, &boxes);
         if model.frame.position[1] < origin_y - 3.0 {
-            return Err(invalid("preview falls outside bounded construction height"));
+            return Err(invalid_input(
+                "preview falls outside bounded construction height",
+            ));
         }
         frames.push(model.frame.clone());
     }

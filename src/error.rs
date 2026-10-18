@@ -114,6 +114,16 @@ impl Error {
     }
 }
 
+/// Creates an error for unavailable or invalid internal state.
+pub(crate) fn state_error(message: impl std::fmt::Display) -> Error {
+    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+}
+
+/// Creates an error for invalid caller input.
+pub(crate) fn invalid_input(message: impl std::fmt::Display) -> Error {
+    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
+}
+
 impl From<anyhow::Error> for Error {
     fn from(source: anyhow::Error) -> Self {
         Self {

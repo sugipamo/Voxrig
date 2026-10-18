@@ -103,7 +103,7 @@ diagnostic_record! {
     diagnostic_serde { #[serde(tag = "status", rename_all = "snake_case")] }
 }
 fn unavailable(message: &str) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 fn air(block: &crate::NativeBlockState) -> bool {
     matches!(

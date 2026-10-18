@@ -1,5 +1,6 @@
 //! Effective item properties from original prototypes and exact received data.
 use super::{ItemData, ItemStack, nbt::NbtValue, registry::Registry};
+use crate::error::invalid_input;
 use crate::{Error, ErrorKind, MinecraftVersion, Result};
 use std::{collections::BTreeMap, sync::OnceLock};
 
@@ -56,14 +57,14 @@ fn defaults(version: MinecraftVersion) -> &'static Defaults {
 }
 pub(crate) fn legacy_constructor_tag(item: &ItemStack) -> Result<Option<std::sync::Arc<NbtValue>>> {
     if item.id.version() != MinecraftVersion::Java1_16_1 {
-        return Err(invalid("legacy item belongs to another version"));
+        return Err(invalid_input("legacy item belongs to another version"));
     }
     let properties = item.properties()?;
     let default = defaults(MinecraftVersion::Java1_16_1)
         .defaults
         .iter()
         .find(|d| d.native_id == item.id.value() && d.name == item.name && !d.represents_empty)
-        .ok_or_else(|| invalid("legacy constructor facts unavailable; update Voxrig"))?;
+        .ok_or_else(|| invalid_input("legacy constructor facts unavailable; update Voxrig"))?;
     let root = item.custom_data()?.map(|v| v.item_root());
     Ok(if default.normalizes_damage_on_read {
         Some(super::nbt::item_damage(root, properties.damage))
@@ -72,9 +73,6 @@ pub(crate) fn legacy_constructor_tag(item: &ItemStack) -> Result<Option<std::syn
     })
 }
 
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
-}
 struct ModernPrototypes {
     values: Vec<super::ItemComponent>,
     items: BTreeMap<i32, Vec<usize>>,
@@ -202,13 +200,13 @@ impl ItemStack {
         let version = self.id.version();
         let registry = Registry::for_version(version);
         if self.count == 0 || registry.item_definition(self.id)?.name != self.name {
-            return Err(invalid("invalid item count or identity"));
+            return Err(invalid_input("invalid item count or identity"));
         }
         let default = defaults(version)
             .defaults
             .iter()
             .find(|d| d.native_id == self.id.value() && d.name == self.name && !d.represents_empty)
-            .ok_or_else(|| invalid("native item properties unavailable; update Voxrig"))?;
+            .ok_or_else(|| invalid_input("native item properties unavailable; update Voxrig"))?;
         match (version, &self.data) {
             (MinecraftVersion::Java1_16_1, ItemData::Default | ItemData::LegacyNbt { .. }) => {
                 let tag = self.custom_data()?;
@@ -282,7 +280,7 @@ impl ItemStack {
                     stackable: max_stack_size > 1 && (!damageable || !damaged),
                 })
             }
-            _ => Err(invalid(
+            _ => Err(invalid_input(
                 "item data representation belongs to another adapter",
             )),
         }

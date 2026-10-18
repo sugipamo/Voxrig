@@ -72,7 +72,7 @@ pub(crate) enum Dispatch {
     ContextChanged,
 }
 pub(crate) fn unavailable(message: impl std::fmt::Display) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 pub(crate) fn eye_cell(player: &PlayerObservation) -> Result<([i32; 3], f64)> {
     let feet = player

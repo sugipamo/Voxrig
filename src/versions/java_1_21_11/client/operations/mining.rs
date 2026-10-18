@@ -163,7 +163,7 @@ diagnostic_record! {
 }
 
 fn unavailable(message: impl std::fmt::Display) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 fn owning(state: &State, intent: &MiningIntent, connection_id: u64) -> Result<()> {
     if intent.connection_id != connection_id

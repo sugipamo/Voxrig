@@ -4,6 +4,7 @@
 //! such and are never treated as air.
 use super::adapter::CoreOps;
 use super::{BlockFace, SessionStamp};
+use crate::error::invalid_input;
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, ObservedBlock, Region, Result};
 
 /// Longest supported raycast, in blocks measured from the supplied origin.
@@ -57,10 +58,6 @@ pub struct BlockRaycastObservation {
     pub receive_sequence: u64,
     /// Outcome.
     pub result: BlockRaycast,
-}
-
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
 }
 
 /// Native collision boxes of a complete state, cell-relative.
@@ -178,7 +175,7 @@ pub(crate) fn raycast(
         }
     }
     loop {
-        match cell(position).ok_or_else(|| invalid("raycast left the captured region"))? {
+        match cell(position).ok_or_else(|| invalid_input("raycast left the captured region"))? {
             None => return Ok(BlockRaycast::Unloaded { position }),
             Some(state) => {
                 let mut best: Option<(f64, usize, bool)> = None;
@@ -224,7 +221,7 @@ impl super::Client {
     /// `"minecraft:oak_log"`), inside one bounded capture.
     pub async fn find_blocks(&self, region: Region, names: &[&str]) -> Result<BlockSearch> {
         if names.is_empty() {
-            return Err(invalid("block search needs at least one name"));
+            return Err(invalid_input("block search needs at least one name"));
         }
         let capture = super::dispatch!(&self.adapter, a => CoreOps::capture(a, region).await)?;
         let mut unloaded = 0;
@@ -261,12 +258,12 @@ impl super::Client {
     ) -> Result<BlockRaycastObservation> {
         let scale = direction.iter().map(|v| v.abs()).fold(0.0, f64::max);
         if origin.iter().chain(&direction).any(|v| !v.is_finite()) || scale == 0.0 {
-            return Err(invalid(
+            return Err(invalid_input(
                 "raycast origin and direction must be finite and non-zero",
             ));
         }
         if !(max_distance > 0.0 && max_distance <= MAX_RAYCAST_DISTANCE) {
-            return Err(invalid("raycast distance must be in (0, 64]"));
+            return Err(invalid_input("raycast distance must be in (0, 64]"));
         }
         // Scale before taking the norm: finite non-zero directions can otherwise
         // overflow or underflow and silently turn a long ray into a zero ray.
