@@ -10,6 +10,7 @@ macro_rules! entities {
         impl EntityType {
             pub(crate) const ALL: &'static [Self] = &[$(Self::$variant),*];
             pub(crate) const fn ordinal(self) -> usize { self as usize }
+            #[cfg(test)]
             pub(crate) const fn name(self) -> &'static str { match self { $(Self::$variant => $name),* } }
             pub(crate) const fn native_id(self, version: MinecraftVersion) -> Option<i32> {
                 match version {

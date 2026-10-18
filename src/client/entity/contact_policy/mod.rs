@@ -9,7 +9,6 @@
 //! `VOXRIG_UPDATE_CONTACT_BASELINE=1 cargo test --locked -j1 frozen_contact_policy_baseline`.
 //! The test enumerates the full present product; run-length encoding only
 //! compresses identical consecutive packet outcomes in the checked-in text.
-#![allow(dead_code)]
 pub(super) mod key;
 
 #[cfg(test)]
@@ -88,6 +87,7 @@ fn callback_decision(
 }
 
 /// The finite evidence allowlist remains distinct from policy pass-through.
+#[cfg(test)]
 pub(super) fn harmless_packet(
     version: crate::MinecraftVersion,
     name: &str,
