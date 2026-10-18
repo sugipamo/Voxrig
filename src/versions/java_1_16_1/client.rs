@@ -7758,6 +7758,154 @@ mod tests {
         (bot, server, release_tx)
     }
 
+    async fn terminal_event_visible_when_waiters_wake(event: Event) {
+        use std::future::Future;
+        use std::task::{Context, Wake, Waker};
+
+        struct InspectTerminalWake {
+            bot: Bot,
+            cursor: u64,
+            sequence: u64,
+            event: Event,
+            wakes: AtomicUsize,
+        }
+
+        impl Wake for InspectTerminalWake {
+            fn wake(self: Arc<Self>) {
+                self.wake_by_ref();
+            }
+
+            fn wake_by_ref(self: &Arc<Self>) {
+                // Notify calls this synchronously, before emit can continue.
+                // This deterministically observes the state a racing waiter sees.
+                assert!(self.bot.is_stopped());
+                let log = self
+                    .bot
+                    .common_events
+                    .lock()
+                    .unwrap()
+                    .after(self.cursor, self.sequence)
+                    .unwrap();
+                assert_eq!(
+                    log.events.len(),
+                    1,
+                    "terminal event must be recorded before waking receive waiters"
+                );
+                assert_eq!(log.events[0].kind, crate::client::EventKind::Disconnected);
+                assert_eq!(log.events[0].receive_sequence, self.sequence);
+                assert_eq!(log.cursor, self.cursor + 1);
+                assert_eq!(
+                    self.bot.observation_events.lock().unwrap().events.back(),
+                    Some(&self.event),
+                    "observers must see the terminal event before waiters wake"
+                );
+                self.wakes.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+
+        let (bot, server, release) =
+            connected_test_bot(ConnectionOptions::default(), Vec::new()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let mut native_events = bot.subscribe();
+        let initial = client.events_after(0).await.unwrap();
+        bot.protocol_packet_sequence.store(41, Ordering::Release);
+        let ordinary = Event::ChunkLoaded { x: 3, z: 5 };
+        bot.emit(ordinary.clone());
+        assert!(!bot.is_stopped());
+        assert_eq!(native_events.try_recv().unwrap(), ordinary);
+        let before = client.events_after(initial.cursor).await.unwrap();
+        assert_eq!(before.cursor, initial.cursor + 1);
+        assert_eq!(before.events.len(), 1);
+        assert_eq!(before.events[0].receive_sequence, 41);
+        assert_eq!(
+            before.events[0].kind,
+            crate::client::EventKind::ChunkLoaded { x: 3, z: 5 }
+        );
+        let queued_before = bot.observation_events.lock().unwrap().events.len();
+        bot.protocol_packet_sequence.store(42, Ordering::Release);
+        let inspect = Arc::new(InspectTerminalWake {
+            bot: bot.clone_internal(),
+            cursor: before.cursor,
+            sequence: 42,
+            event: event.clone(),
+            wakes: AtomicUsize::new(0),
+        });
+        let waker = Waker::from(inspect.clone());
+        let mut cx = Context::from_waker(&waker);
+        let limit = Duration::from_secs(5);
+        let log = {
+            // Register each terminal notification, including the actual common
+            // wait_for_events future on packet_applied. No scheduler race or
+            // elapsed-time delay is needed to catch the old ordering.
+            let cancel = bot.cancel.notified();
+            let ready = bot.ready.notified();
+            let world_updated = bot.world_updated.notified();
+            let wait = client.wait_for_events(before.cursor, limit);
+            tokio::pin!(cancel, ready, world_updated, wait);
+            assert!(cancel.as_mut().poll(&mut cx).is_pending());
+            assert!(ready.as_mut().poll(&mut cx).is_pending());
+            assert!(world_updated.as_mut().poll(&mut cx).is_pending());
+            assert!(wait.as_mut().poll(&mut cx).is_pending());
+            bot.emit(event.clone());
+            assert_eq!(inspect.wakes.load(Ordering::Relaxed), 4);
+            wait.await.unwrap()
+        };
+        assert_eq!(log.cursor, before.cursor + 1);
+        assert_eq!(log.events.len(), 1);
+        assert_eq!(log.events[0].kind, crate::client::EventKind::Disconnected);
+        assert_eq!(log.events[0].receive_sequence, 42);
+        assert_eq!(native_events.try_recv().unwrap(), event);
+
+        // Both terminal variants must be ignored entirely after the first one.
+        bot.emit(Event::Disconnected {
+            reason: "duplicate disconnect".to_owned(),
+        });
+        bot.emit(Event::Error {
+            kind: "connection",
+            message: "duplicate error".to_owned(),
+        });
+        assert_eq!(inspect.wakes.load(Ordering::Relaxed), 4);
+        assert!(matches!(
+            native_events.try_recv(),
+            Err(broadcast::error::TryRecvError::Empty)
+        ));
+        {
+            let queued = bot.observation_events.lock().unwrap();
+            assert_eq!(queued.events.len(), queued_before + 1);
+            assert_eq!(queued.events.back(), Some(&event));
+        }
+        let after = client.events_after(log.cursor).await.unwrap();
+        assert_eq!(after.cursor, log.cursor);
+        assert!(after.events.is_empty());
+        let receive_error = client.wait_for_receive(42, limit).await.unwrap_err();
+        let event_error = client.wait_for_events(log.cursor, limit).await.unwrap_err();
+        assert_eq!(receive_error.kind(), crate::ErrorKind::Disconnected);
+        assert_eq!(event_error.kind(), receive_error.kind());
+        assert_eq!(event_error.to_string(), receive_error.to_string());
+
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn legacy_terminal_disconnect_is_visible_when_waiters_wake() {
+        terminal_event_visible_when_waiters_wake(Event::Disconnected {
+            reason: "server closed the connection".to_owned(),
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn legacy_terminal_connection_error_is_visible_when_waiters_wake() {
+        terminal_event_visible_when_waiters_wake(Event::Error {
+            kind: "connection",
+            message: "transport failed".to_owned(),
+        })
+        .await;
+    }
+
     pub(super) async fn ready_test_bot(
         connection_options: ConnectionOptions,
     ) -> (Bot, tokio::task::JoinHandle<()>, oneshot::Sender<()>) {
