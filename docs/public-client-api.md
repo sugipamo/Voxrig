@@ -21,7 +21,9 @@ closeのcomplete dispatchとactual replyは[共通container close](common-contai
 close後も同じ`swap_hotbar`を使えます。actual received windowと明示的なlocal UIを分ける
 `player_screen` / `player_screen_revision`は[共通プレイヤー画面](common-player-screen.md)を参照してください。
 共通`Survival::craft_once`は未確認のtakeも記録として返します。`craft_once_checked`は
-`ObservedTransferred`だけを成功とし、未確認なら記録付きの`CraftOnceError::OutcomeUnknown`を返します。
+`ObservedTransferred`だけを成功とし、期限時点で`Pending`または受信状態に衝突があるtakeは記録付きの`CraftOnceError::OutcomeUnknown`を返します。
+入力不正・fill・結果なしやtakeのframe write前の拒否は、元のエラー付きの`CraftOnceError::Failed`です。
+受理・保持済みtakeの配送が送信失敗などで不明なら、fill記録とtakeのID付きの`OutcomeUnknown`（`RequiresInspection`）を返し、再送しません。
 期限超過を取消や再送許可にせず、受信状態を照合します。[在庫補助](common-inventory-helpers.md)を参照してください。
 下記の追加検査契約は
 `client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。

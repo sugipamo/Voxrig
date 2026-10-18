@@ -86,7 +86,28 @@ impl Session {
         self.send_work(id, payload, work.guard()).await
     }
 
+    pub(super) async fn send_with_attempt(
+        &self,
+        id: i32,
+        payload: &[u8],
+        write_started: Option<&AtomicBool>,
+    ) -> Result<()> {
+        let work = ScopedWork::new(self.ledger.try_work()?);
+        self.send_work_with_attempt(id, payload, work.guard(), write_started)
+            .await
+    }
+
     pub(super) async fn send_work(&self, id: i32, payload: &[u8], work: &WorkGuard) -> Result<()> {
+        self.send_work_with_attempt(id, payload, work, None).await
+    }
+
+    async fn send_work_with_attempt(
+        &self,
+        id: i32,
+        payload: &[u8],
+        work: &WorkGuard,
+        write_started: Option<&AtomicBool>,
+    ) -> Result<()> {
         let cancelled = self.cancel.notified();
         tokio::pin!(cancelled);
         cancelled.as_mut().enable();
@@ -98,8 +119,15 @@ impl Session {
             writer = self.writer.lock() => writer,
         };
         let compression = writer.compression;
-        self.write_frame(&mut writer.stream, compression, id, payload, work)
-            .await
+        self.write_frame(
+            &mut writer.stream,
+            compression,
+            id,
+            payload,
+            work,
+            write_started,
+        )
+        .await
     }
 
     // Shared by the real TCP sender and bounded stream tests. The caller owns
@@ -113,7 +141,7 @@ impl Session {
         payload: &[u8],
     ) -> Result<()> {
         let work = ScopedWork::new(self.ledger.admit().expect("test sender admission"));
-        self.write_frame(stream, compression, id, payload, work.guard())
+        self.write_frame(stream, compression, id, payload, work.guard(), None)
             .await
     }
 
@@ -124,6 +152,7 @@ impl Session {
         id: i32,
         payload: &[u8],
         work: &WorkGuard,
+        write_started: Option<&AtomicBool>,
     ) -> Result<()> {
         let cancelled = self.cancel.notified();
         tokio::pin!(cancelled);
@@ -137,7 +166,7 @@ impl Session {
         let result = tokio::select! {
             biased;
             _ = &mut cancelled => Err(anyhow::anyhow!("connection closed during frame write")),
-            result = stream.send(work, compression, id, payload) => result,
+            result = stream.send_with_attempt(work, compression, id, payload, write_started) => result,
         };
         match result {
             Ok(()) => {

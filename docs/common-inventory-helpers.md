@@ -24,7 +24,9 @@ player 画面でも、開いている container の player 部分（検証済み
 
 ## `craft_once_checked(ingredients)`
 
-同じ手順・期限で実行し、take が `ObservedTransferred` の場合だけ `Ok` を返します。期限時点で `Pending` なら `CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::Timeout }`、inspection が必要なら cause は `RequiresInspection` です。`record.take.id` と最後の `record.take.stage` を保持します。通常のエラーは `CraftOnceError::Failed` に残ります。
+同じ手順・期限で実行し、take が `ObservedTransferred` の場合だけ `Ok` を返します。期限時点で `Pending` なら `CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::Timeout }`、inspection が必要なら cause は `RequiresInspection` です。`record.take.id` と最後の `record.take.stage` を保持します。入力不正・fill のエラー・結果なし、および take の frame write 前に予約・所有権・前提状態の検査で拒否された場合は、元のエラーを保持した `CraftOnceError::Failed` です。
+
+take が受理・保持された後、その送信が失敗して配送が不明になった場合は、`CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::RequiresInspection }` を返します。fill 記録と保持された take の記録（`record.take.id` を含む）を渡し、再送しません。take が保持されている、またはその記録が `RequiresInspection` になったという事実だけでは配送不明と判定しません。送信前の拒否は `Failed` のままです。公開型・シグネチャと `craft_once` の動作は変更しません。
 
 期限超過は失敗・取消の証明ではなく、server が後から適用する場合があります。受信在庫や `crafting_take_record()` で再観測・照合してから判断し、無条件に再送しません。
 

@@ -28,6 +28,7 @@
 #![allow(dead_code)] // Internal foundation/test diagnostics are not public APIs.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::watch;
 
@@ -666,25 +667,39 @@ impl<W: tokio::io::AsyncWrite + Unpin> SocketWriter<W> {
         id: i32,
         payload: &[u8],
     ) -> anyhow::Result<()> {
+        self.send_with_attempt(work, compression, id, payload, None)
+            .await
+    }
+    pub(crate) async fn send_with_attempt(
+        &mut self,
+        work: &WorkGuard,
+        compression: Option<i32>,
+        id: i32,
+        payload: &[u8],
+        write_started: Option<&AtomicBool>,
+    ) -> anyhow::Result<()> {
         work.observe_packet(id, payload)?;
         let permit = work
             .begin_write()
             .map_err(|e| anyhow::anyhow!("ledger write: {e:?}"))?;
         #[cfg(test)]
         if let Some(writer) = &mut self.replacement {
+            if let Some(started) = write_started {
+                started.store(true, Ordering::Release);
+            }
             crate::protocol::write_packet(writer, compression, id, payload).await?;
             publish_completion(permit);
             return Ok(());
         }
-        crate::protocol::write_packet(
-            self.inner.as_mut().ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotConnected, "writer released")
-            })?,
-            compression,
-            id,
-            payload,
-        )
-        .await?;
+        let writer = self.inner.as_mut().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotConnected, "writer released")
+        })?;
+        // Admission, predecessor checks and writer availability have succeeded.
+        // From this boundary a failed write can have delivered a frame prefix.
+        if let Some(started) = write_started {
+            started.store(true, Ordering::Release);
+        }
+        crate::protocol::write_packet(writer, compression, id, payload).await?;
         publish_completion(permit);
         Ok(())
     }

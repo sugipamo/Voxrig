@@ -2613,6 +2613,203 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    async fn checked_craft_fixture(bot: &Bot) {
+        seed(bot).await;
+        bot.common_receipts.lock().await.registries.finish();
+        let mut result = vec![0, 0, 0];
+        write_slot(
+            &mut result,
+            Some(&ItemStack {
+                item_id: crate::item_id("stick").unwrap(),
+                count: 4,
+                nbt: None,
+            }),
+        );
+        bot.apply_packet(0x16, result).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn checked_uncertain_take_delivery_retains_identity_without_resend() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        checked_craft_fixture(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let control = crate::client::ledger::testing::Control::default();
+        bot.writer.lock().await.inner.test_replace(control.writer());
+        control.release(1, false);
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.craft_once_checked(&[None; 4]).await });
+        control.until(|c| c.bytes().len() == 1).await;
+        let retained = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(retained.send.legacy_action.is_some());
+        control.fail(Some(1), false);
+        let error = timeout(Duration::from_secs(2), waiter)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(control.bytes().len(), 1, "must not resend the take");
+        let latest = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, retained.id);
+        assert_eq!(latest.stage, api::CraftingTakeStage::RequiresInspection);
+        let _ = bot.disconnect().await;
+        drop(release);
+        server.await.unwrap();
+        let api::CraftOnceError::OutcomeUnknown {
+            record,
+            cause: api::CraftOnceUnknownCause::RequiresInspection,
+        } = error
+        else {
+            panic!("uncertain admitted take must retain its identity: {error:?}");
+        };
+        assert_eq!(record.take.id, retained.id);
+        assert_eq!(
+            record.take.stage,
+            api::CraftingTakeStage::RequiresInspection
+        );
+        assert!(record.fill.result.is_some());
+        assert!(record.fill.clicks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn unchecked_uncertain_take_delivery_preserves_original_error() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        checked_craft_fixture(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let control = crate::client::ledger::testing::Control::default();
+        bot.writer.lock().await.inner.test_replace(control.writer());
+        control.release(1, false);
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.craft_once(&[None; 4]).await });
+        control.until(|c| c.bytes().len() == 1).await;
+        control.fail(Some(1), false);
+        let error = timeout(Duration::from_secs(2), waiter)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::Connection);
+        assert!(
+            error
+                .diagnostic()
+                .downcast_ref::<std::io::Error>()
+                .is_some()
+        );
+        assert_eq!(control.bytes().len(), 1);
+        let _ = bot.disconnect().await;
+        drop(release);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn checked_presend_reservation_failure_is_failed_even_with_inspection_record() {
+        use std::future::Future as _;
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        checked_craft_fixture(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let control = crate::client::ledger::testing::Control::default();
+        bot.writer.lock().await.inner.test_replace(control.writer());
+        let revision = bot.connection.motion_admission_revision().await.unwrap();
+        let ops = client.survival();
+        let mut craft = Box::pin(ops.craft_once_checked(&[None; 4]));
+        // Poll admission ourselves so the owner task cannot run between retention
+        // and queuing a competing actor reservation.
+        timeout(Duration::from_secs(2), async {
+            loop {
+                std::future::poll_fn(|cx| {
+                    assert!(craft.as_mut().poll(cx).is_pending());
+                    std::task::Poll::Ready(())
+                })
+                .await;
+                if bot.common_crafting_take.try_lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        bot.connection
+            .begin_crafting_result_transfer(999, revision, 0)
+            .await
+            .unwrap();
+        let error = timeout(Duration::from_secs(2), craft)
+            .await
+            .unwrap()
+            .unwrap_err();
+        let api::CraftOnceError::Failed(error) = error else {
+            panic!("reservation rejected before write must be Failed");
+        };
+        assert_eq!(error.kind(), crate::ErrorKind::State);
+        assert!(error.to_string().contains("crafting reservation"));
+        let retained = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.stage, api::CraftingTakeStage::RequiresInspection);
+        assert!(retained.send.legacy_action.is_none());
+        assert!(control.bytes().is_empty());
+        assert_eq!(control.progress().0, 0);
+        bot.disconnect().await.unwrap();
+        drop(release);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn checked_presend_failure_preserves_original_error_without_write() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        checked_craft_fixture(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for ingredients in [vec![], vec![Some("diamond"), None, None, None]] {
+            let legacy = client
+                .survival()
+                .craft_once(&ingredients)
+                .await
+                .unwrap_err();
+            let checked = client
+                .survival()
+                .craft_once_checked(&ingredients)
+                .await
+                .unwrap_err();
+            let api::CraftOnceError::Failed(error) = checked else {
+                panic!("pre-send failure must be Failed");
+            };
+            assert_eq!(error.kind(), legacy.kind());
+            assert_eq!(error.to_string(), legacy.to_string());
+        }
+        assert!(
+            client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        drop(release);
+        server.await.unwrap();
+    }
+
     #[tokio::test]
     async fn crafting_take_keeps_the_admission_gate_ahead_of_queued_receipts_until_write() {
         let (bot, mut packets, release, server) =

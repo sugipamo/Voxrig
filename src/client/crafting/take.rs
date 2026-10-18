@@ -6,6 +6,36 @@ use crate::client::inventory::{
 };
 use crate::client::{GameMode, ObservedValue, SlotKnowledge, ValueSource};
 
+/// Per-call evidence for the checked helper, separate from public take history.
+/// Retention and reservation alone never establish uncertain delivery.
+#[derive(Default)]
+pub(crate) struct Submission {
+    pub(crate) write_started: Arc<std::sync::atomic::AtomicBool>,
+    retained: std::sync::Mutex<Option<CraftingTakeRecord>>,
+}
+impl Submission {
+    pub(crate) fn retain(&self, record: &CraftingTakeRecord) {
+        *self.retained.lock().expect("crafting submission") = Some(record.clone());
+    }
+
+    pub(crate) fn uncertain_record(&self, error: &crate::Error) -> Option<CraftingTakeRecord> {
+        if !self
+            .write_started
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
+            return None;
+        }
+        self.retained
+            .lock()
+            .expect("crafting submission")
+            .clone()
+            .map(|mut record| {
+                record.inspection(format!("crafting submission uncertain: {error}"));
+                record
+            })
+    }
+}
+
 /// Identity of one connection/world-local result take; never replay authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct CraftingTakeId {
