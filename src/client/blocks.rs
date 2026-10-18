@@ -115,6 +115,14 @@ fn face(axis: usize, positive: bool) -> BlockFace {
     }
 }
 
+fn raycast_region(origin: [f64; 3], direction: [f64; 3], max_distance: f64) -> Region {
+    let end = [0, 1, 2].map(|a| origin[a] + direction[a] * max_distance);
+    Region {
+        min: [0, 1, 2].map(|a| origin[a].min(end[a]).floor() as i32),
+        max: [0, 1, 2].map(|a| origin[a].max(end[a]).floor() as i32),
+    }
+}
+
 /// Traverse cells along the ray (Amanatides–Woo) and test each cell's boxes,
 /// stopping at the first cell with a hit, like the native clip.
 pub(crate) fn raycast(
@@ -241,11 +249,7 @@ impl super::Client {
         let direction = direction.map(|v| v / scale);
         let length = direction.iter().map(|v| v * v).sum::<f64>().sqrt();
         let direction = direction.map(|v| v / length);
-        let end = [0, 1, 2].map(|a| origin[a] + direction[a] * max_distance);
-        let mut region = Region {
-            min: [0, 1, 2].map(|a| origin[a].min(end[a]).floor() as i32),
-            max: [0, 1, 2].map(|a| origin[a].max(end[a]).floor() as i32),
-        };
+        let mut region = raycast_region(origin, direction, max_distance);
         region.volume()?;
         // Cells above or below the world contain nothing; only capture inside it.
         let player = super::dispatch!(&self.adapter, a => CoreOps::player_state(a).await)?;
@@ -315,6 +319,129 @@ mod tests {
                 Some(Some(state("minecraft:air")))
             }
         }
+    }
+
+    fn bounded_world(
+        region: Region,
+        stone_at: Option<[i32; 3]>,
+    ) -> impl Fn([i32; 3]) -> Option<Option<NativeBlockState>> {
+        move |p| {
+            if (0..3).any(|a| p[a] < region.min[a] || p[a] > region.max[a]) {
+                None
+            } else {
+                Some(Some(state(if Some(p) == stone_at {
+                    "minecraft:stone"
+                } else {
+                    "minecraft:air"
+                })))
+            }
+        }
+    }
+
+    fn bounded_ray(
+        version: MinecraftVersion,
+        origin: [f64; 3],
+        direction: [f64; 3],
+        distance: f64,
+        stone_at: Option<[i32; 3]>,
+    ) -> Result<BlockRaycast> {
+        let region = raycast_region(origin, direction, distance);
+        region.volume().unwrap();
+        raycast(
+            version,
+            origin,
+            direction,
+            distance,
+            bounded_world(region, stone_at),
+        )
+    }
+
+    #[test]
+    fn bounded_negative_endpoint_misses() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let result = bounded_ray(version, [0.5, 65.5, 0.5], [-1.0, 0.0, 0.0], 0.5, None);
+            assert_eq!(result.unwrap(), BlockRaycast::Miss, "{version:?}");
+        }
+    }
+
+    #[test]
+    fn bounded_negative_integer_origin_misses() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let result = bounded_ray(version, [0.0, 65.5, 0.5], [-1.0, 0.0, 0.0], 1.0, None);
+            assert_eq!(result.unwrap(), BlockRaycast::Miss, "{version:?}");
+        }
+    }
+
+    #[test]
+    fn bounded_negative_diagonal_endpoint_misses() {
+        let component = 1.0 / 2.0f64.sqrt();
+        let distance = 0.5 / component;
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let result = bounded_ray(
+                version,
+                [0.5, 65.5, 0.5],
+                [-component, -component, 0.0],
+                distance,
+                None,
+            );
+            assert_eq!(result.unwrap(), BlockRaycast::Miss, "{version:?}");
+        }
+    }
+
+    #[test]
+    fn bounded_positive_endpoint_mirrors_miss() {
+        let component = 1.0 / 2.0f64.sqrt();
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for (origin, direction, distance) in [
+                ([0.5, 65.5, 0.5], [1.0, 0.0, 0.0], 0.5),
+                ([0.0, 65.5, 0.5], [1.0, 0.0, 0.0], 1.0),
+                (
+                    [0.5, 65.5, 0.5],
+                    [component, component, 0.0],
+                    0.5 / component,
+                ),
+            ] {
+                assert_eq!(
+                    bounded_ray(version, origin, direction, distance, None).unwrap(),
+                    BlockRaycast::Miss,
+                    "{version:?}"
+                );
+            }
+        }
+    }
+
+    fn assert_bounded_endpoint_hit(direction: f64, position: [i32; 3], face: BlockFace) {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let result = bounded_ray(
+                version,
+                [0.5, 65.5, 0.5],
+                [direction, 0.0, 0.0],
+                0.5,
+                Some(position),
+            )
+            .unwrap();
+            assert_eq!(
+                result,
+                BlockRaycast::Hit {
+                    position,
+                    state: state("minecraft:stone"),
+                    face,
+                    point: [0.5 + direction * 0.5, 65.5, 0.5],
+                    distance: 0.5,
+                },
+                "{version:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn bounded_positive_endpoint_face_hits() {
+        assert_bounded_endpoint_hit(1.0, [1, 65, 0], BlockFace::West);
+    }
+
+    #[test]
+    fn bounded_negative_endpoint_face_hits() {
+        assert_bounded_endpoint_hit(-1.0, [-1, 65, 0], BlockFace::East);
     }
 
     #[test]
