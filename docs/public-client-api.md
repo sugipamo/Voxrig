@@ -27,7 +27,7 @@ close後も同じ`swap_hotbar`を使えます。actual received windowと明示�
 `client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。
 
 
-2026-10-03。deepplanning、minetool、DustRouteの改良をVoxrigへ集約する際の設計正本。
+本書は現在の公開client APIと、共通API・版別APIの責務を記録する。
 各プロジェクトのロードマップや過去のcheckpointは実装経緯の記録であり、公開APIの仕様ではない。
 
 ## 責務
@@ -36,16 +36,19 @@ Voxrigは接続、プロトコル、状態cache、クライアント物理、観
 目標、資源の意味付け、経路の選択、製作するrecipe、ゲーム内の成功判定、利用側の状態revisionは
 呼出側が所有する。名称と型は特定のBody、planner、MCP serviceへ依存させない。
 
-package名は`voxrig`、Rust crate名も`voxrig`とする。公開APIを再設計するため次のreleaseは
-`0.2.0`。旧Voxrig 0.1の`Bot`/`BotManager`と通常のimportを保ちつつ、追加fieldを持つstructの
-直接構築など、互換性のない変更は移行表に明記する。deepplanning派生版の互換性は約束しない。
+package名・Rust crate名は`voxrig`、現在のpackage versionは`0.2.0`。
+crate rootでは共通の`Client` / `ConnectionConfig` / `Observation` / `ObservedBlock` / `Region`等を
+公開し、`voxrig::prelude`は共通の`client::prelude`を再公開する。
+Java 1.16.1型のroot再公開は`pub(crate)`であり、利用側の公開importではない。
 
 ## APIの層
 
 - `Client`と`ConnectionConfig`はゲーム版を接続時に明示する入口。
-- `versions::java_1_16_1`と`versions::java_1_21_11`は版別の型・registry・操作・保証。
+- feature `native`で公開する`voxrig::versions::java_1_16_1`と`voxrig::versions::java_1_21_11`は
+  版別の型・registry・操作・保証。
   1.21.11は1.16.1の全機能を持つとは扱わない。版依存のIDやinventory形式を共通型へ丸めない。
-- `Bot`/`BotManager`とrootの互換importは1.16.1へ固定する。
+- `Bot` / `BotManager`等のJava 1.16.1型はfeature `native`を有効にし、
+  `voxrig::versions::java_1_16_1`配下からimportする。
 - `checked::SurvivalCapabilities::for_version()`は
   接続前にも確認できる静的な対応契約。`client.java_1_21_11()?.checked_survival()`はセッションに結び付いた検査付き操作を返す。
   現在は1.21.11の`ObservedDryCubeV1`と明示的に選ぶ`PredictedDryCubeV1`で、
