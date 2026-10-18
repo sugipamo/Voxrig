@@ -73,7 +73,7 @@ Five new tests cover malformed/truncated inventory packets and atomicity,
 cursor/window and stack admission, per-slot evidence freshness, window resets,
 and a real TCP transport with partial updates, timeout, refusal of duplicate
 mutation, resumed confirmation, reverse swap and connection ownership. This is
-an offline receive/transport test, not a live survival-building trial. Current
-1.21.11 survival walking and complete Blueprint construction remain
-unimplemented. [Bounded mining observations](survival-mining.md) now exist;
+an offline receive/transport test, not a live survival-building trial. Bounded
+1.21.11 survival walking is described in [motion controls](survival-motion-controls.md).
+Complete Blueprint construction remains unimplemented. [Bounded mining observations](survival-mining.md) now exist;
 observed removal still does not authorize continued construction.

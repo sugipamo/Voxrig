@@ -71,13 +71,13 @@ modernの専用horse openingやその他特殊UIは後続段階であり、通�
 両modeの`close_container`も実装し、complete dispatchとactual close replyを区別する。
 両modeでempty-handの監査済みstorage activationも実装する。
 完全送信とactual OPEN/full/cursorを分離する契約は[共通container open](common-container-open.md)を参照。
-一般クリック、split/shift、製作、装備は後続実装。
+通常の左・右クリックとShift転送、製作・装備の対応範囲は[通常クリック](common-inventory-clicks.md)、[Shift転送](common-inventory-transfers.md)、[在庫補助](common-inventory-helpers.md)を参照。
 `swap_container_hotbar(screen.id, slot, hotbar)`と`inventory_swap_record()`は両mode・両版に実装する。
 取消・receipt・I/O前のcaptureは[共通在庫交換](common-inventory-swaps.md)を参照。
 実native fixtureのopenと再openは共通`open_container`を両modeで使用する。
 closeの送信では受信screenを消さず、再クリック拒否と履歴は[共通container close](common-container-close.md)で扱う。
 
-legacyは完全なitem NBTを保持する。modernの非default componentのdecoderは残作業であり、
+legacyは完全なitem NBTを保持する。modernの非default componentも[共通item data](common-item-data.md)の範囲でdecode・保持する。
 未対応値をEmptyやdefault itemへ変換しない。unsupported full packetは古いfull-content知識を破棄する。
 完全なmodern packetは全field・末尾を検証してから状態へ適用する。
 

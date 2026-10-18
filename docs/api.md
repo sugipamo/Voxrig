@@ -17,6 +17,10 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 `client.java_1_21_11()?.checked_survival()`で、型は`voxrig::versions::java_1_21_11::checked`にあります。
 静的な対応情報は`checked::SurvivalCapabilities::for_version(version)`で、現在の操作許可ではありません。
 
+共通`Survival::craft_once`はtakeが未確認でも記録を返します。`craft_once_checked`は
+`ObservedTransferred`の場合だけ成功し、それ以外は記録付きの`CraftOnceError::OutcomeUnknown`を返します。
+通常のエラーは`CraftOnceError::Failed`です。[在庫補助](common-inventory-helpers.md)を参照してください。
+
 以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
 型は`voxrig::versions::java_1_16_1`からimportします（crate rootからは再exportしません）。
 1.21.11の版固有操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
@@ -45,17 +49,19 @@ use voxrig::versions::java_1_16_1::prelude::*;
 規模の大きな利用側では、用途別moduleから明示的にimportできます。
 
 ```rust
-use voxrig::{
-    versions::java_1_16_1::client::{Bot, Event},
+use voxrig::versions::java_1_16_1::{
+    client::{Bot, Event},
     entity::EntityState,
     inventory::InventoryState,
     survival::SurvivalState,
 };
 ```
 
-crate rootのre-exportと用途別moduleは同一の型を参照します。
+`versions::java_1_16_1`のre-exportと配下の用途別moduleは同一の型を参照します。版固有APIにはfeature `native`が必要です。
 
 ## Module一覧
+
+`client`以外の下記moduleは`versions::java_1_16_1`配下です。
 
 | Module | 主な責務 |
 | --- | --- |
@@ -75,7 +81,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `progress` | recipe book、advancement、statistics |
 | `server_registry` | command tree、server recipes、block/item/fluid/entity tags |
 
-`prelude`は、`Bot`、`BotManager`、`Server`、`Player`、`Event`、`ControlState`、block interactionに必要な基本型だけをexportします。
+`versions::java_1_16_1::prelude`は、`Bot`、`BotManager`、`Server`、`Player`、`Event`、`ControlState`、block interactionに必要な基本型だけをexportします。
 
 ## 接続と複数Bot
 
@@ -277,7 +283,7 @@ Sound eventはID、公式名、category、座標またはentity ID、volume、pi
 
 ## Errorとcancel
 
-fallibleな公開操作は`voxrig::Result<T>`を返します。`Error::kind()`は、`InvalidInput`、`Connection`、`Timeout`、`Disconnected`、`Protocol`、`ResourceLimit`、`Rejected`、`State`、`Other`を安定した分類として返します。表示文字列は診断用であり、制御フローには使用しないでください。
+多くのfallibleな公開操作は`voxrig::Result<T>`を返します。`Error::kind()`は、`Unsupported`、`InvalidInput`、`Connection`、`UncertainDispatch`、`OperationUnconfirmed`、`Timeout`、`Disconnected`、`Protocol`、`ResourceLimit`、`Rejected`、`State`、`Other`を安定した分類として返します。表示文字列は診断用であり、制御フローには使用しないでください。
 
 ```rust,no_run
 use voxrig::{ErrorKind, Result};

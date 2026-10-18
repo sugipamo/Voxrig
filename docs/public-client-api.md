@@ -15,11 +15,14 @@ native ACKの有無と取消後の未解決状態は[共通設置の契約](comm
 一般containerとの違い、legacy応答とmodern revisionの扱いは[共通在庫交換](common-inventory-swaps.md)を参照してください。
 共通Clientの両modeで通常Shift転送を使う場合は[転送契約](common-inventory-transfers.md)を参照してください。
 `Client::screen_state()`は開いたcontainerのidentity・実内容・cursor・native layoutを両版で観測します。
-開いたstorageとの`swap_container_hotbar`、opening-boundな`close_container`は両modeで同じrecordを返します。一般open/click列は後続実装です。
+開いたstorageとの`swap_container_hotbar`、opening-boundな`close_container`は両modeで同じrecordを返します。監査済みstorageの`open_container`と通常の`click_inventory`も両modeで利用できます。
 [コンテナ画面観測](common-container-observation.md)と[共通在庫交換](common-inventory-swaps.md)を参照してください。
 closeのcomplete dispatchとactual replyは[共通container close](common-container-close.md)で区別します。
 close後も同じ`swap_hotbar`を使えます。actual received windowと明示的なlocal UIを分ける
 `player_screen` / `player_screen_revision`は[共通プレイヤー画面](common-player-screen.md)を参照してください。
+共通`Survival::craft_once`は未確認のtakeも記録として返します。`craft_once_checked`は
+`ObservedTransferred`だけを成功とし、未確認なら記録付きの`CraftOnceError::OutcomeUnknown`を返します。
+期限超過を取消や再送許可にせず、受信状態を照合します。[在庫補助](common-inventory-helpers.md)を参照してください。
 下記の追加検査契約は
 `client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。
 

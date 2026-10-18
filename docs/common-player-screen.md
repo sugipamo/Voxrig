@@ -56,4 +56,6 @@ native waitでcommon未解決intentを解除できない。
 両destinationのfreshness、negative legacy comparison reply、再OPENとrespawn/reconfiguration、missing revision拒否を検証する。
 [実サーバー検証](common-client-native-validation.md)では、single chestのclose後にsurvivalでdirt 2をmainからhotbarへ移し、
 creativeで元へ戻す。実slot受信と独立RCONのplayer Inventory/chest Items/位置不変を照合する。
-共通container open、一般クリック列、非empty cursor close、一般item data、crafting/装備/entity、context/recoveryの統合は引き続き残る。
+共通container open、通常クリック、非empty cursor close、item data、crafting・装備の現行範囲は、
+[open](common-container-open.md)・[click](common-inventory-clicks.md)・[close](common-container-close.md)・
+[item data](common-item-data.md)・[在庫補助](common-inventory-helpers.md)・[Shift転送](common-inventory-transfers.md)を参照。

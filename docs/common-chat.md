@@ -5,9 +5,9 @@
 
 ## 送信
 
-- `send_chat(message)`: 1～256文字。制御文字・`§`・先頭の`/`は送信前に拒否する。
+- `send_chat(message)`: 1～256 UTF-16 code unit（補助文字は2単位）。制御文字・`§`・先頭の`/`は送信前に拒否する。
   1.21.11では署名なしのchatとして送る（offline-mode、`enforce-secure-profile=false`のサーバーが前提）。
-- `send_command(command)`: 先頭の`/`はあってもなくてもよい。1.21.11は`CHAT_COMMAND`、1.16.1は`/`付きのchatで送る。
+- `send_command(command)`: 先頭の`/`はあってもなくてもよい。`/`を除いて1～255 UTF-16 code unitで、制御文字・`§`は拒否する。1.21.11は`CHAT_COMMAND`、1.16.1は`/`付きのchatで送る。
 - 戻り値の`DispatchReceipt`は送信の完了だけを示す。サーバーが受理・実行したことは示さない。
   権限不足のcommandは送信に成功し、結果はsystem chatで返る。
 
@@ -30,7 +30,7 @@
 | `System` | `CHAT` position 1 | `SYSTEM_CHAT` overlay=false |
 | `ActionBar` | `CHAT` position 2 | `SYSTEM_CHAT` overlay=true |
 
-1.21.11の`title ... actionbar`は`SET_ACTION_BAR_TEXT`で届くため、chat履歴ではなく
+1.21.11の`title ... actionbar`は`ACTION_BAR`で届くため、chat履歴ではなく
 [title等の観測](common-ui-display.md)に入る。
 
 ## 実サーバーでの確認（2026-10-07）

@@ -108,7 +108,7 @@ revisionは不要な再転送を避けるために使えます。通常のgetter
 
 接続・login・play packet・ready待機のtimeoutと、接続ごとのchunk・entity・map・総cache record、CustomPayload、event queueの上限は`ConnectionOptions`で変更できます。上限超過は接続errorとして終了します。自動再接続とbackoffは外部controllerの方針です。
 
-公開されるfallible APIは`voxrig::Result<T>`を返します。再試行や入力修正の判断にはerror文字列ではなく`Error::kind()`を使用します。`ErrorKind`は将来追加され得るため、matchにはfallback branchが必要です。
+多くのfallible APIは`voxrig::Result<T>`を返します。`craft_once_checked`、staged quiesce、`wait_shutdown`等は専用のerror型を返します。再試行や入力修正の判断にはerror文字列ではなく`Error::kind()`を使用します。`ErrorKind`は将来追加され得るため、matchにはfallback branchが必要です。
 
 ## Staged quiesce and source fencing (#131 PR 4)
 
