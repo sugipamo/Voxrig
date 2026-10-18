@@ -8,21 +8,29 @@ use crate::MinecraftVersion;
 
 // Keep ordinal inventories and variants in one declaration, as for the key axes.
 macro_rules! ids {
-    ($name:ident { $($variant:ident),+ $(,)? }) => {
+    // Attributes apply only to the inventory, not the enum or future methods.
+    ($(#[$inventory_attr:meta])* $name:ident { $($variant:ident),+ $(,)? }) => {
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
         #[repr(usize)]
         pub(super) enum $name { $($variant),+ }
         impl $name {
+            $(#[$inventory_attr])*
             pub(super) const ALL: &'static [Self] = &[$(Self::$variant),+];
         }
     };
 }
-ids!(Class {
-    Qualified,
-    ProvenIrrelevant,
-    BoundedUnknown,
-    Unknown
-});
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    Class {
+        Qualified,
+        ProvenIrrelevant,
+        BoundedUnknown,
+        Unknown
+    }
+);
 ids!(ProfileId {
     Absent,
     Unknown,
@@ -54,49 +62,97 @@ ids!(ScenarioSetId {
     RemotePlayer,
     SpiderEnvelope
 });
-ids!(TickModel {
-    NoTickBody,
-    InheritedLiving,
-    Chicken,
-    RemotePlayer
-});
-ids!(GeometryModel {
-    NotApplicable,
-    ContactShape,
-    PlayerPose,
-    AgeablePose
-});
-ids!(MetadataModel {
-    NotApplicable,
-    OwnedLiving
-});
-ids!(TeamModel {
-    NotApplicable,
-    OwnHolder
-});
-ids!(IdentityModel {
-    NotApplicable,
-    UuidHolder
-});
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    TickModel {
+        NoTickBody,
+        InheritedLiving,
+        Chicken,
+        RemotePlayer
+    }
+);
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    GeometryModel {
+        NotApplicable,
+        ContactShape,
+        PlayerPose,
+        AgeablePose
+    }
+);
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    MetadataModel {
+        NotApplicable,
+        OwnedLiving
+    }
+);
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    TeamModel {
+        NotApplicable,
+        OwnHolder
+    }
+);
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    IdentityModel {
+        NotApplicable,
+        UuidHolder
+    }
+);
 ids!(LocalityId {
     None,
     DefaultSpiderEnvelope
 });
-ids!(EnvelopeHandler {
-    None,
-    DeferredContact
-});
-ids!(LaneContract {
-    OwnedContact,
-    ReceivedGeometry,
-    VehicleSampler
-});
-ids!(VehicleModel {
-    Unknown,
-    Noncollidable,
-    Rigid,
-    OwnedLiving
-});
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    EnvelopeHandler {
+        None,
+        DeferredContact
+    }
+);
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    LaneContract {
+        OwnedContact,
+        ReceivedGeometry,
+        VehicleSampler
+    }
+);
+ids!(
+    #[expect(
+        dead_code,
+        reason = "Retained frozen policy inventory; no current readers"
+    )]
+    VehicleModel {
+        Unknown,
+        Noncollidable,
+        Rigid,
+        OwnedLiving
+    }
+);
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct EffectPolicy {
@@ -491,6 +547,13 @@ pub(super) struct EntityPolicy {
     pub entity: EntityType,
     pub versions: [LanePolicies; 2],
     pub public_geometry: GeometryModel,
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "Frozen vehicle selector read by baseline tests and the contact policy export"
+        )
+    )]
     pub vehicle: VehicleModel,
 }
 const fn row(

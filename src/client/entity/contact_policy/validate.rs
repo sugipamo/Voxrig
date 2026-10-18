@@ -462,7 +462,7 @@ const _: () = validate_policy(
 );
 
 #[cfg(test)]
-// The golden and production harmless_packet expose booleans, not proof IDs.
+// The golden and test-only harmless_packet expose booleans, not proof IDs.
 // Keep this test cache small; the validator above checks the full decisions.
 pub(super) const EXPANDED_PACKETS: [[[bool; PacketKey::COUNT]; Effect::ALL.len()];
     PacketPolicyId::ALL.len()] = {
