@@ -267,7 +267,8 @@ necessarily require different numerical arithmetic.
 | `wither_skeleton` | Skeleton ancestry/item-use hooks lack full variant numerical coverage in both versions. |
 
 Every other registered type remains at its prior private classification;
-unreviewed species retain Unknown. No assumptions about Mineflayer are used.
+unreviewed species retain Unknown. Classifications rest only on the original
+client bytecode and numerical evidence recorded here.
 
 Reproduce the extended numerical fixture before the capability artifact:
 
