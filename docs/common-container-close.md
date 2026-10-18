@@ -60,6 +60,7 @@ Empty比較markerは実cursor hashではなく、再同期の要求だけで返�
 legacyの互換UI cacheのみlocal closeとして消す。共通の受信screenとは別に扱う。
 そのため最後に受信した画面が表示され続ける場合はclose recordも確認する。
 close後のplayer画面の根拠は`player_screen: Some(SubmittedClose { close })`として別に返す。
+`compact_inventory`等の在庫補助もこのplayer画面を使い、残っている旧containerのslot対応は使わない。
 同じ`swap_hotbar`による通常在庫の操作再開とactual player revisionの扱いは
 [共通プレイヤー画面](common-player-screen.md)を参照。共通openのtarget geometry/結果照合は[共通open](common-container-open.md)を参照。
 

@@ -1,5 +1,5 @@
 //! Minecraft Java 1.16.1 implementation, registry and movement behavior.
-//! Existing APIs are re-exported at the crate root for compatibility.
+//! Version-specific APIs are public here with the `native` feature.
 
 pub mod chat;
 pub mod client;

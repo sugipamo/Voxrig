@@ -29,6 +29,7 @@ loop {
 - 接続ごとに最新4096件を保持する。保持範囲より古い`cursor`は`ErrorKind::State`で失敗する。
   その場合は観測APIで現在の状態を取り直してから、新しい`cursor`で続ける。
 - 切断後も読める。最後のeventは`Disconnected`で、その後は何も記録されない。
+  `wait_for_events`も未読の最後のeventを先に返す。その返り値の`cursor`から再び待つと受信エラーを返す。
 - `EventKind`は`#[non_exhaustive]`。種類は今後増える。
 
 ## 種類と元のパケット

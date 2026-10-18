@@ -1,5 +1,11 @@
 # 状態・イベントの扱い
 
+共通`Client`の変更通知は`events_after(cursor)`／`wait_for_events(cursor, limit)`で読む。
+`wait_for_events`は切断時も未読の最後の`Disconnected`を返し、その後の待機で受信エラーを返す。
+[共通event](common-events.md)を参照。実受信のplayer情報とfieldごとのreceiptは
+`Client::received_player_snapshot()`で取得する（[受信snapshot](received-player-snapshot.md)）。
+以下のrevision付きsnapshotとbroadcastは1.16.1のnative `Bot` APIである（feature `native`）。
+
 ## Snapshotとevent
 
 通常の状態getterは「現在値」をowned cloneとして返します。対応する`*_snapshot()`は同じowned値に領域別revision、最終更新時刻、取得時刻を付けます。`subscribe()`はその後の変更を通知するbroadcast receiverです。

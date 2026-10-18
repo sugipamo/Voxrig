@@ -1,4 +1,4 @@
-# inventory の補助（`compact_inventory`・`fill_crafting_grid`・`craft_once`）
+# inventory の補助（`compact_inventory`・`fill_crafting_grid`・`craft_once`・`craft_once_checked`）
 
 共通の `Survival::click_inventory`（通常の左・右クリック）と `transfer_crafting_result` を組み合わせた補助です。両版とも同じ手順で動きます。各クリックは、その記録が `Pending` を抜ける（受信した結果がそろう）まで最大 3 秒待ってから次へ進みます。`ObservedClicked` 以外で終わったクリックはエラーになり、そこで止まります。
 
@@ -7,7 +7,7 @@
 1. cursor に持っている stack を収納します。同じ item と data で空きのある stack を先に、なければ最初の空き slot を使います。
 2. 収納の末尾から先頭へ（main 9..35、次に hotbar 36..44 の順）見ていきます。前方に同じ item・data で空きのある stack があれば、拾って前方へ詰めます。
 
-player 画面でも、開いている container の player 部分（検証済みの layout がある場合）でも動きます。戻り値は全クリックの記録です。
+player 画面でも、開いている container の player 部分（検証済みの layout がある場合）でも動きます。local の `close_container` 完全送信後は、受信した旧 screen が残っていても player 在庫を使います。戻り値は全クリックの記録です。
 
 ## `fill_crafting_grid(ingredients)`
 
@@ -20,7 +20,13 @@ player 画面でも、開いている container の player 部分（検証済み
 
 ## `craft_once(ingredients)`
 
-`fill_crafting_grid` の後、結果を `transfer_crafting_result`（shift で収納へ）で 1 回取り、その記録の結果を待ちます。結果が出なければエラーです（材料は grid に残り、次の fill で戻ります）。戻り値は `CraftOnceRecord { fill, take }` です。
+`fill_crafting_grid` の後、結果を `transfer_crafting_result`（shift で収納へ）で 1 回取り、その記録の結果を最大 3 秒待ちます。fill 後に結果 slot が出なければエラーです（材料は grid に残り、次の fill で戻ります）。戻り値は `CraftOnceRecord { fill, take }` で、take が `Pending` や `RequiresInspection` でも `Ok` を返します。
+
+## `craft_once_checked(ingredients)`
+
+同じ手順・期限で実行し、take が `ObservedTransferred` の場合だけ `Ok` を返します。期限時点で `Pending` なら `CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::Timeout }`、inspection が必要なら cause は `RequiresInspection` です。`record.take.id` と最後の `record.take.stage` を保持します。通常のエラーは `CraftOnceError::Failed` に残ります。
+
+期限超過は失敗・取消の証明ではなく、server が後から適用する場合があります。受信在庫や `crafting_take_record()` で再観測・照合してから判断し、無条件に再送しません。
 
 ## 制限
 
