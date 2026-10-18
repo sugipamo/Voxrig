@@ -139,7 +139,7 @@ pub struct InventorySwapRecord {
     pub stage: InventorySwapStage,
 }
 pub(crate) fn unavailable(message: impl std::fmt::Display) -> crate::Error {
-    crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 pub(crate) fn validate_slots(main: u8, hotbar: u8) -> Result<()> {
     if !(9..=35).contains(&main) || hotbar > 8 {

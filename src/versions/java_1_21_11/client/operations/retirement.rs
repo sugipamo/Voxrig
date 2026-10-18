@@ -57,7 +57,7 @@ pub enum MiningRetirementStatus {
     },
 }
 fn unavailable(message: &str) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 fn owns(state: &State, watch: &MiningRetirementWatch, owner: u64) -> Result<()> {
     if owner != watch.intent.connection_id

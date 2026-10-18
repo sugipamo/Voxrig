@@ -49,7 +49,7 @@ diagnostic_record! {
 }
 
 fn unavailable(message: &str) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 
 fn prepare(

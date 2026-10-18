@@ -1,7 +1,8 @@
 //! Bounded, ordered received block-state updates. Reconstructed piston frames
 //! are deliberately not relabelled as received state packets.
 use super::{World, operations::Operations};
-use crate::{Error, ErrorKind, NativeBlockState, Region, Result};
+use crate::error::state_error;
+use crate::{NativeBlockState, Region, Result};
 use serde::Serialize;
 
 /// Start boundary of a single connection-local recording.
@@ -82,7 +83,7 @@ impl Capture {
     fn new(started: RecordingStarted, world: &World, maximum: usize) -> Result<Self> {
         started.region.volume()?;
         if !(1..=65536).contains(&maximum) {
-            return Err(invalid("recording event limit must be 1..65536"));
+            return Err(state_error("recording event limit must be 1..65536"));
         }
         let mut baseline = Vec::new();
         let r = started.region;
@@ -90,7 +91,7 @@ impl Capture {
             for y in r.min[1]..=r.max[1] {
                 for z in r.min[2]..=r.max[2] {
                     baseline.push(world.block([x, y, z]).ok_or_else(|| {
-                        invalid("recording baseline contains unloaded/out-of-dimension cells")
+                        state_error("recording baseline contains unloaded/out-of-dimension cells")
                     })?);
                 }
             }
@@ -168,9 +169,6 @@ impl Capture {
         }
     }
 }
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
-}
 impl Operations {
     /// Capture received state packets from a fully loaded baseline. One active
     /// recording per connection; piston actions remain in the separate packet trace.
@@ -182,12 +180,12 @@ impl Operations {
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
         if state.recording.is_some() {
-            return Err(invalid("block recording already active"));
+            return Err(state_error("block recording already active"));
         }
         let ordinal = state
             .recording_ordinal
             .checked_add(1)
-            .ok_or_else(|| invalid("recording ordinal exhausted"))?;
+            .ok_or_else(|| state_error("recording ordinal exhausted"))?;
         let started = RecordingStarted {
             recording_id: format!("{}-{ordinal}", self.bot.session.id),
             connection_id: self.bot.session.id,
@@ -216,7 +214,7 @@ impl Operations {
             .as_ref()
             .is_none_or(|c| c.started.recording_id != recording_id)
         {
-            return Err(invalid("block recording missing or ID mismatch"));
+            return Err(state_error("block recording missing or ID mismatch"));
         }
         let unavailable = self.bot.session.check(&state).is_err();
         let mut capture = state.recording.take().expect("checked recording");

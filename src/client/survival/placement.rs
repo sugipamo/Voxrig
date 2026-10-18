@@ -91,7 +91,7 @@ pub struct PlacementRecord {
     pub stage: PlacementStage,
 }
 pub(crate) fn unavailable(message: impl std::fmt::Display) -> crate::Error {
-    crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!("{message}"))
+    crate::error::state_error(message)
 }
 pub(crate) fn air(state: &NativeBlockState) -> bool {
     matches!(

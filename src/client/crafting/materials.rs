@@ -2,11 +2,8 @@
 use super::{ReceivedRecipes, RecipeBookStock, RecipeDisplay, RecipeId};
 use crate::Result;
 use crate::client::{ReceivedInventory, SessionStamp, SlotKnowledge, registry::RegistryId};
+use crate::error::state_error;
 use std::collections::BTreeMap;
-
-fn invalid(message: impl std::fmt::Display) -> crate::Error {
-    crate::client::inventory::unavailable(message)
-}
 
 /// Immutable recipe-book material assignment from received main/hotbar stock.
 /// This excludes grid, cursor, armor and offhand. It does not authorize placement,
@@ -75,7 +72,7 @@ impl RecipeBookMaterials {
             || crafts > i32::MAX as u32
             || maximum_bound > i32::MAX as u32
         {
-            return Err(invalid(
+            return Err(state_error(
                 "recipe material batch/bound must be positive native integers",
             ));
         }
@@ -83,20 +80,24 @@ impl RecipeBookMaterials {
             || catalogue.receive_sequence() != inventory.receive_sequence()
             || catalogue.registry_state().stamp() != inventory.registry_state().stamp()
         {
-            return Err(invalid("recipe and inventory capture boundaries differ"));
+            return Err(state_error(
+                "recipe and inventory capture boundaries differ",
+            ));
         }
         let entry = catalogue.entry(recipe)?;
         if !matches!(
             entry.display(),
             RecipeDisplay::Shaped { .. } | RecipeDisplay::Shapeless { .. }
         ) {
-            return Err(invalid("recipe has no crafting ingredient material model"));
+            return Err(state_error(
+                "recipe has no crafting ingredient material model",
+            ));
         }
         let requirements = entry
             .requirements()
-            .ok_or_else(|| invalid("recipe crafting requirements have not been received"))?;
+            .ok_or_else(|| state_error("recipe crafting requirements have not been received"))?;
         if requirements.is_empty() || requirements.len() > 9 {
-            return Err(invalid(
+            return Err(state_error(
                 "recipe ingredient count is outside a native crafting grid",
             ));
         }
@@ -116,25 +117,25 @@ impl RecipeBookMaterials {
         let mut amounts = BTreeMap::<i32, i32>::new();
         let mut stocks = Vec::new();
         for index in 9..45 {
-            let slot = inventory
-                .slot(index)?
-                .ok_or_else(|| invalid("recipe material inventory slot has not been received"))?;
+            let slot = inventory.slot(index)?.ok_or_else(|| {
+                state_error("recipe material inventory slot has not been received")
+            })?;
             match slot.value() {
                 SlotKnowledge::Empty => {}
                 SlotKnowledge::Item { .. } => {
                     let stock = slot.item().expect("known item").recipe_book_stock()?;
                     if stock.count() < 0 {
-                        return Err(invalid(
+                        return Err(state_error(
                             "negative native recipe stock is not available material",
                         ));
                     }
                     let amount = amounts.entry(stock.item().value()).or_default();
                     *amount = amount
                         .checked_add(stock.count())
-                        .ok_or_else(|| invalid("native recipe stock accumulator overflow"))?;
+                        .ok_or_else(|| state_error("native recipe stock accumulator overflow"))?;
                     stocks.push((index, stock));
                 }
-                _ => return Err(invalid("recipe material inventory item is unavailable")),
+                _ => return Err(state_error("recipe material inventory item is unavailable")),
             }
         }
         let native_assignment = assign(&choices, &amounts, crafts);

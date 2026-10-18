@@ -1,5 +1,5 @@
 //! Exact received packets and detached, read-only version decoder replay.
-use crate::{Error, ErrorKind, Result};
+use crate::{Error, Result};
 
 /// Receive-side native protocol phase. Login authentication is not included.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -62,7 +62,7 @@ pub struct PacketTrace {
 }
 
 pub(crate) fn invalid(message: impl std::fmt::Display) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
+    crate::error::invalid_input(message)
 }
 pub(crate) fn validate_limit(limit: usize) -> Result<()> {
     if !(1..=16_777_216).contains(&limit) {

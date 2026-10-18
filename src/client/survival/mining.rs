@@ -161,5 +161,5 @@ pub struct MiningRecord {
     pub continuation_validated: bool,
 }
 pub(crate) fn unavailable(reason: impl std::fmt::Display) -> crate::Error {
-    crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!("{reason}"))
+    crate::error::state_error(reason)
 }

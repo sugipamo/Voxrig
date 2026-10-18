@@ -1081,7 +1081,7 @@ impl Operations {
     }
 }
 fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
+    crate::error::invalid_input(message)
 }
 fn validate_pose(position: [f64; 3], rotation: [f32; 2]) -> Result<()> {
     if position

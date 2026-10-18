@@ -1,6 +1,7 @@
 //! Immutable inventory receipts and their registry owner, captured together.
 use super::registry::ServerRegistryObservation;
 use super::{InventoryObservation, ItemStack, SessionStamp, SlotKnowledge, ValueSource};
+use crate::error::invalid_input;
 use crate::{Error, ErrorKind, Result};
 use std::sync::Arc;
 
@@ -38,7 +39,7 @@ impl ReceivedInventory {
         self.slots
             .get(index)
             .map(Option::as_ref)
-            .ok_or_else(|| invalid("slot index is outside the received player inventory"))
+            .ok_or_else(|| invalid_input("slot index is outside the received player inventory"))
     }
     /// Actual received cursor, absent until established by a packet.
     pub fn cursor(&self) -> Option<&ReceivedSlot> {
@@ -51,7 +52,7 @@ impl ReceivedInventory {
         registries: ServerRegistryObservation,
     ) -> Result<Self> {
         if session != registries.session() || receive_sequence != registries.receive_sequence() {
-            return Err(invalid(
+            return Err(invalid_input(
                 "inventory and registries have different capture boundaries",
             ));
         }
@@ -140,12 +141,12 @@ impl ReceivedSlot {
         location: ReceiptLocation,
     ) -> Result<Self> {
         let ValueSource::Received { sequence } = observed.source else {
-            return Err(invalid("inventory value is not a received slot"));
+            return Err(invalid_input("inventory value is not a received slot"));
         };
         if sequence > registries.receive_sequence()
             || sequence < registries.stamp().configuration_generation
         {
-            return Err(invalid(
+            return Err(invalid_input(
                 "slot receipt is outside its registry configuration",
             ));
         }
@@ -157,7 +158,7 @@ impl ReceivedSlot {
                 || definition.id != item.id
                 || definition.name != item.name
             {
-                return Err(invalid(
+                return Err(invalid_input(
                     "received item identity belongs to another registry",
                 ));
             }
@@ -253,7 +254,7 @@ impl<'a> ReceivedItem<'a> {
     }
     fn compare(&self, other: &ReceivedItem<'_>, include_count: bool) -> Result<bool> {
         if self.registry_state().stamp() != other.registry_state().stamp() {
-            return Err(invalid(
+            return Err(invalid_input(
                 "item comparison requires the same registry configuration",
             ));
         }
@@ -324,9 +325,5 @@ impl<'a> ReceivedItem<'a> {
         self.receipt.registry_state()
     }
 }
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
-}
-
 #[cfg(test)]
 mod tests;

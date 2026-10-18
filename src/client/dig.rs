@@ -1,7 +1,8 @@
 //! Survival digging of any block with the held item, timed like the official client
 //! (`MultiPlayerGameMode` with `BlockStateBase.getDestroyProgress`). See docs/common-dig.md.
 use super::{BlockFace, ObservedValue, PlayerObservation, SlotKnowledge};
-use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Result};
+use crate::error::invalid_input;
+use crate::{MinecraftVersion, NativeBlockState, Result};
 
 /// The dig time of one block with the current hand, effects and attributes.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -62,10 +63,6 @@ fn profiles(version: MinecraftVersion) -> &'static Profiles {
     })
 }
 
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
-}
-
 /// Facts about the player that the official `getDestroySpeed` reads.
 pub(crate) struct DigContext<'a> {
     pub player: &'a PlayerObservation,
@@ -84,17 +81,17 @@ pub(crate) fn estimate(
         .ok()
         .and_then(|i| data.states.get(i))
         .filter(|row| row[0] == state_id)
-        .ok_or_else(|| invalid("block state outside the dig profiles"))?;
+        .ok_or_else(|| invalid_input("block state outside the dig profiles"))?;
     let profile = &data.profiles[row[2] as usize];
     if profile.hardness < 0.0 {
-        return Err(invalid("the block cannot be broken in survival"));
+        return Err(invalid_input("the block cannot be broken in survival"));
     }
     let player = context.player;
     let selected = player
         .selected_hotbar
         .as_ref()
         .map(|s| s.value)
-        .ok_or_else(|| invalid("selected hotbar slot is not known"))?;
+        .ok_or_else(|| invalid_input("selected hotbar slot is not known"))?;
     let held = slot(player, 36 + usize::from(selected))?;
     let (mut speed, harvestable) = match held {
         SlotKnowledge::Empty => (1.0f32, profile.hand_harvestable),
@@ -105,7 +102,7 @@ pub(crate) fn estimate(
             .map_or((1.0, profile.hand_harvestable), |t| {
                 (t.speed, t.harvestable)
             }),
-        SlotKnowledge::Unavailable => return Err(invalid("held item is not known")),
+        SlotKnowledge::Unavailable => return Err(invalid_input("held item is not known")),
     };
     let attribute = |name: &str, default: f64| {
         player
@@ -172,7 +169,7 @@ pub(crate) fn estimate(
             accumulated += progress;
             ticks += 1;
             if ticks > 72_000 {
-                return Err(invalid("the dig would take more than an hour"));
+                return Err(invalid_input("the dig would take more than an hour"));
             }
         }
     }
@@ -188,7 +185,7 @@ pub(crate) fn estimate(
 pub(crate) fn slot(player: &PlayerObservation, index: usize) -> Result<&SlotKnowledge> {
     match player.inventory.slots.get(index).and_then(Option::as_ref) {
         Some(ObservedValue { value, .. }) => Ok(value),
-        None => Err(invalid("received inventory slot is not known")),
+        None => Err(invalid_input("received inventory slot is not known")),
     }
 }
 

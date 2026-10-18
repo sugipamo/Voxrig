@@ -1,4 +1,5 @@
 //! Native NBT values behind the common item custom-data accessor.
+use crate::error::invalid_input;
 use crate::{Error, ErrorKind, MinecraftVersion, Result};
 use anyhow::{Context, bail};
 use serde::Serialize;
@@ -178,7 +179,7 @@ impl NbtData {
     /// native identity equality. This comparison is separate from ItemData's Eq.
     pub fn native_equivalent(&self, other: &Self) -> Result<bool> {
         if self.version != other.version {
-            return Err(invalid("NBT values belong to different adapters"));
+            return Err(invalid_input("NBT values belong to different adapters"));
         }
         Ok(equivalent(&self.root, &other.root, self.version))
     }
@@ -191,9 +192,6 @@ impl NbtData {
     }
 }
 
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
-}
 const MAX_BYTES: usize = 1024 * 1024;
 const MAX_NODES: usize = 65_536;
 const MAX_DEPTH: usize = 64;

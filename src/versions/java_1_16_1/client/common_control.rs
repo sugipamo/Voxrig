@@ -5,8 +5,9 @@ use super::{Bot, MotionState, Vec3};
 use crate::client::GameMode;
 use crate::client::control::{ControlRecord, ControlSession, ControlStatus, Controls, Received};
 use crate::client::physics::{Body, Environment, Modifier, ModifierOperation};
+use crate::error::state_error;
 use crate::protocol::put_varint;
-use crate::{Error, ErrorKind, MinecraftVersion, Result};
+use crate::{MinecraftVersion, Result};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -47,10 +48,6 @@ impl ContinuousControl {
             session.item_released(received);
         }
     }
-}
-
-fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
 }
 
 /// A received 1.16.1 modifier in the shared form (UUID text identity).
@@ -245,7 +242,7 @@ impl Bot {
             .lock()
             .await
             .entity_id
-            .ok_or_else(|| invalid("Join Game entity ID is unavailable"))?;
+            .ok_or_else(|| state_error("Join Game entity ID is unavailable"))?;
         let mut payload = Vec::new();
         put_varint(&mut payload, entity);
         put_varint(&mut payload, action);
@@ -278,7 +275,7 @@ impl Bot {
             return Ok(None);
         };
         if mode.is_some_and(|mode| session.mode != mode) {
-            return Err(invalid("selected control belongs to a different mode"));
+            return Err(state_error("selected control belongs to a different mode"));
         }
         let mut release = Ok(());
         if session.running() {
@@ -641,13 +638,17 @@ impl Bot {
                     crate::client::control::ControlKind::Flight
                         if matches!(mode, GameMode::Creative | GameMode::Spectator) => {}
                     crate::client::control::ControlKind::Glide if mode != GameMode::Spectator => {}
-                    _ => return Err(invalid("selected control kind does not support this mode")),
+                    _ => {
+                        return Err(state_error(
+                            "selected control kind does not support this mode",
+                        ));
+                    }
                 }
                 if let Some(controls) = initial_flight_controls {
                     crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
                     if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe)
                     {
-                        return Err(invalid("controls out of range"));
+                        return Err(state_error("controls out of range"));
                     }
                 }
                 self.wait_until_ready().await?;
@@ -661,32 +662,32 @@ impl Bot {
                     .and_then(|id| GameMode::decode(id & 7).ok())
                     != Some(mode)
                 {
-                    return Err(invalid(
+                    return Err(state_error(
                         "continuous control requires matching received mode",
                     ));
                 }
                 if self.common_control.lock().await.active() {
-                    return Err(invalid("a control session is already running"));
+                    return Err(state_error("a control session is already running"));
                 }
                 if self.common_motion_pauses_physics().await
                     || self.common_native_physics_paused().await
                 {
-                    return Err(invalid("another movement operation is unresolved"));
+                    return Err(state_error("another movement operation is unresolved"));
                 }
                 if self.control().await != super::ControlState::default() {
-                    return Err(invalid("native controls are held; clear them first"));
+                    return Err(state_error("native controls are held; clear them first"));
                 }
                 if self.jump_requested.load(Ordering::Acquire) {
-                    return Err(invalid(
+                    return Err(state_error(
                         "a native ground jump is pending; wait for its physics tick",
                     ));
                 }
                 let generation = self.common_receipts.lock().await.generation;
                 if let Some(reason) = self.control_stop_reason(generation, mode, kind).await {
-                    return Err(invalid(reason));
+                    return Err(state_error(reason));
                 }
                 if self.common_receipts.lock().await.pose.is_none() {
-                    return Err(invalid("continuous control requires a received pose"));
+                    return Err(state_error("continuous control requires a received pose"));
                 }
                 let player = self.player.lock().await.clone();
                 let motion = **self.motion.lock().await;
@@ -700,7 +701,7 @@ impl Bot {
                         .as_ref()
                         .is_some_and(|v| v.value)
                 {
-                    return Err(invalid(
+                    return Err(state_error(
                         "already fall-flying; new start request is not qualified",
                     ));
                 }
@@ -753,7 +754,9 @@ impl Bot {
                         .is_some_and(|p| p.kind == crate::client::control::ControlKind::Glide)
                 {
                     if *self.local_pose.lock().await != Some(0) {
-                        return Err(invalid("ground after glide requires actual standing pose"));
+                        return Err(state_error(
+                            "ground after glide requires actual standing pose",
+                        ));
                     }
                     session.body.leave_glide_pose();
                 }
@@ -800,7 +803,7 @@ impl Bot {
                         .entities
                         .is_empty()
                     {
-                        return Err(invalid("contact model requires own login entity"));
+                        return Err(state_error("contact model requires own login entity"));
                     }
                 }
                 if let Some(equipment) = equipment {
@@ -816,7 +819,7 @@ impl Bot {
                         || session.body.in_water
                         || received.environment.levitation
                     {
-                        return Err(invalid(
+                        return Err(state_error(
                             "glide requires an airborne non-water model without levitation",
                         ));
                     }
@@ -890,7 +893,7 @@ impl crate::client::adapter::ControlOps for Bot {
             .run_scoped(async {
                 crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
                 if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
-                    return Err(invalid("controls out of range"));
+                    return Err(state_error("controls out of range"));
                 }
                 self.wait_until_ready().await?;
                 let _gate = self.coherent_state_gate.lock().await;
@@ -902,7 +905,7 @@ impl crate::client::adapter::ControlOps for Bot {
                     .and_then(|id| GameMode::decode(id & 7).ok())
                     != Some(mode)
                 {
-                    return Err(invalid("controls require matching received mode"));
+                    return Err(state_error("controls require matching received mode"));
                 }
                 let generation = self.common_receipts.lock().await.generation;
                 let kind = {
@@ -914,25 +917,25 @@ impl crate::client::adapter::ControlOps for Bot {
                         .map_or(crate::client::control::ControlKind::Ground, |s| s.kind)
                 };
                 if let Some(reason) = self.control_stop_reason(generation, mode, kind).await {
-                    return Err(invalid(reason));
+                    return Err(state_error(reason));
                 }
                 let received = self.control_received().await;
                 let mut control = self.common_control.lock().await;
                 if control.generation != Some(generation) {
-                    return Err(invalid("control belongs to a previous world"));
+                    return Err(state_error("control belongs to a previous world"));
                 }
                 match control.session.as_mut() {
                     Some(session) if session.running() && session.mode == mode => {
                         if session_id.is_some_and(|id| session.id != id) {
-                            return Err(invalid("selected control session was replaced"));
+                            return Err(state_error("selected control session was replaced"));
                         }
                         if let Some(reason) = session.glide_stop_reason(&received) {
-                            return Err(invalid(reason));
+                            return Err(state_error(reason));
                         }
                         session.controls = controls;
                         Ok(session.record())
                     }
-                    _ => Err(invalid("no running control session")),
+                    _ => Err(state_error("no running control session")),
                 }
             })
             .await
@@ -952,7 +955,7 @@ impl crate::client::adapter::ControlOps for Bot {
             .tasks()
             .spawn(async move { owner.stop_control_owned(id, None).await })
             .await
-            .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
+            .map_err(|error| state_error(format!("control stop task failed: {error}")))?
     }
 
     #[cfg(test)]
@@ -963,8 +966,8 @@ impl crate::client::adapter::ControlOps for Bot {
             .tasks()
             .spawn(async move { owner.stop_control_owned(session_id, None).await })
             .await
-            .map_err(|error| invalid(&format!("control stop task failed: {error}")))??
-            .ok_or_else(|| invalid("selected control session is missing or was replaced"))
+            .map_err(|error| state_error(format!("control stop task failed: {error}")))??
+            .ok_or_else(|| state_error("selected control session is missing or was replaced"))
     }
 
     async fn stop_control_in_mode(
@@ -980,7 +983,7 @@ impl crate::client::adapter::ControlOps for Bot {
                     return Ok(None);
                 };
                 if session.mode != mode || session_id.is_some_and(|id| session.id != id) {
-                    return Err(invalid(
+                    return Err(state_error(
                         "selected control was replaced or belongs to a different mode",
                     ));
                 }
@@ -991,7 +994,7 @@ impl crate::client::adapter::ControlOps for Bot {
                     async move { owner.stop_control_owned(id, Some(mode)).await },
                 )
                 .await
-                .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
+                .map_err(|error| state_error(format!("control stop task failed: {error}")))?
             })
             .await
     }
@@ -1015,7 +1018,7 @@ impl crate::client::adapter::ControlOps for Bot {
                     .and_then(|id| GameMode::decode(id & 7).ok())
                     != Some(mode)
                 {
-                    return Err(invalid("ground jump requires matching received mode"));
+                    return Err(state_error("ground jump requires matching received mode"));
                 }
                 let generation = self.common_receipts.lock().await.generation;
                 let kind = {
@@ -1027,22 +1030,24 @@ impl crate::client::adapter::ControlOps for Bot {
                         .map_or(crate::client::control::ControlKind::Ground, |s| s.kind)
                 };
                 if let Some(reason) = self.control_stop_reason(generation, mode, kind).await {
-                    return Err(invalid(reason));
+                    return Err(state_error(reason));
                 }
                 let mut control = self.common_control.lock().await;
                 if self.stopped.load(Ordering::Acquire)
                     || self.connection_state() != crate::ConnectionState::Ready
                 {
-                    return Err(invalid("ground jump connection is no longer ready"));
+                    return Err(state_error("ground jump connection is no longer ready"));
                 }
                 if control.generation != Some(generation) {
-                    return Err(invalid("ground jump control belongs to a previous world"));
+                    return Err(state_error(
+                        "ground jump control belongs to a previous world",
+                    ));
                 }
                 let request = control
                     .session
                     .as_mut()
                     .filter(|s| s.mode == mode)
-                    .ok_or_else(|| invalid("no running control session in the expected mode"))?
+                    .ok_or_else(|| state_error("no running control session in the expected mode"))?
                     .request_ground_jump(session_id)?;
                 if control.jump_work.is_none() {
                     control.jump_work = Some(self.connection.ledger().work());
@@ -1072,16 +1077,16 @@ impl Bot {
         let _gate = self.coherent_state_gate.lock().await;
         self.observe_stop_context().await;
         if !self.connection.ledger().stop_valid(target) {
-            return Err(invalid("selected movement context changed"));
+            return Err(state_error("selected movement context changed"));
         }
         let mut control = self.common_control.lock().await;
         let session = control
             .session
             .as_mut()
             .filter(|s| s.id == id && s.mode == target.mode() && s.running())
-            .ok_or_else(|| invalid("selected movement owner changed"))?;
+            .ok_or_else(|| state_error("selected movement owner changed"))?;
         if session.mode_change_sequence.is_some() || session.flight_change_sequence.is_some() {
-            return Err(invalid("selected movement mode changed"));
+            return Err(state_error("selected movement mode changed"));
         }
         // This selected common owner owns wire posture, including posture it
         // inherited from a paused native producer. No predicted position.

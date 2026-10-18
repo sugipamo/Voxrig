@@ -8,14 +8,11 @@ use crate::client::{
         ServerRegistryStamp,
     },
 };
+use crate::error::state_error;
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
-fn invalid(message: impl std::fmt::Display) -> crate::Error {
-    super::super::inventory::unavailable(message)
-}
-
 /// Display-only inline trim pattern. It does not describe a received armor item.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct RecipeTrimDefinition {
@@ -112,14 +109,14 @@ impl RecipeSlotDisplay {
                 let actual = Registry::for_version(owner.session().version)
                     .item_by_native_id(item.id.value())?;
                 if actual != *item {
-                    return Err(invalid("display item belongs to another registry"));
+                    return Err(state_error("display item belongs to another registry"));
                 }
             }
             Self::Stack { item } => {
                 let actual = Registry::for_version(owner.session().version)
                     .item_by_native_id(item.id.value())?;
                 if actual.id != item.id || actual.name != item.name {
-                    return Err(invalid("display stack belongs to another registry"));
+                    return Err(state_error("display stack belongs to another registry"));
                 }
             }
             Self::Composite { contents } => {
@@ -162,7 +159,7 @@ impl RecipeSlotDisplay {
             Self::WithRemainder { input, .. } => input.item_ids(owner)?,
             Self::TrimPreview { base, .. } => base.item_ids(owner)?,
             Self::AnyFuel => {
-                return Err(invalid(
+                return Err(state_error(
                     "native fuel context is not yet captured by recipe catalogue",
                 ));
             }
@@ -172,7 +169,7 @@ impl RecipeSlotDisplay {
 fn tag_items(owner: &ServerRegistryObservation, name: &str) -> Result<Vec<RegistryId>> {
     let tags = owner
         .tags()
-        .ok_or_else(|| invalid("recipe item tags have not been received"))?;
+        .ok_or_else(|| state_error("recipe item tags have not been received"))?;
     tags.value
         .get("minecraft:item")
         .and_then(|tags| tags.get(name))
@@ -457,13 +454,13 @@ impl ReceivedRecipe {
         if self.id.owner != catalogue.registries.stamp()
             || !catalogue.entries.iter().any(|r| r.id == self.id)
         {
-            return Err(invalid(
+            return Err(state_error(
                 "recipe entry does not belong to this captured catalogue",
             ));
         }
         self.display
             .result()
-            .ok_or_else(|| invalid("recipe has no transmitted result display"))?
+            .ok_or_else(|| state_error("recipe has no transmitted result display"))?
             .item_ids(&catalogue.registries)
     }
 }
@@ -512,7 +509,7 @@ impl ReceivedRecipes {
         self.entries
             .iter()
             .find(|r| r.id == *id)
-            .ok_or_else(|| invalid("recipe identity is absent/replaced/foreign"))
+            .ok_or_else(|| state_error("recipe identity is absent/replaced/foreign"))
     }
 }
 #[derive(Clone, Debug)]
@@ -600,13 +597,15 @@ impl RecipeReceipts {
         registries: ServerRegistryObservation,
     ) -> Result<ReceivedRecipes> {
         if registries.session() != session || registries.receive_sequence() != sequence {
-            return Err(invalid("recipe/registry capture boundaries differ"));
+            return Err(state_error("recipe/registry capture boundaries differ"));
         }
         let owner = Arc::new(registries);
         let mut entries = Vec::new();
         for (native, (ordinal, e)) in &self.entries {
             if *ordinal > sequence || *ordinal < owner.stamp().configuration_generation {
-                return Err(invalid("recipe declaration outside captured configuration"));
+                return Err(state_error(
+                    "recipe declaration outside captured configuration",
+                ));
             }
             let mut display = e.display.clone();
             display.bind(&owner)?;
@@ -662,7 +661,7 @@ pub(crate) fn legacy_entries(
         match super::super::legacy_slot(Some(v))? {
             SlotKnowledge::Item { item } => Ok(RecipeSlotDisplay::Stack { item }),
             SlotKnowledge::Empty => Ok(RecipeSlotDisplay::Empty),
-            SlotKnowledge::Unavailable => Err(invalid("legacy recipe stack unavailable")),
+            SlotKnowledge::Unavailable => Err(state_error("legacy recipe stack unavailable")),
         }
     }
     fn ingredient(

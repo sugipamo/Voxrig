@@ -181,7 +181,7 @@ impl Registry {
     }
 }
 pub(crate) fn invalid(message: &str) -> Error {
-    Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
+    crate::error::invalid_input(message)
 }
 
 #[cfg(test)]
