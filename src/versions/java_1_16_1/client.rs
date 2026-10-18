@@ -6681,15 +6681,8 @@ impl Bot {
                     ..
                 }
         );
-        if terminal {
-            if self.terminal_emitted.swap(true, Ordering::AcqRel) {
-                return;
-            }
-            self.stopped.store(true, Ordering::Release);
-            self.cancel.notify_waiters();
-            self.ready.notify_waiters();
-            self.world_updated.notify_waiters();
-            self.packet_applied.notify_waiters();
+        if terminal && self.terminal_emitted.swap(true, Ordering::AcqRel) {
+            return;
         }
         {
             let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
@@ -6708,6 +6701,14 @@ impl Bot {
                 queued.omitted = queued.omitted.saturating_add(1);
             }
             queued.events.push_back(event.clone());
+        }
+        if terminal {
+            // Publish the terminal event before stopped state or wake-ups are visible.
+            self.stopped.store(true, Ordering::Release);
+            self.cancel.notify_waiters();
+            self.ready.notify_waiters();
+            self.world_updated.notify_waiters();
+            self.packet_applied.notify_waiters();
         }
         let _ = self.events.send(event);
     }
