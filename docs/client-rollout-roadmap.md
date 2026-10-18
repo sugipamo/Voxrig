@@ -14,7 +14,7 @@ Voxrig for a later PR. Do not publish upstream without a submission request.
 | 4 | Wider native comparison | Vertical/mixed layouts, moving states, repetition, chunk/reconnect boundaries, retained successes and failures |
 | 5 | DustRoute observation then interaction adapter | Observation origin and completeness preserved, required bridge functions inventoried, no simulated server-confirmation evidence |
 | 6 | Remaining 1.21.11 operations | Movement/inventory/placement/removal needed by the existing bridge, independently tested |
-| 7 | Replace verified Mineflayer/command paths | Reference door, flying machine, repair/cancel workflows; remove verification only where evidence supports the replacement |
+| 7 | Replace verified legacy-bridge/command paths | Reference door, flying machine, repair/cancel workflows; remove verification only where evidence supports the replacement |
 
 Entities remain deferred. Unknown large prerequisites outside these declared
 items stop the whole task for a report before implementation. In-scope additions

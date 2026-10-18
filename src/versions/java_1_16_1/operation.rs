@@ -549,8 +549,7 @@ impl AcknowledgedOperation {
                 // number-key (mode 2) and drop (mode 4) click forms. The
                 // source stack is still the caller/client precondition, but it
                 // must not be serialized as the packet's clicked item. This
-                // matches Mineflayer's protocol adapter and vanilla's
-                // server-side mode handling.
+                // matches vanilla's server-side mode handling.
                 let packet_clicked = matches!(mode, ClickMode::Hotbar | ClickMode::Drop)
                     .then_some(None)
                     .unwrap_or(clicked.as_ref());
