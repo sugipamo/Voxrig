@@ -275,10 +275,119 @@ mod tests {
         assert!(!manager.disconnect("Bot01").await.unwrap());
     }
 
+    async fn early_terminal_event_is_replayed_once(kick: bool, subscribed: bool) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (login_seen_tx, login_seen_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let (eof_tx, eof_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            login_seen_tx.send(()).unwrap();
+            release_rx.await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
+            if kick {
+                write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
+            }
+            drop(writer);
+            let mut buf = [0_u8; 4096];
+            loop {
+                match reader.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) => {}
+                }
+            }
+            eof_tx.send(()).unwrap();
+        });
+        let manager = BotManager::new(Server::new("127.0.0.1", port));
+        let mut events = manager.subscribe();
+        let connecting = {
+            let manager = manager.clone();
+            tokio::spawn(async move { manager.connect(Player::offline("EarlyEnd")).await })
+        };
+        login_seen_rx.await.unwrap();
+        // Gate either side of subscription: the terminal event is already lost
+        // from broadcast, or is buffered for the relay that will be aborted.
+        let connect_gate = if subscribed {
+            None
+        } else {
+            Some(manager.inner.connecting.lock().await)
+        };
+        let bots_gate = if subscribed {
+            Some(manager.inner.bots.write().await)
+        } else {
+            None
+        };
+        release_tx.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(5), eof_rx)
+            .await
+            .unwrap()
+            .unwrap();
+        drop(connect_gate);
+        drop(bots_gate);
+        let bot = connecting.await.unwrap().unwrap();
+        let terminal = bot.terminal_event().expect("early terminal cause was lost");
+        assert_eq!(matches!(terminal, Event::Disconnected { .. }), kick);
+        assert_eq!(
+            bot.connection_state(),
+            if kick {
+                crate::versions::java_1_16_1::ConnectionState::Disconnected
+            } else {
+                crate::versions::java_1_16_1::ConnectionState::ConnectionStateUnknown
+            }
+        );
+        let forwarded = tokio::time::timeout(Duration::from_secs(1), events.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            forwarded,
+            BotEvent {
+                username: "EarlyEnd".to_owned(),
+                event: terminal
+            }
+        );
+        assert!(manager.get("EarlyEnd").await.is_none());
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), events.recv())
+                .await
+                .is_err(),
+            "manager delivered the terminal event more than once"
+        );
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn manager_early_kick_replays_terminal_event_once() {
+        early_terminal_event_is_replayed_once(true, false).await;
+    }
+
+    #[tokio::test]
+    async fn manager_early_reader_error_replays_terminal_event_once() {
+        early_terminal_event_is_replayed_once(false, false).await;
+    }
+
+    #[tokio::test]
+    async fn manager_early_buffered_terminal_event_is_delivered_once() {
+        early_terminal_event_is_replayed_once(true, true).await;
+    }
+
     #[tokio::test]
     async fn direct_bot_disconnect_removes_managed_connection() {
         let (port, server) = mock_login_server().await;
         let manager = BotManager::new(Server::new("127.0.0.1", port));
+        let mut events = manager.subscribe();
         let bot = manager
             .connect(Player::offline("Reconnectable"))
             .await
@@ -292,6 +401,19 @@ mod tests {
         })
         .await
         .expect("direct disconnect left a stale managed bot");
+        assert_eq!(
+            events.try_recv().unwrap(),
+            BotEvent {
+                username: "Reconnectable".to_owned(),
+                event: bot.terminal_event().unwrap(),
+            }
+        );
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), events.recv())
+                .await
+                .is_err(),
+            "relay delivered the terminal event more than once"
+        );
         server.await.unwrap();
     }
 

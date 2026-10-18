@@ -7800,6 +7800,7 @@ mod tests {
                 // Notify calls this synchronously, before emit can continue.
                 // This deterministically observes the state a racing waiter sees.
                 assert!(self.bot.is_stopped());
+                assert_eq!(self.bot.terminal_event(), Some(self.event.clone()));
                 let log = self
                     .bot
                     .common_events
@@ -7886,6 +7887,7 @@ mod tests {
             message: "duplicate error".to_owned(),
         });
         assert_eq!(inspect.wakes.load(Ordering::Relaxed), 4);
+        assert_eq!(bot.terminal_event(), Some(event.clone()));
         assert!(matches!(
             native_events.try_recv(),
             Err(broadcast::error::TryRecvError::Empty)
@@ -8045,6 +8047,152 @@ mod tests {
         .await
         .unwrap();
         (bot, server, release)
+    }
+
+    async fn wait_for_terminal_event(bot: &Bot) -> Event {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Some(event) = bot.terminal_event() {
+                    bot.wait_for_transport_end().await;
+                    return event;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("reader did not publish a terminal event")
+    }
+
+    #[tokio::test]
+    async fn terminal_event_live_connection_is_none() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let clone = bot.clone();
+        assert_eq!(bot.terminal_event(), None);
+        bot.emit(Event::Error {
+            kind: "test",
+            message: "nonterminal error".to_owned(),
+        });
+        assert_eq!(clone.terminal_event(), None);
+        release.send(()).unwrap();
+        drop(clone);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn terminal_event_retains_reader_parse_error_without_subscription() {
+        let (bot, eof, release, server) =
+            ready_bot_with_peer_frame(Some((0x44, vec![0x0f, 0x08, 0x02, 0x41, 0x20, 0, 0])), true)
+                .await;
+        let clone = bot.clone();
+        let first = wait_for_terminal_event(&bot).await;
+        assert!(matches!(
+            &first,
+            Event::Error { kind: "connection", message }
+                if message.contains("truncated metadata")
+        ));
+        assert_eq!(
+            bot.connection_state(),
+            ConnectionState::ConnectionStateUnknown
+        );
+        // A late broadcast subscriber cannot recover the earlier event.
+        let mut late = clone.subscribe();
+        assert!(matches!(
+            late.try_recv(),
+            Err(broadcast::error::TryRecvError::Empty)
+        ));
+        bot.emit(Event::Disconnected {
+            reason: "duplicate disconnect".to_owned(),
+        });
+        bot.emit(Event::Error {
+            kind: "connection",
+            message: "duplicate error".to_owned(),
+        });
+        assert_eq!(bot.terminal_event(), Some(first.clone()));
+        assert_eq!(clone.terminal_event(), Some(first));
+        assert!(matches!(
+            late.try_recv(),
+            Err(broadcast::error::TryRecvError::Empty)
+        ));
+        assert!(eof.await.unwrap());
+        release.send(()).unwrap();
+        drop(clone);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn terminal_event_server_kick_is_confirmed() {
+        let (bot, eof, release, server) =
+            ready_bot_with_peer_frame(Some((0x1a, vec![0])), true).await;
+        assert_eq!(
+            wait_for_terminal_event(&bot).await,
+            Event::Disconnected {
+                reason: String::new(),
+            }
+        );
+        assert_eq!(bot.connection_state(), ConnectionState::Disconnected);
+        assert!(eof.await.unwrap());
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn terminal_event_requested_transport_end_is_confirmed() {
+        let (bot, server, release) =
+            connected_test_bot(ConnectionOptions::default(), Vec::new()).await;
+        release.send(()).unwrap();
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            wait_for_terminal_event(&bot).await,
+            Event::Disconnected {
+                reason: "transport ended after disconnect request".to_owned(),
+            }
+        );
+        assert_eq!(bot.connection_state(), ConnectionState::Disconnected);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn terminal_event_reader_ok_without_transport_confirmation_is_unknown() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let observer = bot.clone_internal();
+        // Dropping the last external handle stops the reader with Ok(()),
+        // without a server kick or a disconnect request confirming transport end.
+        drop(bot);
+        assert_eq!(
+            wait_for_terminal_event(&observer).await,
+            Event::Error {
+                kind: "connection",
+                message: "reader stopped without a confirmed transport end".to_owned(),
+            }
+        );
+        assert_eq!(
+            observer.connection_state(),
+            ConnectionState::ConnectionStateUnknown
+        );
+        release.send(()).unwrap();
+        drop(observer);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn terminal_event_reader_task_failure_is_unknown() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.reader_abort.get().unwrap().abort();
+        assert!(matches!(wait_for_terminal_event(&bot).await,
+            Event::Error { kind: "connection", message }
+                if message.starts_with("reader task terminated unexpectedly:")
+        ));
+        assert_eq!(
+            bot.connection_state(),
+            ConnectionState::ConnectionStateUnknown
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
     }
 
     #[tokio::test]
