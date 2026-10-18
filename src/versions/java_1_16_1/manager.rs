@@ -6,7 +6,10 @@ use crate::versions::java_1_16_1::{
 };
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 use tokio::sync::{RwLock, broadcast};
 
@@ -111,6 +114,8 @@ impl BotManager {
         let events = self.inner.events.clone();
         let event_username = username.clone();
         let manager = Arc::downgrade(&self.inner);
+        let terminal_forwarded = Arc::new(AtomicBool::new(false));
+        let relay_terminal_forwarded = terminal_forwarded.clone();
         let relay = tokio::spawn(async move {
             loop {
                 match receiver.recv().await {
@@ -123,6 +128,9 @@ impl BotManager {
                                     ..
                                 }
                         );
+                        if terminal {
+                            relay_terminal_forwarded.store(true, Ordering::Release);
+                        }
                         let _ = events.send(BotEvent {
                             username: event_username.clone(),
                             event,
@@ -147,6 +155,17 @@ impl BotManager {
         });
         if bot.is_stopped() {
             relay.abort();
+            // An abort may race a running relay. Wait until its synchronous
+            // flag-and-send section has finished before deciding to replay.
+            let _ = relay.await;
+            if !terminal_forwarded.load(Ordering::Acquire) {
+                if let Some(event) = bot.terminal_event() {
+                    let _ = self.inner.events.send(BotEvent {
+                        username: username.clone(),
+                        event,
+                    });
+                }
+            }
             let mut bots = self.inner.bots.write().await;
             if bots
                 .get(&username)

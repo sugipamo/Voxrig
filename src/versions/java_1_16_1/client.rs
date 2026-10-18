@@ -1039,12 +1039,14 @@ pub enum Event {
         /// The `uuids` value carried by this variant.
         uuids: Vec<[u8; 16]>,
     },
-    /// The `Disconnected` variant.
+    /// A confirmed transport end, classified as [`ConnectionState::Disconnected`].
     Disconnected {
         /// The `reason` value carried by this variant.
         reason: String,
     },
-    /// The `Error` variant.
+    /// An error notification. With `kind: "connection"`, the reader stopped or
+    /// failed without a confirmed transport end; the connection is classified as
+    /// [`ConnectionState::ConnectionStateUnknown`]. Other kinds are nonterminal.
     Error {
         /// The `kind` value carried by this variant.
         kind: &'static str,
@@ -1087,6 +1089,7 @@ pub struct Bot {
     physics: Arc<Mutex<PhysicsTracker>>,
     stopped: Arc<AtomicBool>,
     terminal_emitted: Arc<AtomicBool>,
+    terminal_event: Arc<std::sync::OnceLock<Event>>,
     jump_requested: Arc<AtomicBool>,
     native_jump_work: Arc<StdMutex<Option<crate::client::ledger::WorkGuard>>>,
     teleport_barrier_ticks: Arc<AtomicU8>,
@@ -1212,6 +1215,7 @@ impl Bot {
             physics: self.physics.clone(),
             stopped: self.stopped.clone(),
             terminal_emitted: self.terminal_emitted.clone(),
+            terminal_event: self.terminal_event.clone(),
             jump_requested: self.jump_requested.clone(),
             native_jump_work: self.native_jump_work.clone(),
             teleport_barrier_ticks: self.teleport_barrier_ticks.clone(),
@@ -1419,6 +1423,7 @@ impl Bot {
             physics: Arc::new(Mutex::new(PhysicsTracker::new())),
             stopped: Arc::new(AtomicBool::new(false)),
             terminal_emitted: Arc::new(AtomicBool::new(false)),
+            terminal_event: Arc::default(),
             jump_requested: Arc::new(AtomicBool::new(false)),
             native_jump_work: Arc::default(),
             teleport_barrier_ticks: Arc::new(AtomicU8::new(0)),
@@ -1646,6 +1651,24 @@ impl Bot {
     /// Performs the `subscribe` operation.
     pub fn subscribe(&self) -> broadcast::Receiver<Event> {
         self.events.subscribe()
+    }
+    /// Returns a clone of this connection's first terminal event, or `None`
+    /// until a terminal event is emitted.
+    ///
+    /// [`Event::Disconnected`] means a confirmed transport end, classified by
+    /// [`Self::connection_state`] as [`ConnectionState::Disconnected`].
+    /// [`Event::Error`] with `kind: "connection"` means the reader stopped or
+    /// failed without a confirmed transport end, classified as
+    /// [`ConnectionState::ConnectionStateUnknown`].
+    ///
+    /// The event is shared by all Bot clones and retained before terminal
+    /// waiters are notified. Later terminal events never replace it. No prior
+    /// subscription is needed, even if the connection ends before `connect`
+    /// returns. With feature `native`, common [`crate::Client`] callers access
+    /// this through `client.java_1_16_1()?.terminal_event()`.
+    #[must_use]
+    pub fn terminal_event(&self) -> Option<Event> {
+        self.terminal_event.get().cloned()
     }
     pub(crate) const fn connection_id(&self) -> u64 {
         self.connection.generation().get()
@@ -6723,7 +6746,10 @@ impl Bot {
             queued.events.push_back(event.clone());
         }
         if terminal {
-            // Publish the terminal event before stopped state or wake-ups are visible.
+            // Retain the terminal cause before stopped state or wake-ups are visible.
+            self.terminal_event
+                .set(event.clone())
+                .expect("terminal event already recorded");
             self.stopped.store(true, Ordering::Release);
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
