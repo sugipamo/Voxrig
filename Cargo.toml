@@ -198,6 +198,7 @@ include = [
     "/scripts/export_mining_tools.py",
     "/scripts/export_dry_terrain.py",
     "/README.md",
+    "/CHANGELOG.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",
 ]

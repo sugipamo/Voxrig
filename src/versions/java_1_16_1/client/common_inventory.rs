@@ -2682,6 +2682,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn unchecked_uncertain_take_delivery_preserves_original_error() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        checked_craft_fixture(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let control = crate::client::ledger::testing::Control::default();
+        bot.writer.lock().await.inner.test_replace(control.writer());
+        control.release(1, false);
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.craft_once(&[None; 4]).await });
+        control.until(|c| c.bytes().len() == 1).await;
+        control.fail(Some(1), false);
+        let error = timeout(Duration::from_secs(2), waiter)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::Connection);
+        assert!(
+            error
+                .diagnostic()
+                .downcast_ref::<std::io::Error>()
+                .is_some()
+        );
+        assert_eq!(control.bytes().len(), 1);
+        let _ = bot.disconnect().await;
+        drop(release);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn checked_presend_reservation_failure_is_failed_even_with_inspection_record() {
         use std::future::Future as _;
         let (bot, _packets, release, server) =

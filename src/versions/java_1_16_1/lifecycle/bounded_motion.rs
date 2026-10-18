@@ -98,6 +98,7 @@ pub(super) enum MotionCommand {
         button: u8,
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
         processing_resync: bool,
+        write_started: Option<Arc<AtomicBool>>,
         reply: oneshot::Sender<crate::Result<()>>,
     },
     InventoryTransfer {
@@ -977,6 +978,7 @@ impl MotionGate {
                 button,
                 comparison,
                 processing_resync,
+                write_started,
                 reply,
             } => {
                 let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
@@ -1037,7 +1039,13 @@ impl MotionGate {
                         let compression = writer.compression;
                         writer
                             .inner
-                            .send(work, compression, 0x09, &payload)
+                            .send_with_attempt(
+                                work,
+                                compression,
+                                0x09,
+                                &payload,
+                                write_started.as_deref(),
+                            )
                             .await
                             .map_err(crate::Error::from)
                     }
@@ -1386,7 +1394,16 @@ impl ConnectionActor {
         button: u8,
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
     ) -> crate::Result<()> {
-        self.inventory_click_with_resync(run_id, slot, button, comparison, false)
+        self.inventory_click_with_resync(run_id, slot, button, comparison, false, None)
+            .await
+    }
+    pub(crate) async fn bounded_crafting_result_click(
+        &self,
+        run_id: u64,
+        comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+        write_started: Option<Arc<AtomicBool>>,
+    ) -> crate::Result<()> {
+        self.inventory_click_with_resync(run_id, 0, 0, comparison, false, write_started)
             .await
     }
     pub(crate) async fn bounded_processing_click(
@@ -1396,7 +1413,7 @@ impl ConnectionActor {
         button: u8,
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
     ) -> crate::Result<()> {
-        self.inventory_click_with_resync(run_id, slot, button, comparison, true)
+        self.inventory_click_with_resync(run_id, slot, button, comparison, true, None)
             .await
     }
     async fn inventory_click_with_resync(
@@ -1406,6 +1423,7 @@ impl ConnectionActor {
         button: u8,
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
         processing_resync: bool,
+        write_started: Option<Arc<AtomicBool>>,
     ) -> crate::Result<()> {
         let (reply, result) = oneshot::channel();
         self.commands
@@ -1415,6 +1433,7 @@ impl ConnectionActor {
                 button,
                 comparison,
                 processing_resync,
+                write_started,
                 reply,
             }))
             .await

@@ -4766,6 +4766,39 @@ mod craft_once_helpers {
     }
 
     #[tokio::test]
+    async fn unchecked_uncertain_take_delivery_preserves_original_error() {
+        let f = fixture().await;
+        let control = crate::client::ledger::testing::Control::default();
+        f.api
+            .bot
+            .session
+            .writer
+            .lock()
+            .await
+            .stream
+            .test_replace(control.writer());
+        control.release(1, false);
+        let ops = f.client().survival();
+        let waiter = tokio::spawn(async move { ops.craft_once(&[None; 4]).await });
+        control.until(|c| c.bytes().len() == 1).await;
+        control.fail(Some(1), false);
+        let error = timeout(Duration::from_secs(2), waiter)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::UncertainDispatch);
+        assert!(
+            error
+                .diagnostic()
+                .downcast_ref::<std::io::Error>()
+                .is_some()
+        );
+        assert_eq!(control.bytes().len(), 1);
+        f.stop().await;
+    }
+
+    #[tokio::test]
     async fn checked_presend_disconnect_after_retention_is_failed_without_write() {
         let f = fixture().await;
         let client = f.client();

@@ -83,6 +83,7 @@ impl Operations {
     async fn crafting_send_owned(
         &self,
         id: contract::CraftingTakeId,
+        submission: Option<Arc<take::Submission>>,
     ) -> Result<CraftingTakeRecord> {
         let mut state = self.bot.session.state.lock().await;
         let result = async {
@@ -126,9 +127,16 @@ impl Operations {
                 .send
                 .after_sequence = current.receive_sequence;
             publish(&mut state);
+            if let Some(submission) = &submission {
+                submission.retain(state.common_crafting_take.as_ref().expect("retained"));
+            }
             self.bot
                 .session
-                .send(ids::play_serverbound::WINDOW_CLICK, &payload(&record)?)
+                .send_with_attempt(
+                    ids::play_serverbound::WINDOW_CLICK,
+                    &payload(&record)?,
+                    submission.as_ref().map(|s| s.write_started.as_ref()),
+                )
                 .await?;
             let record = state.common_crafting_take.as_mut().expect("retained");
             record.send.dispatched = true;
@@ -138,6 +146,11 @@ impl Operations {
         if let Err(e) = &result {
             if let Some(record) = state.common_crafting_take.as_mut() {
                 record.inspection(format!("crafting submission uncertain: {e}"));
+                if let Some(submission) = &submission {
+                    if record.id == id {
+                        submission.retain(record);
+                    }
+                }
             }
         }
         publish(&mut state);
@@ -146,11 +159,12 @@ impl Operations {
 }
 
 impl crate::client::adapter::CraftingTakeOps for Operations {
-    async fn take_crafting_result(
+    async fn take_crafting_result_with_submission(
         &self,
         mode: api::GameMode,
         grid: &contract::ReceivedCrafting,
         destination: CraftingResultDestination,
+        submission: Option<Arc<take::Submission>>,
     ) -> Result<CraftingTakeRecord> {
         self.bot
             .session
@@ -198,6 +212,9 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
                     }
                 };
                 let id = record.id;
+                if let Some(submission) = &submission {
+                    submission.retain(&record);
+                }
                 let work = state.finite_work.begin(
                     &self.bot.session.ledger,
                     crate::client::ledger::finite::Family::Crafting,
@@ -209,7 +226,7 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
                 let (reply, result) = tokio::sync::oneshot::channel();
                 self.bot.session.spawn_finite_work(work, async move {
                     let _ = reply.send(crate::client::ledger::finite::checked(
-                        bot.operations().crafting_send_owned(id).await,
+                        bot.operations().crafting_send_owned(id, submission).await,
                     ));
                 });
                 drop(state);

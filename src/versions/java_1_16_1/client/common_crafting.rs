@@ -34,6 +34,7 @@ impl Bot {
         id: contract::CraftingTakeId,
         revision: u64,
         _gate: tokio::sync::OwnedMutexGuard<()>,
+        submission: Option<Arc<take::Submission>>,
     ) -> Result<CraftingTakeRecord> {
         let result = async {
             let record = super::lock_packet_state(&self.common_crafting_take)
@@ -103,9 +104,16 @@ impl Bot {
                 record.send.legacy_action = Some(action);
                 record.send.legacy_comparison = Some(comparison);
                 record.send.after_sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+                if let Some(submission) = &submission {
+                    submission.retain(record);
+                }
             }
             self.connection
-                .bounded_inventory_click(id.attempt(), 0, 0, native)
+                .bounded_crafting_result_click(
+                    id.attempt(),
+                    native,
+                    submission.as_ref().map(|s| s.write_started.clone()),
+                )
                 .await?;
             let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
             let record = &mut guard.as_mut().expect("retained").record;
@@ -116,6 +124,16 @@ impl Bot {
         if let Err(e) = &result {
             self.interrupt_common_crafting_take(format!("crafting submission uncertain: {e}"))
                 .await;
+            if let Some(submission) = &submission {
+                if let Some(retained) = super::lock_packet_state(&self.common_crafting_take)
+                    .await
+                    .as_ref()
+                {
+                    if retained.record.id == id {
+                        submission.retain(&retained.record);
+                    }
+                }
+            }
         }
         result
     }
@@ -230,11 +248,12 @@ impl Bot {
 }
 
 impl crate::client::adapter::CraftingTakeOps for Bot {
-    async fn take_crafting_result(
+    async fn take_crafting_result_with_submission(
         &self,
         mode: api::GameMode,
         grid: &contract::ReceivedCrafting,
         destination: CraftingResultDestination,
+        submission: Option<Arc<take::Submission>>,
     ) -> Result<CraftingTakeRecord> {
         self.connection
             .ledger()
@@ -289,6 +308,9 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
                 };
                 self.crafting_cache(&record).await?;
                 let id = record.id;
+                if let Some(submission) = &submission {
+                    submission.retain(&record);
+                }
                 let work = self.begin_finite(
                     crate::client::ledger::finite::Family::Crafting,
                     id.attempt(),
@@ -304,7 +326,8 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
                     // Transfer the original admission lock to the connection owner:
                     // queued receipts cannot change the predecessor between reservation and I/O.
                     let _ = reply.send(crate::client::ledger::finite::checked(
-                        bot.common_crafting_send_owned(id, revision, gate).await,
+                        bot.common_crafting_send_owned(id, revision, gate, submission)
+                            .await,
                     ));
                 });
                 result

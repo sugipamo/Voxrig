@@ -231,7 +231,17 @@ pub(crate) trait CraftingTakeOps {
         mode: GameMode,
         grid: &ReceivedCrafting,
         destination: CraftingResultDestination,
-    ) -> Result<CraftingTakeRecord>;
+    ) -> Result<CraftingTakeRecord> {
+        self.take_crafting_result_with_submission(mode, grid, destination, None)
+            .await
+    }
+    fn take_crafting_result_with_submission(
+        &self,
+        mode: GameMode,
+        grid: &ReceivedCrafting,
+        destination: CraftingResultDestination,
+        submission: Option<std::sync::Arc<super::crafting::take::Submission>>,
+    ) -> impl std::future::Future<Output = Result<CraftingTakeRecord>> + Send;
     async fn crafting_take_record(&self) -> Result<Option<CraftingTakeRecord>>;
 }
 

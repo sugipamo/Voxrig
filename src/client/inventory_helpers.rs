@@ -381,12 +381,10 @@ impl super::Survival {
         Ok(CraftingFillRecord { clicks, result })
     }
 
-    /// `fill_crafting_grid`, then shift-take the result into the inventory once
-    /// (`transfer_crafting_result`) and wait for its received outcome. No result
-    /// is an error; the ingredients then stay in the grid.
-    /// See [`Self::craft_once_checked`] for a result requiring confirmed completion.
-    pub async fn craft_once(&self, ingredients: &[Option<&str>]) -> Result<CraftOnceRecord> {
-        use super::crafting::CraftingTakeStage;
+    async fn prepare_craft_once(
+        &self,
+        ingredients: &[Option<&str>],
+    ) -> Result<(CraftingFillRecord, super::crafting::ReceivedCrafting)> {
         let fill = self.fill_crafting_grid(ingredients).await?;
         if fill.result.is_none() {
             return Err(error(
@@ -399,7 +397,11 @@ impl super::Survival {
             .received_crafting()
             .await?
             .ok_or_else(|| error(ErrorKind::State, "crafting grid closed"))?;
-        let sent = self.transfer_crafting_result(&grid).await?;
+        Ok((fill, grid))
+    }
+
+    async fn wait_crafting_take(&self, sent: CraftingTakeRecord) -> Result<CraftingTakeRecord> {
+        use super::crafting::CraftingTakeStage;
         let deadline = tokio::time::Instant::now() + CLICK_TIMEOUT;
         let mut take = sent.clone();
         while take.stage == CraftingTakeStage::Pending && tokio::time::Instant::now() < deadline {
@@ -410,6 +412,17 @@ impl super::Survival {
                 }
             }
         }
+        Ok(take)
+    }
+
+    /// `fill_crafting_grid`, then shift-take the result into the inventory once
+    /// (`transfer_crafting_result`) and wait for its received outcome. No result
+    /// is an error; the ingredients then stay in the grid.
+    /// See [`Self::craft_once_checked`] for a result requiring confirmed completion.
+    pub async fn craft_once(&self, ingredients: &[Option<&str>]) -> Result<CraftOnceRecord> {
+        let (fill, grid) = self.prepare_craft_once(ingredients).await?;
+        let sent = self.transfer_crafting_result(&grid).await?;
+        let take = self.wait_crafting_take(sent).await?;
         Ok(CraftOnceRecord { fill, take })
     }
 
@@ -417,23 +430,62 @@ impl super::Survival {
     /// retained take record confirms completion (`ObservedTransferred`).
     /// Uses the same parameters, operations and deadlines as [`Self::craft_once`].
     ///
+    /// Invalid input, fill errors, no result, and take reservation, ownership or
+    /// predecessor checks rejecting before the frame write return
+    /// [`CraftOnceError::Failed`] with the original error. Retention alone does
+    /// not imply uncertain delivery. If an admitted take's write fails or its
+    /// delivery becomes unknown, returns [`CraftOnceError::OutcomeUnknown`] with
+    /// [`CraftOnceUnknownCause::RequiresInspection`], the fill record and the
+    /// retained take (including `record.take.id`), without resending.
+    ///
     /// A take still pending at the deadline returns
     /// [`CraftOnceError::OutcomeUnknown`] with [`CraftOnceUnknownCause::Timeout`],
     /// the operation ID (`record.take.id`) and last observed state (`record.take.stage`).
     /// Reaching the deadline does **not** mean the craft failed or was cancelled:
     /// the server may still apply it. Callers should re-observe and reconcile
     /// (for example via received inventory or [`Self::crafting_take_record`])
-    /// rather than blindly resend. A take requiring inspection also returns
-    /// `OutcomeUnknown`; ordinary errors are preserved in [`CraftOnceError::Failed`].
+    /// rather than blindly resend. A returned take record requiring inspection
+    /// also returns `OutcomeUnknown` with `RequiresInspection`.
     pub async fn craft_once_checked(
         &self,
         ingredients: &[Option<&str>],
     ) -> std::result::Result<CraftOnceRecord, CraftOnceError> {
+        use super::adapter::CraftingTakeOps;
         use super::crafting::CraftingTakeStage;
-        let record = self
-            .craft_once(ingredients)
+        use super::crafting::{CraftingResultDestination, take::Submission};
+        use std::sync::Arc;
+
+        let (fill, grid) = self
+            .prepare_craft_once(ingredients)
             .await
             .map_err(CraftOnceError::Failed)?;
+        let submission = Arc::new(Submission::default());
+        let result = crate::client::dispatch!(&self.client.adapter, a =>
+            CraftingTakeOps::take_crafting_result_with_submission(
+                a,
+                super::GameMode::Survival,
+                &grid,
+                CraftingResultDestination::Inventory,
+                Some(submission.clone()),
+            ).await
+        );
+        let sent = match result {
+            Ok(sent) => sent,
+            Err(error) => {
+                return Err(match submission.uncertain_record(&error) {
+                    Some(take) => CraftOnceError::OutcomeUnknown {
+                        record: Box::new(CraftOnceRecord { fill, take }),
+                        cause: CraftOnceUnknownCause::RequiresInspection,
+                    },
+                    None => CraftOnceError::Failed(error),
+                });
+            }
+        };
+        let take = self
+            .wait_crafting_take(sent)
+            .await
+            .map_err(CraftOnceError::Failed)?;
+        let record = CraftOnceRecord { fill, take };
         if record.take.stage == CraftingTakeStage::ObservedTransferred {
             return Ok(record);
         }
