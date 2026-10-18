@@ -4713,6 +4713,149 @@ mod craft_once_helpers {
     }
 
     #[tokio::test]
+    async fn checked_uncertain_take_delivery_retains_identity_without_resend() {
+        let f = fixture().await;
+        let client = f.client();
+        let control = crate::client::ledger::testing::Control::default();
+        f.api
+            .bot
+            .session
+            .writer
+            .lock()
+            .await
+            .stream
+            .test_replace(control.writer());
+        control.release(1, false);
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.craft_once_checked(&[None; 4]).await });
+        control.until(|c| c.bytes().len() == 1).await;
+        let retained = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        control.fail(Some(1), false);
+        let error = timeout(Duration::from_secs(2), waiter)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(control.bytes().len(), 1, "must not resend the take");
+        assert_eq!(f.api.bot.session.ledger.test_written_through(), 0);
+        let latest = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, retained.id);
+        assert_eq!(latest.stage, CraftingTakeStage::RequiresInspection);
+        f.stop().await;
+        let CraftOnceError::OutcomeUnknown {
+            record,
+            cause: CraftOnceUnknownCause::RequiresInspection,
+        } = error
+        else {
+            panic!("uncertain admitted take must retain its identity: {error:?}");
+        };
+        assert_eq!(record.take.id, retained.id);
+        assert_eq!(record.take.stage, CraftingTakeStage::RequiresInspection);
+        assert!(record.fill.result.is_some());
+        assert!(record.fill.clicks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn checked_presend_disconnect_after_retention_is_failed_without_write() {
+        let f = fixture().await;
+        let client = f.client();
+        let bot = f.api.bot.clone();
+        let mut writer = bot.session.writer.lock().await;
+        let control = crate::client::ledger::testing::Control::default();
+        writer.stream.test_replace(control.writer());
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.craft_once_checked(&[None; 4]).await });
+        let retained = timeout(Duration::from_secs(2), async {
+            loop {
+                if let Some(record) = client.survival().crafting_take_record().await.unwrap() {
+                    break record;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        bot.session.stop();
+        drop(writer);
+        let error = timeout(Duration::from_secs(2), waiter)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        let CraftOnceError::Failed(error) = error else {
+            panic!("disconnect before frame write must be Failed");
+        };
+        assert_eq!(error.kind(), ErrorKind::Disconnected);
+        let latest = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, retained.id);
+        assert_eq!(latest.stage, CraftingTakeStage::RequiresInspection);
+        assert!(control.bytes().is_empty());
+        assert_eq!(control.progress().0, 0);
+        f.stop().await;
+    }
+
+    #[tokio::test]
+    async fn checked_presend_ownership_failure_is_failed_without_write() {
+        let f = fixture().await;
+        let client = f.client();
+        f.api
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .operations
+            .inventory
+            .unsupported_components = true;
+        let control = crate::client::ledger::testing::Control::default();
+        f.api
+            .bot
+            .session
+            .writer
+            .lock()
+            .await
+            .stream
+            .test_replace(control.writer());
+        let legacy = client.survival().craft_once(&[None; 4]).await.unwrap_err();
+        let error = client
+            .survival()
+            .craft_once_checked(&[None; 4])
+            .await
+            .unwrap_err();
+        let CraftOnceError::Failed(error) = error else {
+            panic!("pre-send ownership rejection must be Failed");
+        };
+        assert_eq!(error.kind(), legacy.kind());
+        assert_eq!(error.to_string(), legacy.to_string());
+        assert!(control.bytes().is_empty());
+        assert_eq!(control.progress().0, 0);
+        assert!(
+            client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        f.stop().await;
+    }
+
+    #[tokio::test]
     async fn checked_confirmed_completion_is_ok_and_inspection_is_unknown() {
         for inspection in [false, true] {
             let mut f = fixture().await;
