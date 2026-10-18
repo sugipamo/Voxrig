@@ -7990,6 +7990,81 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn truncated_metadata_apply_error_keeps_other_kind() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let error = bot
+            .apply_packet(0x44, vec![0x0f, 0x08, 0x02, 0x41, 0x20, 0, 0])
+            .await
+            .unwrap_err();
+        // Pin the pre-context classification: "truncated metadata" is Other.
+        assert_eq!(error.kind(), ErrorKind::Other);
+        assert!(format!("{:#}", error.diagnostic()).contains("truncated metadata"));
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn truncated_metadata_terminal_error_and_ready_wait_include_packet_context() {
+        let (bot, eof, release, server) =
+            ready_bot_with_peer_frame(Some((0x44, vec![0x0f, 0x08, 0x02, 0x41, 0x20, 0, 0])), true)
+                .await;
+        // This current-thread test subscribes before yielding to the peer.
+        let mut events = bot.subscribe();
+        let message = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Event::Error { kind, message } = events.recv().await.unwrap() {
+                    assert_eq!(kind, "connection");
+                    break message;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(5), bot.wait_for_transport_end())
+                .await
+                .unwrap(),
+            ConnectionState::ConnectionStateUnknown
+        );
+        let (kind, retained) = bot
+            .common_receipts
+            .lock()
+            .await
+            .snapshot_failure
+            .clone()
+            .unwrap();
+        assert_eq!(kind, ErrorKind::Other);
+        let ready_message = bot.wait_until_ready().await.unwrap_err().to_string();
+        assert!(
+            ready_message.starts_with("connection closed after initial position:"),
+            "{ready_message}"
+        );
+        // Finish peer teardown before checking the diagnostic assertions.
+        assert!(eof.await.unwrap(), "writer stayed open after reader error");
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+        for diagnostic in [&message, &retained, &ready_message] {
+            for expected in ["0x44", "entity_metadata", "7 bytes", "truncated metadata"] {
+                assert!(
+                    diagnostic.contains(expected),
+                    "missing {expected:?}: {diagnostic}"
+                );
+            }
+        }
+        assert_eq!(
+            message,
+            "play packet 0x44 (entity_metadata, 7 bytes): truncated metadata"
+        );
+        assert_eq!(retained, message);
+        assert_eq!(
+            ready_message,
+            format!("connection closed after initial position: {message}")
+        );
+    }
+
+    #[tokio::test]
     async fn wait_until_ready_after_ready_reader_error_names_phase_and_cause() {
         // Entity metadata whose 0xff terminator is missing.
         let (bot, eof, release, server) =
