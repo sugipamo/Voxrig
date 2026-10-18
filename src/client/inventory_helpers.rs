@@ -125,7 +125,9 @@ fn item_name(name: &str) -> String {
 
 fn container_storage_view(screen: &ScreenObservation) -> Result<Option<View>> {
     let cursor = known(screen.cursor.as_ref());
-    if let Some(container) = screen.screen.as_ref() {
+    if let Some(container) = screen.screen.as_ref().filter(|container| {
+        screen.player_screen.is_none() && screen.active_window == Some(container.id.window_id())
+    }) {
         let layout = container
             .layout
             .as_ref()
