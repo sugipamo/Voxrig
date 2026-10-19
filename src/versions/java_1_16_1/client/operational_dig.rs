@@ -10,6 +10,7 @@ impl Bot {
         let player = self.common_player_unlocked().await?;
         let (eye, _) = dig::eye_cell(&player)?;
         let on_ground = self.player.lock().await.on_ground;
+        let vertical_velocity = Some(self.motion.lock().await.velocity.y);
         let world = self.world.lock().await;
         let block = |at: [i32; 3]| -> Result<crate::NativeBlockState> {
             crate::versions::java_1_16_1::native_state(
@@ -22,6 +23,7 @@ impl Bot {
             player,
             block(target)?,
             on_ground,
+            vertical_velocity,
             block(eye)?,
             block([eye[0], eye[1] + 1, eye[2]])?,
         )
@@ -107,10 +109,10 @@ impl DigOps for Bot {
             return Ok(Dispatch::Changed(state));
         }
         let current = self.dig_snapshot_unlocked(target).await?;
-        dig::validate(initial, &current)?;
+        dig::validate(initial, &current, action)?;
         let action = match action {
             Action::Start => crate::client::operations::Action::DigStart(target, face),
-            Action::Finish => crate::client::operations::Action::DigFinish(target, face),
+            Action::Finish { .. } => crate::client::operations::Action::DigFinish(target, face),
             Action::Abort => unreachable!(),
         };
         self.execute_common_unlocked(GameMode::Survival, action, None)
@@ -160,6 +162,8 @@ mod tests {
                 .await
                 .set_block_for_test(BlockPos { x: 9, y: 65, z: 8 }, dirt);
             let initial = bot.dig_snapshot(target).await.unwrap();
+            let initial_y = bot.player.lock().await.y;
+            let initial_vy = bot.motion.lock().await.velocity.y;
             let gate = bot.coherent_state_gate.lock().await;
             let queued = bot.clone_internal();
             let sending = tokio::spawn(async move {
@@ -168,7 +172,9 @@ mod tests {
                         &initial,
                         target,
                         crate::client::BlockFace::Up,
-                        Action::Finish,
+                        Action::Finish {
+                            elapsed: std::time::Duration::from_millis(5702),
+                        },
                         &AtomicBool::new(false),
                     )
                     .await
@@ -199,7 +205,17 @@ mod tests {
             if change == "target" {
                 assert!(matches!(result, Ok(Dispatch::Changed(_))));
             } else {
-                assert!(result.is_err(), "{change}");
+                let error = result.err().expect(change);
+                if matches!(change, "hand" | "ground") {
+                    let message = error.to_string();
+                    assert!(
+                        message.contains(" (at STOP, 5702 ms after START): "),
+                        "{message}"
+                    );
+                    assert!(message.ends_with(&format!(
+                        "; y {initial_y:.2} -> {initial_y:.2}, vy {initial_vy:.4} -> {initial_vy:.4}"
+                    )), "{message}");
+                }
             }
             assert!(packets.try_recv().is_err());
             bot.disconnect().await.unwrap();
