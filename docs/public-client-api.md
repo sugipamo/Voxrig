@@ -68,6 +68,15 @@ Java 1.16.1型のroot再公開は`pub(crate)`であり、利用側の公開impor
 `admit_operation`で実行する観測を有効にする。同じcontextの再admissionはidempotentだが、
 操作自体の再送はidempotentではない。利用側が重複実行を防ぐ。
 
+native Java 1.16.1の`Bot::terminal_event(&self) -> Option<Event>`は、その接続で最初に
+発行された終端eventのcloneを保持する。接続中は`None`で、事前のsubscribeは不要。
+`Disconnected`は確認済みのtransport終端（`connection_state()`は`Disconnected`）、
+`Error { kind: "connection", .. }`はreader停止・失敗など終端未確認
+（`ConnectionStateUnknown`）を表す。後続の終端eventで上書きしない。
+`BotManager`はconnect直後に終了したBotの終端eventも一度だけ配信する。
+共通`Client`にはnative型を返すmethodを追加せず、feature `native`の
+`client.java_1_16_1()?.terminal_event()`から参照する。
+
 `capture_coherent_observation`は複数領域を同じcapture境界で取得する。
 `interest_generation`は呼出側の任意の識別値をそのまま返し、`interest`のセル順を保つ。
 未ロード、未知のlight、entity省略、event queue overflowとrequest省略を別々に返す。
