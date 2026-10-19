@@ -80,6 +80,12 @@ Modern geometry keeps the original registry packet's session/time and owner,
 which can predate the world selection within the same connection.
 
 Container identities include session, window number and opening ordinal.
+On Java 1.16.1, received Join Game and Respawn packets set `container_state()` to
+`Received(NoOpening)` with that packet's receipt and clear opening details.
+This means the client reset to its player inventory and no foreign opening has
+been observed since that receipt. A fresh connection stays Missing until Join;
+capture and reattachment do not create this receipt. Open Window supersedes
+NoOpening, while an unmatched server close leaves it and its receipt unchanged.
 `Received(Open(id))` has matching details; `Received(Closed(id))` has no opening
 details. A close only describes its exact observed opening. Unmatched closes
 cannot certify a current opening. Local close invalidates knowledge without

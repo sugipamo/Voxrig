@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `ContainerStatus::NoOpening` to received player snapshots: a received Java 1.16.1 Join Game or Respawn sets `container_state` to `Received(NoOpening)` with that packet's receipt; Open Window and server Close Window supersede it as before, and a local close still invalidates. `ContainerStatus` is `#[non_exhaustive]`, so this is an additive public API change (#192).
 - Added `Bot::terminal_event()` to retain the first native Java 1.16.1 terminal
   cause, including early exits relayed by `BotManager`; public API addition (#187).
 - Changed Java 1.16.1 reader terminal error messages to include the play packet
