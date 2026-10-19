@@ -19,18 +19,30 @@ println!("{} ticks, removed: {}", estimate.ticks, record.removed);
 公式clientと同じ順で送る。
 
 1. START_DESTROY_BLOCKを送る。進み方が1以上なら、ここで壊れる（`ticks`が0）。
-2. 1 tickごとの進み方を`ticks`回足して1に届くまで待つ（clientの時計。1 tickの余裕を足す）。
+2. 1 tickごとの進み方を`ticks`回足して1に届くまで待つ（clientの時計。1 tickを足す）。
 3. STOP_DESTROY_BLOCKを送る。serverは自分が数えたtickで70%以上進んでいれば壊す。
 4. 受信したblockの状態が変わるのを最大1秒待ち、`removed`と`final_state`を返す。
    `removed` は元の world で loaded air を観測したときだけ true。アンロードや別の non-air block は false。
    壊れなかったことはerrorではない（serverが決める）。1.21.11は`sequences`にSTARTとSTOPの操作番号が入る。
+
+70%（0.7）の判定は低 TPS や START/STOP の処理遅延を吸収する保証ではなく、
+server が数える tick が不足すれば、この余裕があってもその場で壊れない。
 
 送信前に、受信したgame modeがsurvivalであること、対象がloadedで目から4.5以内であること、
 未解決の操作がないことを検査する。START/STOP の直前にも元の world/mode/選択した hand と採掘時間の入力を照合する。
 各 adapter は同じ状態ロックを保持したまま検査から完全なパケット送信まで行う。
 対象・目の水位・接地・player capture もそのロック内で採取する。
 1.16.1 の同じ item/個数の通常摩耗は、非負で単調増加する Damage だけの差を許容する。
-他の NBT、item、個数、選択の変更、採掘時間の変化は拒否する。
+他の NBT、item、個数、選択の変更は拒否する。
+START では採掘見積もり全体の完全一致を要求する。STOP では、硬さ（`hardness`）と
+正しい道具か（`harvestable`）が同じで、`progress_per_tick` が初期値以上、`ticks` が初期値以下なら
+速くなった見積もりも許容する。両方の見積もりの `speed` と `progress_per_tick` は有限かつ正でなければならない。
+f32 を直接比較し、誤差の許容幅は設けない。遅くなった場合や、これらの条件に合わない変化は拒否する。
+着地や水から出た場合も、待機時間は最初の見積もりの `(ticks + 1) * 50 ms` のままで短縮せず、
+`DigRecord.estimate` も最初の見積もりを保持する。`ticks == 0` の瞬時採掘は従来どおり STOP を送らない。
+この許容はローカルな整合性の判断であり、block が壊れる保証ではない。server は自分の tick と状態で決める。
+server の接地（`on_ground`）や水中の状態は受理した移動 packet に由来し、こちらより遅れたり異なったりする。
+水位や pose の違いによって server 側の採掘速度がこちらより遅くなることもある。
 拒否メッセージは変化した前提条件と変更前後の値、START/STOP の phase、STOP 時の START 送信後の経過 ms、player y/vy を示す（診断用のみで比較条件には追加せず、文面は API 契約ではない。vy が得られない場合は n/a）。
 単発診断用の `start_mining` と異なり、`dig` は元接続を永久に採掘専用へ隔離せず、
 同じ接続で次の操作を呼べる。戻り値は server ACK や除去した actor の証明ではない。
@@ -46,6 +58,8 @@ ABORT が完全送信された場合は元の拒否エラーを返す。次の�
 `OperationUnconfirmed` であり、入力検査だけの `State` と区別できる。
 同じ接続の運用採掘は一度に一つで、active な運用採掘の間は診断 mining の新規開始も拒否する。
 STOP が完全送信済みか START だけで瞬時採掘が完了した後には、取消による ABORT を追加しない。
+1.16.1 では送信済み STOP によって server が遅延破壊を予約すると、ABORT でもその予約は取り消せない。
+1 秒の観測 timeout の後も含め、block が後から壊れることがある。
 
 ## 掘る時間の計算
 

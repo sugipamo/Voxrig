@@ -194,7 +194,11 @@ pub(crate) fn validate(initial: &Inputs, current: &Inputs, action: Action) -> Re
             },
         ));
     }
-    if initial.estimate != current.estimate {
+    let estimate_admissible = match action {
+        Action::Finish { .. } => stop_estimate_admissible(&initial.estimate, &current.estimate),
+        Action::Start | Action::Abort => initial.estimate == current.estimate,
+    };
+    if !estimate_admissible {
         let (a, b) = (&initial.estimate, &current.estimate);
         changes.push(format!(
             "dig estimate changed (ticks {} -> {}, speed {} -> {}, harvestable {} -> {}; hardness {} -> {}, progress_per_tick {} -> {}; on_ground {} -> {}, eye_in_water {} -> {})",
@@ -216,6 +220,19 @@ pub(crate) fn validate(initial: &Inputs, current: &Inputs, action: Action) -> Re
         )));
     }
     Ok(())
+}
+
+fn stop_estimate_admissible(initial: &DigEstimate, current: &DigEstimate) -> bool {
+    initial.hardness == current.hardness
+        && initial.harvestable == current.harvestable
+        && current.progress_per_tick >= initial.progress_per_tick
+        && current.ticks <= initial.ticks
+        && [initial, current].iter().all(|estimate| {
+            estimate.speed.is_finite()
+                && estimate.speed > 0.0
+                && estimate.progress_per_tick.is_finite()
+                && estimate.progress_per_tick > 0.0
+        })
 }
 
 fn hand_summary(hand: &super::SlotKnowledge) -> String {
@@ -540,6 +557,124 @@ mod tests {
             "{message}"
         );
         message
+    }
+
+    fn stop_refusal(initial: &Inputs, current: &Inputs) -> String {
+        let error = validate(
+            initial,
+            current,
+            Action::Finish {
+                elapsed: Duration::from_millis(5702),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::State);
+        let message = error.to_string();
+        assert!(
+            message.starts_with(&format!(
+                "{PREFIX} (at STOP, 5702 ms after START): dig estimate changed (ticks "
+            )),
+            "{message}"
+        );
+        message
+    }
+
+    #[test]
+    fn landing_and_leaving_water_pass_only_at_stop_and_reverse_transitions_refuse() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let current = fixture(version);
+            for water in [false, true] {
+                let mut at_eye = state(if water { "water" } else { "air" });
+                if water {
+                    at_eye.properties.insert("level".into(), "0".into());
+                }
+                let initial = inputs(
+                    current.player.clone(),
+                    current.state.clone(),
+                    water,
+                    current.vertical_velocity,
+                    at_eye,
+                    state("air"),
+                )
+                .unwrap();
+                assert!(current.estimate.progress_per_tick > initial.estimate.progress_per_tick);
+                assert!(current.estimate.ticks < initial.estimate.ticks);
+                validate(
+                    &initial,
+                    &current,
+                    Action::Finish {
+                        elapsed: Duration::from_millis((initial.estimate.ticks + 1) * 50),
+                    },
+                )
+                .unwrap();
+                assert!(refusal(&initial, &current).contains("dig estimate changed"));
+                let message = stop_refusal(&current, &initial);
+                assert!(message.contains(if water {
+                    "on_ground true -> true, eye_in_water false -> true"
+                } else {
+                    "on_ground true -> false, eye_in_water false -> false"
+                }));
+            }
+        }
+    }
+
+    #[test]
+    fn stop_refuses_slower_progress_even_with_the_same_ticks() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let initial = fixture(version);
+            let mut current = initial.clone();
+            current.estimate.progress_per_tick =
+                f32::from_bits(initial.estimate.progress_per_tick.to_bits() - 1);
+            assert_eq!(current.estimate.ticks, initial.estimate.ticks);
+            let message = stop_refusal(&initial, &current);
+            assert!(message.contains(&format!(
+                "progress_per_tick {} -> {}",
+                initial.estimate.progress_per_tick, current.estimate.progress_per_tick
+            )));
+        }
+    }
+
+    #[test]
+    fn stop_requires_same_hardness_and_harvestability_and_no_more_ticks() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let initial = fixture(version);
+            let mut faster = initial.clone();
+            faster.estimate.speed *= 2.0;
+            faster.estimate.progress_per_tick *= 2.0;
+            faster.estimate.ticks /= 2;
+            for field in ["hardness", "harvestable", "ticks"] {
+                let mut current = faster.clone();
+                match field {
+                    "hardness" => current.estimate.hardness *= 2.0,
+                    "harvestable" => current.estimate.harvestable = !initial.estimate.harvestable,
+                    "ticks" => current.estimate.ticks = initial.estimate.ticks + 1,
+                    _ => unreachable!(),
+                }
+                assert!(stop_refusal(&initial, &current).contains(field));
+            }
+        }
+    }
+
+    #[test]
+    fn stop_requires_finite_positive_speed_and_progress_in_both_estimates() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 0.0, -1.0] {
+                for field in ["speed", "progress_per_tick"] {
+                    let valid = fixture(version);
+                    let mut invalid = valid.clone();
+                    match field {
+                        "speed" => invalid.estimate.speed = value,
+                        "progress_per_tick" => invalid.estimate.progress_per_tick = value,
+                        _ => unreachable!(),
+                    }
+                    for (initial, current) in
+                        [(&invalid, &valid), (&valid, &invalid), (&invalid, &invalid)]
+                    {
+                        assert!(stop_refusal(initial, current).contains(field));
+                    }
+                }
+            }
+        }
     }
 
     #[test]

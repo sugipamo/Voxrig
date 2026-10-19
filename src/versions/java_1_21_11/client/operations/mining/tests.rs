@@ -1665,7 +1665,7 @@ async fn wait_motion_writer_blocked(fixture: &Fixture) {
 #[tokio::test]
 async fn operational_abort_write_failure_is_unconfirmed_and_retains_original_cause() {
     use crate::client::{DigCleanupStatus, adapter::DigOps};
-    for break_writer in [false, true] {
+    for (break_writer, slower_estimate) in [(false, false), (true, false), (false, true)] {
         let mut f = Fixture::new().await;
         f.change(TARGET, &native("dirt")).await;
         let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
@@ -1685,17 +1685,23 @@ async fn operational_abort_write_failure_is_unconfirmed_and_retains_original_cau
             .unwrap();
         assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
         assert_eq!(start[0], 0);
-        // A changed hand rejects FINISH before I/O. ABORT then exercises the
-        // real TCP writer, rather than inheriting an earlier FINISH write error.
-        f.session
-            .state
-            .lock()
-            .await
-            .operations
-            .selected_hotbar
-            .as_mut()
-            .unwrap()
-            .slot = 1;
+        // A changed hand or slower estimate rejects FINISH before I/O. ABORT
+        // then exercises the real TCP writer without an earlier FINISH error.
+        if slower_estimate {
+            f.change([0, 0, 0], &native("air")).await;
+            let current = f.api.dig_snapshot(TARGET).await.unwrap();
+            assert!(current.estimate.progress_per_tick < initial.estimate.progress_per_tick);
+        } else {
+            f.session
+                .state
+                .lock()
+                .await
+                .operations
+                .selected_hotbar
+                .as_mut()
+                .unwrap()
+                .slot = 1;
+        }
         if break_writer {
             f.session
                 .writer
@@ -1730,6 +1736,11 @@ async fn operational_abort_write_failure_is_unconfirmed_and_retains_original_cau
                 .reason
                 .contains("selected hand or timing prerequisites changed")
         );
+        if slower_estimate {
+            assert!(cleanup.reason.contains("dig estimate changed"));
+            assert!(cleanup.reason.contains("on_ground true -> false"));
+            assert_eq!(cleanup.reason, error.to_string());
+        }
         if break_writer {
             assert_eq!(error.kind(), ErrorKind::OperationUnconfirmed);
             assert_eq!(cleanup.status, DigCleanupStatus::Failed);

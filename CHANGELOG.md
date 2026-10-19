@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Changed operational dig to accept faster or equal estimates at STOP with the
+  same hardness and harvestability, finite positive speed/progress, no lower
+  progress per tick, and no more ticks. START remains exact; the original wait
+  and recorded estimate, error kind and prefix are unchanged. No public API
+  change (#198).
 - Changed operational dig refusal messages to name the failing prerequisite,
   START/STOP phase, elapsed milliseconds since START at STOP, and before/after
   values including player y/vy (diagnostic only, not a contract); error kind and
