@@ -262,10 +262,12 @@ pub enum Presence<T> {
     Absent, // an explicit supported removal, never inferred from map omission
 }
 
-/// Status of one exact received opening, including its opening ordinal.
+/// Received container status, with an exact opening identity when observed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ContainerStatus {
+    /// A received Java 1.16.1 Join Game or Respawn packet reset the client to its player inventory; no foreign container has been observed open since that receipt.
+    NoOpening,
     /// This exact opening was received.
     Open(ScreenId),
     /// A server packet closed this exact observed opening.
@@ -784,6 +786,11 @@ impl ReceivedPlayerSnapshot {
             self.entity_id.set(id, event);
         }
         Ok(())
+    }
+    pub(crate) fn no_opening(&mut self, event: Receipt) {
+        self.container_state.set(ContainerStatus::NoOpening, event);
+        self.container = None;
+        self.last_open = None;
     }
     pub(crate) fn close(&mut self, window: i32, event: Receipt) {
         let id = match &self.container_state {

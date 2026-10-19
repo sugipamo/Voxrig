@@ -33,6 +33,9 @@ impl Bot {
                     InvalidationReason::SessionBoundary
                 },
             );
+            if matches!(id, 0x25 | 0x3a) {
+                out.no_opening(event);
+            }
             out.health.apply(receipts.health.as_ref(), event);
             out.selected_hotbar
                 .apply(receipts.selected_hotbar.as_ref(), event);
@@ -186,6 +189,196 @@ mod tests {
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn received_snapshot_container_missing_before_join() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for _ in 0..2 {
+            let snapshot = client.received_player_snapshot().await.unwrap();
+            assert!(matches!(snapshot.container_state(), FieldState::Missing));
+            assert!(snapshot.container().is_none());
+        }
+        bot.apply_packet(0x3f, vec![1]).await.unwrap();
+        assert!(matches!(
+            client
+                .received_player_snapshot()
+                .await
+                .unwrap()
+                .container_state(),
+            FieldState::Missing
+        ));
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
+    async fn received_snapshot_join_sets_no_opening() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        let snapshot = client.received_player_snapshot().await.unwrap();
+        let state = received(snapshot.container_state());
+        assert_eq!(*state.value(), ContainerStatus::NoOpening);
+        assert_eq!(state.receipt(), received(snapshot.game_mode()).receipt());
+        assert_eq!(state.receipt().session(), snapshot.boundary().session());
+        assert_eq!(state.receipt().ordinal(), snapshot.boundary().ordinal());
+        assert!(snapshot.container().is_none());
+        // Captures and unrelated receipts must preserve the original Join receipt.
+        bot.apply_packet(0x3f, vec![1]).await.unwrap();
+        let later = client.received_player_snapshot().await.unwrap();
+        assert_eq!(received(later.container_state()).receipt(), state.receipt());
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
+    async fn received_snapshot_open_overrides_no_opening_then_server_close() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        let joined = client.received_player_snapshot().await.unwrap();
+        assert_eq!(
+            *received(joined.container_state()).value(),
+            ContainerStatus::NoOpening
+        );
+        let mut open = vec![7, 0];
+        put_string(&mut open, "{}");
+        bot.apply_packet(0x2e, open).await.unwrap();
+        let opened = client.received_player_snapshot().await.unwrap();
+        let id = opened.container().unwrap().id();
+        assert_eq!(
+            *received(opened.container_state()).value(),
+            ContainerStatus::Open(id)
+        );
+        assert!(
+            received(opened.container_state()).receipt().ordinal()
+                > received(joined.container_state()).receipt().ordinal()
+        );
+        bot.apply_packet(0x13, vec![7]).await.unwrap();
+        let closed = client.received_player_snapshot().await.unwrap();
+        assert_eq!(
+            *received(closed.container_state()).value(),
+            ContainerStatus::Closed(id)
+        );
+        assert_eq!(
+            received(closed.container_state()).receipt().ordinal(),
+            closed.boundary().ordinal()
+        );
+        assert!(closed.container().is_none());
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
+    async fn received_snapshot_unmatched_close_keeps_no_opening() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        let joined = client.received_player_snapshot().await.unwrap();
+        let join_receipt = received(joined.game_mode()).receipt();
+        bot.apply_packet(0x13, vec![7]).await.unwrap();
+        let snapshot = client.received_player_snapshot().await.unwrap();
+        let state = received(snapshot.container_state());
+        assert_eq!(*state.value(), ContainerStatus::NoOpening);
+        assert_eq!(state.receipt(), join_receipt);
+        assert!(snapshot.container().is_none());
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
+    async fn received_snapshot_local_close_after_open_invalidates() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        let mut open = vec![7, 0];
+        put_string(&mut open, "{}");
+        bot.apply_packet(0x2e, open).await.unwrap();
+        let opened = client.received_player_snapshot().await.unwrap();
+        assert_eq!(
+            *received(opened.container_state()).value(),
+            ContainerStatus::Open(opened.container().unwrap().id())
+        );
+        // Use the same local cache/receipt path as a dispatched close cleanup.
+        bot.clear_local_window(7).await;
+        let closed = client.received_player_snapshot().await.unwrap();
+        let FieldState::Invalidated(event) = closed.container_state() else {
+            panic!("local close must invalidate container state")
+        };
+        assert_eq!(event.reason(), InvalidationReason::ScreenChanged);
+        assert_eq!(event.event_session(), opened.boundary().session());
+        assert_eq!(event.event_ordinal(), None);
+        assert_eq!(event.event_applied_at(), None);
+        assert!(closed.container().is_none());
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
+    async fn received_snapshot_respawn_restores_no_opening() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        let mut open = vec![7, 0];
+        put_string(&mut open, "{}");
+        bot.apply_packet(0x2e, open).await.unwrap();
+        let opened = client.received_player_snapshot().await.unwrap();
+        let open_receipt = received(opened.container_state()).receipt();
+        assert!(opened.container().is_some());
+        bot.apply_packet(0x3a, respawn()).await.unwrap();
+        let reset = client.received_player_snapshot().await.unwrap();
+        let state = received(reset.container_state());
+        assert_eq!(*state.value(), ContainerStatus::NoOpening);
+        assert_eq!(state.receipt(), received(reset.game_mode()).receipt());
+        assert_eq!(state.receipt().session(), reset.boundary().session());
+        assert_eq!(state.receipt().ordinal(), reset.boundary().ordinal());
+        assert!(state.receipt().ordinal() > open_receipt.ordinal());
+        assert!(reset.container().is_none());
+        // The previous world's opening cannot turn a late close into Closed.
+        bot.apply_packet(0x13, vec![7]).await.unwrap();
+        let later = client.received_player_snapshot().await.unwrap();
+        assert_eq!(
+            *received(later.container_state()).value(),
+            ContainerStatus::NoOpening
+        );
+        assert_eq!(received(later.container_state()).receipt(), state.receipt());
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
+    async fn received_snapshot_new_connection_starts_missing() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        let old = client.received_player_snapshot().await.unwrap();
+        let old_session = received(old.container_state()).receipt().session();
+        drop(client);
+        finish(bot, release, server).await;
+
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let fresh = client.received_player_snapshot().await.unwrap();
+        assert!(matches!(fresh.container_state(), FieldState::Missing));
+        assert_ne!(
+            fresh.boundary().session().connection_id,
+            old_session.connection_id
+        );
+        bot.apply_packet(0x25, join()).await.unwrap();
+        let joined = client.received_player_snapshot().await.unwrap();
+        let state = received(joined.container_state());
+        assert_eq!(*state.value(), ContainerStatus::NoOpening);
+        assert_eq!(state.receipt(), received(joined.game_mode()).receipt());
+        assert_eq!(state.receipt().session().connection_id, bot.connection_id());
+        assert_ne!(
+            state.receipt().session().connection_id,
+            old_session.connection_id
+        );
+        drop(client);
+        finish(bot, release, server).await;
     }
     #[tokio::test]
     async fn received_snapshot_time_repeated_capture_and_same_value_packet() {
