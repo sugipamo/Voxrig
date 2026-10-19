@@ -188,6 +188,20 @@ impl Registry {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
+        self.try_spawn_with_join(future, |_, _| {})
+    }
+    /// The callback runs only after the actual owner JoinHandle has resolved,
+    /// including destructors and finite-work finalization, on every exit path.
+    pub(crate) fn try_spawn_with_join<F, J>(
+        &self,
+        future: F,
+        joined: J,
+    ) -> std::result::Result<Task<F::Output>, TaskError>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+        J: FnOnce(&std::result::Result<F::Output, tokio::task::JoinError>, bool) + Send + 'static,
+    {
         let mut state = self.lock();
         if state.closing {
             drop(state);
@@ -213,7 +227,12 @@ impl Registry {
         let abort = task.abort_handle();
         let termination_requested = self.termination_requested.clone();
         let join = Box::pin(async move {
-            match task.await {
+            let result = task.await;
+            joined(
+                &result,
+                termination_requested.load(std::sync::atomic::Ordering::Acquire),
+            );
+            match result {
                 Ok(output) => {
                     let _ = send.send(Ok(output));
                     None

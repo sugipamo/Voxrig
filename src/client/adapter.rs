@@ -117,6 +117,14 @@ pub(crate) trait DigOps {
         action: super::operational_dig::Action,
         cancelled: &std::sync::atomic::AtomicBool,
     ) -> Result<super::operational_dig::Dispatch>;
+    async fn dig_dispatch_tracked(
+        &self,
+        initial: &super::operational_dig::Inputs,
+        target: [i32; 3],
+        face: super::BlockFace,
+        action: super::operational_dig::Action,
+        operation: &std::sync::Arc<super::dig_operation::OperationState>,
+    ) -> Result<super::operational_dig::Dispatch>;
 }
 
 /// Whole loaded chunk columns.

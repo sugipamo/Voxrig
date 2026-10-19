@@ -57,6 +57,11 @@ pub use flight::{FlightCommand, FlightLanding, FlightRecord, FlightStage};
 pub(crate) mod chunk_context;
 pub(crate) mod chunks;
 pub(crate) mod dig;
+pub(crate) mod dig_operation;
+pub use dig_operation::{
+    DigCancelOutcome, DigCompletion, DigDispatchEvidence, DigOperation, DigOperationId,
+    DigOwnerExit, DigPhase, DigResult, DigSnapshot, DigWriteEvidence,
+};
 pub(crate) mod operational_dig;
 pub use dig::{DigEstimate, DigRecord};
 pub use operational_dig::{DigCleanupRecord, DigCleanupStatus};
@@ -266,8 +271,10 @@ pub mod prelude {
     };
     pub use super::{
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceError, CraftOnceRecord,
-        CraftOnceUnknownCause, CraftingFillRecord, DigEstimate, DigRecord, Hand, LoadedChunks,
-        ObservedValue, PlacementCheck, PlayerAttribute, PlayerControl, PlayerEffect, ValueSource,
+        CraftOnceUnknownCause, CraftingFillRecord, DigCancelOutcome, DigCompletion,
+        DigDispatchEvidence, DigEstimate, DigOperation, DigOperationId, DigOwnerExit, DigPhase,
+        DigRecord, DigResult, DigSnapshot, DigWriteEvidence, Hand, LoadedChunks, ObservedValue,
+        PlacementCheck, PlayerAttribute, PlayerControl, PlayerEffect, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

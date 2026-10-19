@@ -130,6 +130,50 @@ impl Session {
         .await
     }
 
+    // Caller holds writer serialization AND the coherent state lock through
+    // final validation and this entire attempt, including complete flush.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) async fn write_dig_frame<W: AsyncWrite + Unpin>(
+        &self,
+        stream: &mut SocketWriter<W>,
+        compression: Option<i32>,
+        payload: &[u8],
+        work: &WorkGuard,
+        operation: &Arc<crate::client::dig_operation::OperationState>,
+        action: crate::client::operational_dig::Action,
+        sequence: i32,
+    ) -> Result<()> {
+        use crate::client::DigWriteEvidence;
+        // No await between the Q2 transition and initiating the non-retractable
+        // write attempt. check_outbound ran under this lock before commitment.
+        if !operation.try_commit(action) {
+            return Err(crate::client::operational_dig::unavailable(
+                "dig cancelled before commit",
+            ));
+        }
+        let result = self
+            .write_frame(
+                stream,
+                compression,
+                ids::play_serverbound::BLOCK_DIG,
+                payload,
+                work,
+                None,
+            )
+            .await;
+        operation.settle(
+            action,
+            if result.is_ok() {
+                DigWriteEvidence::Written {
+                    interaction_sequence: Some(sequence),
+                }
+            } else {
+                DigWriteEvidence::Unknown
+            },
+        );
+        result
+    }
+
     // Shared by the real TCP sender and bounded stream tests. The caller owns
     // the writer lock for the complete attempt, including guard destruction.
     #[cfg(test)]
