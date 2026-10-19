@@ -25,6 +25,7 @@ pub(crate) use common_scene::LegacyCapturedScene;
 mod common_transfer;
 mod common_vehicle;
 
+use crate::error::state_error;
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{
     chat::{ChatMessage, PlayerList, apply_player_info, parse_chat},
@@ -1089,7 +1090,6 @@ pub struct Bot {
     events: broadcast::Sender<Event>,
     physics: Arc<Mutex<PhysicsTracker>>,
     stopped: Arc<AtomicBool>,
-    terminal_emitted: Arc<AtomicBool>,
     terminal_event: Arc<std::sync::OnceLock<Event>>,
     jump_requested: Arc<AtomicBool>,
     native_jump_work: Arc<StdMutex<Option<crate::client::ledger::WorkGuard>>>,
@@ -1215,7 +1215,6 @@ impl Bot {
             events: self.events.clone(),
             physics: self.physics.clone(),
             stopped: self.stopped.clone(),
-            terminal_emitted: self.terminal_emitted.clone(),
             terminal_event: self.terminal_event.clone(),
             jump_requested: self.jump_requested.clone(),
             native_jump_work: self.native_jump_work.clone(),
@@ -1423,7 +1422,6 @@ impl Bot {
             events,
             physics: Arc::new(Mutex::new(PhysicsTracker::new())),
             stopped: Arc::new(AtomicBool::new(false)),
-            terminal_emitted: Arc::new(AtomicBool::new(false)),
             terminal_event: Arc::default(),
             jump_requested: Arc::new(AtomicBool::new(false)),
             native_jump_work: Arc::default(),
@@ -2411,18 +2409,10 @@ impl Bot {
         self.capture_requests
             .send(crate::observation::CaptureCommand { request, reply })
             .await
-            .map_err(|_| {
-                crate::Error::new(
-                    crate::ErrorKind::State,
-                    anyhow::anyhow!("connection actor no longer accepts observation capture"),
-                )
-            })?;
-        result.await.map_err(|_| {
-            crate::Error::new(
-                crate::ErrorKind::State,
-                anyhow::anyhow!("connection actor dropped observation capture result"),
-            )
-        })?
+            .map_err(|_| state_error("connection actor no longer accepts observation capture"))?;
+        result
+            .await
+            .map_err(|_| state_error("connection actor dropped observation capture result"))?
     }
 
     /// Captures a bounded raw movement-facts snapshot in one connection-actor
@@ -2441,17 +2431,11 @@ impl Bot {
             .send(crate::observation::TraversalMovementFactsCommand { request, reply })
             .await
             .map_err(|_| {
-                crate::Error::new(
-                    crate::ErrorKind::State,
-                    anyhow::anyhow!("connection actor no longer accepts movement facts capture"),
-                )
+                state_error("connection actor no longer accepts movement facts capture")
             })?;
-        result.await.map_err(|_| {
-            crate::Error::new(
-                crate::ErrorKind::State,
-                anyhow::anyhow!("connection actor dropped movement facts capture result"),
-            )
-        })?
+        result
+            .await
+            .map_err(|_| state_error("connection actor dropped movement facts capture result"))?
     }
 
     /// Queries matching blocks and loaded coverage under one coherent client
@@ -4995,20 +4979,15 @@ impl Bot {
         self.connection
             .ledger()
             .fail(crate::client::ledger::Failure::Disconnected);
-        self.connection.begin_disconnect().await.map_err(|error| {
-            crate::Error::new(
-                crate::ErrorKind::State,
-                anyhow::anyhow!("disconnect rejected: {error:?}"),
-            )
-        })?;
+        self.connection
+            .begin_disconnect()
+            .await
+            .map_err(|error| state_error(format!("disconnect rejected: {error:?}")))?;
         let cleanup = self
             .dispatch_cleanup(self.operation_context(0), CleanupOperation::ControlClear)
             .await
             .map_err(|error| {
-                crate::Error::new(
-                    crate::ErrorKind::State,
-                    anyhow::anyhow!("disconnect control cleanup rejected: {error:?}"),
-                )
+                state_error(format!("disconnect control cleanup rejected: {error:?}"))
             })?;
         require_disconnect_control_cleanup(cleanup)?;
         if let Err(error) = self.connection.shutdown_writer().await {
@@ -6282,10 +6261,9 @@ impl Bot {
             .record_observation(sequence)
             .await
             .map_err(|error| {
-                crate::Error::new(
-                    crate::ErrorKind::State,
-                    anyhow::anyhow!("coherent observation publication rejected: {error}"),
-                )
+                state_error(format!(
+                    "coherent observation publication rejected: {error}"
+                ))
             })?;
         Ok(observation)
     }
@@ -6400,10 +6378,7 @@ impl Bot {
             .record_observation(sequence.get())
             .await
             .map_err(|error| {
-                crate::Error::new(
-                    crate::ErrorKind::State,
-                    anyhow::anyhow!("movement facts publication rejected: {error}"),
-                )
+                state_error(format!("movement facts publication rejected: {error}"))
             })?;
 
         Ok(crate::MovementSnapshot {
@@ -6734,7 +6709,9 @@ impl Bot {
                     ..
                 }
         );
-        if terminal && self.terminal_emitted.swap(true, Ordering::AcqRel) {
+        // Retain the first terminal cause and ignore duplicates before recording events.
+        // Stopped state and wake-ups become visible only after ledger/queue recording.
+        if terminal && self.terminal_event.set(event.clone()).is_err() {
             return;
         }
         {
@@ -6756,10 +6733,6 @@ impl Bot {
             queued.events.push_back(event.clone());
         }
         if terminal {
-            // Retain the terminal cause before stopped state or wake-ups are visible.
-            self.terminal_event
-                .set(event.clone())
-                .expect("terminal event already recorded");
             self.stopped.store(true, Ordering::Release);
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
