@@ -266,12 +266,14 @@ pub enum Presence<T> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ContainerStatus {
-    /// A received Java 1.16.1 Join Game or Respawn packet reset the client to its player inventory; no foreign container has been observed open since that receipt.
+    /// A received Java 1.16.1 Join Game or Respawn packet reset the client to its
+    /// player inventory; no foreign container has been observed open since that
+    /// receipt.
     NoOpening,
     /// This exact opening was received.
     Open(ScreenId),
     /// A server packet closed this exact observed opening.
-    Closed(ScreenId), // this exact observed opening was closed by a server packet
+    Closed(ScreenId),
 }
 /// Owned coherent player evidence. Copies are historical and cannot prove connection liveness.
 #[derive(Clone, Debug)]

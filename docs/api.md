@@ -110,6 +110,7 @@ use voxrig::versions::java_1_16_1::{
 - `resource_pack_request()`、`respond_resource_pack(status)`：resource pack要求とstatus応答
 - `tab_complete(text, timeout)`：transaction同期済みのcommand/chat補完
 - `subscribe()`：そのBotだけのイベントを購読
+- `terminal_event()`：その接続で最初に発行された終端eventのclone（接続中は`None`、事前のsubscribe不要。詳細は[公開client API](public-client-api.md)）
 - `disconnect()`：切断
 
 `Bot`はclone可能な共有handleです。状態getterはsnapshotを返すため、利用側が内部lockを保持することはありません。
