@@ -2,6 +2,10 @@
 
 2026-10-07。両版で共有する物理エンジンを、[版ごとの定数表](version-tables.md)で動かすための設計。
 
+現在のblock係数は共有エンジンが`data/client_api/movement_blocks-{版}.json`から読む。
+以下のP2で作った`BLOCK_PHYSICS`と`block_physics-*.json`（とその書き出し用`ExportBlockPhysics.java`・source manifest）は、重複する未使用データとして削除した。
+当時の設計・進捗は以下に残す（[現在の実装](physics-engine.md)）。
+
 **決定（2026-10-07）**: 末尾の確認事項はすべて推奨案で進める。
 1. 継続的な操作API（P7）を共通APIに加える。
 2. 1.16.1の`Bot`の物理（A）は、prismarine-physicsの軌跡も通ることを条件に共有エンジンへ置き換える（P6）。

@@ -52,11 +52,9 @@ using the same remap/access-only development oracle; no game method bodies are
 copied. Source/output hashes and validation scope are recorded in the manifest
 and `docs/survival-standing-context.md`.
 
-`data/client_api/block_physics-*.json` contains factual per-block friction,
-speed and jump factors of Java 1.16.1 and 1.21.11. The original
-`scripts/ExportBlockPhysics.java` reads them reflectively from the unmodified
-official servers using names from Mojang's published server mappings; no game
-code is copied. Hashes and arguments are in each `*_source.json` manifest.
+`data/client_api/movement_blocks-*.json` contains factual per-block friction,
+speed and jump factors of Java 1.16.1 and 1.21.11, exported by the original
+`scripts/movement_oracle` harness.
 
 `data/client_api/climbing_oracle.json.gz` contains locally measured movement
 facts from the unchanged official Java 1.16.1 and 1.21.11 servers. The original

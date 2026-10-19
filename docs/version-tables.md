@@ -18,7 +18,7 @@
 | entity | `health_metadata_index`（8 / 9）、`equipment_slots`（native番号→共通の装備欄）、`dimensions`（生成表） |
 | 値 | `generic_slot_class`（container `Slot`の難読化クラス名） |
 | 物理 | `physics`（`PhysicsConstants`: 重力・抵抗・加速・ジャンプ・段差など）、`physics_rules`（`PhysicsRules`: 三角関数表、入力の正規化、微小速度の切り捨て、段差の探索手順など） |
-| 同梱データ | 地形・rail・menus・かまど・cursor返却・クリック・転送・registry一覧・crafting menu・crafting外形・item属性・採掘道具・収納外形 |
+| 同梱データ | 地形・rail・menus・かまど・cursor返却・クリック・転送・registry一覧・crafting menu・crafting外形・item属性・採掘道具・収納外形・block stateごとの移動データ（`movement_blocks`） |
 
 同梱データを解析した結果は`PerVersion<T>`で版ごとに1回だけ作って保持する。
 
@@ -39,11 +39,15 @@ python3 scripts/generate_version_tables.py
 | --- | --- |
 | `src/versions/java_1_16_1/generated.rs` | `data/entities.json` |
 | `src/versions/java_1_21_11/generated.rs` | `data/java_1_21_11/entity_dimensions.json`（公式サーバーから書き出し） |
-| 両版の`generated.rs`の`BLOCK_PHYSICS` | `data/client_api/block_physics-*.json`（公式サーバーから`ExportBlockPhysics.java`で書き出し） |
+| 両版の`generated.rs`の`ENTITY_DATA` | `data/client_api/entity_data-{版}.json` |
 
 生成ファイルの先頭には元データのsha256を書く。`cargo test`の
 `generated_tables_match_their_sources`が現在の元データと照合し、ずれていれば失敗する
 （スクリプトを再実行して更新する）。実行時のJSON解析は不要で、表の名前順を二分探索する。
+
+blockの摩擦・速度係数・ジャンプ係数はRust配列には生成せず、共有物理エンジンが
+`data/client_api/movement_blocks-{版}.json`から読み、版ごとに保持する
+（[共有物理エンジン](physics-engine.md)）。
 
 ## まだ表になっていない値の違い
 

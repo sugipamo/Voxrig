@@ -322,6 +322,18 @@ mod tests {
                 assert_eq!(block.name, name);
                 assert_eq!(t.shapes[usize::from(entry.shape)], expected_shape);
             }
+            for (name, expected) in [
+                ("minecraft:stone", (0.6, 1.0, 1.0)),
+                ("minecraft:blue_ice", (0.989, 1.0, 1.0)),
+                ("minecraft:honey_block", (0.6, 0.4, 0.5)),
+            ] {
+                let block = t.blocks.iter().find(|b| b.name == name).unwrap();
+                assert_eq!(
+                    (block.friction, block.speed_factor, block.jump_factor),
+                    expected,
+                    "{version:?} {name}"
+                );
+            }
             let ice = t.blocks.iter().find(|b| b.name == "minecraft:ice").unwrap();
             assert_eq!(ice.friction, 0.98);
             let slime = t

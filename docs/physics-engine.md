@@ -63,6 +63,9 @@
 blockごとの移動に関わる処理（中に入ったとき・上を歩いたとき・落ちたとき・着地後・衝突形状）を、
 両版の公式サーバーから「どのクラスが実装しているか」として書き出した
 （`data/client_api/movement_blocks-{版}.json`、`scripts/movement_oracle/run.py`）。
+同じデータに全blockの摩擦（`friction`）・速度係数（`speed_factor`）・ジャンプ係数（`jump_factor`）も含め、
+`VersionTable.data.movement_blocks`経由で読み込む。通常のblockの係数はそれぞれ0.6・1.0・1.0。
+係数だけの別の生成Rust表は持たない。
 各クラスの処理を両版で読み、clientの移動への影響で分類した（`src/client/physics/blocks.rs`）。
 新しい版や未確認のクラスは、自動的に「範囲外」になる。
 

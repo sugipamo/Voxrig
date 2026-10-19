@@ -106,7 +106,6 @@ include = [
     "/scripts/VerifyPositionCorrection.java",
     "/scripts/VerifyDryMovement.java",
     "/scripts/ExportEntityDimensions.java",
-    "/scripts/ExportBlockPhysics.java",
     "/scripts/generate_version_tables.py",
     "/scripts/movement_oracle/**",
     "/scripts/VerifyLegacyDryMovement.java",
