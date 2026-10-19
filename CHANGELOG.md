@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added `Bot::terminal_event()` to retain the first native Java 1.16.1 terminal
+  cause, including early exits relayed by `BotManager`; public API addition (#187).
 - Changed Java 1.16.1 reader terminal error messages to include the play packet
   id, payload length and handler name. Error kinds and signatures are unchanged
   (#188).
