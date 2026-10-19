@@ -31,6 +31,7 @@ println!("{} ticks, removed: {}", estimate.ticks, record.removed);
 対象・目の水位・接地・player capture もそのロック内で採取する。
 1.16.1 の同じ item/個数の通常摩耗は、非負で単調増加する Damage だけの差を許容する。
 他の NBT、item、個数、選択の変更、採掘時間の変化は拒否する。
+拒否メッセージは変化した前提条件と変更前後の値、START/STOP の phase、STOP 時の START 送信後の経過 ms、player y/vy を示す（診断用のみで比較条件には追加せず、文面は API 契約ではない。vy が得られない場合は n/a）。
 単発診断用の `start_mining` と異なり、`dig` は元接続を永久に採掘専用へ隔離せず、
 同じ接続で次の操作を呼べる。戻り値は server ACK や除去した actor の証明ではない。
 START の後で呼び出しを止めた場合、接続が所有する task が元の対象へ ABORT を一度だけ送る。

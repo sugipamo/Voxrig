@@ -1669,7 +1669,9 @@ async fn operational_abort_write_failure_is_unconfirmed_and_retains_original_cau
         let mut f = Fixture::new().await;
         f.change(TARGET, &native("dirt")).await;
         let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
-        let original = f.api.dig_snapshot(TARGET).await.unwrap().player.session;
+        let initial = f.api.dig_snapshot(TARGET).await.unwrap();
+        let original = initial.player.session;
+        let wait_ms = (initial.estimate.ticks + 1) * 50;
         let owned = client.clone();
         let task = tokio::spawn(async move {
             owned
@@ -1712,6 +1714,17 @@ async fn operational_abort_write_failure_is_unconfirmed_and_retains_original_cau
         let cleanup = client.survival().dig_cleanup_record().unwrap();
         assert_eq!(cleanup.session, original);
         assert_eq!(cleanup.target, TARGET);
+        let elapsed = cleanup
+            .reason
+            .split_once(" (at STOP, ")
+            .unwrap()
+            .1
+            .split_once(" ms after START): ")
+            .unwrap()
+            .0
+            .parse::<u128>()
+            .unwrap();
+        assert!(elapsed >= u128::from(wait_ms), "{}", cleanup.reason);
         assert!(
             cleanup
                 .reason
@@ -2507,7 +2520,9 @@ async fn operational_finish_rechecks_the_original_world_mode_hand_and_target_at_
                     &initial,
                     TARGET,
                     crate::client::BlockFace::Up,
-                    Action::Finish,
+                    Action::Finish {
+                        elapsed: Duration::from_millis(5702),
+                    },
                     &AtomicBool::new(false),
                 )
                 .await
@@ -2528,7 +2543,19 @@ async fn operational_finish_rechecks_the_original_world_mode_hand_and_target_at_
         if change == "target" {
             assert!(matches!(result, Ok(Dispatch::Changed(_))));
         } else {
-            assert!(result.is_err(), "{change}");
+            let error = result.err().expect(change);
+            if change == "hand" {
+                assert!(
+                    error
+                        .to_string()
+                        .contains(" (at STOP, 5702 ms after START): ")
+                );
+                assert!(
+                    error
+                        .to_string()
+                        .contains("; y 1.00 -> 1.00, vy 0.0000 -> 0.0000")
+                );
+            }
         }
         assert!(
             tokio::time::timeout(

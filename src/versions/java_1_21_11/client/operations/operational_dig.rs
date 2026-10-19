@@ -11,17 +11,20 @@ impl Operations {
     fn dig_snapshot_unlocked(&self, state: &mut State, target: [i32; 3]) -> Result<Inputs> {
         let player = self.common_player_unlocked(state)?;
         let (eye, _) = dig::eye_cell(&player)?;
-        let on_ground = if let Some(frame) = state
+        let (on_ground, vertical_velocity) = if let Some(frame) = state
             .control
             .session
             .as_ref()
             .filter(|s| s.running())
             .and_then(|s| s.frame.as_ref())
         {
-            frame.on_ground
+            (frame.on_ground, Some(frame.velocity[1]))
         } else {
             let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-            survival::context(state, self.bot.session.id, tick)?.on_ground
+            (
+                survival::context(state, self.bot.session.id, tick)?.on_ground,
+                state.operations.local_player.velocity.map(|v| v.value[1]),
+            )
         };
         let block = |at: [i32; 3]| -> Result<crate::NativeBlockState> {
             crate::versions::java_1_21_11::native_state(
@@ -35,6 +38,7 @@ impl Operations {
             player,
             block(target)?,
             on_ground,
+            vertical_velocity,
             block(eye)?,
             block([eye[0], eye[1] + 1, eye[2]])?,
         )
@@ -91,7 +95,7 @@ impl DigOps for Operations {
                 return Ok(Dispatch::Changed(target_now));
             }
             let current = self.dig_snapshot_unlocked(&mut state, target)?;
-            dig::validate(initial, &current)?;
+            dig::validate(initial, &current, action)?;
             check_reach(&state, target)?;
         }
         let sequence = self.next_sequence()?;
