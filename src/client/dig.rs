@@ -327,19 +327,23 @@ pub(crate) fn mining_hand_compatible(
     before: &SlotKnowledge,
     after: &SlotKnowledge,
 ) -> Result<bool> {
-    if before == after {
-        return Ok(true);
-    }
     let (SlotKnowledge::Item { item: before }, SlotKnowledge::Item { item: after }) =
         (before, after)
     else {
-        return Ok(false);
+        return Ok(matches!(
+            (before, after),
+            (SlotKnowledge::Empty, SlotKnowledge::Empty)
+        ));
     };
-    if version != MinecraftVersion::Java1_16_1
-        || before.id != after.id
-        || before.name != after.name
-        || before.count != after.count
-    {
+    if before.count == 0 || after.count == 0 || before.id != after.id || before.name != after.name {
+        return Ok(false);
+    }
+    // Count does not affect mining speed; retain exact data identity except for
+    // the legacy delayed-wear exception below.
+    if before.data == after.data {
+        return Ok(true);
+    }
+    if version != MinecraftVersion::Java1_16_1 {
         return Ok(false);
     }
     use super::nbt::{self, NbtValue};

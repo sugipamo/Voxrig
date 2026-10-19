@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Changed operational dig to accept positive held-stack count changes at START
+  and STOP with the same slot, item, and data, including Java 1.16.1 Damage-only
+  wear. Error kind and prefix are unchanged; no public API change
+  (held-stack count change).
 - Changed operational dig to accept faster or equal estimates at STOP with the
   same hardness and harvestability, finite positive speed/progress, no lower
   progress per tick, and no more ticks. START remains exact; the original wait

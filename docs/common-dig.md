@@ -32,8 +32,12 @@ server が数える tick が不足すれば、この余裕があってもその�
 未解決の操作がないことを検査する。START/STOP の直前にも元の world/mode/選択した hand と採掘時間の入力を照合する。
 各 adapter は同じ状態ロックを保持したまま検査から完全なパケット送信まで行う。
 対象・目の水位・接地・player capture もそのロック内で採取する。
-1.16.1 の同じ item/個数の通常摩耗は、非負で単調増加する Damage だけの差を許容する。
-他の NBT、item、個数、選択の変更は拒否する。
+両版の START/STOP で、元の選択 slot・item の id/名前・data が同じなら、
+変更前後の個数がともに正（0 より大きい）である個数だけの増減を許容する。
+1.16.1 の通常摩耗は、非負で単調増加する Damage だけの差を許容し、個数の増減とも組み合わせられる。
+個数 0、Empty と Item の入れ替わり、Unavailable、他の NBT（エンチャントなど）や
+components の変更（1.21.11 の damage を含む）、item や選択の変更は拒否する。
+snapshot で区別できない同じ item/data の別 stack への交換は検出できない。
 START では採掘見積もり全体の完全一致を要求する。STOP では、硬さ（`hardness`）と
 正しい道具か（`harvestable`）が同じで、`progress_per_tick` が初期値以上、`ticks` が初期値以下なら
 速くなった見積もりも許容する。両方の見積もりの `speed` と `progress_per_tick` は有限かつ正でなければならない。
