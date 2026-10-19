@@ -548,6 +548,49 @@ mod tests {
         input.player.inventory.slots[38] = Some(received(hand, 11));
     }
 
+    fn assert_hand_compatibility(
+        version: MinecraftVersion,
+        before: SlotKnowledge,
+        after: SlotKnowledge,
+        compatible: bool,
+    ) {
+        let mut initial = fixture(version);
+        let mut current = initial.clone();
+        // Keep estimates equal to test the hand check independently.
+        set_hand(&mut initial, before);
+        set_hand(&mut current, after);
+        for action in [
+            Action::Start,
+            Action::Finish {
+                elapsed: Duration::from_millis(5702),
+            },
+        ] {
+            let result = validate(&initial, &current, action);
+            if compatible {
+                result.unwrap();
+            } else {
+                let error = result.unwrap_err();
+                assert_eq!(error.kind(), ErrorKind::State);
+                assert!(error.to_string().starts_with(&format!(
+                    "{PREFIX} ({action}): held item changed in hotbar 2 ("
+                )));
+                assert!(!error.to_string().contains("dig estimate changed"));
+            }
+        }
+    }
+
+    fn worn(count: u32, damage: i32) -> SlotKnowledge {
+        let SlotKnowledge::Item { mut item } = item(MinecraftVersion::Java1_16_1, count) else {
+            unreachable!()
+        };
+        let mut bytes = vec![10, 0, 0, 3, 0, 6];
+        bytes.extend(b"Damage");
+        bytes.extend(damage.to_be_bytes());
+        bytes.push(0);
+        item.data = ItemData::LegacyNbt { bytes };
+        SlotKnowledge::Item { item }
+    }
+
     fn refusal(initial: &Inputs, current: &Inputs) -> String {
         let error = validate(initial, current, Action::Start).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::State);
@@ -744,10 +787,138 @@ mod tests {
             assert!(message.contains("count 1, damage 0"));
             assert!(refusal(&current, &initial).contains(" -> Empty)"));
             set_hand(&mut initial, item(version, 2));
-            let message = refusal(&initial, &current);
-            assert!(message.contains("count 2, damage 0) -> Item("));
-            assert!(message.contains("count 1, damage 0)"));
-            assert!(!message.contains("dig estimate changed"));
+            validate(&initial, &current, Action::Start).unwrap();
+        }
+    }
+
+    #[test]
+    fn positive_held_count_changes_pass_at_start_and_stop() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for (before, after) in [(2, 1), (1, 5)] {
+                assert_hand_compatibility(
+                    version,
+                    item(version, before),
+                    item(version, after),
+                    true,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn held_count_changes_require_positive_counts_and_known_items() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for (before, after) in [
+                (item(version, 0), item(version, 1)),
+                (item(version, 1), item(version, 0)),
+                (item(version, 0), item(version, 0)),
+                (SlotKnowledge::Empty, item(version, 1)),
+                (item(version, 1), SlotKnowledge::Empty),
+                (SlotKnowledge::Unavailable, item(version, 1)),
+                (item(version, 1), SlotKnowledge::Unavailable),
+                (SlotKnowledge::Unavailable, SlotKnowledge::Unavailable),
+            ] {
+                assert_hand_compatibility(version, before, after, false);
+            }
+        }
+    }
+
+    #[test]
+    fn held_count_changes_do_not_hide_item_identity_changes() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let wooden = super::super::registry::Registry::for_version(version)
+                .item("minecraft:wooden_pickaxe")
+                .unwrap();
+            for count in [1, 5] {
+                // Check each identity field independently as well as a full swap.
+                for (change_id, change_name) in [(true, false), (false, true), (true, true)] {
+                    let SlotKnowledge::Item { mut item } = item(version, count) else {
+                        unreachable!()
+                    };
+                    if change_id {
+                        item.id = wooden.id;
+                    }
+                    if change_name {
+                        item.name = wooden.name.clone();
+                    }
+                    assert_hand_compatibility(
+                        version,
+                        self::item(version, 1),
+                        SlotKnowledge::Item { item },
+                        false,
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn legacy_held_count_changes_compose_only_with_valid_damage_wear() {
+        let version = MinecraftVersion::Java1_16_1;
+        for (before, after) in [(2, 1), (1, 5)] {
+            assert_hand_compatibility(version, worn(before, 1), worn(after, 1), true);
+            assert_hand_compatibility(version, worn(before, 1), worn(after, 2), true);
+            assert_hand_compatibility(version, item(version, before), worn(after, 2), true);
+            assert_hand_compatibility(version, worn(before, 2), worn(after, 1), false);
+            assert_hand_compatibility(version, worn(before, 1), worn(after, -1), false);
+            let SlotKnowledge::Item { mut item } = worn(after, 2) else {
+                unreachable!()
+            };
+            let ItemData::LegacyNbt { bytes } = &mut item.data else {
+                unreachable!()
+            };
+            bytes.pop();
+            bytes.extend([3, 0, 3]);
+            bytes.extend(b"foo");
+            bytes.extend(1_i32.to_be_bytes());
+            bytes.push(0);
+            assert_hand_compatibility(
+                version,
+                worn(before, 1),
+                SlotKnowledge::Item { item },
+                false,
+            );
+            let mut malformed = worn(after, 2);
+            let SlotKnowledge::Item { item } = &mut malformed else {
+                unreachable!()
+            };
+            let ItemData::LegacyNbt { bytes } = &mut item.data else {
+                unreachable!()
+            };
+            // A float Damage tag is valid NBT but not valid tool wear.
+            bytes[3] = 5;
+            assert_hand_compatibility(version, worn(before, 1), malformed, false);
+        }
+    }
+
+    #[test]
+    fn legacy_enchantment_changes_are_refused_with_count_changes() {
+        let version = MinecraftVersion::Java1_16_1;
+        let enchanted = |count, level: i16| {
+            let SlotKnowledge::Item { mut item } = item(version, count) else {
+                unreachable!()
+            };
+            let mut bytes = vec![10, 0, 0, 9, 0, 12];
+            bytes.extend(b"Enchantments");
+            bytes.push(10);
+            bytes.extend(1_i32.to_be_bytes());
+            bytes.extend([8, 0, 2]);
+            bytes.extend(b"id");
+            bytes.extend(20_u16.to_be_bytes());
+            bytes.extend(b"minecraft:efficiency");
+            bytes.extend([2, 0, 3]);
+            bytes.extend(b"lvl");
+            bytes.extend(level.to_be_bytes());
+            bytes.extend([0, 0]);
+            item.data = ItemData::LegacyNbt { bytes };
+            // Ensure this exercises a valid enchantment tag.
+            item.custom_data().unwrap();
+            SlotKnowledge::Item { item }
+        };
+        for (before, after) in [(2, 1), (1, 5)] {
+            assert_hand_compatibility(version, enchanted(before, 1), enchanted(after, 1), true);
+            assert_hand_compatibility(version, item(version, before), enchanted(after, 1), false);
+            assert_hand_compatibility(version, enchanted(before, 1), enchanted(after, 2), false);
         }
     }
 
@@ -778,6 +949,31 @@ mod tests {
         assert!(message.contains("damage 0) -> Item("));
         assert!(message.contains("damage 3); item data changed)"));
         assert!(!message.contains("bytes"));
+        let before = initial.player.inventory.slots[38]
+            .as_ref()
+            .unwrap()
+            .value
+            .clone();
+        let after = current.player.inventory.slots[38]
+            .as_ref()
+            .unwrap()
+            .value
+            .clone();
+        // Modern damage is refused even with an unchanged count.
+        assert_hand_compatibility(version, before.clone(), after.clone(), false);
+        for count in [2, 5] {
+            let SlotKnowledge::Item { mut item } = after.clone() else {
+                unreachable!()
+            };
+            item.count = count;
+            assert_hand_compatibility(
+                version,
+                after.clone(),
+                SlotKnowledge::Item { item: item.clone() },
+                true,
+            );
+            assert_hand_compatibility(version, before.clone(), SlotKnowledge::Item { item }, false);
+        }
     }
 
     #[test]
