@@ -223,8 +223,7 @@ mod reader_throughput_tests {
         bot.inventory.write().await.windows.insert(0, vec![None; 2]);
         let error = bot.apply_packet(0x3f, vec![0]).await.unwrap_err();
         assert!(
-            error
-                .to_string()
+            format!("{:#}", error.diagnostic())
                 .contains("session cache contains 2 records, limit is 1")
         );
         release.send(()).unwrap();

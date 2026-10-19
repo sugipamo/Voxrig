@@ -61,6 +61,14 @@ impl Error {
         &self.source
     }
 
+    /// Adds diagnostic context without reclassifying the error or losing its sources.
+    pub(crate) fn context(self, context: impl fmt::Display + Send + Sync + 'static) -> Self {
+        Self {
+            kind: self.kind,
+            source: self.source.context(context),
+        }
+    }
+
     /// Structured movement refusal, retained through the diagnostic error chain.
     pub fn movement_refusal(&self) -> Option<&crate::MovementRefusal> {
         self.source.downcast_ref::<crate::MovementRefusal>()
@@ -169,6 +177,29 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn context_preserves_kind_and_diagnostic_chain() {
+        let source = anyhow::Error::new(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "truncated metadata",
+        ))
+        .context("handler detail");
+        let error = Error::new(ErrorKind::Other, source).context("play packet 0x44");
+        assert_eq!(error.kind(), ErrorKind::Other);
+        assert_eq!(
+            format!("{:#}", error.diagnostic()),
+            "play packet 0x44: handler detail: truncated metadata"
+        );
+        assert_eq!(
+            error
+                .diagnostic()
+                .downcast_ref::<std::io::Error>()
+                .unwrap()
+                .kind(),
+            std::io::ErrorKind::UnexpectedEof
+        );
+    }
 
     #[test]
     fn movement_detail_survives_anyhow_context() {
