@@ -22,6 +22,17 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 入力不正・fill・結果なしやtakeのframe write前の拒否は、元のエラー付きの`CraftOnceError::Failed`です。
 受理・保持済みtakeの配送が送信失敗などで不明な場合は、fill記録とtakeのIDを含む`OutcomeUnknown`（`RequiresInspection`）を返し、再送しません。[在庫補助](common-inventory-helpers.md)を参照してください。
 
+共通の運用採掘には `Survival::dig_estimate` / `dig` に加え、同期の
+`Survival::begin_dig(target, face) -> Result<DigOperation>` があります。
+`DigOperation::{id, request_cancel, snapshot, cancel, finished}` と
+`DigOperationId` / `DigSnapshot` / `DigCompletion` / `DigDispatchEvidence` /
+`DigWriteEvidence` / `DigPhase` / `DigCancelOutcome` / `DigResult` / `DigOwnerExit`
+は `voxrig::client` と共通 prelude から利用でき、`native` feature は不要です。
+**handle・waiter を drop しても採掘は継続します。取消は明示的です。**
+`cancel()` は future を返す前に取消を要求し、`finished()` と同じ joined completion
+の `Arc` を返します。STOP committed 境界、証拠・結果・owner exit の読み方と
+呼出側の deadline は [共通の採掘](common-dig.md#per-dig-cancellation-handle-begin_dig--digoperation) を参照してください。
+
 以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
 型は`voxrig::versions::java_1_16_1`からimportします（crate rootからは再exportしません）。
 1.21.11の版固有操作は[版別操作API](java-1.21.11-operations.md)を参照してください。

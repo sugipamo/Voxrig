@@ -2792,3 +2792,5 @@ async fn ledger_dropped_operational_caller_waits_for_an_already_admitted_timed_f
 }
 
 include!("quiesce_tests.rs");
+
+include!("dig_handle_tests.rs");

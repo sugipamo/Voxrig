@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added `Survival::begin_dig` / `DigOperation` as a public API addition for
+  explicit per-dig cancellation, independent write evidence and joined owner
+  completion. Dropping handles or waiters keeps digging; cancellation is explicit.
 - Fixed Java 1.16.1 dig cleanup recording an ABORT with unknown delivery as
   `Aborted`. It now records `Failed` and returns `OperationUnconfirmed`,
   retaining dispatch uncertainty. No public API change.

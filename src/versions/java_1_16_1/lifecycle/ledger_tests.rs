@@ -300,3 +300,79 @@ async fn ledger_legacy_pending_expiry_survives_root_closure() {
     );
     assert!(drain.inspect().unwrap().is_err());
 }
+
+#[tokio::test]
+async fn dig_handle_actor_reserves_full_queue_before_commit_and_lost_reply_keeps_evidence() {
+    use crate::client::{
+        DigWriteEvidence,
+        dig_operation::{DigOperationId, OperationState},
+        operational_dig::Action,
+    };
+    let (actor, mut peer, _) = actor_fixture_with_writer().await;
+    actor.mark_ready().await;
+    let state = OperationState::new(DigOperationId::new(actor.ledger.generation(), 1));
+    let capacity = actor.commands.sender.reserve_many(64).await.unwrap();
+    let mut reserving = Box::pin(actor.reserve_dig());
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(reserving.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    assert_eq!(state.evidence(Action::Start), DigWriteEvidence::NotSent);
+    // Cancel while queue capacity is unavailable, before any final hand-off.
+    let op = crate::client::DigOperation {
+        state: state.clone(),
+    };
+    op.request_cancel();
+    drop(capacity);
+    let permit = reserving.await.unwrap();
+    assert!(
+        permit
+            .enqueue(
+                OperationContext {
+                    generation: actor.generation(),
+                    source_observation_sequence: 0
+                },
+                OperationClass::Normal,
+                vec![0; 10],
+                state.clone(),
+                Action::Start
+            )
+            .is_none()
+    );
+    assert_eq!(state.evidence(Action::Start), DigWriteEvidence::NotSent);
+    let next = OperationState::new(DigOperationId::new(actor.ledger.generation(), 2));
+    let permit = actor.reserve_dig().await.unwrap();
+    let reply = permit
+        .enqueue(
+            OperationContext {
+                generation: actor.generation(),
+                source_observation_sequence: 0,
+            },
+            OperationClass::Normal,
+            vec![0; 10],
+            next.clone(),
+            Action::Start,
+        )
+        .unwrap();
+    drop(reply); // The actor must retain complete write evidence without a reply receiver.
+    read_packet(&mut peer, None).await.unwrap();
+    for _ in 0..20_000 {
+        if matches!(
+            next.evidence(Action::Start),
+            DigWriteEvidence::Written { .. }
+        ) {
+            break;
+        }
+        tokio::task::yield_now().await;
+    }
+    assert_eq!(
+        next.evidence(Action::Start),
+        DigWriteEvidence::Written {
+            interaction_sequence: None
+        }
+    );
+    assert_eq!(actor.ledger.test_written_through(), 1);
+    actor.revoke();
+    let _ = actor.ledger.tasks().wait().await;
+}

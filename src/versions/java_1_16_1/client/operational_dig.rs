@@ -123,6 +123,94 @@ impl DigOps for Bot {
             .await
             .map(Dispatch::Sent)
     }
+    async fn dig_dispatch_tracked(
+        &self,
+        initial: &Inputs,
+        target: [i32; 3],
+        face: crate::client::BlockFace,
+        action: Action,
+        operation: &Arc<crate::client::dig_operation::OperationState>,
+    ) -> Result<Dispatch> {
+        // Capacity first; final resnapshot/validation then commit/enqueue with no await.
+        let permit = self.connection.reserve_dig().await?;
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        if player.session != initial.player.session || player.game_mode != Some(GameMode::Survival)
+        {
+            operation.context_changed();
+            if matches!(action, Action::Abort) {
+                return Ok(Dispatch::ContextChanged);
+            }
+            return Err(dig::unavailable(
+                "dig original world or mode changed before dispatch",
+            ));
+        }
+        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Disconnected,
+                anyhow::anyhow!("dig connection unavailable"),
+            ));
+        }
+        if self.common_receipts.lock().await.pending_dispatch {
+            return Err(dig::unavailable("dig dispatch remains unresolved"));
+        }
+        if !matches!(action, Action::Abort) {
+            self.common_motion_admission_inner(false).await?;
+            let state = self
+                .world
+                .lock()
+                .await
+                .block(target[0], target[1], target[2])
+                .map(crate::versions::java_1_16_1::native_state)
+                .transpose()?;
+            if state.as_ref() != Some(&initial.state) {
+                if operation.cancelled.load(Ordering::Acquire) {
+                    operation.cooperative();
+                    return Ok(Dispatch::Cancelled);
+                }
+                return Ok(Dispatch::Changed(state));
+            }
+            let current = self.dig_snapshot_unlocked(target).await?;
+            dig::validate(initial, &current, action)?;
+            self.common_reach(target, [0.5; 3]).await?;
+            self.observe_stop_context().await;
+        }
+        let mut payload = vec![action.status() as u8];
+        payload.extend(
+            BlockPos {
+                x: target[0],
+                y: target[1],
+                z: target[2],
+            }
+            .packed()
+            .to_be_bytes(),
+        );
+        payload.push(face as u8);
+        let mut receipts = self.common_receipts.lock().await;
+        let class = if matches!(action, Action::Abort) {
+            OperationClass::Cleanup
+        } else {
+            OperationClass::Normal
+        };
+        let Some(reply) = permit.enqueue(
+            self.operation_context(0),
+            class,
+            payload,
+            operation.clone(),
+            action,
+        ) else {
+            return Ok(Dispatch::Cancelled);
+        };
+        receipts.pending_dispatch = true;
+        drop(receipts);
+        let result = reply.wait().await;
+        if matches!(result, Ok(Dispatch::Sent(_)))
+            || operation.evidence(action) == crate::client::DigWriteEvidence::NotSent
+        {
+            self.common_receipts.lock().await.pending_dispatch = false;
+        }
+        result
+    }
 }
 
 fn confirm_abort_write(outcome: crate::DispatchOutcome) -> Result<()> {
@@ -389,3 +477,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "dig_handle_tests.rs"]
+mod handle_tests;

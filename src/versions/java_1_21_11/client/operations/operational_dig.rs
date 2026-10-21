@@ -110,4 +110,73 @@ impl DigOps for Operations {
             .await?;
         Ok(Dispatch::Sent(Some(sequence)))
     }
+    async fn dig_dispatch_tracked(
+        &self,
+        initial: &Inputs,
+        target: [i32; 3],
+        face: crate::client::BlockFace,
+        action: Action,
+        operation: &Arc<crate::client::dig_operation::OperationState>,
+    ) -> Result<Dispatch> {
+        // Match the existing state -> writer lock order. The state remains held
+        // while queued, and every final check is repeated under the writer lock.
+        let mut state = self.bot.session.state.lock().await;
+        let work = crate::client::ledger::ScopedWork::new(self.bot.session.ledger.try_work()?);
+        let mut writer = self.bot.session.writer.lock().await;
+        self.bot.session.check_outbound()?;
+        let player = self.common_player_unlocked(&state)?;
+        if player.session != initial.player.session || player.game_mode != Some(GameMode::Survival)
+        {
+            operation.context_changed();
+            if matches!(action, Action::Abort) {
+                return Ok(Dispatch::ContextChanged);
+            }
+            return Err(dig::unavailable(
+                "dig original world or mode changed before dispatch",
+            ));
+        }
+        if matches!(action, Action::Abort) {
+            self.ready(&state)?;
+            if self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0 {
+                return Err(dig::unavailable("dig cleanup dispatch remains unresolved"));
+            }
+        } else {
+            self.mutable(&state)?;
+            let target_now = state
+                .world
+                .block(target)
+                .map(crate::versions::java_1_21_11::native_state)
+                .transpose()?;
+            if target_now.as_ref() != Some(&initial.state) {
+                if operation.cancelled.load(Ordering::Acquire) {
+                    operation.cooperative();
+                    return Ok(Dispatch::Cancelled);
+                }
+                return Ok(Dispatch::Changed(target_now));
+            }
+            let current = self.dig_snapshot_unlocked(&mut state, target)?;
+            dig::validate(initial, &current, action)?;
+            check_reach(&state, target)?;
+        }
+        let sequence = self.next_sequence()?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, action.status());
+        payload.extend(pack_position(target).to_be_bytes());
+        payload.push(face as u8);
+        put_varint(&mut payload, sequence);
+        let compression = writer.compression;
+        self.bot
+            .session
+            .write_dig_frame(
+                &mut writer.stream,
+                compression,
+                &payload,
+                work.guard(),
+                operation,
+                action,
+                sequence,
+            )
+            .await?;
+        Ok(Dispatch::Sent(Some(sequence)))
+    }
 }

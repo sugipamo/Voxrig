@@ -362,6 +362,7 @@ enum Command {
         packet_id: i32,
         payload: Vec<u8>,
         dig_diagnostic: Option<DigWriteDiagnostic>,
+        dig_tracking: Option<Box<DigTracking>>,
         reply:
             oneshot::Sender<std::result::Result<crate::DispatchOutcome, OperationAdmissionError>>,
     },
@@ -573,6 +574,81 @@ impl CommandSender {
                     mpsc::error::TrySendError::Closed(queued.command)
                 }
             })
+    }
+}
+
+#[derive(Clone)]
+struct DigTracking {
+    operation: Arc<crate::client::dig_operation::OperationState>,
+    action: crate::client::operational_dig::Action,
+}
+impl DigTracking {
+    fn settle(&self, evidence: crate::client::DigWriteEvidence) {
+        self.operation.settle(self.action, evidence);
+    }
+}
+/// Capacity and finite ownership are acquired BEFORE the adapter's final checks.
+/// Dropping a reservation cannot send anything.
+pub(crate) struct DigPermit {
+    permit: mpsc::OwnedPermit<QueuedCommand>,
+    work: ScopedWork,
+}
+pub(crate) struct DigReply {
+    result: oneshot::Receiver<std::result::Result<crate::DispatchOutcome, OperationAdmissionError>>,
+    tracking: DigTracking,
+}
+impl DigPermit {
+    pub(crate) fn enqueue(
+        self,
+        context: OperationContext,
+        class: OperationClass,
+        payload: Vec<u8>,
+        operation: Arc<crate::client::dig_operation::OperationState>,
+        action: crate::client::operational_dig::Action,
+    ) -> Option<DigReply> {
+        let tracking = DigTracking { operation, action };
+        let (reply, result) = oneshot::channel();
+        let actor_tracking = Some(Box::new(tracking.clone()));
+        if !tracking.operation.try_commit(action) {
+            return None;
+        }
+        // Approved Q2 hand-off: no await, allocation, or validation between the
+        // shared commit transition and enqueue through already-reserved capacity.
+        self.permit.send(QueuedCommand {
+            command: Command::DispatchPrimitive {
+                context,
+                class,
+                packet_id: 0x1b,
+                payload,
+                dig_diagnostic: None,
+                dig_tracking: actor_tracking,
+                reply,
+            },
+            work: Some(self.work),
+        });
+        Some(DigReply { result, tracking })
+    }
+}
+impl DigReply {
+    pub(crate) async fn wait(self) -> crate::Result<crate::client::operational_dig::Dispatch> {
+        use crate::client::{
+            DigWriteEvidence,
+            operational_dig::{Dispatch, unavailable},
+        };
+        match self.result.await {
+            Ok(Ok(crate::DispatchOutcome::Dispatched)) => Ok(Dispatch::Sent(None)),
+            Ok(Err(error)) => Err(unavailable(error)),
+            // DeliveryUnknown / lost reply is never a complete write. The actor
+            // records its outcome independently BEFORE replying; a lost reply
+            // cannot erase any already-proved Written evidence.
+            _ => {
+                self.tracking.settle(DigWriteEvidence::Unknown);
+                Err(crate::Error::new(
+                    crate::ErrorKind::UncertainDispatch,
+                    anyhow::anyhow!("dig actor delivery unknown"),
+                ))
+            }
+        }
     }
 }
 
@@ -920,6 +996,7 @@ impl ConnectionActor {
                         packet_id,
                         payload,
                         dig_diagnostic,
+                        dig_tracking,
                         reply,
                     } => {
                         let admission = motion_gate.admit(
@@ -1030,6 +1107,7 @@ impl ConnectionActor {
                                         );
                                         state = ConnectionState::ConnectionStateUnknown;
                                         lifecycle_tx.send_replace(state);
+                                        if let Some(tracking) = &dig_tracking { tracking.settle(crate::client::DigWriteEvidence::Unknown); }
                                         let _ =
                                             reply.send(Ok(crate::DispatchOutcome::DeliveryUnknown));
                                         break;
@@ -1038,6 +1116,13 @@ impl ConnectionActor {
                             }
                             Err(error) => Err(error),
                         };
+                        if let Some(tracking) = dig_tracking {
+                            tracking.settle(match &result {
+                                Ok(crate::DispatchOutcome::Dispatched) => crate::client::DigWriteEvidence::Written { interaction_sequence: None },
+                                Err(_) => crate::client::DigWriteEvidence::NotSent, // actor refused before writer admission
+                                _ => crate::client::DigWriteEvidence::Unknown,
+                            });
+                        }
                         let _ = reply.send(result);
                     }
                     Command::DispatchInteractionBatch {
@@ -1740,6 +1825,23 @@ impl ConnectionActor {
         })?
     }
 
+    pub(crate) async fn reserve_dig(&self) -> crate::Result<DigPermit> {
+        let work = ScopedWork::new(self.commands.ledger.try_work()?);
+        let permit = self
+            .commands
+            .sender
+            .clone()
+            .reserve_owned()
+            .await
+            .map_err(|_| {
+                crate::Error::new(
+                    crate::ErrorKind::Disconnected,
+                    anyhow::anyhow!("dig send queue closed"),
+                )
+            })?;
+        Ok(DigPermit { permit, work })
+    }
+
     pub(crate) async fn dispatch_operation(
         &self,
         context: OperationContext,
@@ -1767,6 +1869,7 @@ impl ConnectionActor {
                 packet_id,
                 payload: payload.to_vec(),
                 dig_diagnostic,
+                dig_tracking: None,
                 reply,
             })
             .await

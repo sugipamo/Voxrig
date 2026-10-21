@@ -68,6 +68,125 @@ STOP が完全送信済みか START だけで瞬時採掘が完了した後に�
 1.16.1 では送信済み STOP によって server が遅延破壊を予約すると、ABORT でもその予約は取り消せない。
 1 秒の観測 timeout の後も含め、block が後から壊れることがある。
 
+## Per-dig cancellation handle (begin_dig / DigOperation)
+
+**Dropping all `DigOperation` handles, or dropping/timing out any `cancel()` or
+`finished()` waiter, does NOT cancel the dig. It keeps digging.** Cancellation
+is explicit through `request_cancel()` (or the eager `cancel()` method).
+The existing lazy `dig()` API retains its cancel-on-waiter-drop behavior.
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn run(client: &Client) -> Result<()> {
+let operation = client.survival().begin_dig([10, 64, 3], BlockFace::Up)?;
+let id = operation.id();
+// On the caller's stop signal, before awaiting anything:
+operation.request_cancel();
+// The caller applies its own remaining deadline to this passive waiter.
+let completion = operation.finished().await;
+assert_eq!(completion.id(), id);
+match completion.cancel_outcome() {
+    DigCancelOutcome::StartSuppressed | DigCancelOutcome::Aborted => { /* inspect result + owner_exit too */ }
+    _ => { /* retain evidence; do not infer interruption or retry */ }
+}
+# Ok(())
+# }
+```
+
+`begin_dig(&self, target: [i32; 3], face: BlockFace) -> Result<DigOperation>` is
+synchronous: it claims the single dig slot, allocates the identity and registers
+the connection-owned task without waiting for readiness, state locks or I/O.
+An error guarantees that this invocation can never send START. The owner waits
+behind a registration latch until setup succeeds. A current Tokio runtime is
+required; absence of one returns `ErrorKind::State`, without panicking. START
+can race a successful return. A second `begin_dig` or a polled `dig()` is rejected
+immediately while the slot is held, rather than queued.
+
+`DigOperation` is cloneable, Send + Sync, and retains only per-operation state,
+not the live Client. `id()` returns an opaque process-local transport identity
+plus a monotonically allocated ordinal internally. IDs are not reused across
+world resets; exhaustion is refused without wrapping. There is no ID lookup,
+serialization, persistence, reconstruction or ID-based cancellation authority.
+An old handle can never cancel its successor, even at the same target/session.
+
+- `request_cancel(&self)` synchronously latches and wakes, without adapter/writer
+  locks or I/O. Repeated/concurrent calls request the same single owned cleanup.
+- `snapshot(&self) -> DigSnapshot` reads provisional phase, original session,
+  cancellation and independent START/STOP/ABORT evidence. Its `finished()` is
+  absent until actual join; provisional `NotSent` may still become committed.
+- `cancel(&self) -> impl Future<Output = Arc<DigCompletion>> + Send + '_` calls
+  `request_cancel()` **before returning its future**, even if never polled.
+- `finished(&self) -> impl Future<Output = Arc<DigCompletion>> + Send + '_` is
+  passive. Every reader, including cancellation after natural completion, gets
+  the same immutable `Arc` (`Arc::ptr_eq`), without changing the result.
+
+The approved race boundary is **STOP committed**. One per-dig state machine
+orders cancellation against START and STOP. On 1.16.1 capacity is reserved first,
+then the adapter resnapshots/validates and commits immediately before enqueue,
+without an await between commit and enqueue. On 1.21.11 final validation and
+commit happen while holding writer serialization, immediately before the write.
+Passing validation or constructing a future is not commitment. Cancellation
+before START commitment suppresses START. After timed START Written, cancellation
+before STOP commitment suppresses STOP and requests one eligible original-context
+ABORT. Cancellation after STOP commitment lets that write finish; STOP Written
+means `AlreadyStopped`, even if it finishes after the request. No cancellation
+ABORT follows a committed uncertain/written STOP. A provably refused STOP remains
+`NotSent` and shares the same single cleanup path with cancellation. Faster STOP
+estimates accepted under the conditions above use exactly the same boundary.
+Normal target observation is preserved after STOP or instant START, including
+when cancellation arrives late.
+
+All new structs have read-only accessors, and all new enums are non-exhaustive.
+`DigCompletion` separates packet disposition, original `DigResult`, and actual
+`DigOwnerExit`; callers must inspect all three. `cleanup_error_kind()` and
+`cleanup_message()` retain a cleanup failure separately from the original cause.
+All diagnostic messages/reasons are unstable and may change; branch on typed
+variants, categories and evidence, never on wording.
+
+| Evidence / outcome | Meaning and invariant |
+| --- | --- |
+| `NotSent` | In terminal completion, sealed: this write cannot later be dispatched. |
+| `Pending` | Committed but unresolved; snapshots only. Every remaining Pending becomes Unknown at join. |
+| `Written { interaction_sequence }` | Complete local write; 1.21.11 also requires successful flush, 1.16.1 requires the actor's explicit Dispatched outcome. Never a server ACK. |
+| `Unknown` | Possibly partial or complete write, DeliveryUnknown or lost reply without independently proved evidence. Never silently changed to Written or NotSent. |
+| `StartSuppressed` | START NotSent. Result may still be an independent admission failure. |
+| `Aborted` | ABORT Written and STOP definitely NotSent. Exactly one owned ABORT attempt; no rollback claim. |
+| `AlreadyStopped` | STOP Written; cancellation cannot retract it. |
+| `InstantBreak` | START Written with initial ticks == 0. No STOP or cancellation ABORT. |
+| `Completed` | Target changed before STOP; no assertion about who changed it. |
+| `ContextChanged` | Original world/mode/session changed. No ABORT into a replacement context. |
+| `Disconnected` | Transport ended or teardown cancelled the owner; retain all previous evidence. |
+| `Failed { kind, message }` | Known failure without a stronger packet disposition. |
+| `Unknown { reason }` | Unresolved write or abnormal owner evidence without a stronger disposition. |
+
+Classification precedence is proved STOP, instant START, eligible ABORT, proved
+START suppression, context change, disconnect, uncertainty, then known failure
+or target-change completion. Evidence is never erased by this precedence.
+`DigResult::Finished(DigRecord)` and cooperative `Cancelled` require
+`DigOwnerExit::Returned`. A cancellation request alone never changes an independent
+failure into `Cancelled`. Panic and forced cancellation produce `Failed` results
+with `Panicked` or `Cancelled { connection_teardown }` owner exit; they can coexist
+with independently proved packet dispositions. `Aborted` plus a failed result
+can therefore mean STOP was refused and cleanup was written, rather than success.
+Confirmed cooperative interruption requires Returned + Cancelled + StartSuppressed
+or eligible Aborted, with consistent known evidence.
+
+**`finished()` means only that the dig owner task was actually joined**, after
+its guards and finite-work bookkeeping finalized. Publication comes from the
+connection task registry on return, panic, and teardown cancellation. It does not
+prove connection shutdown or retirement of unresolved queued actor work; use
+`client.wait_shutdown()` separately. If supervision/runtime is lost, no receipt
+is fabricated and a waiter may remain pending. The caller owns deadlines, and
+may use its existing revocation policy at expiry. No SDK timeout, grace period,
+retry or reconnect is added; dropping a timed-out waiter does not retract cancel.
+
+**1.16.1 caveat:** a STOP below 0.7 progress can schedule delayed server destruction;
+ABORT does not clear that schedule. Even ABORT Written does not prove an unchanged
+block or server stillness. Instant START can already have broken the block.
+Sequences and acknowledgements do not supply rollback, actor identity, or authority
+to replay an uncertain mutation. Diagnostic mining and native timed dig helpers
+retain their existing contracts.
+
 ## 掘る時間の計算
 
 公式の`BlockStateBase.getDestroyProgress`と`Player.getDestroySpeed`をそのまま計算する（f32）。

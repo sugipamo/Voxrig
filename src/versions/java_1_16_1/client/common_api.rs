@@ -375,7 +375,7 @@ impl Bot {
         self.common_receipts.lock().await.pending_dispatch = false;
         Ok(None)
     }
-    async fn common_reach(&self, position: [i32; 3], cursor: [f32; 3]) -> Result<()> {
+    pub(super) async fn common_reach(&self, position: [i32; 3], cursor: [f32; 3]) -> Result<()> {
         if !(0..=255).contains(&position[1])
             || position[0].abs_diff(0) > 30_000_000
             || position[2].abs_diff(0) > 30_000_000

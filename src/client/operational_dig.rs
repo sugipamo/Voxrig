@@ -1,10 +1,13 @@
 //! Connection-owned operational digging. Checks and packet writes share adapter state locks.
 use super::dig::{DigContext, DigEstimate, DigRecord};
+use super::dig_operation::{
+    DigOperation, DigOperationId, DigPhase, DigWriteEvidence, OperationState,
+};
 use super::{BlockFace, GameMode, PlayerObservation, SessionStamp, adapter::DigOps};
 use crate::{Error, ErrorKind, NativeBlockState, Result};
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
 };
 use std::time::{Duration, Instant};
 use tokio::sync::oneshot;
@@ -13,8 +16,23 @@ use tokio::sync::oneshot;
 pub(crate) struct Coordinator {
     operation: Arc<tokio::sync::Mutex<()>>,
     cleanup: Mutex<Option<DigCleanupRecord>>,
+    next_id: AtomicU64,
 }
 impl Coordinator {
+    fn allocate_id(&self, generation: super::GenerationKey) -> Result<DigOperationId> {
+        // The stored value is the last allocated ordinal. Never wrap, even
+        // across world resets; tests can inject MAX into this private counter.
+        #[allow(deprecated)]
+        self.next_id
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+            .map(|n| DigOperationId::new(generation, n + 1))
+            .map_err(|_| {
+                Error::new(
+                    ErrorKind::ResourceLimit,
+                    anyhow::anyhow!("dig operation identity exhausted"),
+                )
+            })
+    }
     pub(crate) fn active(&self) -> bool {
         self.operation.try_lock().is_err()
     }
@@ -83,6 +101,8 @@ impl std::fmt::Display for Action {
     }
 }
 pub(crate) enum Dispatch {
+    /// Cancellation won the final transport commitment gate.
+    Cancelled,
     Sent(Option<i32>),
     Changed(Option<NativeBlockState>),
     /// No packet sent into a changed world or mode.
@@ -275,6 +295,77 @@ impl Drop for CancelOnDrop {
     }
 }
 impl super::Survival {
+    /// Begin an exclusive connection-owned dig synchronously.
+    ///
+    /// **Dropping all handles or waiter futures does NOT cancel: digging continues.**
+    /// Call `DigOperation::request_cancel` explicitly. A second `begin_dig` or
+    /// active `dig` is rejected immediately, without queueing. An error guarantees
+    /// this invocation can never send START. Requires a current Tokio runtime;
+    /// absence of one returns `ErrorKind::State`, without panicking.
+    ///
+    /// Cancellation before STOP commitment suppresses STOP and requests one
+    /// eligible ABORT; after commitment STOP finishes (`AlreadyStopped` if Written).
+    /// Complete ABORT is not rollback: 1.16.1 delayed destruction may still occur.
+    /// Callers own cancellation deadlines. `finished()` certifies joined owner
+    /// exit only; use `Client::wait_shutdown` for connection retirement.
+    pub fn begin_dig(&self, target: [i32; 3], face: BlockFace) -> Result<DigOperation> {
+        tokio::runtime::Handle::try_current()
+            .map_err(|_| unavailable("begin_dig requires a current Tokio runtime"))?;
+        let coordinator = super::dispatch!(&self.client.adapter, a => DigOps::dig_coordinator(a));
+        let exclusive = coordinator
+            .operation
+            .clone()
+            .try_lock_owned()
+            .map_err(|_| unavailable("another operational dig owns this connection"))?;
+        let id = coordinator.allocate_id(self.client.generation_key())?;
+        let state = OperationState::new(id);
+        let owner = self.clone();
+        let work = super::dispatch!(&self.client.adapter, a => DigOps::dig_work(a))?;
+        let (registered, registration) = oneshot::channel();
+        let running = state.clone();
+        let published = state.clone();
+        // Setup retains a releasable reservation until registration succeeds.
+        // In particular, a lost registry observer must release the slot even
+        // if Tokio has not yet processed the rejected owner's abort.
+        let reservation = Arc::new(Mutex::new(Some(exclusive)));
+        let owner_reservation = reservation.clone();
+        let ledger =
+            super::dispatch!(&self.client.adapter, a => super::adapter::DrainOps::drain_ledger(a));
+        ledger
+            .tasks()
+            .try_spawn_with_join(
+                work.run_result(async move {
+                    registration
+                        .await
+                        .map_err(|_| unavailable("dig registration rejected"))?;
+                    let _exclusive = owner_reservation
+                        .lock()
+                        .expect("dig reservation")
+                        .take()
+                        .ok_or_else(|| unavailable("dig registration reservation released"))?;
+                    let (_, unused) = oneshot::channel();
+                    owner
+                        .dig_owned(
+                            target,
+                            face,
+                            running.cancelled.clone(),
+                            unused,
+                            Some(running),
+                        )
+                        .await
+                }),
+                move |joined, teardown| published.publish(joined, teardown),
+            )
+            .map_err(|e| {
+                reservation.lock().expect("dig reservation").take();
+                unavailable(format!("dig owner registration failed: {e}"))
+            })?;
+        // No owner may pass this latch until every fallible setup step succeeded.
+        // Even if teardown already joined it, successful registration is enough
+        // to return the handle carrying that joined completion.
+        let _ = registered.send(());
+        Ok(DigOperation { state })
+    }
     pub(crate) async fn operational_dig(
         &self,
         target: [i32; 3],
@@ -286,15 +377,22 @@ impl super::Survival {
             cancelled: cancelled.clone(),
             _signal: signal,
         };
+        let coordinator = super::dispatch!(&self.client.adapter, a => DigOps::dig_coordinator(a));
+        let exclusive = coordinator
+            .operation
+            .clone()
+            .try_lock_owned()
+            .map_err(|_| unavailable("another operational dig owns this connection"))?;
         let owner = self.clone();
         let work = super::dispatch!(&self.client.adapter, a => DigOps::dig_work(a))?;
         super::dispatch!(&self.client.adapter, a => super::adapter::DrainOps::drain_ledger(a))
             .tasks()
-            .spawn(
-                work.run_result(
-                    async move { owner.dig_owned(target, face, cancelled, receive).await },
-                ),
-            )
+            .spawn(work.run_result(async move {
+                let _exclusive = exclusive;
+                owner
+                    .dig_owned(target, face, cancelled, receive, None)
+                    .await
+            }))
             .await
             .map_err(|e| unavailable(format!("dig owner failed: {e}")))?
     }
@@ -309,15 +407,14 @@ impl super::Survival {
         face: BlockFace,
         cancelled: Arc<AtomicBool>,
         mut receive: oneshot::Receiver<()>,
+        operation: Option<Arc<OperationState>>,
     ) -> Result<DigRecord> {
         let coordinator = super::dispatch!(&self.client.adapter, a => DigOps::dig_coordinator(a));
-        let _exclusive = coordinator
-            .operation
-            .clone()
-            .try_lock_owned()
-            .map_err(|_| unavailable("another operational dig owns this connection"))?;
         let initial =
             super::dispatch!(&self.client.adapter, a => DigOps::dig_snapshot(a, target).await)?;
+        if let Some(op) = &operation {
+            op.prepare(initial.player.session, initial.estimate.ticks == 0);
+        }
         let unresolved = coordinator
             .cleanup
             .lock()
@@ -343,12 +440,34 @@ impl super::Survival {
             ));
         }
         if cancelled.load(Ordering::Acquire) {
+            if let Some(op) = &operation {
+                op.cooperative();
+            }
             return Err(unavailable("dig cancelled before START"));
         }
-        let start = super::dispatch!(&self.client.adapter, a => DigOps::dig_dispatch(a, &initial, target, face, Action::Start, &cancelled).await)?;
+        if let Some(op) = &operation {
+            op.phase(DigPhase::Starting);
+        }
+        let start = self
+            .dispatch_dig(
+                &initial,
+                target,
+                face,
+                Action::Start,
+                &cancelled,
+                operation.as_ref(),
+            )
+            .await?;
         let mut sequences = Vec::new();
         match start {
             Dispatch::Sent(sequence) => sequences.extend(sequence),
+            Dispatch::Cancelled => return Err(unavailable("dig cancelled before START commit")),
+            Dispatch::ContextChanged => {
+                if let Some(op) = &operation {
+                    op.context_changed();
+                }
+                return Err(unavailable("dig original context changed before START"));
+            }
             _ => return Err(unavailable("dig target/context changed before START")),
         }
         // START has completed its packet write. Measure the STOP diagnostic here
@@ -356,11 +475,28 @@ impl super::Survival {
         let started = Instant::now();
         let finish = if initial.estimate.ticks > 0 {
             let wait = std::time::Duration::from_millis((initial.estimate.ticks + 1) * 50);
+            if let Some(op) = &operation {
+                op.phase(DigPhase::Waiting);
+            }
+            let cancellation = async {
+                if let Some(op) = &operation {
+                    op.cancellation().await;
+                } else {
+                    let _ = (&mut receive).await;
+                }
+            };
             tokio::select! {
                 biased;
-                _ = &mut receive => Err(unavailable("dig caller cancelled after START")),
+                _ = cancellation => {
+                    if let Some(op) = &operation { op.cooperative(); }
+                    Err(unavailable("dig caller cancelled after START"))
+                },
                 _ = tokio::time::sleep(wait) => {
-                    super::dispatch!(&self.client.adapter, a => DigOps::dig_dispatch(a, &initial, target, face, Action::Finish { elapsed: started.elapsed() }, &cancelled).await)
+                    if let Some(op) = &operation { op.phase(DigPhase::Stopping); }
+                    match self.dispatch_dig(&initial, target, face, Action::Finish { elapsed: started.elapsed() }, &cancelled, operation.as_ref()).await {
+                        Ok(Dispatch::Cancelled) => Err(unavailable("dig cancelled before STOP commit")),
+                        result => result,
+                    }
                 }
             }
         } else {
@@ -368,6 +504,19 @@ impl super::Survival {
         };
         match finish {
             Err(error) => {
+                // A committed uncertain STOP must never be followed by ABORT.
+                if operation.as_ref().is_some_and(|op| {
+                    op.evidence(Action::Finish {
+                        elapsed: Duration::ZERO,
+                    }) != DigWriteEvidence::NotSent
+                }) {
+                    return Err(error);
+                }
+                if let Some(op) = &operation {
+                    if !op.begin_cleanup() {
+                        return Err(error);
+                    }
+                }
                 let cleanup = self
                     .cleanup_dig(
                         &coordinator,
@@ -376,9 +525,10 @@ impl super::Survival {
                         face,
                         &cancelled,
                         error.to_string(),
+                        operation.as_ref(),
                     )
                     .await;
-                if cleanup.status == DigCleanupStatus::Failed {
+                if cleanup.status == DigCleanupStatus::Failed && operation.is_none() {
                     return Err(Error::new(
                         ErrorKind::OperationUnconfirmed,
                         anyhow::Error::new(error).context(format!(
@@ -398,14 +548,21 @@ impl super::Survival {
                     sequences,
                 });
             }
+            Ok(Dispatch::Cancelled) => unreachable!("cancel dispatch is routed to shared cleanup"),
             Ok(Dispatch::ContextChanged) => {
+                if let Some(op) = &operation {
+                    op.context_changed();
+                }
                 return Err(unavailable("dig original context changed"));
             }
             Ok(Dispatch::Sent(sequence)) => sequences.extend(sequence),
         }
+        if let Some(op) = &operation {
+            op.phase(DigPhase::Observing);
+        }
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(1);
         loop {
-            if cancelled.load(Ordering::Acquire) {
+            if operation.is_none() && cancelled.load(Ordering::Acquire) {
                 return Err(unavailable("dig caller cancelled after completed dispatch"));
             }
             let capture = self
@@ -415,7 +572,12 @@ impl super::Survival {
                     max: target,
                 })
                 .await?;
-            if capture.player.session != initial.player.session {
+            if capture.player.session != initial.player.session
+                || (operation.is_some() && capture.player.game_mode != Some(GameMode::Survival))
+            {
+                if let Some(op) = &operation {
+                    op.context_changed();
+                }
                 return Err(unavailable("dig world changed while awaiting target"));
             }
             let state = capture
@@ -439,6 +601,22 @@ impl super::Survival {
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
     }
+    async fn dispatch_dig(
+        &self,
+        initial: &Inputs,
+        target: [i32; 3],
+        face: BlockFace,
+        action: Action,
+        cancelled: &AtomicBool,
+        operation: Option<&Arc<OperationState>>,
+    ) -> Result<Dispatch> {
+        if let Some(operation) = operation {
+            super::dispatch!(&self.client.adapter, a => DigOps::dig_dispatch_tracked(a, initial, target, face, action, operation).await)
+        } else {
+            super::dispatch!(&self.client.adapter, a => DigOps::dig_dispatch(a, initial, target, face, action, cancelled).await)
+        }
+    }
+    #[allow(clippy::too_many_arguments)]
     async fn cleanup_dig(
         &self,
         coordinator: &Coordinator,
@@ -447,6 +625,7 @@ impl super::Survival {
         face: BlockFace,
         cancelled: &AtomicBool,
         reason: String,
+        operation: Option<&Arc<OperationState>>,
     ) -> DigCleanupRecord {
         let mut record = DigCleanupRecord {
             session: initial.player.session,
@@ -456,14 +635,24 @@ impl super::Survival {
             interaction_sequence: None,
         };
         *coordinator.cleanup.lock().expect("dig cleanup") = Some(record.clone());
-        let result = super::dispatch!(&self.client.adapter, a => DigOps::dig_dispatch(a, initial, target, face, Action::Abort, cancelled).await);
+        let result = self
+            .dispatch_dig(initial, target, face, Action::Abort, cancelled, operation)
+            .await;
         match result {
             Ok(Dispatch::Sent(sequence)) => {
                 record.status = DigCleanupStatus::Aborted;
                 record.interaction_sequence = sequence;
             }
-            Ok(_) => record.status = DigCleanupStatus::ContextChanged,
+            Ok(_) => {
+                if let Some(op) = operation {
+                    op.context_changed();
+                }
+                record.status = DigCleanupStatus::ContextChanged;
+            }
             Err(e) => {
+                if let Some(op) = operation {
+                    op.cleanup_failure(&e);
+                }
                 record.status = DigCleanupStatus::Failed;
                 record.reason.push_str(&format!("; ABORT failed: {e}"));
             }
@@ -478,6 +667,23 @@ mod tests {
     use super::*;
     use crate::MinecraftVersion;
     use crate::client::{InventoryObservation, ItemData, ItemStack, SlotKnowledge, received};
+
+    #[test]
+    fn dig_ids_survive_world_resets_and_exhaustion_never_wraps() {
+        let coordinator = Coordinator::default();
+        let generation = super::super::GenerationKey::new(MinecraftVersion::Java1_16_1, 7);
+        let a = coordinator.allocate_id(generation).unwrap();
+        let b = coordinator.allocate_id(generation).unwrap();
+        assert_ne!(a, b);
+        coordinator.next_id.store(u64::MAX - 1, Ordering::Relaxed);
+        let last = coordinator.allocate_id(generation).unwrap();
+        assert_ne!(last, a);
+        assert_eq!(
+            coordinator.allocate_id(generation).unwrap_err().kind(),
+            ErrorKind::ResourceLimit
+        );
+        assert_eq!(coordinator.next_id.load(Ordering::Relaxed), u64::MAX);
+    }
 
     const PREFIX: &str = "dig selected hand or timing prerequisites changed before dispatch";
 
