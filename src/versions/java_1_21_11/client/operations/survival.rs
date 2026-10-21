@@ -242,6 +242,14 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         input::ENTITY_UPDATE_ATTRIBUTES => {
             let details = players::read_attribute_details(&mut r)?;
+            let supported =
+                &crate::client::physics::blocks::table(MinecraftVersion::Java1_21_11).attribute_ids;
+            if details
+                .keys()
+                .any(|key| !supported.values().any(|id| id == key))
+            {
+                bail!("invalid/duplicate player attribute");
+            }
             let values = details.iter().map(|(k, (v, _))| (*k, *v)).collect();
             attributes::received(&mut next, &values, sequence);
             for (key, (_, raw)) in details {
