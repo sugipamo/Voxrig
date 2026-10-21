@@ -89,6 +89,105 @@ fn apply(s: &mut State, id: i32, payload: &[u8]) {
     assert!(receive(s, id, payload).unwrap());
 }
 
+fn attribute_packet(attributes: &[(i32, f64)]) -> Vec<u8> {
+    let mut packet = owned(42, &[]);
+    put_varint(&mut packet, attributes.len() as i32);
+    for (id, base) in attributes {
+        put_varint(&mut packet, *id);
+        packet.extend(base.to_be_bytes());
+        put_varint(&mut packet, 0); // No modifiers.
+    }
+    packet
+}
+
+#[test]
+fn own_attribute_retention_is_bounded_across_individually_bounded_packets() {
+    let mut s = state();
+    let supported =
+        &crate::client::physics::blocks::table(MinecraftVersion::Java1_21_11).attribute_ids;
+    for (index, id) in supported.values().enumerate() {
+        apply(
+            &mut s,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &attribute_packet(&[(*id, 1.0)]),
+        );
+        assert_eq!(
+            s.operations.local_player.received_attributes.len(),
+            index + 1
+        );
+        assert_eq!(
+            s.operations.local_player.attribute_sequences.len(),
+            index + 1
+        );
+    }
+    let first_unsupported = supported.values().max().unwrap() + 1;
+    for batch in 0..3 {
+        // Each packet is within the decoder's 1,024-entry bound. Include a
+        // supported scale update to prove the entire own-player update is atomic.
+        let mut attributes = vec![(ids::SCALE_ATTRIBUTE, 2.0)];
+        attributes.extend((0..1023).map(|offset| (first_unsupported + batch * 1023 + offset, 3.0)));
+        s.sequence += 1;
+        let before = s.operations.local_player.clone();
+        let error = receive(
+            &mut s,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &attribute_packet(&attributes),
+        )
+        .unwrap_err();
+        assert_eq!(error.to_string(), "invalid/duplicate player attribute");
+        assert_eq!(s.operations.local_player, before);
+    }
+    let before = s.operations.local_player.clone();
+    assert!(
+        receive(
+            &mut s,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &attribute_packet(&[(i32::MAX, 1.0)]),
+        )
+        .is_err()
+    );
+    assert_eq!(s.operations.local_player, before);
+}
+
+#[test]
+fn own_supported_attribute_packets_merge_and_refresh_only_received_sequences() {
+    let mut s = state();
+    let packet_id = ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES;
+    apply(&mut s, packet_id, &attribute_packet(&[(5, 2.0), (25, 3.0)]));
+    let first_sequence = s.sequence;
+    for value in [4.0, 5.0] {
+        apply(&mut s, packet_id, &attribute_packet(&[(5, value)]));
+        let player = &s.operations.local_player;
+        assert_eq!(player.received_attributes.len(), 2);
+        assert_eq!(player.attribute_sequences.len(), 2);
+        assert_eq!(player.received_attributes[&5].base, value);
+        assert_eq!(player.attribute_sequences[&5], s.sequence);
+        assert_eq!(player.received_attributes[&25].base, 3.0);
+        assert_eq!(player.attribute_sequences[&25], first_sequence);
+        assert_eq!(
+            player.block_break_speed,
+            Some(AttributeValue {
+                value,
+                basis: ValueBasis::Received {
+                    sequence: s.sequence
+                },
+            })
+        );
+        assert_eq!(
+            player.scale,
+            Some(AttributeValue {
+                value: 3.0,
+                basis: ValueBasis::Received {
+                    sequence: first_sequence
+                },
+            })
+        );
+    }
+    let before = s.operations.local_player.clone();
+    apply(&mut s, packet_id, &attribute_packet(&[]));
+    assert_eq!(s.operations.local_player, before);
+}
+
 #[test]
 fn native_attribute_ids_defaults_and_packed_velocities_match_game_oracle() {
     let oracle = fixture();
