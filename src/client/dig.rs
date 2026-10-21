@@ -307,7 +307,8 @@ impl super::Survival {
     }
 
     /// Dig with coherent START/STOP admission on the original world and hand.
-    /// Cancelling the waiter requests one owned ABORT after an admitted START;
+    /// Dropping the waiter requests one owned ABORT after a timed START, unless
+    /// STOP was already completely written. Instant START needs no ABORT;
     /// changed context or uncertain I/O never causes replay into another world.
     pub async fn dig(&self, target: [i32; 3], face: BlockFace) -> Result<DigRecord> {
         self.operational_dig(target, face).await

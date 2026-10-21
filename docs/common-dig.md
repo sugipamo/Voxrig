@@ -50,7 +50,8 @@ server の接地（`on_ground`）や水中の状態は受理した移動 packet 
 拒否メッセージは変化した前提条件と変更前後の値、START/STOP の phase、STOP 時の START 送信後の経過 ms、player y/vy を示す（診断用のみで比較条件には追加せず、文面は API 契約ではない。vy が得られない場合は n/a）。
 単発診断用の `start_mining` と異なり、`dig` は元接続を永久に採掘専用へ隔離せず、
 同じ接続で次の操作を呼べる。戻り値は server ACK や除去した actor の証明ではない。
-START の後で呼び出しを止めた場合、接続が所有する task が元の対象へ ABORT を一度だけ送る。
+START の後で `dig()` の future を drop した場合、STOP が完全送信済みか瞬時採掘の場合を除き、
+接続が所有する task が元の対象へ ABORT を一度だけ試みる。
 採掘条件の変化で STOP を拒否した場合も同じ cleanup を使う。元の world/mode が変わった場合は
 新しい文脈へ ABORT を送らず、cleanup を `ContextChanged` として記録する。
 I/O が不確実な場合は自動再送・再接続せず、同じ world の次の採掘を拒否する。
