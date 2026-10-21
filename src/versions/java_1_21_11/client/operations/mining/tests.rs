@@ -1136,6 +1136,7 @@ async fn fresh_recovery_observations_do_not_authorize_actions_before_native_load
 #[tokio::test]
 async fn pending_abort_ack_and_timeout_refuse_every_following_mutation_until_fresh_removal() {
     let mut f = Fixture::new().await;
+    tokio::time::pause();
     let intent = f.start().await;
     assert!(intent.estimated_wait_ms == 8500 && intent.held_receive_sequence == 10);
     assert_eq!(
@@ -1212,16 +1213,21 @@ async fn pending_abort_ack_and_timeout_refuse_every_following_mutation_until_fre
     );
     assert!(f.api.finish_survival_mining(&intent).await.is_err());
     assert!(f.api.abort_survival_mining(&intent).await.is_err());
-    let mut ack = vec![];
-    put_varint(&mut ack, abort);
-    write_packet(
-        &mut f.peer,
-        None,
-        ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING,
-        &ack,
-    )
-    .await
-    .unwrap();
+    // A later ACK followed by a delayed older ACK cannot resolve target state.
+    for sequence in [abort, intent.start_sequence, finish] {
+        let mut ack = vec![];
+        put_varint(&mut ack, sequence);
+        f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+            .await;
+        let MiningStatus::PendingAfterFinish { record } =
+            f.api.observe_survival_mining(&intent).await.unwrap()
+        else {
+            panic!("ACK is not removal evidence");
+        };
+        assert!(record.finish.unwrap().dispatched);
+        assert!(record.abort.unwrap().dispatched);
+        assert!(record.target_receipt.is_none() && record.removal.is_none());
+    }
     assert!(matches!(
         f.api
             .wait_survival_mining(&intent, Duration::from_millis(5))
@@ -1269,6 +1275,116 @@ async fn pending_abort_ack_and_timeout_refuse_every_following_mutation_until_fre
             .is_err()
     );
     f.stop().await;
+}
+
+// Synthetic packet ordering only: these replies make no claim about vanilla's
+// delayed miner or which actor supplied air/replacement.
+#[tokio::test]
+async fn external_air_then_original_replacement_never_authorizes_reuse() {
+    for observe_air in [false, true] {
+        let mut f = Fixture::new().await;
+        tokio::time::pause();
+        let intent = f.start().await;
+        let finish = f.api.finish_survival_mining(&intent).await.unwrap();
+        let abort = f.api.abort_survival_mining(&intent).await.unwrap();
+        for (action, sequence) in [(2, finish), (1, abort)] {
+            let mut bytes = vec![action];
+            bytes.extend(pack_position(TARGET).to_be_bytes());
+            bytes.push(4); // West.
+            put_varint(&mut bytes, sequence);
+            assert_eq!(
+                read_packet(&mut f.peer, None).await.unwrap(),
+                (ids::play_serverbound::BLOCK_DIG, bytes)
+            );
+        }
+        f.change(TARGET, &native("air")).await;
+        let air_sequence = f.session.state.lock().await.sequence;
+        if observe_air {
+            let MiningStatus::ObservedRemoved { observation } =
+                f.api.observe_survival_mining(&intent).await.unwrap()
+            else {
+                panic!("expected the received air result");
+            };
+            assert_eq!(observation.target_receipt.receive_sequence, air_sequence);
+            assert!(!observation.continuation_validated);
+        }
+        f.change(TARGET, &intent.baseline).await;
+        let replacement_sequence = f.session.state.lock().await.sequence;
+        assert!(replacement_sequence > air_sequence);
+        assert_eq!(
+            f.session.state.lock().await.world.block(TARGET),
+            Some(state_id(&intent.baseline).unwrap())
+        );
+        // Current main latches removal at the receive boundary even if the
+        // caller did not poll between the two packets. It remains historical.
+        let MiningStatus::ObservedRemoved { observation } =
+            f.api.observe_survival_mining(&intent).await.unwrap()
+        else {
+            panic!("the received air result must survive replacement");
+        };
+        assert_eq!(observation.target_receipt.receive_sequence, air_sequence);
+        assert!(!observation.continuation_validated);
+        assert!(f.api.select_hotbar(1).await.is_err());
+        assert!(
+            f.api
+                .start_survival_mining(TARGET, crate::BlockFace::West)
+                .await
+                .is_err()
+        );
+        assert!(f.api.finish_survival_mining(&intent).await.is_err());
+        assert!(f.api.abort_survival_mining(&intent).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(5), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+        tokio::time::resume();
+    }
+}
+
+#[tokio::test]
+async fn early_finish_disconnect_preserves_unresolved_receipts_without_replay() {
+    let mut f = Fixture::new().await;
+    tokio::time::pause();
+    let intent = f.start().await;
+    let finish = f.api.finish_survival_mining(&intent).await.unwrap();
+    let mut bytes = vec![2];
+    bytes.extend(pack_position(TARGET).to_be_bytes());
+    bytes.push(4);
+    put_varint(&mut bytes, finish);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (ids::play_serverbound::BLOCK_DIG, bytes)
+    );
+    let mut ack = vec![];
+    put_varint(&mut ack, finish);
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+        .await;
+    f.change(TARGET, &intent.baseline).await;
+    let before = f.api.operation_history().await.mining.unwrap();
+    assert!(before.start_dispatched && before.finish.as_ref().unwrap().dispatched);
+    assert!(before.abort.is_none() && before.removal.is_none());
+    assert!(matches!(
+        f.api.observe_survival_mining(&intent).await.unwrap(),
+        MiningStatus::PendingAfterFinish { .. }
+    ));
+    // Peer EOF exercises receiver closure rather than only local disconnect.
+    drop(f.peer);
+    timeout(Duration::from_secs(1), f.receiver)
+        .await
+        .unwrap()
+        .unwrap();
+    let history = f.api.operation_history().await;
+    assert!(history.connection_closed);
+    let after = history.mining.unwrap();
+    assert_eq!(after.intent, before.intent);
+    assert_eq!(after.finish, before.finish);
+    assert_eq!(after.target_receipt, before.target_receipt);
+    assert!(after.start_dispatched && after.abort.is_none() && after.removal.is_none());
+    assert!(f.api.finish_survival_mining(&intent).await.is_err());
+    assert!(f.api.abort_survival_mining(&intent).await.is_err());
+    assert!(f.api.select_hotbar(1).await.is_err());
 }
 
 #[tokio::test]
@@ -1776,13 +1892,8 @@ async fn terminal_wall_clearance_refuses_before_io_and_retreat_plan_is_admitted(
     let mut mover = Fixture::new().await;
     let mut observer = Fixture::new_id(43).await;
     observer.observe_mover().await;
-    mover
-        .session
-        .state
-        .lock()
-        .await
-        .world
-        .seed_replay_cell([2, 1, 0], 1);
+    mover.change([2, 1, 0], &native("stone")).await;
+    tokio::time::pause();
     let mut inputs = vec![SurvivalInput::default(); 60];
     for input in inputs.iter_mut().take(20) {
         input.forward = 1;
@@ -1801,6 +1912,20 @@ async fn terminal_wall_clearance_refuses_before_io_and_retreat_plan_is_admitted(
         mover
             .api
             .start_survival_motion(-90.0, &inputs, &observer.api)
+            .await
+            .is_err()
+    );
+    let controls: Vec<_> = inputs
+        .iter()
+        .map(|input| SurvivalControl {
+            yaw: -90.0,
+            input: *input,
+        })
+        .collect();
+    assert!(
+        mover
+            .api
+            .start_predicted_survival_path(&controls)
             .await
             .is_err()
     );
