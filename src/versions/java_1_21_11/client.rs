@@ -1385,6 +1385,8 @@ mod mining_native_trials;
 #[cfg(test)]
 mod movement_native_trials;
 #[cfg(test)]
+mod native_trial_support;
+#[cfg(test)]
 mod placement_native_trials;
 #[cfg(test)]
 mod tests;

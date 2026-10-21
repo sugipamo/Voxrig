@@ -94,6 +94,7 @@ include = [
     "/scripts/export_recipe_book_stock.py",
     "/scripts/export_recipe_displays.py",
     "/scripts/test_native_trace.py",
+    "/scripts/fixtures/native_trials_1_21_11.json",
     "/scripts/ExportItemComponentSchema.java",
     "/scripts/export_item_component_schema.py",
     "/scripts/export_outline_shapes.py",
