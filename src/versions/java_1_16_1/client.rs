@@ -1074,6 +1074,24 @@ struct ObservationEventQueue {
 /// A received own-velocity packet: packet ordinal and value.
 type VelocityReceipt = (u64, [f64; 3]);
 
+// Per-bot test time leaves every production cooldown on std::time::Instant.
+#[cfg(test)]
+struct AttackTestClock {
+    now: std::time::Instant,
+    waits: Vec<Duration>,
+    sleeper: Option<std::task::Waker>,
+}
+
+#[cfg(test)]
+impl AttackTestClock {
+    fn advance(&mut self, duration: Duration) {
+        self.now += duration;
+        if let Some(sleeper) = self.sleeper.take() {
+            sleeper.wake();
+        }
+    }
+}
+
 /// State and protocol data represented by `Bot`.
 pub struct Bot {
     connection: ConnectionActor,
@@ -1136,6 +1154,10 @@ pub struct Bot {
     click_lock: Arc<Mutex<()>>,
     entities: Arc<RwLock<Versioned<EntityTracker>>>,
     last_attack: Arc<Mutex<Option<std::time::Instant>>>,
+    #[cfg(test)]
+    attack_test_clock: Arc<StdMutex<Option<AttackTestClock>>>,
+    #[cfg(test)]
+    control_loop_park: Arc<Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
     players: Arc<RwLock<Versioned<PlayerList>>>,
     client_settings: Arc<RwLock<ClientSettings>>,
     server_brand: Arc<RwLock<Versioned<Option<String>>>>,
@@ -1260,6 +1282,10 @@ impl Bot {
             click_lock: self.click_lock.clone(),
             entities: self.entities.clone(),
             last_attack: self.last_attack.clone(),
+            #[cfg(test)]
+            attack_test_clock: self.attack_test_clock.clone(),
+            #[cfg(test)]
+            control_loop_park: self.control_loop_park.clone(),
             players: self.players.clone(),
             client_settings: self.client_settings.clone(),
             server_brand: self.server_brand.clone(),
@@ -1479,6 +1505,10 @@ impl Bot {
                 connected_at,
             ))),
             last_attack: Arc::new(Mutex::new(None)),
+            #[cfg(test)]
+            attack_test_clock: Arc::default(),
+            #[cfg(test)]
+            control_loop_park: Arc::default(),
             players: Arc::new(RwLock::new(Versioned::new(
                 PlayerList::default(),
                 connected_at,
@@ -4195,13 +4225,13 @@ impl Bot {
                         loop {
                             let mut last_attack = self.last_attack.lock().await;
                             let remaining = last_attack.map_or(Duration::ZERO, |last| {
-                                cooldown.saturating_sub(last.elapsed())
+                                cooldown.saturating_sub(self.attack_elapsed(last))
                             });
                             if !remaining.is_zero() {
                                 // Do not hold the dispatch lock while charging. An immediate
                                 // defensive hit can reset the shared clock during this wait.
                                 drop(last_attack);
-                                tokio::time::sleep(remaining).await;
+                                self.wait_for_attack(remaining).await;
                                 continue;
                             }
                             return self.dispatch_attack(entity_id, &mut last_attack).await;
@@ -4226,6 +4256,52 @@ impl Bot {
             })
             .await
     }
+    fn attack_elapsed(&self, last: std::time::Instant) -> Duration {
+        #[cfg(test)]
+        if let Some(clock) = self.attack_test_clock.lock().unwrap().as_ref() {
+            return clock.now.saturating_duration_since(last);
+        }
+        last.elapsed()
+    }
+
+    async fn wait_for_attack(&self, remaining: Duration) {
+        #[cfg(test)]
+        {
+            let deadline = self
+                .attack_test_clock
+                .lock()
+                .unwrap()
+                .as_mut()
+                .map(|clock| {
+                    clock.waits.push(remaining);
+                    clock.now + remaining
+                });
+            if let Some(deadline) = deadline {
+                std::future::poll_fn(|cx| {
+                    let mut clock = self.attack_test_clock.lock().unwrap();
+                    let clock = clock.as_mut().unwrap();
+                    if clock.now >= deadline {
+                        std::task::Poll::Ready(())
+                    } else {
+                        clock.sleeper = Some(cx.waker().clone());
+                        std::task::Poll::Pending
+                    }
+                })
+                .await;
+                return;
+            }
+        }
+        tokio::time::sleep(remaining).await;
+    }
+
+    fn attack_now(&self) -> std::time::Instant {
+        #[cfg(test)]
+        if let Some(clock) = self.attack_test_clock.lock().unwrap().as_ref() {
+            return clock.now;
+        }
+        std::time::Instant::now()
+    }
+
     async fn dispatch_attack(
         &self,
         entity_id: i32,
@@ -4242,7 +4318,7 @@ impl Bot {
                     self.connection.control_snapshot().await.value.sneak,
                 ));
                 // Keep the clock conservative even if attack/swing dispatch is ambiguous.
-                *last_attack = Some(std::time::Instant::now());
+                *last_attack = Some(self.attack_now());
                 self.send(0x0e, &payload).await?;
                 self.swing_arm(Hand::Main).await?;
                 Ok(())
@@ -5022,6 +5098,13 @@ impl Bot {
             // Input sampling, posture writes and movement share the same gate
             // as mode/world changes and selected-owner cleanup.
             let _coherent_state = self.coherent_state_gate.lock().await;
+            #[cfg(test)]
+            if let Some(parked) = self.control_loop_park.lock().await.take() {
+                // This boundary holds the state gate after the previous tick ended.
+                producer.acknowledge_park();
+                let _ = parked.send(());
+                return;
+            }
             let lag = tokio::time::Instant::now().saturating_duration_since(scheduled);
             if self.connection.ledger().quiescing()
                 && self.native_jump_work.lock().expect("native jump").is_none()
@@ -9699,6 +9782,7 @@ mod tests {
     #[tokio::test]
     async fn block_interaction_correlation_is_single_use_bounded_and_actor_owned() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        tokio::time::pause();
         bot.player.lock().await.entity_id = Some(42);
         let position = BlockPos { x: -3, y: 64, z: 5 };
         let outcome = bot
@@ -9805,7 +9889,9 @@ mod tests {
             .unwrap(),
             DispatchOutcome::Dispatched
         );
-        tokio::time::sleep(Duration::from_secs(2) + Duration::from_millis(20)).await;
+        // The actor replies Dispatched only after installing the marker. Advance
+        // its actual Tokio clock after that handshake, rather than waiting on TCP.
+        tokio::time::advance(Duration::from_secs(2) + Duration::from_millis(20)).await;
         assert_eq!(bot.connection.observe_furnace_window(13).await, None);
 
         let stale_context = OperationContext {
@@ -10614,9 +10700,10 @@ mod tests {
     #[tokio::test]
     async fn physics_fraction_scales_input_but_zero_input_preserves_inertia() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
-        // Keep the background producer out of this manually clocked physics test.
-        bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Start manual ticks only after the producer acknowledges its final boundary.
+        let (parked, parking) = tokio::sync::oneshot::channel();
+        *bot.control_loop_park.lock().await = Some(parked);
+        parking.await.unwrap();
         bot.apply_packet(0x21, empty_chunk_packet(0, 0))
             .await
             .unwrap();
@@ -10823,43 +10910,90 @@ mod tests {
     #[tokio::test]
     async fn immediate_attack_bypasses_charge_and_resets_waiting_normal_attack() {
         let (bot, mut packets, _release, server) = operation_test_bot(0x7f, 0x7f, vec![]).await;
-        // Default bare-hand recovery is 250ms.
-        *bot.last_attack.lock().await = Some(std::time::Instant::now());
-        let normal_bot = bot.clone();
-        let normal = tokio::spawn(async move { normal_bot.attack(77).await });
-        tokio::time::sleep(Duration::from_millis(40)).await;
-        // Measure from admission, not from the caller being scheduled again
-        // after dispatch. A delayed continuation must not shorten the measured cooldown.
-        let immediate_at = std::time::Instant::now();
+        async fn assert_pending(mut future: std::pin::Pin<&mut impl std::future::Future>) {
+            assert!(
+                std::future::poll_fn(|cx| {
+                    std::task::Poll::Ready(std::future::Future::poll(future.as_mut(), cx))
+                })
+                .await
+                .is_pending()
+            );
+        }
+
+        async fn expect_attack_and_swing(
+            packets: &mut tokio::sync::mpsc::UnboundedReceiver<(i32, Vec<u8>)>,
+            entity_id: u8,
+        ) {
+            for expected in [(0x0e, vec![entity_id, 1, 0]), (0x2b, vec![0])] {
+                loop {
+                    let packet = packets.recv().await.unwrap();
+                    if packet.0 == 0x0e || packet.0 == 0x2b {
+                        assert_eq!(packet, expected);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let seeded_at = std::time::Instant::now();
+        let clock = &bot.attack_test_clock;
+        *clock.lock().unwrap() = Some(AttackTestClock {
+            now: seeded_at,
+            waits: Vec::new(),
+            sleeper: None,
+        });
+        let advance = |millis| {
+            clock
+                .lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .advance(Duration::from_millis(millis));
+        };
+        *bot.last_attack.lock().await = Some(seeded_at);
+        // Poll the real attack to its cooldown wait, then retain ownership of the
+        // future so socket scheduling cannot dispatch it behind the test's back.
+        let mut normal = Box::pin(bot.attack(77));
+        assert_pending(normal.as_mut()).await;
+        assert_eq!(
+            clock.lock().unwrap().as_ref().unwrap().waits,
+            [Duration::from_millis(250)]
+        );
+
+        let immediate_at = seeded_at + Duration::from_millis(40);
+        advance(40);
         tokio::time::timeout(Duration::from_millis(100), bot.attack_immediate(88))
             .await
             .unwrap()
             .unwrap();
-        let first = tokio::time::timeout(Duration::from_millis(100), async {
-            loop {
-                let packet = packets.recv().await.unwrap();
-                if packet.0 == 0x0e {
-                    break packet;
-                }
-            }
+        assert_eq!(*bot.last_attack.lock().await, Some(immediate_at));
+        timeout(
+            Duration::from_millis(100),
+            expect_attack_and_swing(&mut packets, 88),
+        )
+        .await
+        .unwrap();
+
+        // At the original deadline the immediate hit must extend recovery by
+        // exactly 40ms. A missing reset would dispatch the normal attack here.
+        advance(210);
+        assert_pending(normal.as_mut()).await;
+        assert_eq!(
+            clock.lock().unwrap().as_ref().unwrap().waits,
+            [Duration::from_millis(250), Duration::from_millis(40)]
+        );
+        advance(39);
+        assert_pending(normal.as_mut()).await;
+        assert_eq!(*bot.last_attack.lock().await, Some(immediate_at));
+        let recovered_at = immediate_at + Duration::from_millis(250);
+        advance(1);
+        timeout(Duration::from_secs(2), async {
+            normal.await.unwrap();
+            expect_attack_and_swing(&mut packets, 77).await;
         })
         .await
         .unwrap();
-        assert_eq!(first.1, vec![88, 1, 0]);
-        assert!(!normal.is_finished());
-        let second = tokio::time::timeout(Duration::from_secs(2), async {
-            loop {
-                let packet = packets.recv().await.unwrap();
-                if packet.0 == 0x0e {
-                    break packet;
-                }
-            }
-        })
-        .await
-        .unwrap();
-        assert_eq!(second.1, vec![77, 1, 0]);
-        assert!(immediate_at.elapsed() >= Duration::from_millis(230));
-        normal.await.unwrap().unwrap();
+        assert_eq!(*bot.last_attack.lock().await, Some(recovered_at));
         bot.disconnect().await.unwrap();
         server.abort();
     }
