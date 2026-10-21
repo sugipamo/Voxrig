@@ -104,11 +104,13 @@ pub(crate) fn estimate(
             }),
         SlotKnowledge::Unavailable => return Err(invalid_input("held item is not known")),
     };
-    let attribute = |name: &str, default: f64| {
+    // PlayerAttribute retains the pre-clamp observation; apply native ranges here.
+    let attribute = |name: &str, default: f64, max: f64| {
         player
             .attributes
             .get(name)
             .map_or(default, |a| a.value.value)
+            .clamp(0.0, max) as f32
     };
     let effect = |name: &str| player.effects.get(name).map(|e| e.value.amplifier);
     let legacy = version == MinecraftVersion::Java1_16_1;
@@ -122,7 +124,7 @@ pub(crate) fn estimate(
                 speed += (level * level + 1) as f32;
             }
         } else {
-            speed += attribute("minecraft:mining_efficiency", 0.0) as f32;
+            speed += attribute("minecraft:mining_efficiency", 0.0, 1024.0);
         }
     }
     // MobEffectUtil.getDigSpeedAmplification: the larger of haste and conduit power.
@@ -142,7 +144,7 @@ pub(crate) fn estimate(
         };
     }
     if !legacy {
-        speed *= attribute("minecraft:block_break_speed", 1.0) as f32;
+        speed *= attribute("minecraft:block_break_speed", 1.0, 1024.0);
     }
     if context.eye_in_water {
         if legacy {
@@ -154,7 +156,7 @@ pub(crate) fn estimate(
                 speed /= 5.0;
             }
         } else {
-            speed *= attribute("minecraft:submerged_mining_speed", 0.2) as f32;
+            speed *= attribute("minecraft:submerged_mining_speed", 0.2, 20.0);
         }
     }
     if !context.on_ground {
