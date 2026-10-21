@@ -53,7 +53,22 @@ async fn profile_recovery_requires_original_closed_source_before_any_login() {
             .await
             .is_err()
     );
+    tokio::time::pause();
     recovery.close_source().await.unwrap();
+    let wrong_endpoint = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let mut wrong = config.clone();
+    wrong.server = crate::Server::new("127.0.0.1", wrong_endpoint.local_addr().unwrap().port());
+    assert!(
+        recovery
+            .reconnect(wrong, MiningRecoveryTarget::OriginalOrAir)
+            .await
+            .is_err()
+    );
+    assert!(
+        timeout(Duration::from_millis(10), wrong_endpoint.accept())
+            .await
+            .is_err()
+    );
     let mut wrong = config.clone();
     wrong.username = "DifferentMiner".into();
     assert!(
