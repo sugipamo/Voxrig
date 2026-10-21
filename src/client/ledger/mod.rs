@@ -1,8 +1,13 @@
-//! Internal admission ledger for issue #131.
+//! Internal ledger backing public staged quiesce/drain for issue #131.
 //!
 //! Each transport owns one `Ledger`; guards and waiters retain its shared
-//! state, never a Client/session reference (no ownership cycle). Writers and
-//! protocol pending states are wired; no public drain guarantee is exposed.
+//! state, never a Client/session reference (no ownership cycle). `QuiesceHandle`
+//! and `DrainHandle` expose the staged boundary; guard/write-permit machinery
+//! stays private. The first drain covers admitted work and ordinary-producer
+//! parking; final sealing also closes stop and independent maintenance admission.
+//! A successful final drain guarantees no later Voxrig writes, not server
+//! acknowledgement or physical stillness. Joined connection shutdown and local
+//! transport release are the separate `Client::wait_shutdown` contract.
 //!
 //! Admission and cut capture share a short synchronous gate. A cut C covers all
 //! roots <= C and every descendant, including descendants created after the cut.
