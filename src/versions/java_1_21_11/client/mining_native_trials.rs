@@ -1,35 +1,26 @@
 //! Explicit opt-in comparison, on a dedicated non-OP survival fixture only.
 //! Raw action writes are test-private; they do not bypass a production operation.
+use super::native_trial_support::{Control, game_port};
 use super::*;
 use serde_json::{Value, json};
-use std::{io, time::Duration};
+use std::time::Duration;
 
-async fn phase(message: &str) {
-    use std::io::Write;
-    println!("{message}");
-    io::stdout().flush().unwrap();
-    let read = timeout(
+async fn connect(name: &str, port: u16) -> Bot {
+    let bot = timeout(
         Duration::from_secs(60),
-        tokio::task::spawn_blocking(|| {
-            let mut line = String::new();
-            io::stdin().read_line(&mut line)
-        }),
+        Bot::connect(ConnectionConfig::offline(
+            crate::Server::new("127.0.0.1", port),
+            name,
+            MinecraftVersion::Java1_21_11,
+        )),
     )
     .await
     .unwrap()
-    .unwrap()
     .unwrap();
-    assert!(read > 0, "fixture control stdin closed");
-}
-async fn connect(name: &str, port: u16) -> Bot {
-    let bot = Bot::connect(ConnectionConfig::offline(
-        crate::Server::new("127.0.0.1", port),
-        name,
-        MinecraftVersion::Java1_21_11,
-    ))
-    .await
-    .unwrap();
-    bot.wait_until_ready().await.unwrap();
+    timeout(Duration::from_secs(60), bot.wait_until_ready())
+        .await
+        .unwrap()
+        .unwrap();
     bot
 }
 async fn sample(bot: &Bot, target: [i32; 3], start: Instant) -> Value {
@@ -89,11 +80,8 @@ async fn native_survival_same_profile_mining_recovery() {
         MiningRecoveryBoundary, MiningRecoveryTarget, MiningStatus, PlacementStatus,
     };
     use std::io::{Seek, Write};
-    let port: u16 = std::env::var("NATIVE_MINING_PORT")
-        .unwrap()
-        .parse()
-        .unwrap();
-    assert_eq!(port, 25572);
+    let port = game_port("NATIVE_MINING_PORT");
+    let mut control = Control::from_env("mining_recovery", port).await;
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -113,9 +101,8 @@ async fn native_survival_same_profile_mining_recovery() {
         ("early_finish_abort", 50),
         ("external_air_immediate_replacement", 50),
     ] {
-        phase(&format!("PROFILE_FIXTURE {name}: prepare dry floor, support [2,-60,0], target [2,-59,0], one supplied cobblestone in hotbar 0, empty hand 1; enter")).await;
-        // Fixture writes precede the case, not a production readiness/retirement fence.
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        control.request(name, "setup", None).await.unwrap();
+        control.ready(&bot, &viewer, name).await.unwrap();
         let source = crate::Client::from_java_1_21_11(bot.clone())
             .java_1_21_11()
             .unwrap()
@@ -139,7 +126,10 @@ async fn native_survival_same_profile_mining_recovery() {
             source.abort_survival_mining(&intent).await.unwrap();
         }
         let external = if name == "external_air_immediate_replacement" {
-            phase("PROFILE_EXTERNAL: console supplies air then immediate original stone at [2,-59,0]; enter").await;
+            control
+                .request(name, "external_edit", Some(start))
+                .await
+                .unwrap();
             assert!(start.elapsed() < Duration::from_secs(3));
             Some(start.elapsed().as_millis())
         } else {
@@ -299,7 +289,7 @@ async fn native_survival_same_profile_mining_recovery() {
         cases.push(json!({"name":name,"intent":intent,"external_completed_ms":external,"closed_ms":closed_ms,"fresh_admitted_ms":connected_ms,"old_trace":old_trace,"initial_recovery":initial_recovery,"retained_target_samples":retained_target_samples,"followup_mining":followup,"placement":placement,"placement_result":placed,"samples":samples,"fresh_trace":fresh.client.stop_packet_trace().await.unwrap(),"viewer_trace":viewer.stop_packet_trace().await.unwrap()}));
         file.set_len(0).unwrap();
         file.rewind().unwrap();
-        serde_json::to_writer(&mut file,&json!({"minecraft_version":"Java 1.21.11","all_cases_executed":cases.len()==3,"observer_role":"independent test comparison only; no production retirement watch","cases":cases})).unwrap();
+        serde_json::to_writer(&mut file,&json!({"control":control.evidence(),"minecraft_version":"Java 1.21.11","all_cases_executed":cases.len()==3,"observer_role":"independent test comparison only; no production retirement watch","cases":cases})).unwrap();
         file.flush().unwrap();
         println!("PROFILE_CASE_VERIFIED {name}");
         bot = fresh
@@ -315,11 +305,16 @@ async fn native_survival_same_profile_mining_recovery() {
 }
 
 async fn comparison(native_api: bool) {
-    let port: u16 = std::env::var("NATIVE_MINING_PORT")
-        .unwrap()
-        .parse()
-        .unwrap();
-    assert_eq!(port, 25572, "reserved isolated trial port required");
+    let port = game_port("NATIVE_MINING_PORT");
+    let mut control = Control::from_env(
+        if native_api {
+            "mining_api"
+        } else {
+            "mining_raw"
+        },
+        port,
+    )
+    .await;
     let output = std::env::var("NATIVE_MINING_OUTPUT").unwrap();
     let file = std::fs::OpenOptions::new()
         .write(true)
@@ -339,8 +334,8 @@ async fn comparison(native_api: bool) {
         if !native_api && name == "external_air_immediate_replacement" {
             continue;
         }
-        phase(&format!("FIXTURE {name}: console prepares dry floor/air; target {target:?} {} ; tp NatMineBot 0.5 -60 0.5 -90 3; tp NatMineView 0.5 -60 4.5; clear NatMineBot; enter",if name=="normal_finish" {"dirt"} else {"stone"})).await;
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        control.request(name, "setup", None).await.unwrap();
+        control.ready(&bot, &viewer, name).await.unwrap();
         let ground = bot.operations().standing_context().await.unwrap();
         assert!(ground.on_ground && !ground.submerged);
         let player = bot.operations().player_state().await.unwrap();
@@ -448,7 +443,10 @@ async fn comparison(native_api: bool) {
         };
         let external_input = if name == "external_air_immediate_replacement" {
             let requested_ms = start.elapsed().as_millis();
-            phase("EXTERNAL_INPUT: console setblock 2 -59 0 minecraft:air then setblock 2 -59 0 minecraft:stone in one input batch; enter").await;
+            control
+                .request(name, "external_edit", Some(start))
+                .await
+                .unwrap();
             assert!(
                 start.elapsed() < Duration::from_secs(3),
                 "external input was too late for the declared delayed-miner comparison"
@@ -638,5 +636,5 @@ async fn comparison(native_api: bool) {
         bot.disconnect().await.unwrap();
     }
     viewer.disconnect().await.unwrap();
-    serde_json::to_writer(file,&json!({"minecraft_version":"Java 1.21.11","scope":if native_api {"isolated non-OP survival; public intent/result mining API; console fixture setup only"} else {"isolated non-OP survival; test-private native action packets; console fixture setup only"},"all_cases_executed":cases.len()==if native_api {4} else {3},"cases":cases})).unwrap();
+    serde_json::to_writer(file,&json!({"control":control.evidence(),"minecraft_version":"Java 1.21.11","scope":if native_api {"isolated non-OP survival; public intent/result mining API; console fixture setup only"} else {"isolated non-OP survival; test-private native action packets; console fixture setup only"},"all_cases_executed":cases.len()==if native_api {4} else {3},"cases":cases})).unwrap();
 }

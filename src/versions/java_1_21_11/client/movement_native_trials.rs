@@ -1,17 +1,25 @@
 //! Explicit isolated non-OP control/standing/placement comparison.
+use super::native_trial_support::{Control, game_port};
 use super::*;
-use operations::{InventorySlot, PlacementStatus, SurvivalInput, SurvivalMotionStatus};
+use operations::{PlacementStatus, SurvivalInput, SurvivalMotionStatus};
 use serde_json::json;
 use std::time::Duration;
-async fn connect(name: &str) -> Bot {
-    let bot = Bot::connect(ConnectionConfig::offline(
-        crate::Server::new("127.0.0.1", 25572),
-        name,
-        MinecraftVersion::Java1_21_11,
-    ))
+async fn connect(name: &str, port: u16) -> Bot {
+    let bot = timeout(
+        Duration::from_secs(60),
+        Bot::connect(ConnectionConfig::offline(
+            crate::Server::new("127.0.0.1", port),
+            name,
+            MinecraftVersion::Java1_21_11,
+        )),
+    )
     .await
+    .unwrap()
     .unwrap();
-    bot.wait_until_ready().await.unwrap();
+    timeout(Duration::from_secs(60), bot.wait_until_ready())
+        .await
+        .unwrap()
+        .unwrap();
     bot
 }
 #[tokio::test]
@@ -25,61 +33,41 @@ async fn native_survival_predicted_walk_jump_collision_and_place() {
     motion_fixture(true).await;
 }
 async fn motion_fixture(predicted: bool) {
-    use std::io::Write;
-    assert_eq!(std::env::var("NATIVE_MOVEMENT_PORT").unwrap(), "25572");
+    let port = game_port("NATIVE_MOVEMENT_PORT");
+    let mut control = Control::from_env(
+        if predicted {
+            "movement_predicted"
+        } else {
+            "movement_observed"
+        },
+        port,
+    )
+    .await;
     let file = std::fs::OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(std::env::var("NATIVE_MOVEMENT_OUTPUT").unwrap())
         .unwrap();
-    let bot = connect("NatMineBot").await;
-    let viewer = connect("NatMineView").await;
-    println!(
-        "FIXTURE movement: floor stone y=-61, air above; tp NatMineBot 0.5 -60 0.5; tp NatMineView 0.5 -60 4.5; clear NatMineBot; item replace entity NatMineBot inventory.0 with minecraft:dirt 3; enter"
-    );
-    std::io::stdout().flush().unwrap();
-    timeout(
-        Duration::from_secs(60),
-        tokio::task::spawn_blocking(|| {
-            let mut line = String::new();
-            std::io::stdin().read_line(&mut line)
-        }),
-    )
-    .await
-    .unwrap()
-    .unwrap()
-    .unwrap();
+    let bot = connect("NatMineBot", port).await;
+    let viewer = connect("NatMineView", port).await;
+    control.request("walk", "setup", None).await.unwrap();
+    control.ready(&bot, &viewer, "walk").await.unwrap();
     let api = bot.operations();
     let observer = viewer.operations();
-    timeout(Duration::from_secs(5), async {
-        loop {
-            let p = api.player_state().await.unwrap();
-            if p.inventory.slots[9]
-                == (InventorySlot::Item {
-                    item: operations::default_item("dirt", 3).unwrap(),
-                })
-                && api.standing_context().await.is_ok()
-                && observer
-                    .visible_players()
-                    .await
-                    .unwrap()
-                    .players
-                    .iter()
-                    .any(|p| p.name == "NatMineBot")
-            {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        }
-    })
-    .await
-    .unwrap();
     bot.start_packet_trace(16_777_216).await.unwrap();
     viewer.start_packet_trace(16_777_216).await.unwrap();
     let before = api.player_state().await.unwrap();
     assert_eq!(before.game_mode, Some(operations::GameMode::Survival));
     let mut cases = Vec::new();
-    let result = run_cases(&api, &observer, &viewer, &mut cases, predicted).await;
+    let result = run_cases(
+        &api,
+        &observer,
+        &viewer,
+        &mut cases,
+        predicted,
+        &mut control,
+    )
+    .await;
 
     let after = api.player_state().await;
     let history = api.operation_history().await;
@@ -87,7 +75,7 @@ async fn motion_fixture(predicted: bool) {
     let observer_trace = viewer.stop_packet_trace().await.unwrap();
     bot.disconnect().await.unwrap();
     viewer.disconnect().await.unwrap();
-    serde_json::to_writer(file,&json!({"minecraft":"Java 1.21.11","scope":"isolated non-OP native dry walking, jump/landing, wall collision and ordinary placement; no stop acknowledgement claim","prediction_contract":predicted,"observer_role":if predicted {"comparison_only"} else {"endpoint_admission_and_comparison"},"before":before,"cases":cases,"after":after.as_ref().ok(),"history":history,"error":result.as_ref().err().map(ToString::to_string),"trace":trace,"observer_trace":observer_trace})).unwrap();
+    serde_json::to_writer(file,&json!({"control":control.evidence(),"minecraft":"Java 1.21.11","scope":"isolated non-OP native dry walking, jump/landing, wall collision and ordinary placement; no stop acknowledgement claim","prediction_contract":predicted,"observer_role":if predicted {"comparison_only"} else {"endpoint_admission_and_comparison"},"before":before,"cases":cases,"after":after.as_ref().ok(),"history":history,"error":result.as_ref().err().map(ToString::to_string),"trace":trace,"observer_trace":observer_trace})).unwrap();
     result.unwrap();
 }
 
@@ -97,6 +85,7 @@ async fn run_cases(
     viewer: &Bot,
     cases: &mut Vec<serde_json::Value>,
     predicted: bool,
+    control: &mut Control,
 ) -> Result<()> {
     use std::io::Write;
 
@@ -106,15 +95,10 @@ async fn run_cases(
     api.select_hotbar(0).await?;
     for name in ["walk", "jump", "wall"] {
         if predicted && name == "wall" {
-            println!("PREDICTED_WALL: place the fixed test wall; enter");
-            std::io::stdout().flush().unwrap();
-            tokio::task::spawn_blocking(|| {
-                let mut line = String::new();
-                std::io::stdin().read_line(&mut line).unwrap();
-            })
-            .await
-            .unwrap();
-            tokio::time::sleep(Duration::from_millis(200)).await;
+            control.request(name, "install_wall", None).await.unwrap();
+        }
+        if name != "walk" {
+            control.ready(&api.bot, viewer, name).await.unwrap();
         }
         let mut inputs = vec![SurvivalInput::default(); if name == "wall" { 40 } else { 30 }];
         if name == "jump" {
