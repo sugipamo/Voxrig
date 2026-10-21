@@ -56,6 +56,9 @@ START の後で呼び出しを止めた場合、接続が所有する task が�
 I/O が不確実な場合は自動再送・再接続せず、同じ world の次の採掘を拒否する。
 `dig_cleanup_record()` は取消・拒否後の `Pending` / `Aborted` / `ContextChanged` / `Failed` を
 切断後も読める診断で、server の ACK・採掘除去・再実行権限ではない。
+`Aborted` はローカルで ABORT の完全な書込を確認できた場合だけを表す。
+書込失敗や応答消失で ABORT の配送が不明な場合は `Aborted` ではなく `Failed` を記録し、
+`ErrorKind::OperationUnconfirmed` を返す。
 ABORT の拒否・書込失敗は `ErrorKind::OperationUnconfirmed` を返し、元の STOP 拒否理由と
 cleanup 失敗を診断チェーンへ保持する。呼出側は変更操作を停止して原記録を検査する。
 ABORT が完全送信された場合は元の拒否エラーを返す。次の採掘を未解決 cleanup で拒否する場合も

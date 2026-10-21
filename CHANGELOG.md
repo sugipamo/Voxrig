@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed Java 1.16.1 dig cleanup recording an ABORT with unknown delivery as
+  `Aborted`. It now records `Failed` and returns `OperationUnconfirmed`,
+  retaining dispatch uncertainty. No public API change.
 - Changed operational dig to accept positive held-stack count changes at START
   and STOP with the same slot, item, and data, including Java 1.16.1 Damage-only
   wear. Error kind and prefix are unchanged; no public API change
