@@ -236,6 +236,176 @@ fn attributes_use_native_modifier_order_and_limits_without_confusing_scale_ids()
 }
 
 #[test]
+fn mining_attribute_bounds_apply_to_dig_estimates_without_clamping_observations() {
+    use crate::client::{ItemData, ItemStack, SlotKnowledge, dig, received, registry::Registry};
+    let version = MinecraftVersion::Java1_21_11;
+    let registry = Registry::for_version(version);
+    let tool = registry.item("minecraft:stone_pickaxe").unwrap();
+    let stone = state_id(&crate::NativeBlockState {
+        name: "minecraft:stone".into(),
+        properties: Default::default(),
+    })
+    .unwrap();
+    let mut player = super::super::common_player_in_state(&state(), 7, false).unwrap();
+    player.selected_hotbar = Some(received(0, 10));
+    player.inventory.slots[36] = Some(received(
+        SlotKnowledge::Item {
+            item: ItemStack {
+                id: tool.id,
+                name: tool.name,
+                count: 1,
+                data: ItemData::Default,
+            },
+        },
+        10,
+    ));
+    let estimate = |player: &crate::client::PlayerObservation, wet| {
+        dig::estimate(
+            version,
+            stone,
+            &dig::DigContext {
+                player,
+                on_ground: true,
+                eye_in_water: wet,
+            },
+        )
+    };
+    let dry = estimate(&player, false).unwrap();
+    assert_eq!((dry.hardness, dry.speed, dry.ticks), (1.5, 4.0, 12));
+    let wet = estimate(&player, true).unwrap();
+    assert_eq!((wet.speed, wet.ticks), (0.8, 57));
+    for (id, name, default, max, in_range, speed, ticks, wet) in [
+        (
+            20,
+            "minecraft:mining_efficiency",
+            0.0,
+            1024.0,
+            2.0,
+            6.0,
+            8,
+            false,
+        ),
+        (
+            5,
+            "minecraft:block_break_speed",
+            1.0,
+            1024.0,
+            2.0,
+            8.0,
+            6,
+            false,
+        ),
+        (
+            29,
+            "minecraft:submerged_mining_speed",
+            0.2,
+            20.0,
+            0.5,
+            2.0,
+            23,
+            true,
+        ),
+    ] {
+        let baseline = estimate(&player, wet).unwrap();
+        let mut estimates = Vec::new();
+        for base in [default, in_range, 0.0, -10.0, max, f64::MAX] {
+            let mut s = state();
+            let mut packet = vec![42, 1, id];
+            packet.extend(base.to_be_bytes());
+            packet.push(0);
+            apply(
+                &mut s,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &packet,
+            );
+            let projected = super::super::common_player_in_state(&s, 7, false).unwrap();
+            player.attributes = projected.attributes;
+            let raw = player.attributes.clone();
+            let attribute = &raw[name];
+            assert_eq!(attribute.value.base, base);
+            assert_eq!(attribute.value.value, base);
+            assert!(attribute.value.modifiers.is_empty());
+            assert_eq!(
+                attribute.source,
+                crate::client::ValueSource::Received {
+                    sequence: s.sequence
+                }
+            );
+            let result = estimate(&player, wet);
+            assert_eq!(player.attributes, raw);
+            estimates.push(result);
+        }
+        assert_eq!(estimates[0].as_ref().unwrap(), &baseline, "{name} default");
+        let ordinary = estimates[1].as_ref().unwrap();
+        assert_eq!((ordinary.speed, ordinary.ticks), (speed, ticks), "{name}");
+        for index in [2, 3] {
+            if id == 20 {
+                assert_eq!(estimates[index].as_ref().unwrap(), &baseline);
+            } else {
+                let error = estimates[index].as_ref().unwrap_err();
+                assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+                assert_eq!(error.to_string(), "the dig would take more than an hour");
+            }
+        }
+        let upper = estimates[4].as_ref().unwrap();
+        assert_eq!(
+            upper.speed,
+            if id == 20 {
+                4.0 + max as f32
+            } else {
+                4.0 * max as f32
+            }
+        );
+        assert_eq!(upper.ticks, 0);
+        assert_eq!(estimates[5].as_ref().unwrap(), upper, "{name} maximum");
+        player.attributes.clear();
+    }
+}
+
+#[test]
+fn mining_attribute_projection_preserves_received_modifiers_and_pre_clamp_values() {
+    use crate::client::control::{Modifier, ModifierOperation};
+    let mut s = state();
+    for (id, name, amount, effective) in [
+        (20, "minecraft:mining_efficiency", -14.0f64, 0.0),
+        (5, "minecraft:block_break_speed", 2048.0, 1024.0),
+        (29, "minecraft:submerged_mining_speed", 32.0, 20.0),
+    ] {
+        let mut packet = vec![42, 1, id];
+        packet.extend(4f64.to_be_bytes());
+        packet.push(1);
+        put_string(&mut packet, "minecraft:test");
+        packet.extend(amount.to_be_bytes());
+        packet.push(0);
+        apply(
+            &mut s,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+        );
+        let player = super::super::common_player_in_state(&s, 7, false).unwrap();
+        let raw = &player.attributes[name].value;
+        assert_eq!(raw.base, 4.0);
+        assert_eq!(raw.value, 4.0 + amount);
+        assert_eq!(
+            raw.modifiers,
+            vec![Modifier {
+                id: "minecraft:test".into(),
+                operation: ModifierOperation::Addition,
+                amount,
+            }]
+        );
+        let native = &s.operations.local_player;
+        let typed = match id {
+            20 => native.mining_efficiency,
+            5 => native.block_break_speed,
+            _ => native.submerged_mining_speed,
+        }
+        .unwrap();
+        assert_eq!(typed.value, effective);
+    }
+}
+
+#[test]
 fn standing_body_contacts_match_native_and_support_is_rechecked_after_world_edit() {
     let f = fixture();
     for case in f["contacts"].as_array().unwrap() {
