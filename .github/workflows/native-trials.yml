@@ -1,0 +1,90 @@
+name: Native trials
+
+# Explicit opt-in: accepting the server EULA belongs only in this workflow.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-trials-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  native-trials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_BUILD_JOBS: '2'
+      RUST_TEST_THREADS: '1'
+      SERVER_SHA1: 64bb6d763bed0a9f1d632ec347938594144943ed
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      # Only this exact jar is cached; metadata is fetched fresh for verification.
+      - uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/native-server/1.21.11-server.jar
+          key: native-server-1.21.11-${{ env.SERVER_SHA1 }}
+      - name: Download or verify the official server jar
+        env:
+          PYTHONPATH: scripts
+          SERVER_JAR: ${{ runner.temp }}/native-server/1.21.11-server.jar
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-trials"
+          python3 -B - <<'PY' 2>&1 | tee "$RUNNER_TEMP/native-trials/download.log"
+          import os
+          from pathlib import Path
+          from run_native_trials import download
+
+          jar = Path(os.environ["SERVER_JAR"])
+          verified, source = download("1.21.11", downloads=jar.parent,
+                                      server_jar=jar if jar.is_file() else None)
+          if verified != jar or source["server"]["sha1"] != os.environ["SERVER_SHA1"]:
+              raise RuntimeError("unexpected pinned server jar SHA1 or path")
+          print(f"Verified official 1.21.11 server SHA1: {source['server']['sha1']}")
+          PY
+      - name: Build native lib tests once
+        run: |
+          cargo +stable test --locked --lib --features native -j2 --no-run \
+            2>&1 | tee "$RUNNER_TEMP/native-trials/build.log"
+      - name: Run the five isolated trials serially
+        env:
+          TMPDIR: ${{ runner.temp }}/native-trials
+          SERVER_JAR: ${{ runner.temp }}/native-server/1.21.11-server.jar
+        # Each exact Cargo test invocation reuses the lib executable built above.
+        # The controller closes stdin and owns fresh worlds, ports and cleanup.
+        run: |
+          python3 -B scripts/run_native_trials.py --accept-eula --server-jar "$SERVER_JAR" \
+            --trial mining_raw --trial mining_api --trial mining_recovery \
+            --trial movement_observed --trial movement_predicted \
+            2>&1 | tee "$RUNNER_TEMP/native-trials/controller.log"
+      - name: Retain results, journals, logs and packet evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-trials-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: warn
+          # trial.json contains the packet traces. Never upload a run directory.
+          path: |
+            ${{ runner.temp }}/native-trials/*.log
+            ${{ runner.temp }}/native-trials/voxrig-native-trials-*/report.json
+            ${{ runner.temp }}/native-trials/voxrig-native-trials-*/source.json
+            ${{ runner.temp }}/native-trials/voxrig-native-trials-*/*/report.json
+            ${{ runner.temp }}/native-trials/voxrig-native-trials-*/*/trial.json
+            ${{ runner.temp }}/native-trials/voxrig-native-trials-*/*/journal.jsonl
+            ${{ runner.temp }}/native-trials/voxrig-native-trials-*/*/server.log
+            ${{ runner.temp }}/native-trials/voxrig-native-trials-*/*/test.log
+            !${{ runner.temp }}/**/*.jar
+            !${{ runner.temp }}/**/world*/**
+            !${{ runner.temp }}/**/*.mca
+            !${{ runner.temp }}/**/level.dat*
