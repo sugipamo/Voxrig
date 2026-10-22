@@ -2,6 +2,7 @@
 mod attack;
 mod context;
 mod correction;
+mod damage;
 #[cfg(test)]
 mod edge_native_trials;
 mod effects;
@@ -1057,7 +1058,13 @@ fn apply_play(
     use ids::{play_clientbound as input, play_serverbound as output};
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
-    if let Some(effect) = effects::decode(id, payload)? {
+    if let Some(effect) = effects::decode(id, payload)?.or(damage::decode(state, id, payload)?) {
+        if let crate::client::effects::PlayEffect::CombatKill { player_id, message } = &effect {
+            if Some(*player_id) == state.operations.local_player.entity_id {
+                state.death_message =
+                    Some(crate::client::received(message.clone(), state.sequence));
+            }
+        }
         state
             .effects
             .record(crate::client::effects::ReceivedEffect {
@@ -1389,17 +1396,6 @@ fn apply_play(
                 bytes: payload.to_vec(),
             });
             bail!("server disconnected")
-        }
-        input::DEATH_COMBAT_EVENT => {
-            let player = r.varint()?;
-            if Some(player) == state.operations.local_player.entity_id {
-                state.death_message = Some(crate::client::received(
-                    crate::client::ui::UiText::NativeNbt {
-                        bytes: r.take(r.remaining().len())?.to_vec(),
-                    },
-                    state.sequence,
-                ));
-            }
         }
         input::TAGS => {
             state

@@ -85,6 +85,10 @@ fn read(id: i32, payload: &[u8]) -> anyhow::Result<Vec<K>> {
             native_id: r.i32()?,
             status: r.u8()? as i8,
         }],
+        input::HURT_ANIMATION => vec![K::HurtAnimationReceived {
+            native_id: r.varint()?,
+        }],
+        input::ENTER_COMBAT_EVENT | input::END_COMBAT_EVENT => vec![K::CombatChanged],
         input::DAMAGE_EVENT => vec![K::EntityDamaged {
             native_id: r.varint()?,
         }],

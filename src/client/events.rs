@@ -87,10 +87,18 @@ pub enum EventKind {
         status: i8,
     },
     /// An entity was hurt: 1.16.1 statuses 2, 33, 36, 37 and 44, or a 1.21.11 damage event.
+    /// Java 1.21.11 source details are in `Client::effects_after`.
     EntityDamaged {
         /// Native entity id within the current world.
         native_id: i32,
     },
+    /// Java 1.21.11 hurt animation; read `Client::effects_after`.
+    HurtAnimationReceived {
+        /// Native entity ID within the current world.
+        native_id: i32,
+    },
+    /// Java 1.21.11 own-player combat enter/end; read `Client::effects_after`.
+    CombatChanged,
     /// Java 1.21.11 position/entity sound; read `Client::effects_after`.
     SoundReceived,
     /// Java 1.21.11 stop-sound request; read `Client::effects_after`.
