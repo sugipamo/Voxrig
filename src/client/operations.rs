@@ -274,9 +274,27 @@ impl Survival {
     pub async fn swap_hands(&self) -> Result<super::inventory::HandSwapRecord> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hands(a, GameMode::Survival).await)
     }
+
+    /// Request one selected-stack drop on Java 1.21.11 (otherwise Unsupported).
+    /// Complete sending is separate from receiving a decrease.
+    /// Inspect `selected_drop_record` without retrying an unresolved request.
+    pub async fn drop_selected(
+        &self,
+        amount: super::inventory::SelectedDropAmount,
+    ) -> Result<super::inventory::SelectedDropRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::drop_selected(a, GameMode::Survival, amount).await)
+    }
+
     /// Read the retained hand exchange without sending another packet.
     pub async fn hand_swap_record(&self) -> Result<Option<super::inventory::HandSwapRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::hand_swap_record(a).await)
+    }
+
+    /// Read the latest drop intent and received decrease without sending a packet.
+    pub async fn selected_drop_record(
+        &self,
+    ) -> Result<Option<super::inventory::SelectedDropRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::selected_drop_record(a).await)
     }
 
     /// Exchange main screen slot 9..35 and hotbar index 0..8 once.
@@ -668,9 +686,27 @@ impl Creative {
     pub async fn swap_hands(&self) -> Result<super::inventory::HandSwapRecord> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hands(a, GameMode::Creative).await)
     }
+
+    /// Request one selected-stack drop on Java 1.21.11 (otherwise Unsupported).
+    /// Complete sending is separate from receiving a decrease.
+    /// Inspect `selected_drop_record` without retrying an unresolved request.
+    pub async fn drop_selected(
+        &self,
+        amount: super::inventory::SelectedDropAmount,
+    ) -> Result<super::inventory::SelectedDropRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::drop_selected(a, GameMode::Creative, amount).await)
+    }
+
     /// Read the retained hand exchange without sending another packet.
     pub async fn hand_swap_record(&self) -> Result<Option<super::inventory::HandSwapRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::hand_swap_record(a).await)
+    }
+
+    /// Read the latest drop intent and received decrease without sending a packet.
+    pub async fn selected_drop_record(
+        &self,
+    ) -> Result<Option<super::inventory::SelectedDropRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::selected_drop_record(a).await)
     }
 
     /// Exchange complete received player stacks once in creative mode.

@@ -1,0 +1,20 @@
+{
+  "payload_hex": "00ffffffff0fffff00000000",
+  "native_noop_cases": [
+    {
+      "cursor_count": 0,
+      "selected_count": 12,
+      "all_slots_and_cursor_unchanged": true
+    },
+    {
+      "cursor_count": 1,
+      "selected_count": 12,
+      "all_slots_and_cursor_unchanged": true
+    },
+    {
+      "cursor_count": 7,
+      "selected_count": 12,
+      "all_slots_and_cursor_unchanged": true
+    }
+  ]
+}

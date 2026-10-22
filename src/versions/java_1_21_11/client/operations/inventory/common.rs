@@ -117,6 +117,16 @@ fn complete_received(state: &mut State) {
 }
 
 impl crate::client::adapter::InventorySwapOps for Operations {
+    async fn drop_selected(
+        &self,
+        mode: api::GameMode,
+        amount: contract::SelectedDropAmount,
+    ) -> Result<contract::SelectedDropRecord> {
+        super::drop::drop_selected(self, mode, amount).await
+    }
+    async fn selected_drop_record(&self) -> Result<Option<contract::SelectedDropRecord>> {
+        super::drop::record(self).await
+    }
     async fn swap_hands(&self, mode: api::GameMode) -> Result<contract::HandSwapRecord> {
         super::hands::swap(self, mode).await
     }

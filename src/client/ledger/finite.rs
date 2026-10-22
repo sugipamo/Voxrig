@@ -83,6 +83,7 @@ impl WorkGuard {
 pub(crate) enum Family {
     Swap,
     HandSwap,
+    SelectedDrop,
     Click,
     Transfer,
     Crafting,

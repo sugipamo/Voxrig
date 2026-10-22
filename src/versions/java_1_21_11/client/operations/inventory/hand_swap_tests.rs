@@ -1,7 +1,7 @@
 use super::*;
 use crate::client::inventory::{HandSwapStage as Stage, InventoryClickButton, InventorySource};
 
-async fn fixture() -> CommonFixture {
+pub(super) async fn fixture() -> CommonFixture {
     let mut f = CommonFixture::new().await;
     crate::client::inventory::armor_tests::install(
         &mut f.api.bot.session.state.lock().await.registries,

@@ -399,6 +399,21 @@ async fn main() -> anyhow::Result<()> {
                 survival.select_hotbar(request["slot"].as_u64().unwrap().try_into()?).await?;
                 serde_json::to_value(client.player_state().await?)?
             }
+            "drop_selected" => {
+                use voxrig::client::inventory::SelectedDropAmount;
+                let amount = match request["amount"].as_str() {
+                    Some("one") => SelectedDropAmount::One,
+                    Some("all") => SelectedDropAmount::All,
+                    _ => anyhow::bail!("drop amount must be one or all"),
+                };
+                let record = if client.player_state().await?.game_mode == Some(GameMode::Creative) {
+                    client.creative().drop_selected(amount).await?
+                } else {
+                    survival.drop_selected(amount).await?
+                };
+                serde_json::to_value(record)?
+            }
+            "selected_drop_record" => serde_json::to_value(survival.selected_drop_record().await?)?,
             "swap_hands" => {
                 let record = if client.player_state().await?.game_mode == Some(GameMode::Creative) {
                     client.creative().swap_hands().await?

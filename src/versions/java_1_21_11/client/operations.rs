@@ -958,6 +958,15 @@ impl Operations {
             ));
         }
         if state
+            .common_selected_drop
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common selected drop unresolved; inspect without replay",
+            ));
+        }
+        if state
             .common_hand_swap
             .as_ref()
             .is_some_and(|r| r.unresolved())
@@ -1471,6 +1480,10 @@ pub(super) fn common_player_in_state(
             || interrupted
             || state
                 .common_container_close
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_selected_drop
                 .as_ref()
                 .is_some_and(|r| r.unresolved())
             || state

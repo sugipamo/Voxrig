@@ -3,6 +3,10 @@
 pub(crate) mod armor_tests;
 pub(crate) mod click;
 mod data;
+pub(crate) mod drop;
+pub use drop::{
+    SelectedDropAmount, SelectedDropId, SelectedDropRecord, SelectedDropSend, SelectedDropStage,
+};
 pub(crate) mod hands;
 pub use hands::{HandSwapId, HandSwapRecord, HandSwapSend, HandSwapStage};
 #[cfg(test)]

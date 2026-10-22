@@ -1,0 +1,1134 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "version": "1.21.11",
+  "passed": true,
+  "authority_limits": "Unchanged vanilla loopback server. Complete drop/resync frames, actual fresh selected-slot receipts, and independent RCON SelectedItem/ground Item observations are distinct. No actor attribution or causal acknowledgement is inferred from an item entity. Codec and menu primitive facts are separate from packet ownership tests and live evidence.",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "consumer_binary_sha256": "55eeabfad3a4c8cd5cb382c6ee399495a4c862ff6cbef957445546a995fe76d3",
+  "source_manifest_sha256": "ca469c8ac51334de7c8422bf1d573adeb4ec23fb8ad5e7bf7cb800d5e1ede3b2",
+  "source_sha256": {
+    "src/client/inventory/drop.rs": "c7adfc7f3b3f1dfef978dc49a645be455e31878235cd615d2fab1e79c7565287",
+    "src/client/adapter.rs": "75d5cb339a86140cd8078730c0c6e743378b1cdd4674751bcfa84ea72fc0e4d1",
+    "src/client/operations.rs": "38b80c265549f38867d4ec43503101d6c03891ec0f6141d3eb8b18221720db1b",
+    "src/client/ledger/finite.rs": "09a91e07fe723bc3b98485c78f7f6f2aaffb42171adfda6688d0d3a84669e699",
+    "src/client/mod.rs": "9a64e6bd1be0922fcdb3fa47c08152584783fbdaaa6bca669069c1c020f4a177",
+    "src/client/inventory.rs": "ec1c10b66f39a2990f6019ca8f06a788cd6dcd28de346bfaa4afcdc9f2e1bf13",
+    "src/versions/java_1_21_11/client.rs": "3f700f8a7cd4c752de6c6960109520fc975c8bf017036aec0583fba369ef544e",
+    "src/versions/java_1_21_11/client/finite_work.rs": "0581be74c5d813af1778995dfecad63f0c4517c08f55c848b6ce2c55ff7af466",
+    "src/versions/java_1_21_11/client/operations.rs": "d50ce5d302d6032bb62b88299531dcdc7c5a8dbc87aa0aee1d157e5eadc4d4f3",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "1ae6f684a3da3f65fe0fe775332a6119a8ca17f5550b242435a22f4e4e5fd1c5",
+    "src/versions/java_1_21_11/client/operations/inventory/common.rs": "ad3cb127b2fe8df80218c6302f116be69740372712ff921b5e2da7b4e63d0bba",
+    "src/versions/java_1_21_11/client/operations/inventory/drop.rs": "71cd9e22b6a13fb041138d387b91226b298308b722a13e224c7a3cef7fcf270f",
+    "examples/climbing_control_probe.rs": "9063a4b8b2943552aec2342c098722f4bcea191ad10bf8b727bba4a1b57f8f95",
+    "scripts/run_selected_drop_live.py": "2bfbdd3ce2069cd686edd9a6bb92eede20a75a80167a46974b38006b69f0353d",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
+  },
+  "artifacts_sha256": {
+    "inputs.json": "ca469c8ac51334de7c8422bf1d573adeb4ec23fb8ad5e7bf7cb800d5e1ede3b2",
+    "packets.jsonl": "b84c4147e98ac8c181bfafc7097d301a1d3dbb55fdf5fd4a57232e7d6df7863b",
+    "probe.log": "cde037e90c6681c6411e5028e3cea6ffec29109a94a170f32478d31c1fef1d25",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "report.json": "e935e98c96de3a84e0cb91c6fb49256fae8accf5da3d91c2556ee8b6a6496c78",
+    "server.log": "a04d73e3c59bc29f1922bbf564203fc72a9e50e39423d4e3c403d8c3ec6448c8"
+  },
+  "codec": {
+    "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+    "sources": {
+      "scripts/ExportRegularClicks.java": "40e1b6c429ebcbe7a6294f11660f26b11945167cebd9616ddca90b02ed86a704",
+      "scripts/ExportSelectedDrop.java": "50b232466c5315341e4b416338a8f8e27f99e5955562ab9a17174783a546f282",
+      "scripts/export_selected_drop.py": "c3851bb12328d6cc9e381dd3b6b7f8bb066e74e49157c22645db5cd5f21735a1"
+    },
+    "original_classpath_entries_sha256": {
+      "versions/1.21.11/server-1.21.11.jar": "ec47239a8de246335e1d54f6ac319bd35641778eb4b6a6da06372840d02fcebc",
+      "libraries/at/yawk/lz4/lz4-java/1.8.1/lz4-java-1.8.1.jar": "1de8ff91b90fba9d4896b8617ed3594c2e4390d321d5a92c34f80e62e406c1b0",
+      "libraries/com/azure/azure-json/1.4.0/azure-json-1.4.0.jar": "c50bc998cd1a6c689f8644b51c206217bf2da09d5b949e777490a60290cc3a0d",
+      "libraries/com/github/oshi/oshi-core/6.9.0/oshi-core-6.9.0.jar": "b29ba9bce041e6ea822203d5b5a692660c87551241510ebc76eedffe684844c7",
+      "libraries/com/google/code/gson/gson/2.13.2/gson-2.13.2.jar": "dd0ce1b55a3ed2080cb70f9c655850cda86c206862310009dcb5e5c95265a5e0",
+      "libraries/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar": "cbfc3906b19b8f55dd7cfd6dfe0aa4532e834250d7f080bd8d211a3e246b59cb",
+      "libraries/com/google/guava/guava/33.5.0-jre/guava-33.5.0-jre.jar": "1e301f0c52ac248b0b14fdc3d12283c77252d4d6f48521d572e7d8c4c2cc4ac7",
+      "libraries/com/microsoft/azure/msal4j/1.23.1/msal4j-1.23.1.jar": "414d4fe3c66c7bb1a741014f352e5f0a8329172703e7fbb0020d232a8c8385b1",
+      "libraries/com/mojang/authlib/7.0.61/authlib-7.0.61.jar": "09a152617bd23c86bf59db1f9ba82ede23ec8f691a824d6c5dec4f0175f82aa4",
+      "libraries/com/mojang/brigadier/1.3.10/brigadier-1.3.10.jar": "c8ee4136e474ac7723ca2b432ec8d1a2bc88ef7d1ec57c314ba9e33cdc83dd75",
+      "libraries/com/mojang/datafixerupper/9.0.19/datafixerupper-9.0.19.jar": "9653a39cf5c4853cc98628d902dcb23ffeb2755122ecc563bde38c8f60c0b61e",
+      "libraries/com/mojang/jtracy/1.0.37/jtracy-1.0.37.jar": "8bb68d0b65e8eceb92de2bd1d9e1443a8c9a9dd1b5818a5e54870b0f8253672a",
+      "libraries/com/mojang/logging/1.6.11/logging-1.6.11.jar": "5d803eb7348a27468c6172daef2f0d77260dd63cde377ebfa73e36789ae8fcee",
+      "libraries/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar": "df90bba0fe3cb586b7f164e78fe8f8f4da3f2dd5c27fa645f888100ccc25dd72",
+      "libraries/io/netty/netty-buffer/4.2.7.Final/netty-buffer-4.2.7.Final.jar": "b81613c8ed22b1cc39eccf2a28bd0c1d4561fb2e5e542061617ef4ce1d228bf5",
+      "libraries/io/netty/netty-codec-base/4.2.7.Final/netty-codec-base-4.2.7.Final.jar": "6360415b7c87160afcde5e7d4946c35539b9f043e8166c91a7fff95cc6067d9f",
+      "libraries/io/netty/netty-codec-compression/4.2.7.Final/netty-codec-compression-4.2.7.Final.jar": "edd53ad34991804301a46571113d8ffb4d6f67e6d874674dafbb915724275cb3",
+      "libraries/io/netty/netty-codec-http/4.2.7.Final/netty-codec-http-4.2.7.Final.jar": "2984dd38420a61c4dd68fcacc51ffc528eb46f73f7795cdafdb3a4d6fcb76862",
+      "libraries/io/netty/netty-common/4.2.7.Final/netty-common-4.2.7.Final.jar": "2345bc0ed5843fa57aa49eba67529485c3a1d420fcf0429324c8220c7a80e9a6",
+      "libraries/io/netty/netty-handler/4.2.7.Final/netty-handler-4.2.7.Final.jar": "21d063409c12dbcec46d380c8856a0f7b6a5b68bb5f1d005eb065b4d64146cb3",
+      "libraries/io/netty/netty-resolver/4.2.7.Final/netty-resolver-4.2.7.Final.jar": "7e4d569867e6c08437fb21a220ea01c294b0e38f01149b683c895a1bcd928438",
+      "libraries/io/netty/netty-transport/4.2.7.Final/netty-transport-4.2.7.Final.jar": "aadc6fb05c14fb789368ca3f854721549c72f6c0d81798bbccf9de1bb716892b",
+      "libraries/io/netty/netty-transport-classes-epoll/4.2.7.Final/netty-transport-classes-epoll-4.2.7.Final.jar": "4492948e6a7694398e5197cf15ed2e21d6662a739d010ae666fa276e7222853c",
+      "libraries/io/netty/netty-transport-classes-kqueue/4.2.7.Final/netty-transport-classes-kqueue-4.2.7.Final.jar": "a3eb1c94ae1a6be9e1d1ec52c3f5c510a75b04b8ef1ea86b7e77b3f1287ae3cc",
+      "libraries/io/netty/netty-transport-native-epoll/4.2.7.Final/netty-transport-native-epoll-4.2.7.Final-linux-aarch_64.jar": "2f0c7309d7df48a88fb374c02cfb446e1a1e5fb597fb02d773c70ac07da2c268",
+      "libraries/io/netty/netty-transport-native-epoll/4.2.7.Final/netty-transport-native-epoll-4.2.7.Final-linux-x86_64.jar": "7f395c8fdbe6990f7664408b57d919042401b893178fcba48bebf1a61bf78618",
+      "libraries/io/netty/netty-transport-native-kqueue/4.2.7.Final/netty-transport-native-kqueue-4.2.7.Final-osx-aarch_64.jar": "7647a69558e3d49a352781c2ae81a97e16b442d7c6565a06b4ae0f15298489d5",
+      "libraries/io/netty/netty-transport-native-kqueue/4.2.7.Final/netty-transport-native-kqueue-4.2.7.Final-osx-x86_64.jar": "a29c08b6895746aaca796e72a429bc705f40267feb35f75cd8fbbcd4de6de99f",
+      "libraries/io/netty/netty-transport-native-unix-common/4.2.7.Final/netty-transport-native-unix-common-4.2.7.Final.jar": "736703b3f6d127e182f5be888b6e15732b0c08d6634e00725352a6a9d19974b2",
+      "libraries/it/unimi/dsi/fastutil/8.5.18/fastutil-8.5.18.jar": "9094ae67d01d0ad246f886f11ad557fc2e79c72cbf3feed83e1512a8ae90a74a",
+      "libraries/net/java/dev/jna/jna/5.17.0/jna-5.17.0.jar": "b3a9408e7c51e08ef0e3bfcc08f443f6ec0f6191ba8cd7c18d53d2b22e5bdbc0",
+      "libraries/net/java/dev/jna/jna-platform/5.17.0/jna-platform-5.17.0.jar": "b7e3d46c87bad2eb409b0e704916bcd81206168e357312dfddd0e253679cd9e0",
+      "libraries/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar": "df26cc58f235f477db07f753ba5a3ab243ebe5789d9f89ecf68dd62ea9a66c28",
+      "libraries/org/apache/commons/commons-lang3/3.19.0/commons-lang3-3.19.0.jar": "32733ab4bc90b45b63eb72677d886961003fd4ed113e07b1028f9877cb2ac735",
+      "libraries/org/apache/logging/log4j/log4j-api/2.25.2/log4j-api-2.25.2.jar": "9fd66c9fe0bea06fa9666c147989a46cafaa92b4a88753697d3945cc43338cbb",
+      "libraries/org/apache/logging/log4j/log4j-core/2.25.2/log4j-core-2.25.2.jar": "e50db7701430ff907981850ef527a41d51a53dd0017f53a0860afcbab8570277",
+      "libraries/org/apache/logging/log4j/log4j-slf4j2-impl/2.25.2/log4j-slf4j2-impl-2.25.2.jar": "faffe8c867d59f813fb4bd1edf5354bfe86125811a7c9b305e5d225da8e7ea54",
+      "libraries/org/joml/joml/1.10.8/joml-1.10.8.jar": "bf19510145178df82cd3bd37edd514c13f411531ec5545299fd3abcbc98fe7c2",
+      "libraries/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab",
+      "libraries/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar": "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832"
+    },
+    "outputs_sha256": {
+      "selected_drop_packets-1.21.11.json": "10a2f47c405c163d2635e403fb899c53dfc067b4dad8fed582c140ebe14179ae",
+      "selected_drop_resync-1.21.11.json": "80cd36acbb131ee569aa4270056406aa774047019f068664b908aec8afe78732"
+    }
+  },
+  "native_inspection": {
+    "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
+    "methods": [
+      "ServerPlayer.drop(boolean)",
+      "ServerGamePacketListenerImpl.handleContainerClick",
+      "AbstractContainerMenu.isValidSlotIndex",
+      "AbstractContainerMenu.doClick",
+      "AbstractContainerMenu.incrementStateId"
+    ],
+    "facts": [
+      "Native drop updates the remote selected-slot baseline, suppressing ordinary slot notification.",
+      "PICKUP at slot -1 returns without moving any stack or held cursor.",
+      "Native menu revisions stay in 0..32767; revision -1 requests actual full resync."
+    ]
+  },
+  "initial_live": {
+    "passed": false,
+    "reason": "Drop-only request spawned the dropped item but never received a selected-slot update; no synthetic receipt was produced.",
+    "report_sha256": "3b3c0c8ff4c962b9418f5aa3207010f75852e7e1871e62048d21f1b68fe50af4"
+  },
+  "checks": [
+    {
+      "mode": "survival",
+      "amount": "one",
+      "count": 12,
+      "remaining": 11,
+      "id": {
+        "attempt": 1,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "main_slot": 36,
+      "main_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 109
+        },
+        "value": {
+          "item": {
+            "count": 12,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "send": {
+        "after_sequence": 120,
+        "dispatched": true,
+        "interaction_sequence": 1,
+        "resync_dispatched": true
+      },
+      "stage": "observed_decreased",
+      "main_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 127
+        },
+        "value": {
+          "item": {
+            "count": 11,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "native_selected": "ClimbingProbe has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 11, id: \"minecraft:dirt\"}",
+      "native_dropped": "Dirt has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 1, id: \"minecraft:dirt\"}",
+      "frames": [
+        {
+          "ordinal": 141,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 40,
+          "body_length": 11,
+          "wire_sha256": "4f581a1a987ff508d8f957242ae80f86cd363314fd544898636df941dd111801",
+          "body_sha256": "c8397559ffc81122c12319f2a6ec667c31f2e7036b7da4bbfba314c8dd9fb3e0",
+          "body_hex": "0400000000000000000001"
+        },
+        {
+          "ordinal": 142,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 12,
+          "wire_sha256": "37bec1a6951bf123baf5dc5f6072c26d63d277fc3b70aa9fe9d17d1d28380af2",
+          "body_sha256": "168d8656b138bdb05452ae6f05f97a74cf5f9c257979f2c5f17868028e982434",
+          "body_hex": "00ffffffff0fffff00000000"
+        },
+        {
+          "ordinal": 149,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 84,
+          "wire_sha256": "ae03acc64aba2d46e673962587453dd19a3e6b09b5b31ea0ed2afc80571c24a1",
+          "body_sha256": "30f89a07fc9a6350b446fffe0962901e0441517248f7f6156654aaeada6ef061",
+          "body_hex": "00042e0000000000000000000000000000000000000000000000000000000000000000000000000b1c02000608000464726f70000a03000d73656c65637465645f64726f700000002a0000000000000000000000"
+        }
+      ]
+    },
+    {
+      "mode": "survival",
+      "amount": "one",
+      "count": 1,
+      "remaining": 0,
+      "id": {
+        "attempt": 2,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "main_slot": 36,
+      "main_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 131
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "send": {
+        "after_sequence": 131,
+        "dispatched": true,
+        "interaction_sequence": 2,
+        "resync_dispatched": true
+      },
+      "stage": "observed_decreased",
+      "main_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 138
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "native_selected": "Found no elements matching SelectedItem",
+      "native_dropped": "Dirt has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 1, id: \"minecraft:dirt\"}",
+      "frames": [
+        {
+          "ordinal": 154,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 40,
+          "body_length": 11,
+          "wire_sha256": "087e6ba865322083bb110502ae0176c8339e993c17b18fea70e0571e69489ea3",
+          "body_sha256": "159e212674cc79562c19abb1e0039f2d45a9fdd11c560b206965f466cb018045",
+          "body_hex": "0400000000000000000002"
+        },
+        {
+          "ordinal": 159,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 12,
+          "wire_sha256": "37bec1a6951bf123baf5dc5f6072c26d63d277fc3b70aa9fe9d17d1d28380af2",
+          "body_sha256": "168d8656b138bdb05452ae6f05f97a74cf5f9c257979f2c5f17868028e982434",
+          "body_hex": "00ffffffff0fffff00000000"
+        },
+        {
+          "ordinal": 162,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 50,
+          "wire_sha256": "04101f2d6ab3c25de543cae5b50cc1acc5ab659c5cfc6d1ebd081773b2bc8280",
+          "body_sha256": "53ff17ba3b3af9a79c96be534c768c1b7ae9c2e72bb77cf81b2c7ae86f580c91",
+          "body_hex": "00082e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "mode": "survival",
+      "amount": "all",
+      "count": 12,
+      "remaining": 0,
+      "id": {
+        "attempt": 3,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "main_slot": 36,
+      "main_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 141
+        },
+        "value": {
+          "item": {
+            "count": 12,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "send": {
+        "after_sequence": 141,
+        "dispatched": true,
+        "interaction_sequence": 3,
+        "resync_dispatched": true
+      },
+      "stage": "observed_decreased",
+      "main_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 148
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "native_selected": "Found no elements matching SelectedItem",
+      "native_dropped": "Dirt has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 12, id: \"minecraft:dirt\"}",
+      "frames": [
+        {
+          "ordinal": 166,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 40,
+          "body_length": 11,
+          "wire_sha256": "03e339f1a2d5055ab7ad21cde02a8bd1291ff99a2b185a1e46cd3bd4c7cd4a5e",
+          "body_sha256": "e667666f20ce6c6c2c5bb15db56a0037526c68e76147a82fea224e5da8048609",
+          "body_hex": "0300000000000000000003"
+        },
+        {
+          "ordinal": 171,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 12,
+          "wire_sha256": "37bec1a6951bf123baf5dc5f6072c26d63d277fc3b70aa9fe9d17d1d28380af2",
+          "body_sha256": "168d8656b138bdb05452ae6f05f97a74cf5f9c257979f2c5f17868028e982434",
+          "body_hex": "00ffffffff0fffff00000000"
+        },
+        {
+          "ordinal": 174,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 50,
+          "wire_sha256": "2f317a543987156834166d514fd0f1bf02daaa13ef7c6ed108e56e9ac2fcb8e5",
+          "body_sha256": "ec6f3f0c5d9fbee26f65d677fda082a06d33867c9a680e5d7dbf52d651d8cd62",
+          "body_hex": "000b2e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "mode": "creative",
+      "amount": "one",
+      "count": 12,
+      "remaining": 11,
+      "id": {
+        "attempt": 4,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "main_slot": 36,
+      "main_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 156
+        },
+        "value": {
+          "item": {
+            "count": 12,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "send": {
+        "after_sequence": 157,
+        "dispatched": true,
+        "interaction_sequence": 4,
+        "resync_dispatched": true
+      },
+      "stage": "observed_decreased",
+      "main_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 162
+        },
+        "value": {
+          "item": {
+            "count": 11,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "native_selected": "ClimbingProbe has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 11, id: \"minecraft:dirt\"}",
+      "native_dropped": "Dirt has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 1, id: \"minecraft:dirt\"}",
+      "frames": [
+        {
+          "ordinal": 184,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 40,
+          "body_length": 11,
+          "wire_sha256": "734402b5bd64353e77015c98d59e5d115c1a7d8c7827ee10734fcdda63bce37f",
+          "body_sha256": "1ddde6a5ea777271dddb67393d1776882d9fc8bfbab7d45a5abd67f5f91d5bf3",
+          "body_hex": "0400000000000000000004"
+        },
+        {
+          "ordinal": 185,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 12,
+          "wire_sha256": "37bec1a6951bf123baf5dc5f6072c26d63d277fc3b70aa9fe9d17d1d28380af2",
+          "body_sha256": "168d8656b138bdb05452ae6f05f97a74cf5f9c257979f2c5f17868028e982434",
+          "body_hex": "00ffffffff0fffff00000000"
+        },
+        {
+          "ordinal": 190,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 84,
+          "wire_sha256": "cadc1e5a5e9cbffc3e067e01ca10c373c5d765b968e75b721839cad20f49698c",
+          "body_sha256": "1f9c8c53ba48bac40ef38b43c2b45bfec2ab6e9ad1aab9cc7ba9cc0a0ac12da9",
+          "body_hex": "000e2e0000000000000000000000000000000000000000000000000000000000000000000000000b1c02000608000464726f70000a03000d73656c65637465645f64726f700000002a0000000000000000000000"
+        }
+      ]
+    },
+    {
+      "mode": "creative",
+      "amount": "one",
+      "count": 1,
+      "remaining": 0,
+      "id": {
+        "attempt": 5,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "main_slot": 36,
+      "main_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 168
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "send": {
+        "after_sequence": 168,
+        "dispatched": true,
+        "interaction_sequence": 5,
+        "resync_dispatched": true
+      },
+      "stage": "observed_decreased",
+      "main_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 175
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "native_selected": "Found no elements matching SelectedItem",
+      "native_dropped": "Dirt has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 1, id: \"minecraft:dirt\"}",
+      "frames": [
+        {
+          "ordinal": 197,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 40,
+          "body_length": 11,
+          "wire_sha256": "cba56c043725fb1400da9d818b5abf3cc8d4edd36a20f660076b32463ede8bfd",
+          "body_sha256": "551857248f2e21b566434bfcca510bbeeeca461d25cc46051814415c0ba7fc29",
+          "body_hex": "0400000000000000000005"
+        },
+        {
+          "ordinal": 202,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 12,
+          "wire_sha256": "37bec1a6951bf123baf5dc5f6072c26d63d277fc3b70aa9fe9d17d1d28380af2",
+          "body_sha256": "168d8656b138bdb05452ae6f05f97a74cf5f9c257979f2c5f17868028e982434",
+          "body_hex": "00ffffffff0fffff00000000"
+        },
+        {
+          "ordinal": 205,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 50,
+          "wire_sha256": "4c7326cf6adfb51bb06b1f8f1ef324e3c53ec33992a9f94198707bfb078fa446",
+          "body_sha256": "7574d3c8ec2741265291d47dd7bac063812cdf71ef5a5a2bedc1ec6a54bb8c93",
+          "body_hex": "00122e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "mode": "creative",
+      "amount": "all",
+      "count": 12,
+      "remaining": 0,
+      "id": {
+        "attempt": 6,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "main_slot": 36,
+      "main_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 179
+        },
+        "value": {
+          "item": {
+            "count": 12,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      8,
+                      0,
+                      4,
+                      100,
+                      114,
+                      111,
+                      112
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 6,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_name"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      13,
+                      115,
+                      101,
+                      108,
+                      101,
+                      99,
+                      116,
+                      101,
+                      100,
+                      95,
+                      100,
+                      114,
+                      111,
+                      112,
+                      0,
+                      0,
+                      0,
+                      42,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 28,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:dirt"
+          },
+          "kind": "item"
+        }
+      },
+      "send": {
+        "after_sequence": 179,
+        "dispatched": true,
+        "interaction_sequence": 6,
+        "resync_dispatched": true
+      },
+      "stage": "observed_decreased",
+      "main_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 186
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "native_selected": "Found no elements matching SelectedItem",
+      "native_dropped": "Dirt has the following entity data: {components: {\"minecraft:custom_name\": \"drop\", \"minecraft:custom_data\": {selected_drop: 42}}, count: 12, id: \"minecraft:dirt\"}",
+      "frames": [
+        {
+          "ordinal": 210,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 40,
+          "body_length": 11,
+          "wire_sha256": "d8292beaf26b87c25a4e42175f2dc80af9f39b3929054ae66367f4eb0f03ceca",
+          "body_sha256": "25adc20f9f2ccb9ba5198412dc4e9c3e025b727648ff5304a204aca027229fa8",
+          "body_hex": "0300000000000000000006"
+        },
+        {
+          "ordinal": 215,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 12,
+          "wire_sha256": "37bec1a6951bf123baf5dc5f6072c26d63d277fc3b70aa9fe9d17d1d28380af2",
+          "body_sha256": "168d8656b138bdb05452ae6f05f97a74cf5f9c257979f2c5f17868028e982434",
+          "body_hex": "00ffffffff0fffff00000000"
+        },
+        {
+          "ordinal": 218,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 50,
+          "wire_sha256": "4c90f5a101fd6852ddee22439f7c783dc0b51b4e2bd02e41eb10142493d7772f",
+          "body_sha256": "6de8f39549a73ddde7a7bd236872560cb997b7db82de9e6b9c7228830f00e019",
+          "body_hex": "00152e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    }
+  ]
+}

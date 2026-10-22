@@ -57,6 +57,16 @@ impl State {
                 )
             }),
         );
+        self.finite_work.reconcile(
+            Family::SelectedDrop,
+            self.common_selected_drop.as_ref().map(|r| {
+                (
+                    r.id.attempt(),
+                    !r.unresolved(),
+                    r.requires_inspection.is_some(),
+                )
+            }),
+        );
         for slot in 0..9 {
             self.finite_work.reconcile(
                 Family::Creative(slot),

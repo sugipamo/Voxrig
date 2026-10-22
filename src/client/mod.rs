@@ -231,6 +231,8 @@ pub mod prelude {
         InventoryClickId, InventoryClickRecord, InventoryClickSource, InventoryClickStage,
         InventorySource, InventorySwapId, InventorySwapRecord, InventorySwapSource,
         InventorySwapStage, InventoryTransferId, InventoryTransferRecord, InventoryTransferStage,
+        SelectedDropAmount, SelectedDropId, SelectedDropRecord, SelectedDropSend,
+        SelectedDropStage,
     };
     pub use super::maps::{
         MAX_RECEIVED_MAPS, MapIconKind, MapIdentity, MapObservation, ReceivedMapIcon,

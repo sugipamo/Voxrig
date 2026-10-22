@@ -1,0 +1,52 @@
+[
+  {
+    "amount": "one",
+    "sequence": 1,
+    "payload_hex": "0400000000000000000001"
+  },
+  {
+    "amount": "one",
+    "sequence": 127,
+    "payload_hex": "040000000000000000007f"
+  },
+  {
+    "amount": "one",
+    "sequence": 128,
+    "payload_hex": "040000000000000000008001"
+  },
+  {
+    "amount": "one",
+    "sequence": 16384,
+    "payload_hex": "04000000000000000000808001"
+  },
+  {
+    "amount": "one",
+    "sequence": 2147483647,
+    "payload_hex": "04000000000000000000ffffffff07"
+  },
+  {
+    "amount": "all",
+    "sequence": 1,
+    "payload_hex": "0300000000000000000001"
+  },
+  {
+    "amount": "all",
+    "sequence": 127,
+    "payload_hex": "030000000000000000007f"
+  },
+  {
+    "amount": "all",
+    "sequence": 128,
+    "payload_hex": "030000000000000000008001"
+  },
+  {
+    "amount": "all",
+    "sequence": 16384,
+    "payload_hex": "03000000000000000000808001"
+  },
+  {
+    "amount": "all",
+    "sequence": 2147483647,
+    "payload_hex": "03000000000000000000ffffffff07"
+  }
+]

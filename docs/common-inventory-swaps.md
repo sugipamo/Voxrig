@@ -1,5 +1,7 @@
 # 共通Clientの在庫交換
 
+選択中stackの1個・全量dropは[専用API](common-selected-drop.md)を参照。
+
 ## 主手とオフハンドの交換（1.21.11）
 
 `survival.swap_hands()` / `creative.swap_hands()`は、選択中のhotbar slotと
