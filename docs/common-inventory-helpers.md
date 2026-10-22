@@ -23,7 +23,8 @@ result?;
 残量・交換されたstackを元へ戻す」を最大3回で組み立てます。空slotへの移動と全量mergeは
 2回、部分mergeと占有済み装備などの交換は3回です。player armor 5..8・offhand 45の
 受入れ・容量・束縛は既存の`slot_policy`を共用し、data付き装備をdefaultへ戻しません。
-戻り先も含めて事前検査し、3回でcursorが空にならない組合せや無変化は送信前に拒否します。
+戻り先と炉の燃料tagを含めて事前検査し、3回でcursorが空にならない組合せや無変化、
+未受信・非対応の燃料tagは元slotを拾う前に拒否します。
 同じUI内の通常PICKUP対応slotが対象です。異なるscreen間の移動やresult取得は含みません。
 
 各子クリックの完全送信とfreshなslot/cursor受信（legacyは取引応答も）がそろい、

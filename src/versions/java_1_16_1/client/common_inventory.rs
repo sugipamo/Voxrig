@@ -480,6 +480,24 @@ mod tests {
                 self.bot.apply_packet(0x14, payload).await.unwrap();
                 self.cursor(cursor).await;
             }
+            async fn furnace_inventory(&mut self, slots: &[api::SlotKnowledge]) {
+                let menu = api::furnace::native_menu(
+                    crate::MinecraftVersion::Java1_16_1,
+                    "minecraft:furnace",
+                )
+                .unwrap();
+                let mut open = vec![3];
+                crate::protocol::put_varint(&mut open, menu.native_id);
+                put_string(&mut open, "{}");
+                self.bot.apply_packet(0x2e, open).await.unwrap();
+                let mut full = vec![3];
+                full.extend((slots.len() as i16).to_be_bytes());
+                for value in slots {
+                    write_slot(&mut full, native(value).as_ref());
+                }
+                self.bot.apply_packet(0x14, full).await.unwrap();
+                self.cursor(&api::SlotKnowledge::Empty).await;
+            }
             async fn slot(&mut self, index: u16, value: &api::SlotKnowledge) {
                 super::slot(&self.bot, index as i16, value, false).await;
             }

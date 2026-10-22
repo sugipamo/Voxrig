@@ -5,29 +5,29 @@
   "passed": true,
   "authority_limits": "Unmodified official loopback server, original packet trace and independent RCON. Live cancellation drops the helper after its first child receipt, leaving the cursor held; the later return is a separate explicit caller click. Partial write cancellation and conflict/timeout cases use constructed packet fixtures, not live packet loss. Existing native slot-policy oracles supply acceptance/capacity/binding semantics; this helper adds no native rules.",
   "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
-  "consumer_binary_sha256": "f24c90bb44c16ef45308c7e3f26b9c45ded846a9a2b2a7534e1847c95332af83",
-  "source_manifest_sha256": "87b79b64f3012cdd8df3d248782bc3cb54575c191dea523c9dd09d75ac6f72c7",
+  "consumer_binary_sha256": "3d189feb0a499cdf1fb05196f0905fde116da1e219f7de23b0a29e6f8426e80f",
+  "source_manifest_sha256": "74cdb0e1441ae5c7725189040ce9bc56ddc75e67e6bde36c46c1906eb24dd596",
   "source_sha256": {
     "src/client/inventory_helpers.rs": "a4ba5154d995bdd406e628c62775fd9ea7461f428b7b7d02790ec3bcf33624a5",
-    "src/client/inventory_helpers/exact_move.rs": "8f3269ac4cce4c78555d3debc841de6cb5f43e63d9e85f9436f74eef34deaeeb",
-    "src/client/inventory_helpers/scripted_tests.rs": "a6c3e7bc251d5eaf67eee771d1c1d3d442558d168aa4fd6b4d44d012300c7ed4",
+    "src/client/inventory_helpers/exact_move.rs": "22f853a4da042f5b78fc7cfb919022069a989ff325d6ca6ec3292322588012d6",
+    "src/client/inventory_helpers/scripted_tests.rs": "9a518de91e6fd014369da37b8b0abb3af7a0dc032d3fa23b10c2d1cce3fce569",
     "src/client/inventory/slot_policy.rs": "9175d65c4150b4031757dc956d5aa88528cc8e71b635b66b4aa36213134e065e",
     "src/client/inventory/click.rs": "9dbe6ea21a20005559637ee8695c34e070817a64b86b17b2bfdaf63d9d765368",
     "src/versions/java_1_21_11/client/operations/inventory/click.rs": "615bfd479af0d294c364180c0f555fa5c94c26818123c5d0591736e3551c57c1",
-    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "c438bc8b638e14bb521667f00108e25801e4bddac5504b42195ea778d7e7e7e0",
-    "src/versions/java_1_16_1/client/common_inventory.rs": "e8c1008578c7f9211f2bb919b5a878bbe5b2244c7ab09d46e6922869422cc383",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "f5cb6107a9f92cd0fe1a02d5cec306f28716a1a2058cbfb3e4f6bad43cb9a75b",
+    "src/versions/java_1_16_1/client/common_inventory.rs": "ce2c5e701c396cf46a977b7d60016a2fb8f56858cb93a71cb5f7d05c7c707615",
     "examples/climbing_control_probe.rs": "c88b45ecf4cccd072ebd6af22fc2db1675d1d214cc1183edc91c154d181d17a5",
     "scripts/run_exact_inventory_move_live.py": "21cbf78c872a6fad56658b87c6181c80e2e79f91a7e09bff08ec25d68164bbfc",
     "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
     "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
   },
   "artifacts_sha256": {
-    "inputs.json": "87b79b64f3012cdd8df3d248782bc3cb54575c191dea523c9dd09d75ac6f72c7",
-    "packets.jsonl": "0aae97a8ffc88b415dad2d86aafd33ff2c07a48ecfa386facf03cf1fae893d28",
-    "probe.log": "2c658e473e59843d15b4104dbb98486f72d9ba7491dacab30bd5350f6b5f7605",
+    "inputs.json": "74cdb0e1441ae5c7725189040ce9bc56ddc75e67e6bde36c46c1906eb24dd596",
+    "packets.jsonl": "1f3e919bfa46c737b39a86ea09f47c3d160b97d8958e85e004fbba54522c42b5",
+    "probe.log": "e2b05996df9c91010caf5241a6ca6059fe6922a4cfc0271fa3e1782779e73cfc",
     "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "report.json": "3e210a84effcf01e84e3b96178b5be7816f02b28b38e8df62958e8f49890d263",
-    "server.log": "89ef20a42f957ccb0dd2e4ffa3c76386eb5ae5ce927fea07d18fe3015192874c"
+    "report.json": "62374157c7227d25d4b3a3a17f615e3c990558c57726be444105c16cdb886116",
+    "server.log": "100cc0ccb57cf00c68bf4de23056550e94acf5d2d4f06543a18d6d67a66e7589"
   },
   "trace_errors": [],
   "item_data_by_sha256": {
@@ -226,10 +226,10 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 127,
+          "after_sequence": 128,
           "source_receipt": {
             "value": "empty",
-            "sequence": 128
+            "sequence": 129
           },
           "cursor_receipt": {
             "value": {
@@ -237,7 +237,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 128
+            "sequence": 129
           }
         },
         {
@@ -252,14 +252,14 @@
           "slot": 5,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 128,
+          "after_sequence": 129,
           "source_receipt": {
             "value": {
               "name": "minecraft:diamond_helmet",
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 130
+            "sequence": 131
           },
           "cursor_receipt": {
             "value": {
@@ -267,7 +267,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 130
+            "sequence": 131
           }
         },
         {
@@ -282,28 +282,28 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 130,
+          "after_sequence": 131,
           "source_receipt": {
             "value": {
               "name": "minecraft:iron_helmet",
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 131
+            "sequence": 132
           },
           "cursor_receipt": {
             "value": "empty",
-            "sequence": 131
+            "sequence": 132
           }
         }
       ],
       "cursor": {
         "value": "empty",
-        "sequence": 131
+        "sequence": 132
       },
       "frames": [
         {
-          "ordinal": 148,
+          "ordinal": 149,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -314,7 +314,7 @@
           "body_hex": "0000000900000000"
         },
         {
-          "ordinal": 150,
+          "ordinal": 151,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -325,7 +325,7 @@
           "body_hex": "0000000500000000"
         },
         {
-          "ordinal": 153,
+          "ordinal": 154,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -361,10 +361,10 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 139,
+          "after_sequence": 141,
           "source_receipt": {
             "value": "empty",
-            "sequence": 140
+            "sequence": 142
           },
           "cursor_receipt": {
             "value": {
@@ -372,7 +372,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 140
+            "sequence": 142
           }
         },
         {
@@ -387,14 +387,14 @@
           "slot": 45,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 141,
+          "after_sequence": 143,
           "source_receipt": {
             "value": {
               "name": "minecraft:iron_pickaxe",
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 142
+            "sequence": 144
           },
           "cursor_receipt": {
             "value": {
@@ -402,7 +402,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 142
+            "sequence": 144
           }
         },
         {
@@ -417,28 +417,28 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 143,
+          "after_sequence": 144,
           "source_receipt": {
             "value": {
               "name": "minecraft:shield",
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 144
+            "sequence": 145
           },
           "cursor_receipt": {
             "value": "empty",
-            "sequence": 144
+            "sequence": 145
           }
         }
       ],
       "cursor": {
         "value": "empty",
-        "sequence": 144
+        "sequence": 145
       },
       "frames": [
         {
-          "ordinal": 163,
+          "ordinal": 165,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -449,7 +449,7 @@
           "body_hex": "0000000900000000"
         },
         {
-          "ordinal": 166,
+          "ordinal": 168,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -460,7 +460,7 @@
           "body_hex": "0000002d00000000"
         },
         {
-          "ordinal": 169,
+          "ordinal": 170,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -486,7 +486,7 @@
       "children": [],
       "cursor": {
         "value": "empty",
-        "sequence": 144
+        "sequence": 145
       },
       "frames": [],
       "rcon_equipment": "ClimbingProbe has the following entity data: {components: {\"minecraft:enchantments\": {\"minecraft:binding_curse\": 1}, \"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, id: \"minecraft:iron_helmet\"}",
@@ -514,10 +514,10 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 163,
+          "after_sequence": 162,
           "source_receipt": {
             "value": "empty",
-            "sequence": 164
+            "sequence": 163
           },
           "cursor_receipt": {
             "value": {
@@ -525,7 +525,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 164
+            "sequence": 163
           }
         },
         {
@@ -540,14 +540,14 @@
           "slot": 5,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 165,
+          "after_sequence": 163,
           "source_receipt": {
             "value": {
               "name": "minecraft:diamond_helmet",
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 167
+            "sequence": 165
           },
           "cursor_receipt": {
             "value": {
@@ -555,7 +555,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 167
+            "sequence": 165
           }
         },
         {
@@ -591,7 +591,7 @@
       },
       "frames": [
         {
-          "ordinal": 190,
+          "ordinal": 189,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -602,7 +602,7 @@
           "body_hex": "0000000900000000"
         },
         {
-          "ordinal": 193,
+          "ordinal": 191,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -649,10 +649,10 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 176,
+          "after_sequence": 175,
           "source_receipt": {
             "value": "empty",
-            "sequence": 177
+            "sequence": 176
           },
           "cursor_receipt": {
             "value": {
@@ -660,7 +660,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 177
+            "sequence": 176
           }
         },
         {
@@ -726,7 +726,7 @@
       },
       "frames": [
         {
-          "ordinal": 206,
+          "ordinal": 205,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -784,10 +784,10 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 185,
+          "after_sequence": 186,
           "source_receipt": {
             "value": "empty",
-            "sequence": 186
+            "sequence": 187
           },
           "cursor_receipt": {
             "value": {
@@ -795,7 +795,7 @@
               "count": 1,
               "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
             },
-            "sequence": 186
+            "sequence": 187
           }
         },
         {
@@ -861,7 +861,7 @@
       },
       "frames": [
         {
-          "ordinal": 218,
+          "ordinal": 219,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",
@@ -919,10 +919,10 @@
           "slot": 9,
           "stage": "observed_clicked",
           "dispatched": true,
-          "after_sequence": 200,
+          "after_sequence": 201,
           "source_receipt": {
             "value": "empty",
-            "sequence": 201
+            "sequence": 202
           },
           "cursor_receipt": {
             "value": {
@@ -930,7 +930,7 @@
               "count": 1,
               "data_sha256": "511ce10bdac01f47c1a99d96a621bf23090bef46a375546f18155726748e9622"
             },
-            "sequence": 201
+            "sequence": 202
           }
         }
       ],
@@ -940,11 +940,11 @@
           "count": 1,
           "data_sha256": "511ce10bdac01f47c1a99d96a621bf23090bef46a375546f18155726748e9622"
         },
-        "sequence": 201
+        "sequence": 202
       },
       "frames": [
         {
-          "ordinal": 236,
+          "ordinal": 237,
           "connection": 1,
           "direction": "serverbound",
           "phase": "play",

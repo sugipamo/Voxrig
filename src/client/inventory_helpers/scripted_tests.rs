@@ -23,6 +23,7 @@ pub(super) fn take_waiting(id: CraftingTakeId) {
 pub(crate) trait Fixture {
     fn client(&self) -> Client;
     async fn inventory(&mut self, slots: &[SlotKnowledge], cursor: &SlotKnowledge);
+    async fn furnace_inventory(&mut self, slots: &[SlotKnowledge]);
     async fn slot(&mut self, slot: u16, value: &SlotKnowledge);
     async fn cursor(&mut self, value: &SlotKnowledge);
     async fn reply(&mut self, action: Option<i16>);
@@ -158,6 +159,7 @@ pub(crate) enum Case {
 }
 
 pub(crate) const CASES: &[Case] = &[
+    Case::Move(MoveCase::FuelTagsUnavailable),
     Case::Move(MoveCase::Empty),
     Case::Move(MoveCase::Merge),
     Case::Move(MoveCase::Partial),
@@ -519,6 +521,7 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum MoveCase {
+    FuelTagsUnavailable,
     Empty,
     Merge,
     Partial,
@@ -541,6 +544,45 @@ async fn run_move_case(fixture: &mut impl Fixture, case: MoveCase) {
     let ops = client.survival();
     let version = crate::client::adapter::version_of(&client.adapter);
     let empty = SlotKnowledge::Empty;
+    if matches!(case, MoveCase::FuelTagsUnavailable) {
+        let mut slots = vec![empty.clone(); 39];
+        slots[3] = item(&client, "coal", 7);
+        fixture.furnace_inventory(&slots).await;
+        let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+        let mut parent = InventoryMoveRecord::new(InventoryClickSource::Container { screen }, 3, 1);
+        let mut helper = Box::pin(ops.move_inventory(&mut parent));
+        let result = ready(async {
+            loop {
+                if let Poll::Ready(result) = poll(helper.as_mut()).await {
+                    break result;
+                }
+                assert!(
+                    ops.inventory_click_record().await.unwrap().is_none(),
+                    "fuel tag preflight must reject before picking up the source"
+                );
+                tokio::task::yield_now().await;
+            }
+        })
+        .await;
+        drop(helper);
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("fuel tags unavailable")
+        );
+        assert_eq!(parent.stage(), InventoryMoveStage::Stopped);
+        assert_eq!(parent.completed_steps(), 0);
+        assert!(parent.clicks().is_empty());
+        let state = client.screen_state().await.unwrap();
+        assert_eq!(state.cursor.unwrap().value, empty);
+        assert_eq!(
+            state.screen.unwrap().slots[3].as_ref().unwrap().value,
+            slots[3]
+        );
+        fixture.no_packets().await;
+        return;
+    }
     let mut slots = vec![empty.clone(); 46];
     slots[9] = item(&client, "stone", 7);
     let destination = match case {

@@ -5090,6 +5090,27 @@ mod helper_sequences {
             self.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
                 .await;
         }
+        async fn furnace_inventory(&mut self, slots: &[SlotKnowledge]) {
+            let menu = crate::client::furnace::native_menu(
+                crate::MinecraftVersion::Java1_21_11,
+                "minecraft:furnace",
+            )
+            .unwrap();
+            let mut open = vec![3];
+            crate::protocol::put_varint(&mut open, menu.native_id);
+            open.extend([10, 0]);
+            self.receive(ids::play_clientbound::OPEN_WINDOW, &open)
+                .await;
+            let mut full = vec![3];
+            crate::protocol::put_varint(&mut full, 132);
+            crate::protocol::put_varint(&mut full, slots.len() as i32);
+            for value in slots {
+                put_slot(&mut full, &native(value));
+            }
+            put_slot(&mut full, &InventorySlot::Empty);
+            self.receive(ids::play_clientbound::WINDOW_ITEMS, &full)
+                .await;
+        }
         async fn slot(&mut self, index: u16, value: &SlotKnowledge) {
             CommonFixture::slot(self, index, native(value)).await;
         }
@@ -5150,11 +5171,16 @@ mod helper_sequences {
             let mut fixture = CommonFixture::new().await;
             {
                 let mut state = fixture.api.bot.session.state.lock().await;
-                crate::client::inventory::armor_tests::install(
-                    &mut state.registries,
-                    crate::MinecraftVersion::Java1_21_11,
-                    None,
-                );
+                if !matches!(
+                    case,
+                    script::Case::Move(script::MoveCase::FuelTagsUnavailable)
+                ) {
+                    crate::client::inventory::armor_tests::install(
+                        &mut state.registries,
+                        crate::MinecraftVersion::Java1_21_11,
+                        None,
+                    );
+                }
                 state.registries.finish();
             }
             tokio::time::pause();

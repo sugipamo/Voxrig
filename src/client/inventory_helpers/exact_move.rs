@@ -175,7 +175,7 @@ pub(super) fn plan(
             "move source must contain an item",
         ));
     }
-    let context = ItemContext::new(registries, initial)?;
+    let context = ItemContext::new(registries.clone(), initial)?;
     context.predecessor(&from)?;
     context.predecessor(&to)?;
     let menu = screen
@@ -193,6 +193,15 @@ pub(super) fn plan(
         let slot = [record.source_slot, record.destination_slot][index];
         let before = values[index].clone();
         let cursor_before = cursor.clone();
+        // Fuel admission also depends on received tags, outside the slot table.
+        // Validate every planned cursor before any source PICKUP is submitted.
+        super::super::furnace::validate_fuel(
+            initial.session.version,
+            menu,
+            usize::from(slot),
+            &cursor_before,
+            Some(&registries),
+        )?;
         let equipment =
             matches!(record.source, InventoryClickSource::Player) && matches!(slot, 5..=8 | 45);
         let (after, cursor_after) = if equipment {
