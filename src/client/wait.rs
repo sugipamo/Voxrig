@@ -58,6 +58,8 @@ impl super::Client {
                 if !log.messages.is_empty() {
                     return Ok(log);
                 }
+                #[cfg(test)]
+                tests::before_registration().await;
                 self.wait_after(log.receive_sequence).await?;
             }
         })
@@ -80,6 +82,8 @@ impl super::Client {
                 if done(&capture) {
                     return Ok(capture);
                 }
+                #[cfg(test)]
+                tests::before_registration().await;
                 self.wait_after(capture.player.receive_sequence).await?;
             }
         })
@@ -93,7 +97,7 @@ impl super::Client {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use crate::protocol::{read_packet, write_packet};
     use crate::{Client, ConnectionConfig, ErrorKind, MinecraftVersion};
     use std::time::Duration;
@@ -135,7 +139,110 @@ mod tests {
         assert_eq!(closed.unwrap_err().kind(), ErrorKind::Disconnected);
         server.await.unwrap();
     }
+    struct Boundary {
+        pause: bool,
+        observations: std::cell::Cell<usize>,
+    }
+    tokio::task_local! { static BOUNDARY: Boundary; }
+
+    // Only scoped scenarios yield here. The captured receive sequence must still
+    // detect progress when notify_waiters runs before adapter registration.
+    pub(in crate::client) async fn before_registration() {
+        let pause = BOUNDARY.try_with(|boundary| {
+            boundary.observations.set(boundary.observations.get() + 1);
+            boundary.pause
+        });
+        if matches!(pause, Ok(true)) {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    pub(in crate::client) async fn complete_after_update<T>(
+        race: bool,
+        wait: impl std::future::Future<Output = T>,
+        update: impl std::future::Future<Output = ()>,
+    ) -> T {
+        use std::task::Poll;
+        BOUNDARY
+            .scope(
+                Boundary {
+                    pause: race,
+                    observations: std::cell::Cell::new(0),
+                },
+                async {
+                    let mut wait = std::pin::pin!(wait);
+                    std::future::poll_fn(|cx| {
+                        assert!(wait.as_mut().poll(cx).is_pending());
+                        Poll::Ready(())
+                    })
+                    .await;
+                    // For race=true, paused after the empty observation and before
+                    // registration. Otherwise the adapter's receive wait is Pending.
+                    assert_eq!(BOUNDARY.with(|b| b.observations.get()), 1);
+                    update.await;
+                    wait.await
+                },
+            )
+            .await
+    }
+
     impl Client {
+        pub(crate) async fn assert_common_wait_progress<F: std::future::Future<Output = ()>>(
+            client: &Client,
+            mut update: impl FnMut(Option<[i32; 3]>) -> F,
+        ) {
+            let limit = Duration::from_secs(1);
+            for (race, position) in [(false, [32, 64, 32]), (true, [64, 64, 64])] {
+                let region = crate::Region {
+                    min: position,
+                    max: position,
+                };
+                assert!(
+                    client.capture(region).await.unwrap().world.blocks[0]
+                        .state
+                        .is_none()
+                );
+                let before = client.player_state().await.unwrap();
+                let loaded = complete_after_update(
+                    race,
+                    client.wait_for_loaded(region, limit),
+                    update(Some(position)),
+                )
+                .await
+                .unwrap();
+                assert_eq!(loaded.player.session, before.session);
+                assert_eq!(loaded.player.receive_sequence, before.receive_sequence + 1);
+                assert_eq!(
+                    loaded.world.receive_sequence,
+                    Some(loaded.player.receive_sequence)
+                );
+                assert_eq!(
+                    loaded.world.blocks[0].state.as_ref().unwrap().name,
+                    "minecraft:stone"
+                );
+
+                let cursor = loaded.player.receive_sequence;
+                let chat =
+                    complete_after_update(race, client.wait_for_chat(cursor, limit), update(None))
+                        .await
+                        .unwrap();
+                assert_eq!(chat.session, before.session);
+                assert_eq!(chat.receive_sequence, cursor + 1);
+                assert_eq!(chat.messages.len(), 1);
+                assert_eq!(chat.messages[0].receive_sequence, chat.receive_sequence);
+                assert_eq!(chat.messages[0].kind, crate::client::ChatKind::System);
+                assert!(
+                    client
+                        .chat_after(chat.receive_sequence)
+                        .await
+                        .unwrap()
+                        .messages
+                        .is_empty()
+                );
+            }
+            Client::assert_common_event_wait_progress(client, || update(None)).await;
+        }
+
         // The adapter fixtures supply one loaded stone cell and one received chat.
         // Updating inside the predicate puts progress precisely after capture and
         // before wait_after can register a notification waiter.

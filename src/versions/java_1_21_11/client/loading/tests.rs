@@ -273,3 +273,30 @@ async fn common_state_waits_cover_present_racing_and_closed_state() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn common_waits_complete_pending_and_observation_registration_races() {
+    let (bot, _reader, _peer) = fixture().await;
+    tokio::time::pause();
+    let client = crate::Client::from_java_1_21_11(bot.clone());
+    crate::Client::assert_common_wait_progress(&client, |position| {
+        let bot = bot.clone();
+        async move {
+            let mut state = bot.session.state.lock().await;
+            if let Some(position) = position {
+                state.world.seed_replay_cell(position, 1);
+                state.sequence += 1;
+            } else {
+                state
+                    .receive(
+                        ids::play_clientbound::SYSTEM_CHAT,
+                        &[8, 0, 8, b'p', b'r', b'o', b'g', b'r', b'e', b's', b's', 0],
+                        256,
+                    )
+                    .unwrap();
+            }
+            bot.session.changed.notify_waiters();
+        }
+    })
+    .await;
+}
