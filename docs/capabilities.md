@@ -5,6 +5,11 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 [Client共通化](client-unification.md)を参照してください。下記の追加検査契約は
 `client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。
 
+## 対象範囲
+
+Voxrigの対象はoffline-modeサーバー（`online-mode=false`、`enforce-secure-profile=false`）です。
+Microsoftアカウント認証・online-mode暗号化、および署名付きchat・command
+（chat session、message signature、offlineサーバーで必要な範囲を超えるlast-seen acknowledgement）はスコープ外です。
 
 ## バージョン別の入口
 
@@ -94,7 +99,6 @@ PCM、OGG decode、再生、プレイヤーのマイク入力、voice chat MOD�
 
 ## 未対応
 
-- Microsoft/Mojang認証とonline-mode暗号化
 - 上記の2版以外のprotocol（版間の暗黙フォールバックなし）
 - Forge/Fabric固有handshake
 - GUI/render、画面入力、audio playback

@@ -4,9 +4,15 @@
 全機能群の静的な対応状況は`cargo run --locked --example client_capabilities`でJSONとして取得できます。
 
 Minecraft Java Edition 向けのRust製headless clientライブラリです。
-1.16.1（protocol 736）と1.21.11（protocol 774）を、接続時に版を選ぶ共通の `Client` API で扱います。どちらもoffline-modeです。
+1.16.1（protocol 736）と1.21.11（protocol 774）を、接続時に版を選ぶ共通の `Client` API で扱います。
 
 外部のAI、planner、behavior treeなどに対する「身体」として、Minecraft protocol、状態同期、クライアント物理、構造化された観測、低レベル操作を提供します。経路探索、意味認識、行動計画、長期記憶といった頭脳は利用側へ委譲します。
+
+## 対象範囲
+
+Voxrigの対象はoffline-modeサーバー（`online-mode=false`、`enforce-secure-profile=false`）です。
+Microsoftアカウント認証・online-mode暗号化、および署名付きchat・command
+（chat session、message signature、offlineサーバーで必要な範囲を超えるlast-seen acknowledgement）はスコープ外です。
 
 ```toml
 [dependencies]
@@ -57,7 +63,6 @@ player の接地・回転の由来と同じ捕捉境界の扱いは [player capt
 > 版固有のAPI（`Client::native()`、`voxrig::versions::java_1_16_1` の `Bot` / `BotManager`、
 > `voxrig::versions::java_1_21_11`）は既定では無効の feature `native` の後ろにあり、共通APIへの置き換えが済んだものから削除します。
 > 移行中は `features = ["native"]` を指定してください。対応表は[版固有API（feature `native`）](docs/native-feature.md)にあります。
-> 両版のMicrosoft認証・online-mode暗号化は未対応です。
 
 ## 開発時の確認
 

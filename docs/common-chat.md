@@ -3,10 +3,14 @@
 `Client::send_chat` / `Client::send_command` / `Client::chat_after`は1.16.1・1.21.11の両方で使える。
 ゲームモードに依存しないため、`survival()` / `creative()`ではなく`Client`に置く。
 
+Voxrigの対象はoffline-modeサーバー（`online-mode=false`、`enforce-secure-profile=false`）です。
+Microsoftアカウント認証・online-mode暗号化、および署名付きchat・command
+（chat session、message signature、offlineサーバーで必要な範囲を超えるlast-seen acknowledgement）はスコープ外です。
+
 ## 送信
 
 - `send_chat(message)`: 1～256 UTF-16 code unit（補助文字は2単位）。制御文字・`§`・先頭の`/`は送信前に拒否する。
-  1.21.11では署名なしのchatとして送る（offline-mode、`enforce-secure-profile=false`のサーバーが前提）。
+  1.21.11では署名なしのchatとして送る。
 - `send_command(command)`: 先頭の`/`はあってもなくてもよい。`/`を除いて1～255 UTF-16 code unitで、制御文字・`§`は拒否する。1.21.11は`CHAT_COMMAND`、1.16.1は`/`付きのchatで送る。
 - 戻り値の`DispatchReceipt`は送信の完了だけを示す。サーバーが受理・実行したことは示さない。
   権限不足のcommandは送信に成功し、結果はsystem chatで返る。

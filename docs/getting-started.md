@@ -5,9 +5,13 @@
 - Rust 1.85以上
 - Tokio runtime
 - Minecraft Java Edition 1.16.1 server
-- server設定：`online-mode=false`
+- server設定：`online-mode=false`、`enforce-secure-profile=false`
 
 offline-modeとは認証を省略したMinecraft serverへ接続するという意味であり、serverなしで動作することではありません。
+
+Voxrigの対象はoffline-modeサーバー（`online-mode=false`、`enforce-secure-profile=false`）です。
+Microsoftアカウント認証・online-mode暗号化、および署名付きchat・command
+（chat session、message signature、offlineサーバーで必要な範囲を超えるlast-seen acknowledgement）はスコープ外です。
 
 ## Dependency
 
