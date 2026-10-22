@@ -13,6 +13,9 @@ const CLICK_TIMEOUT: Duration = Duration::from_secs(3);
 /// How long a filled grid may wait for the received result.
 const RESULT_TIMEOUT: Duration = Duration::from_secs(2);
 
+mod exact_move;
+pub use exact_move::{InventoryMoveRecord, InventoryMoveStage};
+
 /// Clicks of one `fill_crafting_grid` and the result the server then showed.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct CraftingFillRecord {
@@ -504,6 +507,200 @@ impl super::Survival {
         })
     }
 }
+
+// All writes below use the existing public click operation and its retained record.
+async fn move_capture(
+    client: &crate::Client,
+) -> Result<(
+    super::PlayerObservation,
+    ScreenObservation,
+    super::registry::ServerRegistryObservation,
+)> {
+    // Separate passive reads must describe the same actual receive boundary.
+    for _ in 0..8 {
+        let player = client.player_state().await?;
+        let screen = client.screen_state().await?;
+        let registries = client.server_registry_state().await?;
+        if player.session == screen.session
+            && player.session == registries.session()
+            && player.receive_sequence == screen.receive_sequence
+            && player.receive_sequence == registries.receive_sequence()
+        {
+            return Ok((player, screen, registries));
+        }
+    }
+    Err(error(
+        ErrorKind::State,
+        "move could not capture one received boundary",
+    ))
+}
+
+async fn refresh_move(client: &crate::Client, record: &mut InventoryMoveRecord) -> Result<()> {
+    let Some(index) = record.active_step else {
+        return Ok(());
+    };
+    let Some(click) = client.survival().inventory_click_record().await? else {
+        return Ok(());
+    };
+    let expected_attempt = record
+        .previous
+        .map_or(Some(1), |id| id.attempt().checked_add(1));
+    if Some(click.id.session()) == record.session
+        && Some(click.mode) == record.mode
+        && Some(click.id.attempt()) == expected_attempt
+        && click.id.close().is_none()
+        && click.source == record.source
+        && click.source_slot == record.plan[index].slot
+        && click.button == InventoryClickButton::Left
+    {
+        record.retain(click);
+    }
+    Ok(())
+}
+
+async fn run_move(
+    client: &crate::Client,
+    mode: super::GameMode,
+    record: &mut InventoryMoveRecord,
+) -> Result<()> {
+    use super::inventory::{InventoryClickStage, click};
+    if record.stage != InventoryMoveStage::Ready {
+        return Err(error(
+            ErrorKind::State,
+            "move record has already been attempted; inspect without replay",
+        ));
+    }
+    record.stage = InventoryMoveStage::Running;
+    let running = exact_move::Running(record);
+    let result = async {
+        let (initial, screen, registries) = move_capture(client).await?;
+        if !matches!(initial.inventory.cursor.as_ref(), Some(v)
+            if v.value == SlotKnowledge::Empty && matches!(v.source, super::ValueSource::Received { .. })) {
+            return Err(error(ErrorKind::State, "move requires an empty received cursor"));
+        }
+        let container = match running.0.source {
+            InventoryClickSource::Player => None,
+            InventoryClickSource::Container { screen: id } => screen.screen.filter(|s| s.id == id),
+        };
+        // Reuse full ordinary admission validation before planning any writes.
+        click::prepare_received((initial.clone(), registries.clone()), mode, running.0.source,
+            running.0.source_slot, InventoryClickButton::Left, 1, container.clone())?;
+        running.0.plan = exact_move::plan(&initial, container.as_ref(), registries, running.0, mode)?;
+        running.0.session = Some(initial.session);
+        running.0.mode = Some(mode);
+        for index in 0..running.0.plan.len() {
+            let step = running.0.plan[index].clone();
+            let (current, screen, registries) = move_capture(client).await?;
+            if current.session != initial.session || current.game_mode != initial.game_mode
+                || current.inventory.player_screen != initial.inventory.player_screen
+                || current.inventory.window_id != initial.inventory.window_id
+                || current.selected_hotbar != initial.selected_hotbar {
+                return Err(error(ErrorKind::State, "move session, screen, mode or selection changed"));
+            }
+            let container = match running.0.source {
+                InventoryClickSource::Player => None,
+                InventoryClickSource::Container { screen: id } => screen.screen.filter(|s| s.id == id),
+            };
+            let preview = click::prepare_received((current, registries), mode, running.0.source,
+                step.slot, InventoryClickButton::Left, 1, container)?;
+            let matches = |click: &InventoryClickRecord| -> Result<bool> {
+                let equal = |a: &SlotKnowledge, b: &SlotKnowledge| -> Result<bool> {
+                    match &click.item_context {
+                        Some(context) => context.equivalent_values(a, b, false),
+                        None => Ok(a == b),
+                    }
+                };
+                Ok(equal(&click.source_before.value, &step.before)?
+                    && equal(&click.cursor_before.value, &step.cursor_before)?
+                    && equal(&click.prediction.source.value, &step.after)?
+                    && equal(&click.prediction.cursor.value, &step.cursor_after)?)
+            };
+            if !matches(&preview)? {
+                return Err(error(ErrorKind::State, "move predecessor changed; inspect cursor without rollback"));
+            }
+            running.0.previous = client.survival().inventory_click_record().await?.map(|c| c.id);
+            running.0.active_step = Some(index);
+            let sent = if mode == super::GameMode::Creative {
+                client.creative().click_inventory(running.0.source, step.slot, InventoryClickButton::Left).await
+            } else {
+                client.survival().click_inventory(running.0.source, step.slot, InventoryClickButton::Left).await
+            };
+            let sent = match sent {
+                Ok(sent) => sent,
+                Err(error) => {
+                    // Includes an admitted but uncertain frame write, without resending.
+                    let _ = refresh_move(client, running.0).await;
+                    return Err(error);
+                }
+            };
+            running.0.retain(sent.clone());
+            if !matches(&sent)? {
+                return Err(error(ErrorKind::State, "move click baseline changed during submission; inspect without rollback"));
+            }
+            let deadline = tokio::time::Instant::now() + CLICK_TIMEOUT;
+            while running.0.clicks.last().expect("retained child").stage == InventoryClickStage::Pending {
+                if tokio::time::Instant::now() >= deadline {
+                    return Err(error(ErrorKind::Timeout, "move child outcome not received; inspect without replay"));
+                }
+                #[cfg(test)]
+                scripted_tests::click_waiting(sent.id);
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                let latest = client.survival().inventory_click_record().await?
+                    .filter(|child| child.id == sent.id)
+                    .ok_or_else(|| error(ErrorKind::State, "move child record replaced; inspect without replay"))?;
+                running.0.retain(latest);
+            }
+            if running.0.clicks.last().expect("retained child").stage != InventoryClickStage::ObservedClicked {
+                return Err(error(ErrorKind::Rejected, "move child requires inspection; inspect cursor without rollback"));
+            }
+            running.0.active_step = None;
+        }
+        running.0.stage = InventoryMoveStage::ObservedMoved;
+        Ok(())
+    }.await;
+    if let Err(error) = &result {
+        running.0.stage = InventoryMoveStage::Stopped;
+        running
+            .0
+            .stop_reason
+            .get_or_insert_with(|| error.to_string());
+    }
+    result
+}
+
+macro_rules! exact_move_methods {
+    ($handle:ty, $mode:expr) => {
+        impl $handle {
+            /// Move/merge a stack or exchange equipment between two explicit slots
+            /// in one UI, starting with an empty received cursor. Preflights at most
+            /// three left PICKUPs with the existing slot policies, then waits up to
+            /// three seconds for each child's `ObservedClicked` before continuing.
+            ///
+            /// The caller owns the record, including after dropping this future.
+            /// Use a fresh record for each invocation. Serialize inventory operations
+            /// on this client until execution and any necessary refresh have finished.
+            /// Cancellation, timeout, uncertainty and screen changes stop the helper;
+            /// it never retries, rolls back or chooses another slot. A stopped helper
+            /// can leave an item on the cursor. Re-observe before taking further action.
+            pub async fn move_inventory(&self, record: &mut InventoryMoveRecord) -> Result<()> {
+                Box::pin(run_move(&self.client, $mode, record)).await
+            }
+
+            /// Read the active child into a caller-owned move record after cancellation
+            /// or timeout. Never submits clicks or resumes the move. Completed child
+            /// histories and the first stopping reason remain unchanged. Call before
+            /// admitting another click, since the adapter retains its latest child.
+            pub async fn refresh_inventory_move(
+                &self,
+                record: &mut InventoryMoveRecord,
+            ) -> Result<()> {
+                refresh_move(&self.client, record).await
+            }
+        }
+    };
+}
+exact_move_methods!(super::Survival, super::GameMode::Survival);
+exact_move_methods!(super::Creative, super::GameMode::Creative);
 
 #[cfg(test)]
 mod tests {

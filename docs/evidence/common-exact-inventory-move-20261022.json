@@ -1,0 +1,969 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "version": "1.21.11",
+  "passed": true,
+  "authority_limits": "Unmodified official loopback server, original packet trace and independent RCON. Live cancellation drops the helper after its first child receipt, leaving the cursor held; the later return is a separate explicit caller click. Partial write cancellation and conflict/timeout cases use constructed packet fixtures, not live packet loss. Existing native slot-policy oracles supply acceptance/capacity/binding semantics; this helper adds no native rules.",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "consumer_binary_sha256": "3d189feb0a499cdf1fb05196f0905fde116da1e219f7de23b0a29e6f8426e80f",
+  "source_manifest_sha256": "74cdb0e1441ae5c7725189040ce9bc56ddc75e67e6bde36c46c1906eb24dd596",
+  "source_sha256": {
+    "src/client/inventory_helpers.rs": "a4ba5154d995bdd406e628c62775fd9ea7461f428b7b7d02790ec3bcf33624a5",
+    "src/client/inventory_helpers/exact_move.rs": "22f853a4da042f5b78fc7cfb919022069a989ff325d6ca6ec3292322588012d6",
+    "src/client/inventory_helpers/scripted_tests.rs": "9a518de91e6fd014369da37b8b0abb3af7a0dc032d3fa23b10c2d1cce3fce569",
+    "src/client/inventory/slot_policy.rs": "9175d65c4150b4031757dc956d5aa88528cc8e71b635b66b4aa36213134e065e",
+    "src/client/inventory/click.rs": "9dbe6ea21a20005559637ee8695c34e070817a64b86b17b2bfdaf63d9d765368",
+    "src/versions/java_1_21_11/client/operations/inventory/click.rs": "615bfd479af0d294c364180c0f555fa5c94c26818123c5d0591736e3551c57c1",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "f5cb6107a9f92cd0fe1a02d5cec306f28716a1a2058cbfb3e4f6bad43cb9a75b",
+    "src/versions/java_1_16_1/client/common_inventory.rs": "ce2c5e701c396cf46a977b7d60016a2fb8f56858cb93a71cb5f7d05c7c707615",
+    "examples/climbing_control_probe.rs": "c88b45ecf4cccd072ebd6af22fc2db1675d1d214cc1183edc91c154d181d17a5",
+    "scripts/run_exact_inventory_move_live.py": "21cbf78c872a6fad56658b87c6181c80e2e79f91a7e09bff08ec25d68164bbfc",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
+  },
+  "artifacts_sha256": {
+    "inputs.json": "74cdb0e1441ae5c7725189040ce9bc56ddc75e67e6bde36c46c1906eb24dd596",
+    "packets.jsonl": "1f3e919bfa46c737b39a86ea09f47c3d160b97d8958e85e004fbba54522c42b5",
+    "probe.log": "e2b05996df9c91010caf5241a6ca6059fe6922a4cfc0271fa3e1782779e73cfc",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "report.json": "62374157c7227d25d4b3a3a17f615e3c990558c57726be444105c16cdb886116",
+    "server.log": "100cc0ccb57cf00c68bf4de23056550e94acf5d2d4f06543a18d6d67a66e7589"
+  },
+  "trace_errors": [],
+  "item_data_by_sha256": {
+    "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c": {
+      "kind": "modern_components",
+      "patch": {
+        "added": [
+          {
+            "bytes": [
+              7
+            ],
+            "definition": {
+              "id": {
+                "kind": "ItemComponent",
+                "value": 3,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:damage"
+            }
+          },
+          {
+            "bytes": [
+              10,
+              3,
+              0,
+              10,
+              101,
+              120,
+              97,
+              99,
+              116,
+              95,
+              109,
+              111,
+              118,
+              101,
+              0,
+              0,
+              0,
+              42,
+              0
+            ],
+            "definition": {
+              "id": {
+                "kind": "ItemComponent",
+                "value": 0,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:custom_data"
+            }
+          }
+        ],
+        "removed": []
+      }
+    },
+    "e79e4d57ebe0b3afdea623b9da0bc75271c8e4a42cff58b474637669b887227f": {
+      "kind": "modern_components",
+      "patch": {
+        "added": [
+          {
+            "bytes": [
+              7
+            ],
+            "definition": {
+              "id": {
+                "kind": "ItemComponent",
+                "value": 3,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:damage"
+            }
+          },
+          {
+            "bytes": [
+              10,
+              3,
+              0,
+              10,
+              101,
+              120,
+              97,
+              99,
+              116,
+              95,
+              109,
+              111,
+              118,
+              101,
+              0,
+              0,
+              0,
+              42,
+              0
+            ],
+            "definition": {
+              "id": {
+                "kind": "ItemComponent",
+                "value": 0,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:custom_data"
+            }
+          },
+          {
+            "bytes": [
+              1,
+              2,
+              1
+            ],
+            "definition": {
+              "id": {
+                "kind": "ItemComponent",
+                "value": 13,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:enchantments"
+            }
+          }
+        ],
+        "removed": []
+      }
+    },
+    "511ce10bdac01f47c1a99d96a621bf23090bef46a375546f18155726748e9622": {
+      "kind": "modern_components",
+      "patch": {
+        "added": [
+          {
+            "bytes": [
+              7
+            ],
+            "definition": {
+              "id": {
+                "kind": "ItemComponent",
+                "value": 3,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:damage"
+            }
+          },
+          {
+            "bytes": [
+              10,
+              3,
+              0,
+              10,
+              101,
+              120,
+              97,
+              99,
+              116,
+              95,
+              109,
+              111,
+              118,
+              101,
+              0,
+              0,
+              0,
+              43,
+              0
+            ],
+            "definition": {
+              "id": {
+                "kind": "ItemComponent",
+                "value": 0,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:custom_data"
+            }
+          }
+        ],
+        "removed": []
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "occupied_equipment_exchange",
+      "mode": "survival",
+      "destination": 5,
+      "binding": false,
+      "stage": "observed_moved",
+      "completed_steps": 3,
+      "error": null,
+      "stop_reason": null,
+      "children": [
+        {
+          "id": {
+            "attempt": 1,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 128,
+          "source_receipt": {
+            "value": "empty",
+            "sequence": 129
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:diamond_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 129
+          }
+        },
+        {
+          "id": {
+            "attempt": 2,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 5,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 129,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:diamond_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 131
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:iron_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 131
+          }
+        },
+        {
+          "id": {
+            "attempt": 3,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 131,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:iron_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 132
+          },
+          "cursor_receipt": {
+            "value": "empty",
+            "sequence": 132
+          }
+        }
+      ],
+      "cursor": {
+        "value": "empty",
+        "sequence": 132
+      },
+      "frames": [
+        {
+          "ordinal": 149,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        },
+        {
+          "ordinal": 151,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "f86ed6fe9d2ed3f7f47173dec2b9f2c2491fb217a1da1e0f30126afcad17c8a8",
+          "body_sha256": "0af69fc776f69eec4b68853316a041d0fdaea4665ec299fbc9283560a0a6f667",
+          "body_hex": "0000000500000000"
+        },
+        {
+          "ordinal": 154,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        }
+      ],
+      "rcon_equipment": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, id: \"minecraft:diamond_helmet\"}",
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, Slot: 9b, id: \"minecraft:iron_helmet\"}]"
+    },
+    {
+      "name": "occupied_equipment_exchange",
+      "mode": "survival",
+      "destination": 45,
+      "binding": false,
+      "stage": "observed_moved",
+      "completed_steps": 3,
+      "error": null,
+      "stop_reason": null,
+      "children": [
+        {
+          "id": {
+            "attempt": 4,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 141,
+          "source_receipt": {
+            "value": "empty",
+            "sequence": 142
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:iron_pickaxe",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 142
+          }
+        },
+        {
+          "id": {
+            "attempt": 5,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 45,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 143,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:iron_pickaxe",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 144
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:shield",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 144
+          }
+        },
+        {
+          "id": {
+            "attempt": 6,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 144,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:shield",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 145
+          },
+          "cursor_receipt": {
+            "value": "empty",
+            "sequence": 145
+          }
+        }
+      ],
+      "cursor": {
+        "value": "empty",
+        "sequence": 145
+      },
+      "frames": [
+        {
+          "ordinal": 165,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        },
+        {
+          "ordinal": 168,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "db53c75e6ec1348411b292cb618fc268b0481a32d6bf5c816f51a4d6cfa534eb",
+          "body_sha256": "48aa61aa65f505850b3a7b5f4a613d8106af42c38fde7ac67fc5e52b5cf44ded",
+          "body_hex": "0000002d00000000"
+        },
+        {
+          "ordinal": 170,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        }
+      ],
+      "rcon_equipment": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, id: \"minecraft:iron_pickaxe\"}",
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, Slot: 9b, id: \"minecraft:shield\"}]"
+    },
+    {
+      "name": "occupied_equipment_exchange",
+      "mode": "survival",
+      "destination": 5,
+      "binding": true,
+      "stage": "stopped",
+      "completed_steps": 0,
+      "error": "move PICKUP would have no effect; no packet submitted",
+      "stop_reason": "move PICKUP would have no effect; no packet submitted",
+      "children": [],
+      "cursor": {
+        "value": "empty",
+        "sequence": 145
+      },
+      "frames": [],
+      "rcon_equipment": "ClimbingProbe has the following entity data: {components: {\"minecraft:enchantments\": {\"minecraft:binding_curse\": 1}, \"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, id: \"minecraft:iron_helmet\"}",
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, Slot: 9b, id: \"minecraft:diamond_helmet\"}]"
+    },
+    {
+      "name": "occupied_equipment_exchange",
+      "mode": "creative",
+      "destination": 5,
+      "binding": false,
+      "stage": "observed_moved",
+      "completed_steps": 3,
+      "error": null,
+      "stop_reason": null,
+      "children": [
+        {
+          "id": {
+            "attempt": 7,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 162,
+          "source_receipt": {
+            "value": "empty",
+            "sequence": 163
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:diamond_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 163
+          }
+        },
+        {
+          "id": {
+            "attempt": 8,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 5,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 163,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:diamond_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 165
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:iron_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 165
+          }
+        },
+        {
+          "id": {
+            "attempt": 9,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 167,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:iron_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 168
+          },
+          "cursor_receipt": {
+            "value": "empty",
+            "sequence": 168
+          }
+        }
+      ],
+      "cursor": {
+        "value": "empty",
+        "sequence": 168
+      },
+      "frames": [
+        {
+          "ordinal": 189,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        },
+        {
+          "ordinal": 191,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "f86ed6fe9d2ed3f7f47173dec2b9f2c2491fb217a1da1e0f30126afcad17c8a8",
+          "body_sha256": "0af69fc776f69eec4b68853316a041d0fdaea4665ec299fbc9283560a0a6f667",
+          "body_hex": "0000000500000000"
+        },
+        {
+          "ordinal": 196,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        }
+      ],
+      "rcon_equipment": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, id: \"minecraft:diamond_helmet\"}",
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, Slot: 9b, id: \"minecraft:iron_helmet\"}]"
+    },
+    {
+      "name": "occupied_equipment_exchange",
+      "mode": "creative",
+      "destination": 45,
+      "binding": false,
+      "stage": "observed_moved",
+      "completed_steps": 3,
+      "error": null,
+      "stop_reason": null,
+      "children": [
+        {
+          "id": {
+            "attempt": 10,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 175,
+          "source_receipt": {
+            "value": "empty",
+            "sequence": 176
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:iron_pickaxe",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 176
+          }
+        },
+        {
+          "id": {
+            "attempt": 11,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 45,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 177,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:iron_pickaxe",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 178
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:shield",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 178
+          }
+        },
+        {
+          "id": {
+            "attempt": 12,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 178,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:shield",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 179
+          },
+          "cursor_receipt": {
+            "value": "empty",
+            "sequence": 179
+          }
+        }
+      ],
+      "cursor": {
+        "value": "empty",
+        "sequence": 179
+      },
+      "frames": [
+        {
+          "ordinal": 205,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        },
+        {
+          "ordinal": 208,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "db53c75e6ec1348411b292cb618fc268b0481a32d6bf5c816f51a4d6cfa534eb",
+          "body_sha256": "48aa61aa65f505850b3a7b5f4a613d8106af42c38fde7ac67fc5e52b5cf44ded",
+          "body_hex": "0000002d00000000"
+        },
+        {
+          "ordinal": 210,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        }
+      ],
+      "rcon_equipment": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, id: \"minecraft:iron_pickaxe\"}",
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, Slot: 9b, id: \"minecraft:shield\"}]"
+    },
+    {
+      "name": "occupied_equipment_exchange",
+      "mode": "creative",
+      "destination": 5,
+      "binding": true,
+      "stage": "observed_moved",
+      "completed_steps": 3,
+      "error": null,
+      "stop_reason": null,
+      "children": [
+        {
+          "id": {
+            "attempt": 13,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 186,
+          "source_receipt": {
+            "value": "empty",
+            "sequence": 187
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:diamond_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 187
+          }
+        },
+        {
+          "id": {
+            "attempt": 14,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 5,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 187,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:diamond_helmet",
+              "count": 1,
+              "data_sha256": "f16c2caccc709862ab3034b8191853ba9af6efc251820983d65cefdcc952885c"
+            },
+            "sequence": 189
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:iron_helmet",
+              "count": 1,
+              "data_sha256": "e79e4d57ebe0b3afdea623b9da0bc75271c8e4a42cff58b474637669b887227f"
+            },
+            "sequence": 189
+          }
+        },
+        {
+          "id": {
+            "attempt": 15,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 189,
+          "source_receipt": {
+            "value": {
+              "name": "minecraft:iron_helmet",
+              "count": 1,
+              "data_sha256": "e79e4d57ebe0b3afdea623b9da0bc75271c8e4a42cff58b474637669b887227f"
+            },
+            "sequence": 190
+          },
+          "cursor_receipt": {
+            "value": "empty",
+            "sequence": 190
+          }
+        }
+      ],
+      "cursor": {
+        "value": "empty",
+        "sequence": 190
+      },
+      "frames": [
+        {
+          "ordinal": 219,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        },
+        {
+          "ordinal": 221,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "f86ed6fe9d2ed3f7f47173dec2b9f2c2491fb217a1da1e0f30126afcad17c8a8",
+          "body_sha256": "0af69fc776f69eec4b68853316a041d0fdaea4665ec299fbc9283560a0a6f667",
+          "body_hex": "0000000500000000"
+        },
+        {
+          "ordinal": 224,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        }
+      ],
+      "rcon_equipment": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, id: \"minecraft:diamond_helmet\"}",
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:enchantments\": {\"minecraft:binding_curse\": 1}, \"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 42}}, count: 1, Slot: 9b, id: \"minecraft:iron_helmet\"}]"
+    },
+    {
+      "name": "cancelled_after_first",
+      "mode": "survival",
+      "destination": 8,
+      "binding": false,
+      "stage": "stopped",
+      "completed_steps": 1,
+      "error": null,
+      "stop_reason": "move future cancelled; inspect child record and cursor",
+      "children": [
+        {
+          "id": {
+            "attempt": 16,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "slot": 9,
+          "stage": "observed_clicked",
+          "dispatched": true,
+          "after_sequence": 201,
+          "source_receipt": {
+            "value": "empty",
+            "sequence": 202
+          },
+          "cursor_receipt": {
+            "value": {
+              "name": "minecraft:diamond_boots",
+              "count": 1,
+              "data_sha256": "511ce10bdac01f47c1a99d96a621bf23090bef46a375546f18155726748e9622"
+            },
+            "sequence": 202
+          }
+        }
+      ],
+      "cursor": {
+        "value": {
+          "name": "minecraft:diamond_boots",
+          "count": 1,
+          "data_sha256": "511ce10bdac01f47c1a99d96a621bf23090bef46a375546f18155726748e9622"
+        },
+        "sequence": 202
+      },
+      "frames": [
+        {
+          "ordinal": 237,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "a5284d221031209df8324a43eae5c4492150bd13f3e06e79f83bf55d24855af0",
+          "body_sha256": "3ab5c46f74b1fb1d7aad6dd04a45c41c7f0b7e4b5d70001b997272cbd44d6492",
+          "body_hex": "0000000900000000"
+        }
+      ],
+      "rcon_native": "ClimbingProbe has the following entity data: [{components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {exact_move: 43}}, count: 1, Slot: 9b, id: \"minecraft:diamond_boots\"}]",
+      "separate_caller_return_id": {
+        "attempt": 17,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      }
+    }
+  ]
+}
