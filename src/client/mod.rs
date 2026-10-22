@@ -22,6 +22,8 @@ pub(crate) mod books;
 pub mod chat;
 pub mod events;
 pub use events::{ClientEvent, EventKind, EventLog};
+pub mod resource_pack;
+pub use resource_pack::ResourcePackRequest;
 mod wait;
 pub use chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
 mod capabilities;
@@ -248,6 +250,7 @@ pub mod prelude {
         RegistryKind, ServerRegistryEntry, ServerRegistryId, ServerRegistryObservation,
         ServerRegistryStamp, ServerRegistryTags,
     };
+    pub use super::resource_pack::ResourcePackRequest;
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, CapturedSurvivalScene, MiningEstimate, MiningId,
         MiningProfileRecovery, MiningRecord, MiningRecoveryAttempt, MiningRecoveryEvidence,

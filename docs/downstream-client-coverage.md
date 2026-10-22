@@ -87,6 +87,10 @@ chunk列と受信光は[common-chunks](common-chunks.md)、dynamic registryは
 [common-server-registries](common-server-registries.md)に契約がある。
 これらは独立のFeature名を持たず、上記のworld／registry観測から読む。
 
+Java 1.21.11の[resource-pack negotiation](common-resource-packs.md)はconfiguration・playで
+要求UUIDへ自動応答し、共通の`resource_pack_request()`と`ResourcePackRequested`で受信事実を公開する。
+この観測は1.21.11限定で、download・描画と1.16.1の共通観測は後続範囲。
+
 ## 共通化の残件
 
 利用側の具体的な移行阻害項目を先に扱う。継続操作の停止／再開で古い速度を再適用し向きを0へ戻す
