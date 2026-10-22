@@ -678,3 +678,154 @@ async fn selected_drop_cancelled_during_resync_retains_complete_drop_without_rep
     assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
     f.stop().await;
 }
+
+#[tokio::test]
+async fn selected_drop_after_local_close_completes_from_actual_full_resync() {
+    let mut f = fixture().await;
+    let client = f.client();
+    let opening = f.open_swap_container().await;
+    assert!(client.survival().drop_selected(Amount::One).await.is_err());
+    let closed = client.survival().close_container(opening).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let record = client.survival().drop_selected(Amount::One).await.unwrap();
+    assert!(matches!(record.initial.inventory.player_screen,
+        Some(crate::client::container::PlayerScreenAccess::SubmittedClose { close }) if close == closed.id));
+    assert_ne!(record.initial.inventory.window_id, Some(0));
+    read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
+    let mut inventory = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .clone();
+    let crate::client::SlotKnowledge::Item { item } = &record.expected_after else {
+        panic!("fixture must leave a nonempty selected stack")
+    };
+    // The foreign menu did not report player crafting/armor slots. The server's
+    // full player contents now supplies those actual empty values as well.
+    for slot in &mut inventory.slots {
+        if matches!(slot, InventorySlot::Unavailable) {
+            *slot = InventorySlot::Empty;
+        }
+    }
+    inventory.slots[usize::from(record.main_slot)] = plain("dirt", item.count.try_into().unwrap());
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+        .await;
+    let complete = client
+        .survival()
+        .selected_drop_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(complete.id, record.id);
+    assert_eq!(complete.stage, Stage::ObservedDecreased);
+    assert_eq!(complete.main_receipt.unwrap().value, record.expected_after);
+    assert_eq!(
+        client.player_state().await.unwrap().inventory.window_id,
+        Some(0)
+    );
+    f.api.bot.session.ledger.cut(false).wait().await.unwrap();
+    assert!(
+        timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn selected_drop_pending_reconfiguration_and_disconnect_keep_inspection() {
+    for reconfigure in [false, true] {
+        let mut f = fixture().await;
+        let client = f.client();
+        let record = client.survival().drop_selected(Amount::All).await.unwrap();
+        read_packet(&mut f.peer, None).await.unwrap();
+        read_resync(&mut f.peer).await;
+        if reconfigure {
+            f.receive(ids::play_clientbound::START_CONFIGURATION, &[])
+                .await;
+            assert_eq!(
+                read_packet(&mut f.peer, None).await.unwrap().0,
+                ids::play_serverbound::CONFIGURATION_ACKNOWLEDGED
+            );
+        } else {
+            f.api.bot.disconnect().await.unwrap();
+        }
+        let latest = client
+            .survival()
+            .selected_drop_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, record.id);
+        assert!(latest.send.dispatched && latest.send.resync_dispatched);
+        assert_eq!(latest.stage, Stage::RequiresInspection);
+        assert!(latest.main_receipt.is_none());
+        assert!(client.survival().drop_selected(Amount::All).await.is_err());
+        assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+        assert_eq!(
+            serde_json::to_value(client.survival().selected_drop_record().await.unwrap()).unwrap(),
+            serde_json::to_value(Some(latest)).unwrap()
+        );
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn selected_drop_partial_resync_write_never_claims_received_completion() {
+    let f = fixture().await;
+    let client = f.client();
+    let control = crate::client::ledger::testing::Control::default();
+    f.api
+        .bot
+        .session
+        .writer
+        .lock()
+        .await
+        .stream
+        .test_replace(control.writer());
+    // Full drop frame, then only the first byte of the no-op resync frame.
+    control.release(14, true);
+    let ops = client.survival();
+    let waiter = tokio::spawn(async move { ops.drop_selected(Amount::One).await });
+    control.until(|w| w.bytes().len() == 14).await;
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    let mut record = client
+        .survival()
+        .selected_drop_record()
+        .await
+        .unwrap()
+        .unwrap();
+    // The uncertain transport has stopped its reader. Even a constructed fresh
+    // exact decrease must not promote this retained intent to completion.
+    let mut current = record.initial.clone();
+    current.receive_sequence += 1;
+    current.inventory.slots[usize::from(record.main_slot)] = Some(crate::client::received(
+        record.expected_after.clone(),
+        current.receive_sequence,
+    ));
+    let owner = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .registries
+        .capture(current.session, current.receive_sequence);
+    crate::client::inventory::drop::receive(&mut record, &current, &owner);
+    assert!(record.send.dispatched);
+    assert!(!record.send.resync_dispatched);
+    assert_eq!(record.stage, Stage::RequiresInspection);
+    assert!(record.main_receipt.is_none());
+    assert!(client.survival().drop_selected(Amount::One).await.is_err());
+    assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+    assert_eq!(control.bytes().len(), 14);
+    f.stop().await;
+}

@@ -50,6 +50,9 @@ slot -999の画面外dropとは異なり、slot -1ではitem/cursorを動かさ�
 構成packet試験は両mode、1個・最終1個・全量、禁止mode、空stack、古い/未受信値、
 item data保持と不一致、競合と復元、取消・部分write、両方向の排他、ledger、
 entity通知非ACK、full contentsとcursor競合を検査する。
+close後はplayer画面の実full resyncで完了できることを検査する。
+未完了中の実configuration移行・切断、drop完全送信後のresync部分writeは、
+元record・inspection・失敗ledgerを保持することを検査する。
 `scripts/export_selected_drop.py` / `ExportSelectedDrop.java`は未変更公式1.21.11 codecで
 両actionのsequence境界10件とresync frameを往復し、`data/client_api/selected_drop_*`を生成する。
 既存の`ExportRegularClicks.java`の観測contextを使い、native menu全slotとcursorが
