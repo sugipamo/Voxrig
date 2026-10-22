@@ -21,6 +21,7 @@ Microsoftアカウント認証・online-mode暗号化、および署名付きcha
 - [共通chat・command](common-chat.md)
 - [共通の待機API](common-waits.md)
 - [共通のchange通知（event）](common-events.md)
+- [Code of conductの自動accept（Java 1.21.11）](common-code-of-conduct.md)
 - [共通のblock検索とraycast](common-blocks.md)
 - [ゲームモードをまたぐ基本操作](common-basic-actions.md)
 - [共通のchunk列（block stateと光）](common-chunks.md)

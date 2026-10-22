@@ -68,6 +68,9 @@ pub enum EventKind {
         /// Server-supplied UUID in network byte order, scoped to this connection.
         uuid: [u8; 16],
     },
+    /// Java 1.21.11 code of conduct received during configuration; read the latest
+    /// text with `Client::code_of_conduct`. This is not an acceptance receipt.
+    CodeOfConductReceived,
     /// The connection closed. No later event follows; the server's reason, when it
     /// sent one, is `Client::disconnect_reason`.
     Disconnected,

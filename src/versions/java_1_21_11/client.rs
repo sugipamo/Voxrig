@@ -71,6 +71,7 @@ struct State {
     /// Text of the last received KICK_DISCONNECT.
     disconnect_reason: Option<crate::client::ui::UiText>,
     resource_pack_request: Option<crate::client::ObservedValue<crate::client::ResourcePackRequest>>,
+    code_of_conduct: Option<crate::client::ObservedValue<String>>,
     loading: loading::InteractionLoading,
     motion: motion::OwnMotion,
     identity: Option<LoginIdentity>,
@@ -139,6 +140,7 @@ impl Default for State {
             death_message: None,
             disconnect_reason: None,
             resource_pack_request: None,
+            code_of_conduct: None,
             loading: loading::InteractionLoading::default(),
             motion: motion::OwnMotion::default(),
             identity: None,
@@ -909,7 +911,18 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
         }
         input::DISCONNECT => bail!("server disconnected during configuration"),
         input::TRANSFER => bail!("server transfer requires a new explicitly configured connection"),
-        input::CODE_OF_CONDUCT => bail!("server requires code-of-conduct acceptance"),
+        input::CODE_OF_CONDUCT => {
+            // ClientboundCodeOfConductPacket: ByteBufCodecs.STRING_UTF8.
+            // ServerboundAcceptCodeOfConductPacket: a unit codec (empty body).
+            let text = r.string()?;
+            r.end()?;
+            state.code_of_conduct = Some(crate::client::received(text, state.sequence));
+            state.events.record(
+                state.sequence,
+                crate::client::EventKind::CodeOfConductReceived,
+            );
+            responses.push((output::ACCEPT_CODE_OF_CONDUCT, Vec::new()));
+        }
         input::ADD_RESOURCE_PACK => {
             return resource_pack::add(state, payload, output::RESOURCE_PACK_RECEIVE);
         }
@@ -1396,6 +1409,8 @@ fn apply_play(
 }
 
 #[cfg(test)]
+mod code_of_conduct_tests;
+#[cfg(test)]
 mod mining_native_trials;
 #[cfg(test)]
 mod movement_native_trials;
@@ -1407,6 +1422,9 @@ mod placement_native_trials;
 mod tests;
 
 impl crate::client::adapter::EventOps for operations::Operations {
+    async fn code_of_conduct(&self) -> Result<Option<crate::client::ObservedValue<String>>> {
+        Ok(self.bot.session.state.lock().await.code_of_conduct.clone())
+    }
     async fn resource_pack_request(
         &self,
     ) -> Result<Option<crate::client::ObservedValue<crate::client::ResourcePackRequest>>> {

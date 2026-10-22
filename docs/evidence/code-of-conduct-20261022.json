@@ -1,0 +1,175 @@
+{
+  "date": "2026-10-22",
+  "result": "PASS",
+  "base_commit": "9dfad1c3ce274a356a5bf007f977a2ddb0f52e0b",
+  "server": {
+    "version": "1.21.11",
+    "jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+    "properties": {
+      "server-ip": "127.0.0.1",
+      "server-port": "56483",
+      "online-mode": "false",
+      "enforce-secure-profile": "false",
+      "enable-code-of-conduct": "true",
+      "view-distance": "2",
+      "simulation-distance": "2",
+      "gamemode": "creative",
+      "level-type": "minecraft:flat",
+      "generate-structures": "false",
+      "spawn-protection": "0",
+      "max-players": "2"
+    },
+    "disposable_copy": true,
+    "conduct_file": "codeofconduct/en_us.txt",
+    "conduct_file_text": "Be kind.\n建築を大切に 😀\n"
+  },
+  "transport": "byte-for-byte PacketTraceProxy; original frames forwarded without injection",
+  "probe_stdout": [
+    "CONDUCT {\"value\":\"Be kind.\\n建築を大切に 😀\",\"source\":{\"kind\":\"received\",\"sequence\":28}}",
+    "READY sequence=57",
+    "STAY_CONNECTED seconds=35 sequence=1241",
+    "PASS receipt readable after disconnect"
+  ],
+  "received_conduct": {
+    "value": "Be kind.\n建築を大切に 😀",
+    "source": {
+      "kind": "received",
+      "sequence": 28
+    }
+  },
+  "conduct_frames": [
+    {
+      "ordinal": 35,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "configuration",
+      "packet_id": 19,
+      "body_length": 33,
+      "wire_sha256": "46ae85086d1df835eba1fb0b45b4828a092eb7252ccb96b16cfbb1f0c3ab6e22",
+      "body_sha256": "5cec9d32f3ffc785dc7c36aa799dce904086ea67599333164b211fd131004dc5",
+      "body_hex": "204265206b696e642e0ae5bbbae7af89e38292e5a4a7e58887e381ab20f09f9880"
+    },
+    {
+      "ordinal": 36,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "configuration",
+      "packet_id": 9,
+      "body_length": 0,
+      "wire_sha256": "717c8babc979bfcae5b0c9d4f1209468d1a9f7c6eceea310c14c21930c40a1f3",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "body_hex": ""
+    }
+  ],
+  "configuration_finish_frames": [
+    {
+      "ordinal": 37,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "configuration",
+      "packet_id": 3,
+      "body_length": 0,
+      "wire_sha256": "1d9b023eb0fffb1b54329ef89e0fd31348d5cd1c79ed747468f433f206c40e49",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "body_hex": ""
+    },
+    {
+      "ordinal": 38,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "configuration",
+      "packet_id": 3,
+      "body_length": 0,
+      "wire_sha256": "1d9b023eb0fffb1b54329ef89e0fd31348d5cd1c79ed747468f433f206c40e49",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "body_hex": ""
+    }
+  ],
+  "play_keepalive_frames": [
+    {
+      "ordinal": 321,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 43,
+      "body_length": 8,
+      "wire_sha256": "3e50f6dc08bac78793d6f8ec527d1ac11bfe63237033b1b85e6a57c5074d694f",
+      "body_sha256": "543ed833271e0294be2a3f7de1a201f9148d3d632eef94d4195810f909732387",
+      "body_hex": "000000000261b0db"
+    },
+    {
+      "ordinal": 322,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "play",
+      "packet_id": 27,
+      "body_length": 8,
+      "wire_sha256": "fa455e33ad633b7ecee67a354572e7438dd21bc7d1958ac83c1f039eb7fab97d",
+      "body_sha256": "543ed833271e0294be2a3f7de1a201f9148d3d632eef94d4195810f909732387",
+      "body_hex": "000000000261b0db"
+    },
+    {
+      "ordinal": 1072,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 43,
+      "body_length": 8,
+      "wire_sha256": "8fc2c615b260b9b351ee6c5e0267ad6f4bbe735007ce4bb6a01e5d9ddbb90127",
+      "body_sha256": "60d10792b34232362b8ad54ea5b681aea92cba50a56ae9997ed227baea3a5588",
+      "body_hex": "000000000261eb73"
+    },
+    {
+      "ordinal": 1073,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "play",
+      "packet_id": 27,
+      "body_length": 8,
+      "wire_sha256": "c3b3f64f73800c1ae3ff191ef8994bcc1e82098d9381259cd77dbbe56d23b038",
+      "body_sha256": "60d10792b34232362b8ad54ea5b681aea92cba50a56ae9997ed227baea3a5588",
+      "body_hex": "000000000261eb73"
+    }
+  ],
+  "observed": [
+    "exact multiline UTF-8 conduct text and receive-sequence event match",
+    "clientbound 0x13 followed by serverbound 0x09 with empty payload",
+    "configuration finish exchange after conduct acceptance",
+    "play readiness maintained for 35 seconds with receive progress and keepalive",
+    "last received conduct remains readable after disconnect"
+  ],
+  "limits": [
+    "automatic protocol acceptance; no manual review gate",
+    "reconfiguration and malformed packets covered by unit tests",
+    "Microsoft authentication and signing out of scope"
+  ],
+  "proxy_errors": [],
+  "cleanup": {
+    "server_stopped": true,
+    "server_log_tail": [
+      "[15:12:57] [Server thread/INFO]: Stopping server",
+      "[15:12:57] [Server thread/INFO]: Saving players",
+      "[15:12:57] [Server thread/INFO]: Saving worlds",
+      "[15:12:57] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld",
+      "[15:13:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end",
+      "[15:13:08] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether",
+      "[15:13:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved",
+      "[15:13:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved",
+      "[15:13:08] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved",
+      "[15:13:08] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved"
+    ]
+  },
+  "source_sha256": {
+    "src/versions/java_1_21_11/client.rs": "13cfe6e808b3d28f7b269946b7572c3b89cbd9cb797d0999edad25557e722ba8",
+    "src/client/code_of_conduct.rs": "c2a7c0612ba31c7a35bd36a49158c31213dcd9bad781bcf41f0b43beda325d4b",
+    "src/client/events.rs": "6138295fe350156bf8e29aa9186dae7890162909368c17a48d19ef792adc4c22",
+    "examples/code_of_conduct_probe.rs": "13af7595b9c9bf1954aefe289165232be17ea1bc310c4bbf6267c816c2ed9a33"
+  },
+  "protocol_source": {
+    "server_mappings_url": "https://piston-data.mojang.com/v1/objects/5621e9253f05fd57872bbe7f8ddf5f9a7d525955/server.txt",
+    "server_mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+    "verification": "javap -c -p aci acr ayr aam ary against the official server JAR and Mojang mappings",
+    "clientbound": "ClientboundCodeOfConductPacket (aci), ByteBufCodecs.STRING_UTF8 (aam.p), 32767 UTF-16 code units",
+    "serverbound": "ServerboundAcceptCodeOfConductPacket (acr), StreamCodec.unit(INSTANCE), no fields"
+  }
+}
