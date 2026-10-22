@@ -95,8 +95,12 @@ chunk列と受信光は[common-chunks](common-chunks.md)、dynamic registryは
 armor／offhandの厳密なPICKUP／交換は[Issue #38](https://github.com/sugipamo/Voxrig/issues/38)のP1。
 読取時計の[Issue #36](https://github.com/sugipamo/Voxrig/issues/36)はPR #35の統合で解決済み。
 
+Voxrigの対象はoffline-modeサーバー（`online-mode=false`、`enforce-secure-profile=false`）です。
+Microsoftアカウント認証・online-mode暗号化、および署名付きchat・command
+（chat session、message signature、offlineサーバーで必要な範囲を超えるlast-seen acknowledgement）はスコープ外です。
+
 優先度は実装順の提案。P1は誤った利用判断を防ぐ観測と在庫、P2は用途別の拡張、
-P3は現在のoffline二版以外の導入条件。各項目内でも場面を分けて実装・検証する。
+P3は現在のoffline二版以外の版対応。各項目内でも場面を分けて実装・検証する。
 以下のIssue一覧は網羅のための追跡であり、すべてを次のPRで一括実装する宣言ではない。
 
 | ID・優先度 | 利用側に必要な残件 | 現状の根拠と受入条件 |
@@ -108,7 +112,7 @@ P3は現在のoffline二版以外の導入条件。各項目内でも場面を�
 | MOVEMENT / P2 | 一般entityの姿勢／scale／補間・押し合い、別姿勢／追加の乗り物。固定形状の車両衝突、泡・slime／bed／honey／cobwebと受信ブーツ・水中属性の補正は対応済み | [vehicles](common-vehicles.md)・[control](common-control.md)・[physics](physics-engine.md)。装備は[11場面330 tickと両版13項目](evidence/common-equipment-movement-20261010.json)、車両衝突は[12実行480 tickと21項目、既存トロッコ8項目](evidence/common-boat-collisions-20261010.json)で検証。受信target・元送信packet＋独立RCON、neutral／取消／強制除外と再送禁止を照合。Adventure／Creative地上held controlは[原版720 tickと両版54項目](evidence/common-ground-modes-20261011.json)で検証済み。Creative／Spectatorの連続飛行は[原版1,424 tickと両版70項目](evidence/common-held-flight-20261011.json)で検証済み。姿勢の受信保持は[原版25姿勢と両版8項目](evidence/common-entity-poses-20261011.json)で検証済み。未対応scaleを受信したheld controlの終了・復元後の明示再開は[両版22項目](evidence/common-control-scale-20261011.json)で検証済み |
 | INTERACTION / P2 | 姿勢・属性に合うreach／eye、entity ray／visibilityと位置指定interaction、非cube／waterloggedなどの確認付き設置と結果待機 | `use_on_block`は汎用送信として既存。確認付き操作への拡張を混同しない。未知shape／動くblock／欠測／変更競合を拒否し、対象blockと材料の実受信を別々に保持 |
 | PROTOCOL / P2 | sound／stop sound、particle、world／block action、pickup、break progress、explosion文脈、camera／leash、command tree／tab completion、statistics／advancements、client settings／brand／payload、resource pack／NBT query | [旧版packet coverage](protocol-coverage.md)はnativeの全92分岐を示すだけ。共通型・能力宣言・bounded受信とrequest ID所有を追加。権限による拒否も実接続で検査。resource packは要求/statusのprotocol面が先で、asset download／描画は別 |
-| LIFECYCLE / P2–P3 | 広いscene／編集／replay／reconfiguration／chunk再観測・明示復旧、遮断後の全履歴可読性、online認証・暗号化・署名chat、追加版 | raw recordingと選択replayは既存。操作権限を復元せず、切断／取消／buffer上限／旧IDを検査。onlineと追加版は別のP3導入機能として分離し、offline対応をonline対応としない |
+| LIFECYCLE / P2–P3 | 広いscene／編集／replay／reconfiguration／chunk再観測・明示復旧、遮断後の全履歴可読性、追加版 | raw recordingと選択replayは既存。操作権限を復元せず、切断／取消／buffer上限／旧IDを検査。追加版は別のP3導入機能として分離する |
 
 広いsceneには、native modern拡張のmoving-piston carrier／回路再構成、slime／honey付着、
 block callback、仮想編集・予測の連鎖・assumed scene・光の再構成も含む。
