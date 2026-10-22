@@ -441,6 +441,33 @@ mod tests {
         server.await.unwrap();
     }
 
+    #[tokio::test]
+    async fn selected_drop_common_legacy_is_explicitly_unsupported_without_native_send() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for error in [
+            client
+                .survival()
+                .drop_selected(contract::SelectedDropAmount::One)
+                .await
+                .unwrap_err(),
+            client
+                .creative()
+                .drop_selected(contract::SelectedDropAmount::All)
+                .await
+                .unwrap_err(),
+            client.survival().selected_drop_record().await.unwrap_err(),
+            client.creative().selected_drop_record().await.unwrap_err(),
+        ] {
+            assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+        }
+        assert!(packets.try_recv().is_err());
+        bot.disconnect().await.unwrap();
+        drop(release);
+        server.await.unwrap();
+    }
+
     mod helper_sequences {
         use super::*;
         use api::inventory_helper_tests::{self as script, Fixture};

@@ -5253,3 +5253,6 @@ mod helper_sequences {
 
 #[path = "hand_swap_tests.rs"]
 mod hand_swaps;
+
+#[path = "drop_tests.rs"]
+mod selected_drops;

@@ -85,6 +85,7 @@ struct State {
     placement: Option<operations::PlacementRecord>,
     common_placement: Option<operations::placement::CommonPlacementCapture>,
     retired_common_placement: Option<crate::client::survival::PlacementRecord>,
+    common_selected_drop: Option<crate::client::inventory::SelectedDropRecord>,
     common_hand_swap: Option<crate::client::inventory::HandSwapRecord>,
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
     finite_work: crate::client::ledger::finite::Retained,
@@ -158,6 +159,7 @@ impl Default for State {
             common_placement: None,
             retired_common_placement: None,
             common_inventory_swap: None,
+            common_selected_drop: None,
             common_hand_swap: None,
             finite_work: Default::default(),
             pending_swap_work: None,
@@ -274,6 +276,7 @@ impl State {
             operations::inventory::common::context_received(self);
             operations::inventory::click::context_received(self);
             operations::inventory::hands::context_received(self);
+            operations::inventory::drop::context_received(self);
             operations::inventory::crafting::context_received(self);
             operations::inventory::recipe_placement::context_received(self);
             operations::inventory::transfer::context_received(self);
