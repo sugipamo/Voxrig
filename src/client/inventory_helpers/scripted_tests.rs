@@ -140,6 +140,7 @@ fn item(client: &Client, name: &str, count: u32) -> SlotKnowledge {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Case {
+    Move(MoveCase),
     Compact,
     Fill,
     Craft,
@@ -157,6 +158,21 @@ pub(crate) enum Case {
 }
 
 pub(crate) const CASES: &[Case] = &[
+    Case::Move(MoveCase::Empty),
+    Case::Move(MoveCase::Merge),
+    Case::Move(MoveCase::Partial),
+    Case::Move(MoveCase::Armor),
+    Case::Move(MoveCase::Data),
+    Case::Move(MoveCase::Offhand),
+    Case::Move(MoveCase::SecondRejected),
+    Case::Move(MoveCase::ThirdRejected),
+    Case::Move(MoveCase::Timeout),
+    Case::Move(MoveCase::ScreenChanged),
+    Case::Move(MoveCase::Cancelled),
+    Case::Move(MoveCase::HeldCursor),
+    Case::Move(MoveCase::Binding),
+    Case::Move(MoveCase::WrongEquipment),
+    Case::Move(MoveCase::SameSlot),
     Case::Compact,
     Case::Fill,
     Case::Craft,
@@ -181,6 +197,9 @@ pub(crate) async fn run(fixture: &mut impl Fixture, case: Case) {
 
 async fn run_case(fixture: &mut impl Fixture, case: Case) {
     eprintln!("inventory helper script: {case:?}");
+    if let Case::Move(case) = case {
+        return Box::pin(run_move_case(fixture, case)).await;
+    }
     let client = fixture.client();
     let ops = client.survival();
     let empty = SlotKnowledge::Empty;
@@ -190,6 +209,7 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
     let button = item(&client, "oak_button", 1);
     let mut slots = vec![empty.clone(); 46];
     match case {
+        Case::Move(_) => unreachable!(),
         Case::Compact => {
             slots[9] = stone(60);
             slots[44] = stone(6);
@@ -492,6 +512,231 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
                 assert_eq!(latest.stage, Stage::RequiresInspection);
                 assert_eq!(latest.requires_inspection, reason);
             }
+        }
+    }
+    fixture.no_packets().await;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum MoveCase {
+    Empty,
+    Merge,
+    Partial,
+    Armor,
+    Data,
+    Offhand,
+    SecondRejected,
+    ThirdRejected,
+    Timeout,
+    ScreenChanged,
+    Cancelled,
+    HeldCursor,
+    Binding,
+    WrongEquipment,
+    SameSlot,
+}
+
+async fn run_move_case(fixture: &mut impl Fixture, case: MoveCase) {
+    let client = fixture.client();
+    let ops = client.survival();
+    let version = crate::client::adapter::version_of(&client.adapter);
+    let empty = SlotKnowledge::Empty;
+    let mut slots = vec![empty.clone(); 46];
+    slots[9] = item(&client, "stone", 7);
+    let destination = match case {
+        MoveCase::Armor | MoveCase::Data | MoveCase::Binding | MoveCase::WrongEquipment => 5,
+        MoveCase::Offhand => 45,
+        MoveCase::SameSlot => 9,
+        _ => 10,
+    };
+    match case {
+        MoveCase::Merge => slots[10] = item(&client, "stone", 5),
+        MoveCase::Partial => slots[10] = item(&client, "stone", 62),
+        MoveCase::Armor | MoveCase::Data | MoveCase::Binding => {
+            slots[9] = if matches!(case, MoveCase::Data) {
+                super::super::inventory::armor_tests::fixture(version, false)
+            } else {
+                item(&client, "iron_helmet", 1)
+            };
+            slots[5] = if matches!(case, MoveCase::Binding) {
+                super::super::inventory::armor_tests::fixture(version, true)
+            } else {
+                item(&client, "golden_helmet", 1)
+            };
+        }
+        MoveCase::Offhand => slots[45] = item(&client, "shield", 1),
+        MoveCase::ThirdRejected => slots[10] = item(&client, "dirt", 1),
+        _ => {}
+    }
+    let original = slots.clone();
+    fixture
+        .inventory(
+            &slots,
+            &if matches!(case, MoveCase::HeldCursor) {
+                item(&client, "dirt", 1)
+            } else {
+                empty.clone()
+            },
+        )
+        .await;
+    let mut parent = InventoryMoveRecord::new(InventoryClickSource::Player, 9, destination);
+    let mut helper = Box::pin(ops.move_inventory(&mut parent));
+    if matches!(
+        case,
+        MoveCase::HeldCursor | MoveCase::Binding | MoveCase::WrongEquipment | MoveCase::SameSlot
+    ) {
+        assert!(ready(helper.as_mut()).await.is_err());
+        drop(helper);
+        assert_eq!(parent.stage(), InventoryMoveStage::Stopped);
+        assert!(parent.clicks().is_empty());
+        fixture.no_packets().await;
+        return;
+    }
+    let first = click(
+        fixture,
+        helper.as_mut(),
+        None,
+        9,
+        InventoryClickButton::Left,
+    )
+    .await;
+    // A single fresh slot receipt never permits the next click.
+    fixture.slot(9, &first.prediction.source.value).await;
+    assert!(poll(helper.as_mut()).await.is_pending());
+    fixture.no_packets().await;
+    fixture.cursor(&first.prediction.cursor.value).await;
+    fixture.reply(first.send.legacy_action).await;
+    tokio::time::advance(Duration::from_millis(21)).await;
+    if matches!(case, MoveCase::Cancelled) {
+        drop(helper);
+        ops.refresh_inventory_move(&mut parent).await.unwrap();
+        assert_eq!(parent.stage(), InventoryMoveStage::Stopped);
+        assert_eq!(parent.completed_steps(), 1);
+        assert_eq!(parent.clicks()[0].id, first.id);
+        assert!(parent.stop_reason().unwrap().contains("cancelled"));
+        assert_eq!(
+            client
+                .player_state()
+                .await
+                .unwrap()
+                .inventory
+                .cursor
+                .unwrap()
+                .value,
+            original[9]
+        );
+        assert!(ops.move_inventory(&mut parent).await.is_err());
+        fixture.no_packets().await;
+        return;
+    }
+    let second = click(
+        fixture,
+        helper.as_mut(),
+        Some(first.id),
+        destination,
+        InventoryClickButton::Left,
+    )
+    .await;
+    match case {
+        MoveCase::SecondRejected => fixture.cursor(&item(&client, "dirt", 2)).await,
+        MoveCase::ScreenChanged => fixture.replace_screen().await,
+        MoveCase::Timeout => tokio::time::advance(CLICK_TIMEOUT + Duration::from_millis(21)).await,
+        _ => {
+            complete(
+                fixture,
+                &second,
+                &second.prediction.source.value,
+                &second.prediction.cursor.value,
+            )
+            .await
+        }
+    }
+    let stopped = matches!(
+        case,
+        MoveCase::SecondRejected | MoveCase::ScreenChanged | MoveCase::Timeout
+    );
+    let mut ids = vec![first.id, second.id];
+    if !stopped && second.prediction.cursor.value != empty {
+        let third = click(
+            fixture,
+            helper.as_mut(),
+            Some(second.id),
+            9,
+            InventoryClickButton::Left,
+        )
+        .await;
+        ids.push(third.id);
+        if matches!(case, MoveCase::ThirdRejected) {
+            fixture.cursor(&item(&client, "dirt", 2)).await;
+            tokio::time::advance(Duration::from_millis(21)).await;
+        } else {
+            complete(
+                fixture,
+                &third,
+                &third.prediction.source.value,
+                &third.prediction.cursor.value,
+            )
+            .await;
+        }
+    }
+    tokio::time::advance(Duration::from_millis(21)).await;
+    let result = ready(helper.as_mut()).await;
+    drop(helper);
+    let stopped = stopped || matches!(case, MoveCase::ThirdRejected);
+    assert_eq!(result.is_err(), stopped, "{case:?} {result:?}");
+    assert_eq!(
+        parent.stage(),
+        if stopped {
+            InventoryMoveStage::Stopped
+        } else {
+            InventoryMoveStage::ObservedMoved
+        }
+    );
+    assert_eq!(
+        parent.clicks().iter().map(|r| r.id).collect::<Vec<_>>(),
+        ids
+    );
+    assert_eq!(parent.completed_steps(), ids.len() - usize::from(stopped));
+    assert_eq!(parent.clicks()[0].stage, Stage::ObservedClicked);
+    if matches!(case, MoveCase::Timeout) {
+        assert_eq!(result.unwrap_err().kind(), ErrorKind::Timeout);
+        assert_eq!(parent.clicks()[1].stage, Stage::Pending);
+        assert_eq!(
+            client
+                .player_state()
+                .await
+                .unwrap()
+                .inventory
+                .cursor
+                .unwrap()
+                .value,
+            original[9]
+        );
+        // A late receipt can update only the original child; no third click is sent.
+        complete(
+            fixture,
+            &second,
+            &second.prediction.source.value,
+            &second.prediction.cursor.value,
+        )
+        .await;
+        ops.refresh_inventory_move(&mut parent).await.unwrap();
+        assert_eq!(parent.completed_steps(), 2);
+        assert_eq!(parent.stage(), InventoryMoveStage::Stopped);
+    }
+    if !stopped {
+        let state = client.player_state().await.unwrap();
+        assert_eq!(state.inventory.cursor.unwrap().value, empty);
+        let dest = &state.inventory.slots[usize::from(destination)]
+            .as_ref()
+            .unwrap()
+            .value;
+        if matches!(case, MoveCase::Armor | MoveCase::Data | MoveCase::Offhand) {
+            assert_eq!(dest, &original[9]);
+            assert_eq!(
+                state.inventory.slots[9].as_ref().unwrap().value,
+                original[usize::from(destination)]
+            );
         }
     }
     fixture.no_packets().await;

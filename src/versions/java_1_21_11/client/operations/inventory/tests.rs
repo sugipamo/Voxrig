@@ -5055,13 +5055,23 @@ mod helper_sequences {
     fn native(value: &SlotKnowledge) -> InventorySlot {
         match value {
             SlotKnowledge::Empty => InventorySlot::Empty,
-            SlotKnowledge::Item { item } => InventorySlot::Item {
-                item: PlainItem {
+            SlotKnowledge::Item { item } => {
+                let plain = PlainItem {
                     name: item.name.clone(),
                     item_id: item.id.value(),
                     count: item.count as i32,
-                },
-            },
+                };
+                match &item.data {
+                    crate::client::ItemData::Default => InventorySlot::Item { item: plain },
+                    crate::client::ItemData::ModernComponents { patch } => {
+                        InventorySlot::ItemWithComponents {
+                            item: plain,
+                            components: patch.clone(),
+                        }
+                    }
+                    _ => panic!("foreign fixture data"),
+                }
+            }
             _ => panic!("known fixture stack required"),
         }
     }
@@ -5138,20 +5148,80 @@ mod helper_sequences {
     async fn scripted_inventory_helper_sequences() {
         for &case in script::CASES {
             let mut fixture = CommonFixture::new().await;
-            fixture
-                .api
-                .bot
-                .session
-                .state
-                .lock()
-                .await
-                .registries
-                .finish();
+            {
+                let mut state = fixture.api.bot.session.state.lock().await;
+                crate::client::inventory::armor_tests::install(
+                    &mut state.registries,
+                    crate::MinecraftVersion::Java1_21_11,
+                    None,
+                );
+                state.registries.finish();
+            }
             tokio::time::pause();
             script::run(&mut fixture, case).await;
             tokio::time::resume();
             fixture.stop().await;
         }
+    }
+
+    #[tokio::test]
+    async fn explicit_move_partial_write_retains_child_after_cancellation() {
+        use crate::client::inventory::{InventoryClickStage, InventorySource};
+        use crate::client::{InventoryMoveRecord, InventoryMoveStage};
+        let f = CommonFixture::new().await;
+        f.api.bot.session.state.lock().await.registries.finish();
+        let client = f.client();
+        let control = crate::client::ledger::testing::Control::default();
+        f.api
+            .bot
+            .session
+            .writer
+            .lock()
+            .await
+            .stream
+            .test_replace(control.writer());
+        control.release(1, false);
+        let parent = Arc::new(Mutex::new(InventoryMoveRecord::new(
+            InventorySource::Player,
+            9,
+            10,
+        )));
+        let shared = parent.clone();
+        let ops = client.survival();
+        let waiter =
+            tokio::spawn(async move { ops.move_inventory(&mut *shared.lock().await).await });
+        control.until(|writer| writer.bytes().len() == 1).await;
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        let mut parent = parent.lock().await;
+        assert_eq!(parent.stage(), InventoryMoveStage::Stopped);
+        assert_eq!(parent.active_slot(), Some(9));
+        assert!(parent.clicks().is_empty()); // Cancelled before click_inventory returned its ID.
+        client
+            .survival()
+            .refresh_inventory_move(&mut parent)
+            .await
+            .unwrap();
+        assert_eq!(parent.clicks().len(), 1);
+        let child = &parent.clicks()[0];
+        assert_eq!(
+            child.id,
+            client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .id
+        );
+        assert_eq!(child.stage, InventoryClickStage::RequiresInspection);
+        assert!(!child.send.dispatched);
+        assert_eq!(parent.completed_steps(), 0);
+        assert!(client.survival().move_inventory(&mut parent).await.is_err());
+        assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+        assert_eq!(control.bytes().len(), 1); // No retry, rollback or alternate slot.
+        drop(parent);
+        f.stop().await;
     }
 }
 

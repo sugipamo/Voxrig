@@ -1,6 +1,56 @@
-# inventory の補助（`compact_inventory`・`fill_crafting_grid`・`craft_once`・`craft_once_checked`）
+# inventory の補助（`move_inventory`・`compact_inventory`・`fill_crafting_grid`・`craft_once`・`craft_once_checked`）
 
 共通の `Survival::click_inventory`（通常の左・右クリック）と `transfer_crafting_result` を組み合わせた補助です。両版とも同じ手順で動きます。各クリックは、その記録が `Pending` を抜ける（受信した結果がそろう）まで最大 3 秒待ってから次へ進みます。`ObservedClicked` 以外で終わったクリックはエラーになり、そこで止まります。
+
+## `move_inventory(&mut record)`
+
+source UIと移動元・移動先のnative slot番号を明示します。装備の自動選択はしません。
+`Survival`と`Creative`の両handleで使え、実受信modeを検査します。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn equip(client: &Client) -> Result<()> {
+let mut record = InventoryMoveRecord::new(InventorySource::Player, 9, 5);
+let result = client.survival().move_inventory(&mut record).await;
+println!("{:?}: {} confirmed clicks", record.stage(), record.completed_steps());
+// エラーでもrecordとcursorを調べてから次の操作を決める。
+result?;
+# Ok(())
+# }
+```
+
+空の実受信cursorと両slotの受信値から、左PICKUPの「元を拾う→先へ置く／交換→
+残量・交換されたstackを元へ戻す」を最大3回で組み立てます。空slotへの移動と全量mergeは
+2回、部分mergeと占有済み装備などの交換は3回です。player armor 5..8・offhand 45の
+受入れ・容量・束縛は既存の`slot_policy`を共用し、data付き装備をdefaultへ戻しません。
+戻り先も含めて事前検査し、3回でcursorが空にならない組合せや無変化は送信前に拒否します。
+同じUI内の通常PICKUP対応slotが対象です。異なるscreen間の移動やresult取得は含みません。
+
+各子クリックの完全送信とfreshなslot/cursor受信（legacyは取引応答も）がそろい、
+`ObservedClicked`になってから次へ進みます。`record.clicks()`は子ID・送信前状態・予測・
+実受信結果を順に保持し、`completed_steps()`は確認済みの段階数です。全手順の確認後だけ
+`ObservedMoved`になります。予測を実受信在庫へ書き込みません。
+
+recordは呼出側が保持します。futureをdropしても既に保持した子と完了段階は残り、
+親は`Stopped`になります。各回の3秒timeout、送信不確実性、前提・screenの変更でも止まります。
+rollback・再送・別slotへの迂回は行わず、cursorにstackが残る場合があります。
+`Stopped`のrecordを再実行できません。期限後にserverが適用する場合もあるため、
+新しい操作の前に受信在庫と子recordを照合してください。
+
+同じclientの在庫操作は、このhelperと必要なrefreshが終わるまで呼出側で直列化します。
+各子は既存clickのledger・排他・接続/world/screen寿命を使いますが、helper全体を単一の
+server transactionとして扱いません。送信futureの取消で子IDが戻る前に止まった場合は、
+`active_slot()`と`refresh_inventory_move(&mut record)`で元の子を照合します。
+refreshは同じsession・mode・UI・slot・次のattemptだけを読み取り、送信も再開もしません。
+adapterは直近の子recordを保持するため、次のクリックを認可する前にrefreshしてください。
+完了済みの子履歴は後の現在状態で書き換えず、遅い受信で子の確認が増えても停止した親は
+`Stopped`のままです。
+
+両版のconstructed packet fixtureで、2回／3回の移動、部分merge、占有済み鎧・offhand交換、
+装備data保持、束縛・不適合拒否、2回目／3回目の競合、timeoutと遅い受信、screen変更、
+途中取消後のcursorと親・子recordを検査します。
+`examples/climbing_control_probe.rs`と`scripts/run_exact_inventory_move_live.py`は公式1.21.11の
+占有済み鎧・offhand交換、束縛拒否、取消後のcursorを、元packetと独立したRCONで検証します。
 
 ## `compact_inventory()`
 
@@ -43,3 +93,11 @@ take が受理・保持された後、その送信が失敗して配送が不明
 - 散らばった板材（5・7・60）と丸石（3・2）を、それぞれ 64+8 の 2 slot と 5 の 1 slot にまとめました（5 クリック）。
 - player の 2×2 で棒 4 本を作りました（板材 −2）。
 - 作業台の 3×3 で木のツルハシを作りました（板材 −3、棒 −2）。
+
+明示slot移動helperの実接続は2026-10-22の公式1.21.11で7ケース成功しました。
+両modeの占有済み鎧・offhand交換、Survivalでの束縛拒否（クリック0回）、Creativeでの束縛鎧交換、
+1回目確認後のhelper取消によるcursor残留を照合しています。取消後の返却は観測後に呼出側が
+明示した別クリックで、helperのrollbackではありません。Damage=7とcustom-data markerを
+実slot/cursor受信およびRCONの装備・在庫で確認しました。元serverは正常終了しています。
+[実接続の記録とhash](evidence/common-exact-inventory-move-20261022.json)に、子ID・完了段階、
+元packet、独立RCON、公式JAR・consumer binary・source・raw artifactのhashを保持します。

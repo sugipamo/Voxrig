@@ -78,6 +78,7 @@ mod inventory_helpers;
 pub(crate) use inventory_helpers::scripted_tests as inventory_helper_tests;
 pub use inventory_helpers::{
     CraftOnceError, CraftOnceRecord, CraftOnceUnknownCause, CraftingFillRecord,
+    InventoryMoveRecord, InventoryMoveStage,
 };
 mod item;
 pub(crate) mod item_components;
@@ -280,8 +281,9 @@ pub mod prelude {
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceError, CraftOnceRecord,
         CraftOnceUnknownCause, CraftingFillRecord, DigCancelOutcome, DigCompletion,
         DigDispatchEvidence, DigEstimate, DigOperation, DigOperationId, DigOwnerExit, DigPhase,
-        DigRecord, DigResult, DigSnapshot, DigWriteEvidence, Hand, LoadedChunks, ObservedValue,
-        PlacementCheck, PlayerAttribute, PlayerControl, PlayerEffect, ValueSource,
+        DigRecord, DigResult, DigSnapshot, DigWriteEvidence, Hand, InventoryMoveRecord,
+        InventoryMoveStage, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,
+        PlayerControl, PlayerEffect, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

@@ -408,6 +408,42 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::to_value(record)?
             }
             "hand_swap_record" => serde_json::to_value(survival.hand_swap_record().await?)?,
+            "inventory_move" => {
+                use std::future::Future;
+                use std::task::Poll;
+                use voxrig::client::inventory::{InventoryClickStage, InventorySource};
+                let from = request["from"].as_u64().unwrap().try_into()?;
+                let to = request["to"].as_u64().unwrap().try_into()?;
+                let mut parent = InventoryMoveRecord::new(InventorySource::Player, from, to);
+                let creative = client.player_state().await?.game_mode == Some(GameMode::Creative);
+                let result = if request["cancel_after_first"] == true {
+                    let previous = survival.inventory_click_record().await?.map(|r| r.id);
+                    {
+                        let mut helper = std::pin::pin!(survival.move_inventory(&mut parent));
+                        tokio::time::timeout(Duration::from_secs(5), async {
+                            loop {
+                                if let Some(child) = survival.inventory_click_record().await? {
+                                    if Some(child.id) != previous && child.stage == InventoryClickStage::ObservedClicked {
+                                        break Ok::<_, anyhow::Error>(());
+                                    }
+                                }
+                                if let Poll::Ready(result) = std::future::poll_fn(|cx| Poll::Ready(helper.as_mut().poll(cx))).await {
+                                    anyhow::bail!("move completed before cancellation: {result:?}");
+                                }
+                                tokio::time::sleep(Duration::from_millis(1)).await;
+                            }
+                        }).await??;
+                    }
+                    survival.refresh_inventory_move(&mut parent).await?;
+                    Ok(())
+                } else if creative {
+                    client.creative().move_inventory(&mut parent).await
+                } else {
+                    survival.move_inventory(&mut parent).await
+                };
+                serde_json::json!({"record": parent, "error": result.err().map(|e| e.to_string()),
+                    "player": client.player_state().await?})
+            }
             "inventory_record" => serde_json::to_value(survival.inventory_click_record().await?)?,
             "inventory_click" => {
                 use voxrig::client::inventory::{

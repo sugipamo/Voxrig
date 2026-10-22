@@ -15,6 +15,9 @@ native ACKの有無と取消後の未解決状態は[共通設置の契約](comm
 `swap_hands` / `hand_swap_record`は1.21.11の選択中主手とオフハンドを専用recordで交換・観測します。
 1.16.1は明示Unsupportedです。[手とslotの交換](common-inventory-swaps.md)を参照してください。
 一般containerとの違い、legacy応答とmodern revisionの扱いは[共通在庫交換](common-inventory-swaps.md)を参照してください。
+両modeの`move_inventory(&mut InventoryMoveRecord)`は両版で明示したslot間を最大3回のPICKUPで
+移動・装備交換します。各子の実受信を待ち、取消・不確実性で停止し、cursorと経過を呼出側の
+recordへ残します。[在庫補助](common-inventory-helpers.md)を参照してください。
 共通Clientの両modeで通常Shift転送を使う場合は[転送契約](common-inventory-transfers.md)を参照してください。
 `Client::screen_state()`は開いたcontainerのidentity・実内容・cursor・native layoutを両版で観測します。
 開いたstorageとの`swap_container_hotbar`、opening-boundな`close_container`は両modeで同じrecordを返します。監査済みstorageの`open_container`と通常の`click_inventory`も両modeで利用できます。
