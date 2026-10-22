@@ -62,6 +62,12 @@ pub enum EventKind {
     ChatReceived,
     /// Scoreboard, boss bar, team, player list, title, tab list or world border.
     UiChanged,
+    /// Java 1.21.11 pack request in configuration or play; read the latest with
+    /// `Client::resource_pack_request`. This is not a response-delivery receipt.
+    ResourcePackRequested {
+        /// Server-supplied UUID in network byte order, scoped to this connection.
+        uuid: [u8; 16],
+    },
     /// The connection closed. No later event follows; the server's reason, when it
     /// sent one, is `Client::disconnect_reason`.
     Disconnected,

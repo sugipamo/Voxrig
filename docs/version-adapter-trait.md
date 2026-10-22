@@ -96,7 +96,8 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | 複数client管理 | ◎ | `ClientManager` | `BotManager` | |
 | event stream | ◎ | `events_after` `wait_for_events`（[change通知](common-events.md)） | `subscribe` (`Event`) | |
 | 接続状態・generation・操作admission | ▲ | — | `connection_state` `admit_operation` | なし |
-| client settings・resource pack・brand | ▲ | — | `set_client_settings` `respond_resource_pack` `server_brand` | resource packは拒否 |
+| client settings・brand | ▲ | — | `set_client_settings` `server_brand` | |
+| resource pack要求・status応答 | ○ | `resource_pack_request`、`ResourcePackRequested`（1.21.11のみの受信観測） | `resource_pack_request` `respond_resource_pack` | configuration・playで自動headless応答（[契約](common-resource-packs.md)） |
 
 ### 世界の観測
 

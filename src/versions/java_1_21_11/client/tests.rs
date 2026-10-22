@@ -13,6 +13,256 @@ fn play_state() -> State {
     state
 }
 
+fn resource_pack_payload(uuid: [u8; 16], forced: bool, prompt: bool) -> Vec<u8> {
+    let mut payload = uuid.to_vec();
+    put_string(&mut payload, "https://example.invalid/pack.zip");
+    put_string(&mut payload, "0123456789abcdef0123456789abcdef01234567");
+    payload.extend([u8::from(forced), u8::from(prompt)]);
+    if prompt {
+        // Native unnamed NBT string component: "Pack".
+        payload.extend([8, 0, 4, b'P', b'a', b'c', b'k']);
+    }
+    payload
+}
+
+const RESOURCE_PACK_PHASES: [(Phase, i32, i32, i32); 2] = [
+    (
+        Phase::Configuration,
+        ids::configuration_clientbound::ADD_RESOURCE_PACK,
+        ids::configuration_clientbound::REMOVE_RESOURCE_PACK,
+        ids::configuration_serverbound::RESOURCE_PACK_RECEIVE,
+    ),
+    (
+        Phase::Play,
+        ids::play_clientbound::ADD_RESOURCE_PACK,
+        ids::play_clientbound::REMOVE_RESOURCE_PACK,
+        ids::play_serverbound::RESOURCE_PACK_RECEIVE,
+    ),
+];
+
+#[test]
+fn resource_pack_captured_configuration_request_matches_wire_replies() {
+    // Original ADD_RESOURCE_PACK payload and response IDs from the official
+    // server capture in docs/evidence/resource-pack-20261022.json.
+    let payload = hex::decode(concat!(
+        "12345678123456789abc123456789abc20",
+        "68747470733a2f2f6578616d706c652e696e76616c69642f7061636b2e7a6970",
+        "2830313233343536373839616263646566303132333435363738396162636465663031323334353637",
+        "0101080013486561646c657373207061636b2070726f6265"
+    ))
+    .unwrap();
+    let mut state = State::default();
+    let responses = state.receive(9, &payload, 64).unwrap();
+    assert_eq!(
+        responses,
+        vec![
+            (
+                6,
+                hex::decode("12345678123456789abc123456789abc03").unwrap()
+            ),
+            (
+                6,
+                hex::decode("12345678123456789abc123456789abc00").unwrap()
+            ),
+        ]
+    );
+    let request = state.resource_pack_request.unwrap();
+    assert_eq!(request.value.url, "https://example.invalid/pack.zip");
+    assert_eq!(
+        request.value.hash,
+        "0123456789abcdef0123456789abcdef01234567"
+    );
+    assert!(request.value.forced);
+    assert_eq!(
+        request.value.prompt,
+        Some(crate::client::ui::UiText::NativeNbt {
+            bytes: hex::decode("080013486561646c657373207061636b2070726f6265").unwrap(),
+        })
+    );
+}
+
+#[test]
+fn resource_pack_limits_count_utf16_and_reject_oversized_packets_without_commit() {
+    for (phase, add, _, _) in RESOURCE_PACK_PHASES {
+        let mut valid = vec![5; 16];
+        put_string(&mut valid, "https://example.invalid/pack.zip");
+        // Twenty supplementary characters occupy exactly forty UTF-16 units.
+        put_string(&mut valid, &"😀".repeat(20));
+        valid.extend([0, 0]);
+        for oversized in [false, true] {
+            let mut state = State {
+                phase,
+                ..play_state()
+            };
+            assert_eq!(state.receive(add, &valid, 64).unwrap().len(), 2);
+            let before = state.resource_pack_request.clone();
+            let mut invalid = valid.clone();
+            if oversized {
+                invalid.resize(crate::protocol::MAX_PACKET_SIZE + 1, 0);
+            } else {
+                invalid = vec![6; 16];
+                put_string(&mut invalid, "https://example.invalid/pack.zip");
+                // Fewer than forty characters, but forty-two UTF-16 units.
+                put_string(&mut invalid, &"😀".repeat(21));
+                invalid.extend([0, 0]);
+            }
+            let error = state.receive(add, &invalid, 64).unwrap_err();
+            assert!(error.to_string().contains(if oversized {
+                "resource-pack request exceeds packet limit"
+            } else {
+                "resource-pack hash exceeds 40 UTF-16 code units"
+            }));
+            assert_eq!(state.resource_pack_request, before);
+            assert_eq!(
+                state.events.after(0, state.sequence).unwrap().events.len(),
+                1
+            );
+        }
+    }
+}
+
+#[test]
+fn resource_pack_acknowledges_each_uuid_in_both_phases_and_retains_received_fields() {
+    use crate::client::{EventKind, ValueSource, ui::UiText};
+    for (phase, add, remove, output) in RESOURCE_PACK_PHASES {
+        let mut state = State {
+            phase,
+            ..play_state()
+        };
+        assert!(state.resource_pack_request.is_none());
+        for (index, (forced, prompt)) in
+            [(false, false), (true, true), (true, false), (false, true)]
+                .into_iter()
+                .enumerate()
+        {
+            let uuid = [index as u8 + 1; 16];
+            let payload = resource_pack_payload(uuid, forced, prompt);
+            let responses = state.receive(add, &payload, 64).unwrap();
+            // Independent wire expectations: ACCEPTED=3, SUCCESSFULLY_LOADED=0.
+            let mut accepted = uuid.to_vec();
+            accepted.push(3);
+            let mut loaded = uuid.to_vec();
+            loaded.push(0);
+            assert_eq!(responses, vec![(output, accepted), (output, loaded)]);
+            let request = state.resource_pack_request.as_ref().unwrap();
+            assert_eq!(
+                request.source,
+                ValueSource::Received {
+                    sequence: state.sequence
+                }
+            );
+            assert_eq!(request.value.uuid, uuid);
+            assert_eq!(request.value.url, "https://example.invalid/pack.zip");
+            assert_eq!(
+                request.value.hash,
+                "0123456789abcdef0123456789abcdef01234567"
+            );
+            assert_eq!(request.value.forced, forced);
+            assert_eq!(
+                request.value.prompt,
+                prompt.then(|| UiText::NativeNbt {
+                    bytes: vec![8, 0, 4, b'P', b'a', b'c', b'k'],
+                })
+            );
+            let log = state.events.after(0, state.sequence).unwrap();
+            assert_eq!(log.events.len(), index + 1);
+            assert_eq!(log.events[index].receive_sequence, state.sequence);
+            assert_eq!(
+                log.events[index].kind,
+                EventKind::ResourcePackRequested { uuid }
+            );
+        }
+        let latest = state.resource_pack_request.clone();
+        for payload in [vec![0], [vec![1], vec![4; 16]].concat()] {
+            assert!(state.receive(remove, &payload, 64).unwrap().is_empty());
+            assert_eq!(state.resource_pack_request, latest);
+            assert_eq!(
+                state.events.after(0, state.sequence).unwrap().events.len(),
+                4
+            );
+        }
+        // A repeated UUID is another request and gets both replies again.
+        assert_eq!(
+            state
+                .receive(add, &resource_pack_payload([4; 16], true, true), 64)
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(
+            state.events.after(0, state.sequence).unwrap().events.len(),
+            5
+        );
+    }
+}
+
+#[test]
+fn malformed_resource_pack_never_replaces_receipt_or_records_an_event() {
+    for (phase, add, _, _) in RESOURCE_PACK_PHASES {
+        let valid = resource_pack_payload([2; 16], true, true);
+        let mut malformed: Vec<Vec<u8>> = (0..valid.len()).map(|n| valid[..n].to_vec()).collect();
+        let mut trailing = valid.clone();
+        trailing.push(0);
+        malformed.push(trailing);
+        for offset in [valid.len() - 9, valid.len() - 8, valid.len() - 7] {
+            let mut invalid = valid.clone();
+            invalid[offset] = 255; // invalid required/prompt boolean or NBT root
+            malformed.push(invalid);
+        }
+        let mut long_hash = vec![2; 16];
+        put_string(&mut long_hash, "https://example.invalid/pack.zip");
+        put_string(&mut long_hash, &"a".repeat(41));
+        long_hash.extend([1, 0]);
+        malformed.push(long_hash);
+        for payload in malformed {
+            let mut state = State {
+                phase,
+                ..play_state()
+            };
+            state.receive(add, &valid, 64).unwrap();
+            let before = state.resource_pack_request.clone();
+            assert!(state.receive(add, &payload, 64).is_err());
+            assert_eq!(state.resource_pack_request, before);
+            assert_eq!(
+                state.events.after(0, state.sequence).unwrap().events.len(),
+                1
+            );
+        }
+    }
+}
+
+#[test]
+fn resource_pack_receipt_survives_reconfiguration_and_accepts_empty_hash() {
+    let mut state = play_state();
+    state
+        .receive(
+            ids::play_clientbound::ADD_RESOURCE_PACK,
+            &resource_pack_payload([1; 16], true, false),
+            64,
+        )
+        .unwrap();
+    let before = state.resource_pack_request.clone();
+    state
+        .receive(ids::play_clientbound::START_CONFIGURATION, &[], 64)
+        .unwrap();
+    assert_eq!(state.resource_pack_request, before);
+    let mut payload = vec![3; 16];
+    put_string(&mut payload, "https://example.invalid/next.zip");
+    put_string(&mut payload, "");
+    payload.extend([0, 0]);
+    let responses = state
+        .receive(
+            ids::configuration_clientbound::ADD_RESOURCE_PACK,
+            &payload,
+            64,
+        )
+        .unwrap();
+    assert_eq!(responses.len(), 2);
+    let request = state.resource_pack_request.unwrap();
+    assert_eq!(request.value.uuid, [3; 16]);
+    assert!(request.value.hash.is_empty());
+}
+
 #[test]
 fn received_registry_and_tag_packets_commit_whole_fields_and_reset_on_reconfiguration() {
     use crate::client::{SessionStamp, ValueSource};

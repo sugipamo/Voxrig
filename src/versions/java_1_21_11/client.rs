@@ -17,6 +17,7 @@ pub mod raycast;
 mod received_snapshot;
 mod recipes;
 pub mod recording;
+mod resource_pack;
 use super::{
     ids,
     reconstruction::{Action, ClientObservation, Direction, Reconstruction},
@@ -69,6 +70,7 @@ struct State {
     death_message: Option<crate::client::ObservedValue<crate::client::ui::UiText>>,
     /// Text of the last received KICK_DISCONNECT.
     disconnect_reason: Option<crate::client::ui::UiText>,
+    resource_pack_request: Option<crate::client::ObservedValue<crate::client::ResourcePackRequest>>,
     loading: loading::InteractionLoading,
     motion: motion::OwnMotion,
     identity: Option<LoginIdentity>,
@@ -136,6 +138,7 @@ impl Default for State {
             context: Default::default(),
             death_message: None,
             disconnect_reason: None,
+            resource_pack_request: None,
             loading: loading::InteractionLoading::default(),
             motion: motion::OwnMotion::default(),
             identity: None,
@@ -907,7 +910,9 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
         input::DISCONNECT => bail!("server disconnected during configuration"),
         input::TRANSFER => bail!("server transfer requires a new explicitly configured connection"),
         input::CODE_OF_CONDUCT => bail!("server requires code-of-conduct acceptance"),
-        input::ADD_RESOURCE_PACK => bail!("resource-pack negotiation is unsupported"),
+        input::ADD_RESOURCE_PACK => {
+            return resource_pack::add(state, payload, output::RESOURCE_PACK_RECEIVE);
+        }
         input::FEATURE_FLAGS => {
             let mut features = Vec::new();
             for _ in 0..r.count(1024)? {
@@ -1371,7 +1376,10 @@ fn apply_play(
                 .receive_tags(payload, state.sequence, MinecraftVersion::Java1_21_11)?
         }
         input::TRANSFER => bail!("server transfer requires a new explicitly configured connection"),
-        input::ADD_RESOURCE_PACK => bail!("resource-pack negotiation is unsupported"),
+        input::ADD_RESOURCE_PACK => {
+            return resource_pack::add(state, payload, output::RESOURCE_PACK_RECEIVE);
+        }
+        input::REMOVE_RESOURCE_PACK => {}
         input::COOKIE_REQUEST => {
             let key = r.string()?;
             r.end()?;
@@ -1399,6 +1407,18 @@ mod placement_native_trials;
 mod tests;
 
 impl crate::client::adapter::EventOps for operations::Operations {
+    async fn resource_pack_request(
+        &self,
+    ) -> Result<Option<crate::client::ObservedValue<crate::client::ResourcePackRequest>>> {
+        Ok(self
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .resource_pack_request
+            .clone())
+    }
     async fn entity_history_after(
         &self,
         cursor: Option<crate::client::EntityHistoryCursor>,

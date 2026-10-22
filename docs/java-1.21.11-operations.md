@@ -4,6 +4,15 @@
 The existing Java 1.16.1 Bot API remains available. No protocol IDs or item IDs
 are shared implicitly across versions.
 
+Resource-pack negotiation in configuration and play automatically replies
+ACCEPTED then SUCCESSFULLY_LOADED for each requested UUID, without downloading,
+hash verification or rendering. Required packs can proceed on this headless
+protocol policy. Removal is accepted silently. The common
+`Client::resource_pack_request()` and `EventKind::ResourcePackRequested` expose
+received facts, not asset loading or response-delivery receipts; see
+[resource-pack contract and verification](common-resource-packs.md).
+Microsoft authentication and signed chat/commands remain out of scope.
+
 For checked survival operations, `client.java_1_21_11()?.checked_survival()` provides the common
 entry point and `versions::java_1_21_11::checked` exposes the current native contract types.
 Static capability discovery does not grant current action admission. The checked

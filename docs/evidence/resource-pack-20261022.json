@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-22",
+  "result": "PASS",
+  "base_commit": "dea9ceb141f83712796877fc57f59cd0b088f931",
+  "source_sha256": {
+    "src/versions/java_1_21_11/client.rs": "555afce20b991e320bebe3f37e9296dee7152ea9fd2cc3fcf850c80b4c70828b",
+    "src/versions/java_1_21_11/client/resource_pack.rs": "481dafffcff074b1bcd14b363eeecc11606f5ae9aae718ce4f46b4fd49fb33fe",
+    "src/client/resource_pack.rs": "446f1ad9600bc514c29996ee862a4e176c7605268f36355d4aa7a8be8c250c67",
+    "examples/resource_pack_probe.rs": "0e317340811aeed941cf0d0d6ae905f426353cd8179b9ba6c8ab7a41e32be1eb"
+  },
+  "server": {
+    "version": "1.21.11",
+    "jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+    "properties": {
+      "server-ip": "127.0.0.1",
+      "server-port": "59985",
+      "online-mode": "false",
+      "enforce-secure-profile": "false",
+      "resource-pack": "https://example.invalid/pack.zip",
+      "resource-pack-sha1": "0123456789abcdef0123456789abcdef01234567",
+      "resource-pack-id": "12345678-1234-5678-9abc-123456789abc",
+      "resource-pack-prompt": "{\"text\":\"Headless pack probe\"}",
+      "require-resource-pack": "true",
+      "view-distance": "2",
+      "simulation-distance": "2",
+      "gamemode": "creative",
+      "level-type": "minecraft:flat",
+      "generate-structures": "false",
+      "spawn-protection": "0",
+      "max-players": "2"
+    },
+    "disposable_copy": true
+  },
+  "transport": "byte-for-byte PacketTraceProxy; original frames forwarded without injection",
+  "pack_frames": [
+    {
+      "ordinal": 35,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "configuration",
+      "packet_id": 9,
+      "body_length": 114,
+      "wire_sha256": "f351789adcb3dbeff424fdb2b9e0e8597e3f57d48a2aa355a1b6a8c53475c1fc",
+      "body_sha256": "7d0f65fd35f249da4f203dd78c3dd039b7d577e32cfe954a0e9d52d1a116b5dd",
+      "body_hex": "12345678123456789abc123456789abc2068747470733a2f2f6578616d706c652e696e76616c69642f7061636b2e7a697028303132333435363738396162636465663031323334353637383961626364656630313233343536370101080013486561646c657373207061636b2070726f6265"
+    },
+    {
+      "ordinal": 36,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "configuration",
+      "packet_id": 6,
+      "body_length": 17,
+      "wire_sha256": "6f34de7ee06a5b71e3eb854608bf12fb4d4290ebcd4646a5348964b8b20fdd2a",
+      "body_sha256": "8ea3ef2952a6c2a2c623590faada3e342f3407ecf008d1f7dffd698024c3a509",
+      "body_hex": "12345678123456789abc123456789abc03"
+    },
+    {
+      "ordinal": 37,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "configuration",
+      "packet_id": 6,
+      "body_length": 17,
+      "wire_sha256": "85f7bdd2337f7c6bb78a127a3dbb34331ccc1881237e19a90fe1675a74118f07",
+      "body_sha256": "8a04e715829165166fbd472992ebc3517106fd75243b0e56db4aab21224b805f",
+      "body_hex": "12345678123456789abc123456789abc00"
+    }
+  ],
+  "received_request": {
+    "value": {
+      "uuid": [
+        18,
+        52,
+        86,
+        120,
+        18,
+        52,
+        86,
+        120,
+        154,
+        188,
+        18,
+        52,
+        86,
+        120,
+        154,
+        188
+      ],
+      "url": "https://example.invalid/pack.zip",
+      "hash": "0123456789abcdef0123456789abcdef01234567",
+      "forced": true,
+      "prompt": {
+        "kind": "native_nbt",
+        "bytes": [
+          8,
+          0,
+          19,
+          72,
+          101,
+          97,
+          100,
+          108,
+          101,
+          115,
+          115,
+          32,
+          112,
+          97,
+          99,
+          107,
+          32,
+          112,
+          114,
+          111,
+          98,
+          101
+        ]
+      }
+    },
+    "source": {
+      "kind": "received",
+      "sequence": 28
+    }
+  },
+  "probe_stdout": [
+    "REQUEST {\"value\":{\"uuid\":[18,52,86,120,18,52,86,120,154,188,18,52,86,120,154,188],\"url\":\"https://example.invalid/pack.zip\",\"hash\":\"0123456789abcdef0123456789abcdef01234567\",\"forced\":true,\"prompt\":{\"kind\":\"native_nbt\",\"bytes\":[8,0,19,72,101,97,100,108,101,115,115,32,112,97,99,107,32,112,114,111,98,101]}},\"source\":{\"kind\":\"received\",\"sequence\":28}}",
+    "READY sequence=58",
+    "STAY_CONNECTED seconds=35 sequence=2871",
+    "PASS receipt readable after disconnect"
+  ],
+  "observed": [
+    "configuration request UUID and both ordered status replies match captured wire bytes",
+    "required resource pack reached play",
+    "35 seconds ready with receive progress and play keepalive",
+    "latest received request retained after explicit disconnect"
+  ],
+  "limits": [
+    "no download, SHA-1 verification, renderer or asset application",
+    "play ADD/REMOVE behavior covered by constructed packets; live server request was in configuration",
+    "Microsoft authentication and signing out of scope"
+  ],
+  "play_keepalive_frames": [
+    {
+      "ordinal": 830,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 43,
+      "body_length": 8,
+      "wire_sha256": "466007145ae38d6033516c7c02ad532c2000ccbf0ac3b0461df047d0dd6c4b08",
+      "body_sha256": "c17f985f71b3f176fb74456022bbf86ab4aad26eb34508329c06d5a70841b60a",
+      "body_hex": "00000000021faa89"
+    },
+    {
+      "ordinal": 1008,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "play",
+      "packet_id": 27,
+      "body_length": 8,
+      "wire_sha256": "6fab5108226b76a6d3239af337ddf6bcbc1eff01331bb7fcfa65ae46eea4d89c",
+      "body_sha256": "c17f985f71b3f176fb74456022bbf86ab4aad26eb34508329c06d5a70841b60a",
+      "body_hex": "00000000021faa89"
+    },
+    {
+      "ordinal": 2273,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 43,
+      "body_length": 8,
+      "wire_sha256": "ff757f46900d75c9d69e7c8f424090a93459fa38034011debd87ae70ad350946",
+      "body_sha256": "b153206509c689f4ffe8db464acb901c7cf4d7b6ec796fdc513fca1adc997ced",
+      "body_hex": "00000000021fe521"
+    },
+    {
+      "ordinal": 2589,
+      "connection": 1,
+      "direction": "serverbound",
+      "phase": "play",
+      "packet_id": 27,
+      "body_length": 8,
+      "wire_sha256": "80bd8d5aa569d7c567f11ff4b0f67c0cdec03f23f0605f639803b9129104abb3",
+      "body_sha256": "b153206509c689f4ffe8db464acb901c7cf4d7b6ec796fdc513fca1adc997ced",
+      "body_hex": "00000000021fe521"
+    }
+  ],
+  "cleanup": {
+    "server_stopped": true,
+    "server_log_tail": [
+      "[14:01:06] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end",
+      "[14:01:06] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether",
+      "[14:01:06] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved",
+      "[14:01:06] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved",
+      "[14:01:06] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved",
+      "[14:01:06] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved"
+    ]
+  }
+}

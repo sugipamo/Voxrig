@@ -139,6 +139,14 @@ pub(crate) trait ChunkOps {
 
 /// Change notifications.
 pub(crate) trait EventOps {
+    async fn resource_pack_request(
+        &self,
+    ) -> Result<Option<super::ObservedValue<super::ResourcePackRequest>>> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("resource-pack request observation requires Java 1.21.11"),
+        ))
+    }
     async fn entity_history_after(
         &self,
         cursor: Option<super::EntityHistoryCursor>,
