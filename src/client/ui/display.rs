@@ -1,6 +1,7 @@
 //! Received title, tab-list and border instructions, without local rendering.
 use super::{ObservedValue, SessionStamp, UiText, received};
 use crate::client::adapter::UiOps;
+use crate::versions::ui_decode::DisplayUpdate;
 use crate::{MinecraftVersion, Result};
 
 /// Original title-animation instruction, distinct from elapsed display time.
@@ -165,25 +166,6 @@ pub(crate) struct DisplayLedger {
     border_sequence: Option<u64>,
     border_generation: Option<u64>,
 }
-enum Update {
-    Title(UiText),
-    Subtitle(UiText),
-    ActionBar(UiText),
-    Timing(TitleTiming),
-    Clear(bool),
-    Tab(TabListText),
-    Center([f64; 2]),
-    Size(WorldBorderSize),
-    Delay(i32),
-    Distance(i32),
-    Initialize {
-        center: [f64; 2],
-        size: WorldBorderSize,
-        absolute: i32,
-        delay: i32,
-        distance: i32,
-    },
-}
 impl DisplayLedger {
     // Original Gui.onDisconnected resets titles/times, tab and boss overlay,
     // but does not erase the last action-bar message. Keep its actual origin.
@@ -209,63 +191,22 @@ impl DisplayLedger {
         sequence: u64,
         world_generation: u64,
     ) -> Result<()> {
-        use crate::versions::java_1_21_11::ClientboundIds as ids;
-        let modern = version == MinecraftVersion::Java1_21_11;
-        let mut r = crate::versions::java_1_21_11::ScoreboardReader::new(payload);
-        let update = if !modern {
-            match id {
-                0x4f => match r.varint()? {
-                    0 => Update::Title(super::text(&mut r, false)?),
-                    1 => Update::Subtitle(super::text(&mut r, false)?),
-                    2 => Update::ActionBar(super::text(&mut r, false)?),
-                    3 => Update::Timing(timing(&mut r)?),
-                    4 => Update::Clear(false),
-                    5 => Update::Clear(true),
-                    _ => return Err(invalid("invalid title operation")),
-                },
-                0x53 => Update::Tab(TabListText {
-                    header: super::text(&mut r, false)?,
-                    footer: super::text(&mut r, false)?,
-                }),
-                0x3d => match r.varint()? {
-                    0 => Update::Size(WorldBorderSize::Set { diameter: r.f64()? }),
-                    1 => Update::Size(lerp(&mut r, false, modern)?),
-                    2 => Update::Center([r.f64()?, r.f64()?]),
-                    3 => initialize(&mut r, modern)?,
-                    4 => Update::Delay(r.varint()?),
-                    5 => Update::Distance(r.varint()?),
-                    _ => return Err(invalid("invalid border operation")),
-                },
-                _ => return Err(invalid("unsupported display packet")),
-            }
-        } else {
-            match id {
-                ids::SET_TITLE_TEXT => Update::Title(super::text(&mut r, true)?),
-                ids::SET_TITLE_SUBTITLE => Update::Subtitle(super::text(&mut r, true)?),
-                ids::ACTION_BAR => Update::ActionBar(super::text(&mut r, true)?),
-                ids::SET_TITLE_TIME => Update::Timing(timing(&mut r)?),
-                ids::CLEAR_TITLES => Update::Clear(r.bool()?),
-                ids::PLAYERLIST_HEADER => Update::Tab(TabListText {
-                    header: super::text(&mut r, true)?,
-                    footer: super::text(&mut r, true)?,
-                }),
-                ids::WORLD_BORDER_CENTER => Update::Center([r.f64()?, r.f64()?]),
-                ids::WORLD_BORDER_SIZE => Update::Size(WorldBorderSize::Set { diameter: r.f64()? }),
-                ids::WORLD_BORDER_LERP_SIZE => Update::Size(lerp(&mut r, false, modern)?),
-                ids::INITIALIZE_WORLD_BORDER => initialize(&mut r, modern)?,
-                ids::WORLD_BORDER_WARNING_DELAY => Update::Delay(r.varint()?),
-                ids::WORLD_BORDER_WARNING_REACH => Update::Distance(r.varint()?),
-                _ => return Err(invalid("unsupported display packet")),
-            }
-        };
-        r.end()?;
+        let update = crate::versions::ui_decode::decode_display(version, id, payload)?;
+        self.apply(update, sequence, world_generation)
+    }
+    pub(crate) fn apply(
+        &mut self,
+        update: DisplayUpdate,
+        sequence: u64,
+        world_generation: u64,
+    ) -> Result<()> {
         if matches!(
             &update,
-            Update::Center(_)
-                | Update::Size(_)
-                | Update::Delay(_)
-                | Update::Distance(_)
-                | Update::Initialize { .. }
+            DisplayUpdate::Center(_)
+                | DisplayUpdate::Size(_)
+                | DisplayUpdate::Delay(_)
+                | DisplayUpdate::Distance(_)
+                | DisplayUpdate::Initialize { .. }
         ) {
             if self.border_generation != Some(world_generation) {
                 self.center = None;
@@ -277,23 +218,23 @@ impl DisplayLedger {
             self.border_generation = Some(world_generation);
         }
         match update {
-            Update::Title(text) => {
+            DisplayUpdate::Title(text) => {
                 self.title = Some(received(Some(text), sequence));
                 self.title_sequence = Some(sequence);
             }
-            Update::Subtitle(text) => {
+            DisplayUpdate::Subtitle(text) => {
                 self.subtitle = Some(received(Some(text), sequence));
                 self.title_sequence = Some(sequence);
             }
-            Update::ActionBar(text) => {
+            DisplayUpdate::ActionBar(text) => {
                 self.action_bar = Some(received(text, sequence));
                 self.title_sequence = Some(sequence);
             }
-            Update::Timing(timing) => {
+            DisplayUpdate::Timing(timing) => {
                 self.timing = Some(received(timing, sequence));
                 self.title_sequence = Some(sequence);
             }
-            Update::Clear(reset) => {
+            DisplayUpdate::Clear(reset) => {
                 self.title = Some(received(None, sequence));
                 self.subtitle = Some(received(None, sequence));
                 self.clear = Some(received(reset, sequence));
@@ -302,24 +243,24 @@ impl DisplayLedger {
                     self.timing = Some(received(TitleTiming::ResetToDefaults, sequence));
                 }
             }
-            Update::Tab(text) => self.tab = Some(received(text, sequence)),
-            Update::Center(center) => {
+            DisplayUpdate::Tab(text) => self.tab = Some(received(text, sequence)),
+            DisplayUpdate::Center(center) => {
                 self.center = Some(received(center, sequence));
                 self.border_sequence = Some(sequence);
             }
-            Update::Size(size) => {
+            DisplayUpdate::Size(size) => {
                 self.size = Some(received(size, sequence));
                 self.border_sequence = Some(sequence);
             }
-            Update::Delay(delay) => {
+            DisplayUpdate::Delay(delay) => {
                 self.warning_delay = Some(received(delay, sequence));
                 self.border_sequence = Some(sequence);
             }
-            Update::Distance(distance) => {
+            DisplayUpdate::Distance(distance) => {
                 self.warning_distance = Some(received(distance, sequence));
                 self.border_sequence = Some(sequence);
             }
-            Update::Initialize {
+            DisplayUpdate::Initialize {
                 center,
                 size,
                 absolute,
@@ -385,72 +326,6 @@ impl DisplayLedger {
         }
     }
 }
-fn invalid(message: &str) -> crate::Error {
-    super::super::recording::invalid(message)
-}
-fn timing(r: &mut crate::versions::java_1_21_11::ScoreboardReader<'_>) -> Result<TitleTiming> {
-    Ok(TitleTiming::Set {
-        fade_in: r.i32()?,
-        stay: r.i32()?,
-        fade_out: r.i32()?,
-    })
-}
-fn varlong(r: &mut crate::versions::java_1_21_11::ScoreboardReader<'_>) -> Result<i64> {
-    let mut value = 0u64;
-    for i in 0..10 {
-        let b = r.u8()?;
-        value |= u64::from(b & 0x7f) << (7 * i);
-        if b & 0x80 == 0 {
-            return Ok(value as i64);
-        }
-    }
-    Err(invalid("overlong border duration"))
-}
-fn lerp(
-    r: &mut crate::versions::java_1_21_11::ScoreboardReader<'_>,
-    initialize: bool,
-    modern: bool,
-) -> Result<WorldBorderSize> {
-    let from_diameter = r.f64()?;
-    let to_diameter = r.f64()?;
-    let value = varlong(r)?;
-    let duration = if modern {
-        WorldBorderDuration::Ticks(value)
-    } else {
-        WorldBorderDuration::Milliseconds(value)
-    };
-    Ok(if initialize {
-        WorldBorderSize::Initialize {
-            from_diameter,
-            to_diameter,
-            duration,
-        }
-    } else {
-        WorldBorderSize::Lerp {
-            from_diameter,
-            to_diameter,
-            duration,
-        }
-    })
-}
-fn initialize(
-    r: &mut crate::versions::java_1_21_11::ScoreboardReader<'_>,
-    modern: bool,
-) -> Result<Update> {
-    let center = [r.f64()?, r.f64()?];
-    let size = lerp(r, true, modern)?;
-    let absolute = r.varint()?;
-    let first = r.varint()?;
-    let second = r.varint()?;
-    Ok(Update::Initialize {
-        center,
-        size,
-        absolute,
-        delay: second,
-        distance: first,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -28,7 +28,7 @@ mod common_vehicle;
 use crate::error::state_error;
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{
-    chat::{ChatMessage, PlayerList, apply_player_info, parse_chat},
+    chat::{ChatMessage, PlayerList, parse_chat, project_player_info},
     entity::{
         EntityState, EntityTracker, MetadataValue, apply_relative, parse_metadata,
         parse_spawn_living, parse_spawn_object, parse_spawn_orb, parse_spawn_painting,

@@ -1,15 +1,17 @@
 //! Protocol 736 ui packet handlers.
 //! Called only by the ordered dispatcher while its coherent-state gate is held.
 use super::*;
+use crate::MinecraftVersion::Java1_16_1;
+use crate::versions::ui_decode;
 
 impl Bot {
     pub(super) async fn receive_boss_bar(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
-        self.common_boss_bars.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            p,
-            packet_sequence,
-        )?;
-        self.ui.write().await.apply_boss_bar(p)?;
+        let (uuid, update) = ui_decode::decode_boss_bar(Java1_16_1, p)?;
+        self.common_boss_bars
+            .lock()
+            .await
+            .apply(uuid, update.clone(), packet_sequence)?;
+        self.ui.write().await.project_boss_bar(uuid, update);
         self.emit(Event::UiStateUpdated(UiUpdateKind::BossBar));
         Ok(())
     }
@@ -20,14 +22,13 @@ impl Bot {
         id: i32,
         packet_sequence: u64,
     ) -> Result<()> {
-        self.common_player_list.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            id,
-            p,
-            packet_sequence,
-        )?;
+        let packet = ui_decode::decode_player_list(Java1_16_1, id, p)?;
+        self.common_player_list
+            .lock()
+            .await
+            .apply(packet.clone(), packet_sequence)?;
         let mut players = self.players.write().await;
-        let (action, uuids) = apply_player_info(&mut players, p)?;
+        let (action, uuids) = project_player_info(&mut players, packet);
         drop(players);
         self.emit(Event::PlayerListUpdated { action, uuids });
         Ok(())
@@ -40,14 +41,12 @@ impl Bot {
         packet_sequence: u64,
     ) -> Result<()> {
         let generation = self.common_receipts.lock().await.generation;
-        self.common_display.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            id,
-            p,
-            packet_sequence,
-            generation,
-        )?;
-        self.ui.write().await.apply_border(p)?;
+        let update = ui_decode::decode_display(Java1_16_1, id, p)?;
+        self.common_display
+            .lock()
+            .await
+            .apply(update.clone(), packet_sequence, generation)?;
+        self.ui.write().await.project_display(update);
         self.emit(Event::UiStateUpdated(UiUpdateKind::WorldBorder));
         Ok(())
     }
@@ -58,13 +57,12 @@ impl Bot {
         id: i32,
         packet_sequence: u64,
     ) -> Result<()> {
-        self.common_scoreboard.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            id,
-            p,
-            packet_sequence,
-        )?;
-        self.ui.write().await.apply_display(p)?;
+        let update = ui_decode::decode_scoreboard(Java1_16_1, id, p)?;
+        self.common_scoreboard
+            .lock()
+            .await
+            .apply(update.clone(), packet_sequence)?;
+        self.ui.write().await.project_scoreboard(update);
         self.emit(Event::UiStateUpdated(UiUpdateKind::DisplayObjective));
         Ok(())
     }
@@ -75,24 +73,23 @@ impl Bot {
         id: i32,
         packet_sequence: u64,
     ) -> Result<()> {
-        self.common_scoreboard.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            id,
-            p,
-            packet_sequence,
-        )?;
-        self.ui.write().await.apply_objective(p)?;
+        let update = ui_decode::decode_scoreboard(Java1_16_1, id, p)?;
+        self.common_scoreboard
+            .lock()
+            .await
+            .apply(update.clone(), packet_sequence)?;
+        self.ui.write().await.project_scoreboard(update);
         self.emit(Event::UiStateUpdated(UiUpdateKind::Objective));
         Ok(())
     }
 
     pub(super) async fn receive_team(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
-        self.common_teams.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            p,
-            packet_sequence,
-        )?;
-        self.ui.write().await.apply_team(p)?;
+        let packet = ui_decode::decode_team(Java1_16_1, p)?;
+        self.common_teams
+            .lock()
+            .await
+            .apply_packet(Java1_16_1, packet.clone(), packet_sequence)?;
+        self.ui.write().await.project_team(packet)?;
         self.emit(Event::UiStateUpdated(UiUpdateKind::Team));
         Ok(())
     }
@@ -103,13 +100,12 @@ impl Bot {
         id: i32,
         packet_sequence: u64,
     ) -> Result<()> {
-        self.common_scoreboard.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            id,
-            p,
-            packet_sequence,
-        )?;
-        self.ui.write().await.apply_score(p)?;
+        let update = ui_decode::decode_scoreboard(Java1_16_1, id, p)?;
+        self.common_scoreboard
+            .lock()
+            .await
+            .apply(update.clone(), packet_sequence)?;
+        self.ui.write().await.project_scoreboard(update);
         self.emit(Event::UiStateUpdated(UiUpdateKind::Score));
         Ok(())
     }
@@ -121,14 +117,12 @@ impl Bot {
         packet_sequence: u64,
     ) -> Result<()> {
         let generation = self.common_receipts.lock().await.generation;
-        self.common_display.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            id,
-            p,
-            packet_sequence,
-            generation,
-        )?;
-        self.ui.write().await.apply_title(p)?;
+        let update = ui_decode::decode_display(Java1_16_1, id, p)?;
+        self.common_display
+            .lock()
+            .await
+            .apply(update.clone(), packet_sequence, generation)?;
+        self.ui.write().await.project_display(update);
         self.emit(Event::UiStateUpdated(UiUpdateKind::Title));
         Ok(())
     }
@@ -140,14 +134,12 @@ impl Bot {
         packet_sequence: u64,
     ) -> Result<()> {
         let generation = self.common_receipts.lock().await.generation;
-        self.common_display.lock().await.receive(
-            crate::MinecraftVersion::Java1_16_1,
-            id,
-            p,
-            packet_sequence,
-            generation,
-        )?;
-        self.ui.write().await.apply_tab(p)?;
+        let update = ui_decode::decode_display(Java1_16_1, id, p)?;
+        self.common_display
+            .lock()
+            .await
+            .apply(update.clone(), packet_sequence, generation)?;
+        self.ui.write().await.project_display(update);
         self.emit(Event::UiStateUpdated(UiUpdateKind::TabList));
         Ok(())
     }

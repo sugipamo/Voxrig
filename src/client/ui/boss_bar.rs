@@ -1,6 +1,7 @@
 //! Actual boss-bar fields. Partial updates never refresh unrelated receipts.
 use super::{ObservedValue, SessionStamp, UiText, received};
 use crate::client::adapter::UiOps;
+use crate::versions::ui_decode::BossBarUpdate;
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 
@@ -104,14 +105,6 @@ pub(crate) struct BossBarLedger {
     bars: BTreeMap<[u8; 16], ReceivedBossBar>,
     last_update_sequence: Option<u64>,
 }
-enum Update {
-    Add(ReceivedBossBar),
-    Remove,
-    Progress(f32),
-    Title(UiText),
-    Style(BossBarColor, BossBarOverlay),
-    Flags(BossBarFlags),
-}
 impl BossBarLedger {
     pub(crate) fn reset_context(&mut self, sequence: u64) {
         *self = Self {
@@ -126,54 +119,55 @@ impl BossBarLedger {
         payload: &[u8],
         sequence: u64,
     ) -> Result<()> {
-        let mut r = crate::versions::java_1_21_11::ScoreboardReader::new(payload);
-        let uuid: [u8; 16] = r.take(16)?.try_into().expect("fixed UUID field");
-        let modern = version == MinecraftVersion::Java1_21_11;
-        let update = match r.varint()? {
-            0 => Update::Add(ReceivedBossBar {
-                uuid,
-                title: received(super::text(&mut r, modern)?, sequence),
-                progress: received(r.f32()?, sequence),
-                color: received(color(r.varint()?)?, sequence),
-                overlay: received(overlay(r.varint()?)?, sequence),
-                flags: received(BossBarFlags { raw: r.u8()? }, sequence),
-            }),
-            1 => Update::Remove,
-            2 => Update::Progress(r.f32()?),
-            3 => Update::Title(super::text(&mut r, modern)?),
-            4 => Update::Style(color(r.varint()?)?, overlay(r.varint()?)?),
-            5 => Update::Flags(BossBarFlags { raw: r.u8()? }),
-            _ => {
-                return Err(super::super::recording::invalid(
-                    "invalid boss bar operation",
-                ));
-            }
-        };
-        r.end()?;
+        let (uuid, update) = crate::versions::ui_decode::decode_boss_bar(version, payload)?;
+        self.apply(uuid, update, sequence)
+    }
+    pub(crate) fn apply(
+        &mut self,
+        uuid: [u8; 16],
+        update: BossBarUpdate,
+        sequence: u64,
+    ) -> Result<()> {
         match update {
-            Update::Add(bar) => {
+            BossBarUpdate::Add {
+                title,
+                progress,
+                color,
+                overlay,
+                flags,
+            } => {
                 if !self.bars.contains_key(&uuid) && self.bars.len() >= 4096 {
                     return Err(crate::Error::new(
                         crate::ErrorKind::ResourceLimit,
                         anyhow::anyhow!("boss bars exceed 4096 received entries"),
                     ));
                 }
-                self.bars.insert(uuid, bar);
+                self.bars.insert(
+                    uuid,
+                    ReceivedBossBar {
+                        uuid,
+                        title: received(title, sequence),
+                        progress: received(progress, sequence),
+                        color: received(color, sequence),
+                        overlay: received(overlay, sequence),
+                        flags: received(flags, sequence),
+                    },
+                );
             }
-            Update::Remove => {
+            BossBarUpdate::Remove => {
                 self.bars.remove(&uuid);
             }
             change => {
                 if let Some(bar) = self.bars.get_mut(&uuid) {
                     match change {
-                        Update::Progress(value) => bar.progress = received(value, sequence),
-                        Update::Title(value) => bar.title = received(value, sequence),
-                        Update::Style(color, overlay) => {
+                        BossBarUpdate::Progress(value) => bar.progress = received(value, sequence),
+                        BossBarUpdate::Title(value) => bar.title = received(value, sequence),
+                        BossBarUpdate::Style(color, overlay) => {
                             bar.color = received(color, sequence);
                             bar.overlay = received(overlay, sequence);
                         }
-                        Update::Flags(value) => bar.flags = received(value, sequence),
-                        Update::Add(_) | Update::Remove => unreachable!(),
+                        BossBarUpdate::Flags(value) => bar.flags = received(value, sequence),
+                        BossBarUpdate::Add { .. } | BossBarUpdate::Remove => unreachable!(),
                     }
                 }
             }
@@ -195,29 +189,6 @@ impl BossBarLedger {
         }
     }
 }
-fn color(value: i32) -> Result<BossBarColor> {
-    Ok(match value {
-        0 => BossBarColor::Pink,
-        1 => BossBarColor::Blue,
-        2 => BossBarColor::Red,
-        3 => BossBarColor::Green,
-        4 => BossBarColor::Yellow,
-        5 => BossBarColor::Purple,
-        6 => BossBarColor::White,
-        _ => return Err(super::super::recording::invalid("invalid boss bar color")),
-    })
-}
-fn overlay(value: i32) -> Result<BossBarOverlay> {
-    Ok(match value {
-        0 => BossBarOverlay::Progress,
-        1 => BossBarOverlay::Notched6,
-        2 => BossBarOverlay::Notched10,
-        3 => BossBarOverlay::Notched12,
-        4 => BossBarOverlay::Notched20,
-        _ => return Err(super::super::recording::invalid("invalid boss bar overlay")),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,11 +272,25 @@ mod tests {
                 if op == 0 || op == 4 {
                     assert_eq!(
                         bar.color.value,
-                        color(case["color"].as_i64().unwrap() as i32).unwrap()
+                        [
+                            BossBarColor::Pink,
+                            BossBarColor::Blue,
+                            BossBarColor::Red,
+                            BossBarColor::Green,
+                            BossBarColor::Yellow,
+                            BossBarColor::Purple,
+                            BossBarColor::White
+                        ][case["color"].as_u64().unwrap() as usize]
                     );
                     assert_eq!(
                         bar.overlay.value,
-                        overlay(case["overlay"].as_i64().unwrap() as i32).unwrap()
+                        [
+                            BossBarOverlay::Progress,
+                            BossBarOverlay::Notched6,
+                            BossBarOverlay::Notched10,
+                            BossBarOverlay::Notched12,
+                            BossBarOverlay::Notched20
+                        ][case["overlay"].as_u64().unwrap() as usize]
                     );
                     assert_eq!(bar.color.source, source);
                     assert_eq!(bar.overlay.source, source);

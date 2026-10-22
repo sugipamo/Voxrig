@@ -1,5 +1,6 @@
 //! Explicit version implementations. Wire IDs and registries never select a version implicitly.
 
+pub(crate) mod fields;
 #[cfg(feature = "native")]
 pub mod java_1_16_1;
 #[cfg(not(feature = "native"))]
