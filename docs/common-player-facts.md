@@ -29,8 +29,37 @@
 
 - `attack_entity`は攻撃のpacketを1つ送るだけで、待たない・腕を振らない。
 - 公式clientは攻撃の直後に主の手を振る。同じにするには続けて`swing_arm(Hand::Main)`を送る。
-- 攻撃の強さの回復はserver側で数えられる。間隔（`20 / attack_speed`tick）は
-  `attributes["minecraft:attack_speed"]`（なければ4.0）から利用側で計算する。
+- Java 1.21.11の`client.attack_strength().await?`は、ローカルの攻撃強度を`f32`の
+  `0.0..=1.0`で返す。1.0ならローカルで全回復。送信や自動待機は行わず、戦闘方針は利用側が持つ。
+  nativeの`Operations::attack_strength()`も同じ値を返す。1.16.1の共通accessorは`Unsupported`。
+- 接続内の単調時計で50msごとの整数tickを数える。partial tickは0とし、
+  `clamp(ticks_since_reset / (20 / attack_speed), 0, 1)`を使う。delayはvanillaと同じf32へ変換する。
+  world login/respawn・再設定で0に戻す。未ready・切断・revoke時はエラー。
+- 送信が完了した攻撃と腕振り（両手）、選択slotの変更で0に戻す。拒否した操作や送信前の取消は
+  戻さない。同じslotの再選択は戻さない。受信による選択slot変更と、現在の主の手のitem ID変更も
+  戻す。countやcomponentだけの変更、別slotの更新、属性packet自体では戻さない。
+  未受信slotと受信emptyは区別し、新たに主の手の内容が判明した場合も戻す。
+- 速度は受信した自分の`attack_speed`のbaseと全modifierから、既存の版別属性計算で求め、
+  0..1024へclampする。未受信ならvanillaの既定4.0。速度0では回復しない。
+  受信modifierに装備の`minecraft:base_attack_speed`も含まれるため、item表の速度を重ねて加算しない。
+  手持ち変更後に新しい属性が届くまでは直前の属性を使い、item componentからの先行予測は行わない。
+- これはサーバーの攻撃強度・ダメージ・命中のACKではない。server lag、tick rate変更、
+  属性packetの遅延でserver側と差が出る。`attack_entity`は全回復を待たずに従来どおり送信する。
+  Microsoft認証・署名はこの実装のスコープ外。
+
+```rust,no_run
+# async fn attack(client: &voxrig::Client, target: voxrig::client::EntityId) -> voxrig::Result<()> {
+while client.attack_strength().await? < 1.0 {
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+}
+client.survival().attack_entity(target, false).await?;
+# Ok(())
+# }
+```
+
+constructed packetの単体試験で属性の加算・倍率、剣の速度、0/範囲外、他entity、切断入力、
+slot/item変更・再設定を確認する。TCP試験で攻撃・腕振り・選択の送信後のreset、
+拒否・送信前取消、読み取りの無送信を確認する。今回の実server検証は未実施。
 
 ## 目が水中か
 

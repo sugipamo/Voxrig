@@ -2319,7 +2319,7 @@ async fn creative_ground_motion_keeps_mode_and_prediction_contract() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
     use crate::client::{GameMode, Hand};
     for mode in [GameMode::Survival, GameMode::Creative] {
@@ -2376,6 +2376,8 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
         );
         assert_eq!(moved.entity.spawn_position, initial.entity.spawn_position);
         assert_eq!(moved.velocity, initial.velocity);
+        tokio::time::advance(Duration::from_millis(250)).await;
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
         let (ops, wrong) = match mode {
             GameMode::Survival => (
                 crate::client::entity::EntityAction::Attack { sneaking: false },
@@ -2387,6 +2389,7 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
             ),
         };
         assert!(wrong.is_err());
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
         client
             .execute(mode, crate::client::operations::Action::Entity(target, ops))
             .await
@@ -2395,6 +2398,7 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
             read_packet(&mut peer, None).await.unwrap(),
             (ids::play_serverbound::USE_ENTITY, vec![43, 1, 0])
         );
+        assert_eq!(client.attack_strength().await.unwrap(), 0.0);
         session
             .state
             .lock()
@@ -2423,6 +2427,8 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
                 .await
                 .is_err()
         );
+        tokio::time::advance(Duration::from_millis(250)).await;
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
         match mode {
             GameMode::Survival => {
                 client
@@ -2443,6 +2449,7 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
             read_packet(&mut peer, None).await.unwrap(),
             (ids::play_serverbound::USE_ENTITY, vec![43, 0, 1, 1])
         );
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
         // Cancellation before the writer is acquired cannot emit a packet.
         let writer = session.writer.lock().await;
         let mut attempt =
@@ -2451,6 +2458,7 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
         drop(attempt);
         drop(writer);
         assert_eq!(session.interrupted_packet.load(Ordering::Acquire), -1);
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
         assert!(
             timeout(Duration::from_millis(10), peer.read_u8())
                 .await
@@ -5075,4 +5083,67 @@ async fn chat_utf16_limits_reject_before_dispatch_and_preserve_wire_text() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn attack_strength_dispatch_resets_and_passive_read() {
+    use crate::client::{GameMode, Hand};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        tokio::time::advance(Duration::from_millis(250)).await;
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
+        assert_eq!(api.attack_strength().await.unwrap(), 1.0);
+        let before = client.player_state().await.unwrap();
+        for hand in [Hand::Main, Hand::Off] {
+            client
+                .execute(mode, crate::client::operations::Action::Swing(hand))
+                .await
+                .unwrap();
+            assert_eq!(
+                read_packet(&mut peer, None).await.unwrap(),
+                (ids::play_serverbound::ARM_ANIMATION, vec![hand as u8])
+            );
+            assert_eq!(client.attack_strength().await.unwrap(), 0.0);
+            tokio::time::advance(Duration::from_millis(250)).await;
+            assert_eq!(client.attack_strength().await.unwrap(), 1.0);
+        }
+        client.select_hotbar(1).await.unwrap();
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (ids::play_serverbound::HELD_ITEM_SLOT, vec![0, 1])
+        );
+        assert_eq!(client.attack_strength().await.unwrap(), 0.0);
+        tokio::time::advance(Duration::from_millis(250)).await;
+        client.select_hotbar(1).await.unwrap();
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (ids::play_serverbound::HELD_ITEM_SLOT, vec![0, 1])
+        );
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
+        assert!(client.select_hotbar(9).await.is_err());
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
+        // A waiter cancelled before dispatch must leave the charge alone.
+        let writer = session.writer.lock().await;
+        let mut attempt =
+            Box::pin(client.execute(mode, crate::client::operations::Action::Swing(Hand::Main)));
+        pending(attempt.as_mut()).await;
+        drop(attempt);
+        drop(writer);
+        assert_eq!(client.attack_strength().await.unwrap(), 1.0);
+        let after = client.player_state().await.unwrap();
+        assert_eq!(before.receive_sequence, after.receive_sequence);
+        assert_eq!(before.attributes, after.attributes);
+        assert_eq!(before.inventory.slots, after.inventory.slots);
+        assert!(
+            timeout(Duration::from_millis(1), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        session.state.lock().await.ready = false;
+        assert!(client.attack_strength().await.is_err());
+        session.state.lock().await.ready = true;
+        let _ = client.revoke_connection();
+        assert!(client.attack_strength().await.is_err());
+    }
 }

@@ -767,6 +767,26 @@ mod tests {
     use crate::client::adapter::CoreOps;
 
     #[tokio::test]
+    async fn attack_strength_explicitly_unsupported_on_legacy_without_send() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert_eq!(
+            client.attack_strength().await.unwrap_err().kind(),
+            ErrorKind::Unsupported
+        );
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn block_hit_reach_uses_the_original_cursor_before_write() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

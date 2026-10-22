@@ -82,6 +82,20 @@ pub(crate) fn effect(amplifier: i32, duration_at_receipt: i32, flags: u8) -> Pla
     }
 }
 
+impl crate::Client {
+    /// Local Java 1.21.11 attack charge in `0.0..=1.0`, sampled at whole 50 ms
+    /// client ticks (no partial tick). Uses the received own-player attack-speed
+    /// base and modifiers, or vanilla's default 4.0 before the first receipt.
+    /// Completed attack/arm-swing sends, held-slot changes and received main-hand
+    /// item-type changes reset the charge. This sends nothing and never waits
+    /// for charge or confirms server damage. Server lag and attribute delivery
+    /// can make server charge differ. Java 1.16.1 returns `Unsupported`.
+    pub async fn attack_strength(&self) -> crate::Result<f32> {
+        use super::adapter::CoreOps;
+        super::dispatch!(&self.adapter, a => CoreOps::attack_strength(a).await)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
