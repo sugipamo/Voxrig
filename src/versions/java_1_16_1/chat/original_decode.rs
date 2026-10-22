@@ -1,6 +1,8 @@
 //! Original player-info parser, retained only as a differential regression oracle.
 use super::*;
+use crate::versions::java_1_16_1::protocol::get_string;
 use crate::versions::java_1_16_1::protocol::get_varint;
+use anyhow::{Context, Result, bail};
 
 fn optional_string(rest: &mut &[u8]) -> Result<Option<String>> {
     let present = *rest.first().context("missing optional string presence")? != 0;
@@ -81,4 +83,26 @@ pub(crate) fn apply_player_info(
         }
     }
     Ok((action, changed))
+}
+
+fn read_uuid(rest: &mut &[u8]) -> Result<[u8; 16]> {
+    if rest.len() < 16 {
+        bail!("truncated player UUID");
+    }
+    let mut uuid = [0; 16];
+    uuid.copy_from_slice(&rest[..16]);
+    *rest = &rest[16..];
+    Ok(uuid)
+}
+
+pub(crate) fn parse_chat(payload: &[u8]) -> Result<ChatMessage> {
+    let mut rest = payload;
+    let json = get_string(&mut rest)?;
+    let position = *rest.first().context("missing chat position")? as i8;
+    rest = &rest[1..];
+    Ok(ChatMessage {
+        json,
+        position,
+        sender: read_uuid(&mut rest)?,
+    })
 }

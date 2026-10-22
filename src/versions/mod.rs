@@ -11,6 +11,7 @@ pub mod java_1_21_11;
 #[cfg(not(feature = "native"))]
 #[allow(dead_code, unused_imports, clippy::enum_variant_names)] // The native surface.
 pub(crate) mod java_1_21_11;
+pub(crate) mod map_decode;
 pub(crate) mod table;
 pub(crate) mod ui_decode;
 
@@ -56,3 +57,6 @@ impl std::str::FromStr for MinecraftVersion {
         }
     }
 }
+
+#[cfg(test)]
+mod map_chat_tests;

@@ -1,12 +1,12 @@
 //! Bounded last-received map item fields; no inferred pixels or world position.
 use super::{ObservedValue, SessionStamp, received, ui::UiText};
+use crate::versions::map_decode::MapUpdate;
 use anyhow::{Result, bail};
 use std::{collections::BTreeMap, sync::Arc};
 
 /// Maximum number of map identities retained in one common world context.
 pub const MAX_RECEIVED_MAPS: usize = 128;
 const CELLS: usize = 128 * 128;
-const MAX_ICON_BYTES: usize = 1_048_576;
 
 /// Original world-scoped map observation identity, distinct from an item slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
@@ -103,122 +103,16 @@ struct StoredMap {
     colors: Arc<[u8]>,
     sources: Arc<[u64]>,
 }
-struct Patch {
-    x: u8,
-    y: u8,
-    width: u8,
-    height: u8,
-    colors: Vec<u8>,
-}
-struct Update {
-    id: i32,
-    scale: i8,
-    locked: bool,
-    tracking: Option<bool>,
-    icons: Option<Arc<[ReceivedMapIcon]>>,
-    patch: Option<Patch>,
-}
-fn boolean(r: &mut crate::versions::java_1_21_11::ScoreboardReader<'_>) -> Result<bool> {
-    // Original ByteBuf.readBoolean accepts any nonzero byte.
-    Ok(r.u8()? != 0)
-}
-fn decode(bytes: &[u8], modern: bool) -> Result<Update> {
-    if bytes.len() > MAX_ICON_BYTES + CELLS + 65_536 {
-        bail!("map packet exceeds bounded payload limit");
-    }
-    let mut r = crate::versions::java_1_21_11::ScoreboardReader::new(bytes);
-    let id = r.varint()?;
-    let scale = r.u8()? as i8;
-    let tracking = if modern { None } else { Some(boolean(&mut r)?) };
-    let locked = boolean(&mut r)?;
-    let icons = if !modern || boolean(&mut r)? {
-        let count = r.count(4096)?;
-        let mut icons = Vec::with_capacity(count);
-        let mut name_bytes = 0usize;
-        for _ in 0..count {
-            let kind = r.varint()?;
-            if kind < 0 || !modern && kind > 26 {
-                bail!("invalid map decoration type");
-            }
-            let x = r.u8()? as i8;
-            let y = r.u8()? as i8;
-            let encoded_rotation = r.u8()?;
-            let name = if boolean(&mut r)? {
-                Some(if modern {
-                    let bytes = r.encoded_nbt()?;
-                    name_bytes += bytes.len();
-                    UiText::NativeNbt { bytes }
-                } else {
-                    let json = r.string()?;
-                    name_bytes += json.len();
-                    UiText::LegacyJson { json }
-                })
-            } else {
-                None
-            };
-            if name_bytes > MAX_ICON_BYTES {
-                bail!("map icon text storage limit exceeded");
-            }
-            icons.push(ReceivedMapIcon {
-                kind: if modern {
-                    MapIconKind::ModernRegistryId(kind)
-                } else {
-                    MapIconKind::LegacyOrdinal(kind)
-                },
-                x,
-                y,
-                encoded_rotation,
-                name,
-            });
-        }
-        Some(icons.into())
-    } else {
-        None
-    };
-    let width = r.u8()?;
-    let patch = if width == 0 {
-        None
-    } else {
-        let height = r.u8()?;
-        let x = r.u8()?;
-        let y = r.u8()?;
-        if usize::from(x) + usize::from(width) > 128 || usize::from(y) + usize::from(height) > 128 {
-            bail!("map patch is outside 128 by 128 cells");
-        }
-        let colors = r.byte_array(CELLS)?.to_vec();
-        if colors.len() != usize::from(width) * usize::from(height) {
-            bail!("map patch has incorrect color length");
-        }
-        Some(Patch {
-            x,
-            y,
-            width,
-            height,
-            colors,
-        })
-    };
-    r.end()?;
-    Ok(Update {
-        id,
-        scale,
-        locked,
-        tracking,
-        icons,
-        patch,
-    })
-}
 impl MapLedger {
-    pub(crate) fn receive(&mut self, bytes: &[u8], modern: bool, sequence: u64) -> Result<()> {
-        self.receive_with_limit(bytes, modern, sequence, MAX_RECEIVED_MAPS)
+    pub(crate) fn apply(&mut self, update: MapUpdate, sequence: u64) -> Result<()> {
+        self.apply_with_limit(update, sequence, MAX_RECEIVED_MAPS)
     }
-    pub(crate) fn receive_with_limit(
+    pub(crate) fn apply_with_limit(
         &mut self,
-        bytes: &[u8],
-        modern: bool,
+        update: MapUpdate,
         sequence: u64,
         maximum: usize,
     ) -> Result<()> {
-        let update = decode(bytes, modern)?;
         if sequence == 0 {
             bail!("map update has no original receipt sequence");
         }
@@ -253,6 +147,25 @@ impl MapLedger {
             }
         }
         Ok(())
+    }
+    #[cfg(test)]
+    fn receive(&mut self, bytes: &[u8], modern: bool, sequence: u64) -> Result<()> {
+        self.receive_with_limit(bytes, modern, sequence, MAX_RECEIVED_MAPS)
+    }
+    #[cfg(test)]
+    fn receive_with_limit(
+        &mut self,
+        bytes: &[u8],
+        modern: bool,
+        sequence: u64,
+        maximum: usize,
+    ) -> Result<()> {
+        let update = if modern {
+            crate::versions::java_1_21_11::map_decode::decode_map(bytes)?
+        } else {
+            crate::versions::java_1_16_1::map_decode::decode_map(bytes)?
+        };
+        self.apply_with_limit(update, sequence, maximum)
     }
     pub(crate) fn capture(
         &self,

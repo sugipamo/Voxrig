@@ -100,3 +100,6 @@ fn validate_state_id(id: i32) -> anyhow::Result<()> {
 }
 
 pub(crate) mod ui_decode;
+
+pub(crate) mod chat_decode;
+pub(crate) mod map_decode;
