@@ -231,6 +231,19 @@ pub(crate) trait InventoryClickOps {
 
 /// Hotbar swaps in the player screen or an open container.
 pub(crate) trait InventorySwapOps {
+    async fn swap_hands(&self, _mode: GameMode) -> Result<super::inventory::HandSwapRecord> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("owned hand swap is only supported for Java 1.21.11"),
+        ))
+    }
+    async fn hand_swap_record(&self) -> Result<Option<super::inventory::HandSwapRecord>> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("owned hand swap is only supported for Java 1.21.11"),
+        ))
+    }
+
     async fn swap_hotbar(
         &self,
         mode: GameMode,

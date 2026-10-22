@@ -117,6 +117,13 @@ fn complete_received(state: &mut State) {
 }
 
 impl crate::client::adapter::InventorySwapOps for Operations {
+    async fn swap_hands(&self, mode: api::GameMode) -> Result<contract::HandSwapRecord> {
+        super::hands::swap(self, mode).await
+    }
+    async fn hand_swap_record(&self) -> Result<Option<contract::HandSwapRecord>> {
+        super::hands::record(self).await
+    }
+
     async fn swap_hotbar(
         &self,
         mode: api::GameMode,

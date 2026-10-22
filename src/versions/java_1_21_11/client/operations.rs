@@ -957,6 +957,15 @@ impl Operations {
                 "common container close unresolved; inspect without replay",
             ));
         }
+        if state
+            .common_hand_swap
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common hand swap unresolved; inspect without replay",
+            ));
+        }
         if state.common_inventory_swap.as_ref().is_some_and(|s| {
             s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
         }) {
@@ -1462,6 +1471,10 @@ pub(super) fn common_player_in_state(
             || interrupted
             || state
                 .common_container_close
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_hand_swap
                 .as_ref()
                 .is_some_and(|r| r.unresolved())
             || state.common_inventory_swap.as_ref().is_some_and(|s| {

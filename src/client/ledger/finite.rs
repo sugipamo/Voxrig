@@ -82,6 +82,7 @@ impl WorkGuard {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) enum Family {
     Swap,
+    HandSwap,
     Click,
     Transfer,
     Crafting,

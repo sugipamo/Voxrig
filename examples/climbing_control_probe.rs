@@ -395,6 +395,19 @@ async fn main() -> anyhow::Result<()> {
                     serde_json::to_value(result?)?
                 }
             }
+            "select_hotbar" => {
+                survival.select_hotbar(request["slot"].as_u64().unwrap().try_into()?).await?;
+                serde_json::to_value(client.player_state().await?)?
+            }
+            "swap_hands" => {
+                let record = if client.player_state().await?.game_mode == Some(GameMode::Creative) {
+                    client.creative().swap_hands().await?
+                } else {
+                    survival.swap_hands().await?
+                };
+                serde_json::to_value(record)?
+            }
+            "hand_swap_record" => serde_json::to_value(survival.hand_swap_record().await?)?,
             "inventory_record" => serde_json::to_value(survival.inventory_click_record().await?)?,
             "inventory_click" => {
                 use voxrig::client::inventory::{

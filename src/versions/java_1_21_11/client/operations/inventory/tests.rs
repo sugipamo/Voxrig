@@ -5154,3 +5154,6 @@ mod helper_sequences {
         }
     }
 }
+
+#[path = "hand_swap_tests.rs"]
+mod hand_swaps;
