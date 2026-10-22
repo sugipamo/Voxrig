@@ -5044,3 +5044,113 @@ mod craft_once_helpers {
         f.stop().await;
     }
 }
+
+mod helper_sequences {
+    use super::*;
+    use crate::client::{
+        SlotKnowledge,
+        inventory_helper_tests::{self as script, Fixture},
+    };
+
+    fn native(value: &SlotKnowledge) -> InventorySlot {
+        match value {
+            SlotKnowledge::Empty => InventorySlot::Empty,
+            SlotKnowledge::Item { item } => InventorySlot::Item {
+                item: PlainItem {
+                    name: item.name.clone(),
+                    item_id: item.id.value(),
+                    count: item.count as i32,
+                },
+            },
+            _ => panic!("known fixture stack required"),
+        }
+    }
+    impl Fixture for CommonFixture {
+        fn client(&self) -> crate::Client {
+            CommonFixture::client(self)
+        }
+        async fn inventory(&mut self, slots: &[SlotKnowledge], cursor: &SlotKnowledge) {
+            let mut inventory = Inventory {
+                cursor: native(cursor),
+                ..Default::default()
+            };
+            for (target, value) in inventory.slots.iter_mut().zip(slots) {
+                *target = native(value);
+            }
+            self.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+                .await;
+        }
+        async fn slot(&mut self, index: u16, value: &SlotKnowledge) {
+            CommonFixture::slot(self, index, native(value)).await;
+        }
+        async fn cursor(&mut self, value: &SlotKnowledge) {
+            let mut payload = Vec::new();
+            put_slot(&mut payload, &native(value));
+            self.receive(ids::play_clientbound::SET_CURSOR_ITEM, &payload)
+                .await;
+        }
+        async fn reply(&mut self, action: Option<i16>) {
+            assert!(action.is_none());
+        }
+        async fn click_packet(&mut self, record: &crate::client::inventory::InventoryClickRecord) {
+            let packet = script::ready(read_packet(&mut self.peer, None))
+                .await
+                .unwrap();
+            assert_eq!(
+                packet,
+                (
+                    ids::play_serverbound::WINDOW_CLICK,
+                    super::super::click::payload(record).unwrap()
+                )
+            );
+        }
+        async fn take_packet(&mut self, record: &crate::client::CraftingTakeRecord) {
+            let packet = script::ready(read_packet(&mut self.peer, None))
+                .await
+                .unwrap();
+            assert_eq!(
+                packet,
+                (
+                    ids::play_serverbound::WINDOW_CLICK,
+                    super::super::crafting::payload(record).unwrap()
+                )
+            );
+        }
+        async fn replace_screen(&mut self) {
+            self.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+                .await;
+        }
+        async fn forget_cursor(&mut self) {
+            let mut state = self.api.bot.session.state.lock().await;
+            state.operations.inventory.cursor = InventorySlot::Unavailable;
+            state.operations.inventory.cursor_sequence = None;
+        }
+        async fn no_packets(&mut self) {
+            // Poll the real socket with paused time; no arbitrary wall-clock delay.
+            assert!(
+                timeout(Duration::from_millis(1), read_packet(&mut self.peer, None))
+                    .await
+                    .is_err()
+            );
+        }
+    }
+    #[tokio::test]
+    async fn scripted_inventory_helper_sequences() {
+        for &case in script::CASES {
+            let mut fixture = CommonFixture::new().await;
+            fixture
+                .api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .registries
+                .finish();
+            tokio::time::pause();
+            script::run(&mut fixture, case).await;
+            tokio::time::resume();
+            fixture.stop().await;
+        }
+    }
+}
