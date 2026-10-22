@@ -1036,7 +1036,7 @@ fn apply_spawn_info(
     }
     state.reconstruction = Reconstruction::default();
     state.operations.reset_world(entry.game_mode)?;
-    state.attack_strength.reset();
+    state.attack_strength.reset_world();
     state.players.reset_world();
     state.entities.clear();
     state.vehicles.clear();
@@ -1354,7 +1354,7 @@ fn apply_play(
             state.world.reset();
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
-            state.attack_strength.reset();
+            state.attack_strength.reset_world();
             state.players = players::PlayerTracker::default();
             // Reconfiguration creates a new native play listener/scoreboard.
             // Ordinary respawn retains these connection-level registrations.

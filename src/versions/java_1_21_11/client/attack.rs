@@ -9,12 +9,16 @@ const CLIENT_TICK_MILLIS: u128 = 50;
 pub(super) struct AttackStrength {
     epoch: tokio::time::Instant,
     reset_tick: u128,
+    held_slot: u8,
+    held_item: Option<i32>,
 }
 impl Default for AttackStrength {
     fn default() -> Self {
         Self {
             epoch: tokio::time::Instant::now(),
             reset_tick: 0,
+            held_slot: 0,
+            held_item: None,
         }
     }
 }
@@ -24,6 +28,11 @@ impl AttackStrength {
     }
     pub(super) fn reset(&mut self) {
         self.reset_tick = self.tick();
+    }
+    pub(super) fn reset_world(&mut self) {
+        self.reset();
+        self.held_slot = 0;
+        self.held_item = None;
     }
     fn value(&self, player: &operations::LocalPlayerState) -> f32 {
         let speed = player
@@ -44,26 +53,39 @@ impl AttackStrength {
         } else {
             speed.clamp(0.0, MAX_ATTACK_SPEED)
         };
-        // Player.getCurrentItemAttackStrengthDelay casts the double division to
-        // float before getAttackStrengthScale divides the whole-tick counter.
-        let delay = (20.0 / speed) as f32;
+        // Preserve Player.getCurrentItemAttackStrengthDelay's double reciprocal
+        // and multiply before the float cast; 20.0 / speed can round differently
+        // at a full-charge boundary.
+        let delay = ((1.0 / speed) * 20.0) as f32;
         (self.tick().saturating_sub(self.reset_tick) as f32 / delay).clamp(0.0, 1.0)
     }
 }
 
-pub(super) fn held_slot(operations: &operations::OperationState) -> u8 {
-    operations.selected_hotbar.as_ref().map_or(0, |s| s.slot)
+// Selection attempts are recorded before sending. Only a complete send or an
+// actual selection receipt changes the hand used by this ticker.
+pub(super) fn observe(state: &mut State, selected_slot: Option<u8>) {
+    let charge = &mut state.attack_strength;
+    if let Some(slot) = selected_slot {
+        if charge.held_slot != slot {
+            charge.reset();
+            charge.held_slot = slot;
+            charge.held_item = None;
+        }
+    }
+    if let Some(item) = held_item(&state.operations, charge.held_slot) {
+        if charge.held_item != Some(item) {
+            charge.reset();
+            charge.held_item = Some(item);
+        }
+    }
 }
 
 // Vanilla's ticker compares item identity, not stack count or component data.
-// Unknown inventory knowledge remains distinct from a received empty stack.
-pub(super) fn held_item(operations: &operations::OperationState) -> Option<i32> {
+// Missing inventory knowledge (e.g. opening a screen) is not an item change.
+// A received empty stack is a known identity and must still reset the ticker.
+fn held_item(operations: &operations::OperationState, slot: u8) -> Option<i32> {
     use operations::InventorySlot;
-    match operations
-        .inventory
-        .slots
-        .get(36 + usize::from(held_slot(operations)))?
-    {
+    match operations.inventory.slots.get(36 + usize::from(slot))? {
         InventorySlot::Unavailable => None,
         InventorySlot::Empty => Some(0),
         InventorySlot::Item { item } | InventorySlot::ItemWithComponents { item, .. } => {

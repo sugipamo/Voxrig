@@ -5086,6 +5086,69 @@ async fn chat_utf16_limits_reject_before_dispatch_and_preserve_wire_text() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn attack_strength_cancelled_selection_keeps_actual_hand_for_receipts() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let registry = crate::client::registry::Registry::for_version(MinecraftVersion::Java1_21_11);
+    let mut stone = vec![0, 1];
+    put_varint(
+        &mut stone,
+        registry.item("minecraft:stone").unwrap().id.value(),
+    );
+    stone.extend([0, 0]);
+    let mut sword = vec![1, 1];
+    put_varint(
+        &mut sword,
+        registry.item("minecraft:iron_sword").unwrap().id.value(),
+    );
+    sword.extend([0, 0]);
+    {
+        let mut s = session.state.lock().await;
+        s.receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &stone, 64)
+            .unwrap();
+        s.receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &sword, 64)
+            .unwrap();
+    }
+    tokio::time::advance(Duration::from_millis(250)).await;
+    for (id, payload, expected, cancel_selection) in [
+        (ids::play_clientbound::HELD_ITEM_SLOT, vec![0], 1.0, true),
+        (
+            ids::play_clientbound::SET_PLAYER_INVENTORY,
+            vec![1, 0],
+            1.0,
+            true,
+        ),
+        (
+            ids::play_clientbound::SET_PLAYER_INVENTORY,
+            vec![0, 0],
+            0.0,
+            false,
+        ),
+    ] {
+        if cancel_selection {
+            let writer = session.writer.lock().await;
+            let mut attempt = Box::pin(client.select_hotbar(1));
+            pending(attempt.as_mut()).await;
+            drop(attempt);
+            drop(writer);
+            assert_eq!(client.attack_strength().await.unwrap(), 1.0);
+        }
+        session
+            .state
+            .lock()
+            .await
+            .receive(id, &payload, 64)
+            .unwrap();
+        assert_eq!(client.attack_strength().await.unwrap(), expected);
+    }
+    assert!(
+        timeout(Duration::from_millis(1), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test(start_paused = true)]
 async fn attack_strength_dispatch_resets_and_passive_read() {
     use crate::client::{GameMode, Hand};
     for mode in [GameMode::Survival, GameMode::Creative] {

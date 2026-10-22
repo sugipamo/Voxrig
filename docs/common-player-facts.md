@@ -33,12 +33,16 @@
   `0.0..=1.0`で返す。1.0ならローカルで全回復。送信や自動待機は行わず、戦闘方針は利用側が持つ。
   nativeの`Operations::attack_strength()`も同じ値を返す。1.16.1の共通accessorは`Unsupported`。
 - 接続内の単調時計で50msごとの整数tickを数える。partial tickは0とし、
-  `clamp(ticks_since_reset / (20 / attack_speed), 0, 1)`を使う。delayはvanillaと同じf32へ変換する。
+  `delay = ((1.0 / attack_speed) * 20.0) as f32`として、
+  `clamp(ticks_since_reset / delay, 0, 1)`を使う。除算・乗算・f32変換の順序もvanillaに合わせる。
   world login/respawn・再設定で0に戻す。未ready・切断・revoke時はエラー。
 - 送信が完了した攻撃と腕振り（両手）、選択slotの変更で0に戻す。拒否した操作や送信前の取消は
   戻さない。同じslotの再選択は戻さない。受信による選択slot変更と、現在の主の手のitem ID変更も
   戻す。countやcomponentだけの変更、別slotの更新、属性packet自体では戻さない。
+  送信前に取り消した選択試行は、受信itemを判定するslotにも使わない。
   未受信slotと受信emptyは区別し、新たに主の手の内容が判明した場合も戻す。
+  画面の開閉などでinventoryの観測が欠けても、最後に分かっていたitem IDを保持する。
+  欠測への変化や同じitemの再受信では戻さず、異なるitem・emptyの受信では戻す。
 - 速度は受信した自分の`attack_speed`のbaseと全modifierから、既存の版別属性計算で求め、
   0..1024へclampする。未受信ならvanillaの既定4.0。速度0では回復しない。
   受信modifierに装備の`minecraft:base_attack_speed`も含まれるため、item表の速度を重ねて加算しない。
@@ -57,7 +61,7 @@ client.survival().attack_entity(target, false).await?;
 # }
 ```
 
-constructed packetの単体試験で属性の加算・倍率、剣の速度、0/範囲外、他entity、切断入力、
+constructed packetの単体試験で属性の加算・倍率、剣の速度、全回復の丸め境界、0/範囲外、他entity、切断入力、
 slot/item変更・再設定を確認する。TCP試験で攻撃・腕振り・選択の送信後のreset、
 拒否・送信前取消、読み取りの無送信を確認する。今回の実server検証は未実施。
 

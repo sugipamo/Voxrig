@@ -698,7 +698,6 @@ impl Operations {
                         anyhow::anyhow!("inventory swap needs inspection"),
                     ));
                 }
-                let previous_slot = attack::held_slot(&state.operations);
                 state.operations.selected_hotbar = Some(HotbarSelection {
                     slot,
                     sequence: state.sequence,
@@ -718,9 +717,7 @@ impl Operations {
                     .as_mut()
                     .expect("selection attempt")
                     .dispatched = true;
-                if previous_slot != slot {
-                    state.attack_strength.reset();
-                }
+                attack::observe(&mut state, Some(slot));
                 Ok(())
             })
             .await
@@ -1365,12 +1362,16 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     if id == input::ABILITIES {
         state.control.observe_abilities(payload[0], state.sequence);
     }
-    if attack::held_slot(&state.operations) != attack::held_slot(&next)
-        || attack::held_item(&state.operations) != attack::held_item(&next)
-    {
-        state.attack_strength.reset();
-    }
     state.operations = next;
+    let selected_slot = (id == input::HELD_ITEM_SLOT).then(|| {
+        state
+            .operations
+            .selected_hotbar
+            .as_ref()
+            .expect("received selection")
+            .slot
+    });
+    attack::observe(state, selected_slot);
     if matches!(
         id,
         input::WINDOW_ITEMS | input::SET_SLOT | input::SET_PLAYER_INVENTORY

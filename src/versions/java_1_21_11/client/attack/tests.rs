@@ -93,6 +93,24 @@ async fn attack_strength_received_weapon_and_all_modifier_operations() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn attack_strength_native_delay_rounding_preserves_full_charge_boundary() {
+    // The native double reciprocal/multiply then float conversion differs from
+    // casting 20.0 / speed at these boundaries, in both directions.
+    const CASES: &[(f64, u64, f32)] = &[
+        (0.869565181335566, 1150, f32::from_bits(0x3f7f_ffff)),
+        (19.999998807907172, 50, 1.0),
+    ];
+    for &(speed, millis, expected) in CASES {
+        let mut s = state();
+        receive(&mut s, &attribute(42, speed, &[])).unwrap();
+        tokio::time::advance(Duration::from_millis(millis)).await;
+        assert_eq!(charge(&s), expected, "attack speed {speed}");
+        tokio::time::advance(Duration::from_millis(50)).await;
+        assert_eq!(charge(&s), 1.0);
+    }
+}
+
+#[tokio::test(start_paused = true)]
 async fn attack_strength_zero_negative_and_capped_speed() {
     let mut s = state();
     for base in [0.0, -1.0] {
@@ -187,9 +205,28 @@ async fn attack_strength_received_selection_and_main_hand_item_identity_changes(
 }
 
 #[tokio::test(start_paused = true)]
+async fn attack_strength_screen_invalidation_preserves_last_known_item() {
+    let mut s = state();
+    slot(&mut s, 0, "minecraft:stone", 1);
+    tokio::time::advance(Duration::from_millis(250)).await;
+    operations::receive(&mut s, ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0]).unwrap();
+    assert_eq!(charge(&s), 1.0);
+    slot(&mut s, 0, "minecraft:stone", 1);
+    assert_eq!(charge(&s), 1.0);
+    operations::receive(&mut s, ids::play_clientbound::CLOSE_WINDOW, &[3]).unwrap();
+    assert_eq!(charge(&s), 1.0);
+    slot(&mut s, 0, "minecraft:stone", 1);
+    assert_eq!(charge(&s), 1.0);
+    slot(&mut s, 0, "minecraft:iron_sword", 1);
+    assert_eq!(charge(&s), 0.0);
+}
+
+#[tokio::test(start_paused = true)]
 async fn attack_strength_reconfiguration_discards_old_ticks_and_attributes() {
     let mut s = state();
     s.phase = Phase::Play;
+    slot(&mut s, 1, "minecraft:iron_sword", 1);
+    operations::receive(&mut s, ids::play_clientbound::HELD_ITEM_SLOT, &[1]).unwrap();
     receive(&mut s, &attribute(42, 2.0, &[])).unwrap();
     tokio::time::advance(Duration::from_millis(500)).await;
     assert_eq!(charge(&s), 1.0);
@@ -199,6 +236,10 @@ async fn attack_strength_reconfiguration_discards_old_ticks_and_attributes() {
     assert_eq!(charge(&s), 0.0);
     tokio::time::advance(Duration::from_millis(50)).await;
     assert_eq!(charge(&s), 0.2);
+    slot(&mut s, 1, "minecraft:stone", 1); // The new world's selected slot is 0.
+    assert_eq!(charge(&s), 0.2);
+    slot(&mut s, 0, "minecraft:air", 0); // First known empty hand is still a receipt.
+    assert_eq!(charge(&s), 0.0);
 }
 
 #[tokio::test(start_paused = true)]
@@ -220,6 +261,8 @@ async fn attack_strength_login_and_respawn_reset_world_charge() {
         (ids::play_clientbound::LOGIN, login),
         (ids::play_clientbound::RESPAWN, respawn),
     ] {
+        slot(&mut s, 1, "minecraft:iron_sword", 1);
+        operations::receive(&mut s, ids::play_clientbound::HELD_ITEM_SLOT, &[1]).unwrap();
         receive(&mut s, &attribute(42, 2.0, &[])).unwrap();
         tokio::time::advance(Duration::from_millis(500)).await;
         assert_eq!(charge(&s), 1.0);
@@ -231,5 +274,9 @@ async fn attack_strength_login_and_respawn_reset_world_charge() {
         assert_eq!(charge(&s), 0.0);
         tokio::time::advance(Duration::from_millis(50)).await;
         assert_eq!(charge(&s), 0.2);
+        slot(&mut s, 1, "minecraft:stone", 1);
+        assert_eq!(charge(&s), 0.2);
+        slot(&mut s, 0, "minecraft:stone", 1);
+        assert_eq!(charge(&s), 0.0);
     }
 }
