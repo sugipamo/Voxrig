@@ -13,17 +13,10 @@ fn state() -> State {
     state
 }
 fn registry(state: &mut State, names: &[&str]) {
-    let mut bytes = Vec::new();
-    put_string(&mut bytes, "minecraft:damage_type");
-    put_varint(&mut bytes, names.len() as i32);
-    for name in names {
-        put_string(&mut bytes, name);
-        bytes.extend([1, 10, 0]); // present, unnamed empty compound
-    }
     state
         .receive(
             crate::versions::java_1_21_11::ids::configuration_clientbound::REGISTRY_DATA,
-            &bytes,
+            &registry_packet(names),
             16,
         )
         .unwrap();
@@ -31,6 +24,16 @@ fn registry(state: &mut State, names: &[&str]) {
     // FINISH_CONFIGURATION additionally requires unrelated dimension fixtures.
     state.registries.finish();
     state.phase = Phase::Play;
+}
+fn registry_packet(names: &[&str]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    put_string(&mut bytes, "minecraft:damage_type");
+    put_varint(&mut bytes, names.len() as i32);
+    for name in names {
+        put_string(&mut bytes, name);
+        bytes.extend([1, 10, 0]); // present, unnamed empty compound
+    }
+    bytes
 }
 fn damage(
     type_id: i32,
@@ -265,6 +268,80 @@ fn malformed_packets_never_publish_payloads_notifications_or_death_text() {
             .receive(input::DAMAGE_EVENT, &damage(0, None, None, None), 16)
             .is_err()
     );
+}
+
+#[test]
+fn malformed_kill_preserves_previous_death_and_published_history() {
+    let mut trailing = kill(37);
+    trailing.push(0);
+    for bytes in [
+        kill(37)[..3].to_vec(),
+        trailing,
+        vec![37, 0], // End cannot be a network NBT root.
+        vec![37; MAX_EFFECT_PACKET_BYTES + 1],
+    ] {
+        let mut state = state();
+        state.operations.local_player.entity_id = Some(37);
+        state
+            .receive(input::DAMAGE_EVENT, &damage(0, None, None, None), 16)
+            .unwrap();
+        state
+            .receive(input::DEATH_COMBAT_EVENT, &kill(37), 16)
+            .unwrap();
+        let death = state.death_message.clone().unwrap();
+        let effects = state.effects.after(0, state.sequence).unwrap().effects;
+        let events = state.events.after(0, state.sequence).unwrap();
+
+        assert!(
+            state
+                .receive(input::DEATH_COMBAT_EVENT, &bytes, 16)
+                .is_err()
+        );
+        let retained_death = state.death_message.as_ref().unwrap();
+        assert_eq!(retained_death.value, death.value);
+        assert_eq!(retained_death.source, death.source);
+        assert_eq!(
+            state.effects.after(0, state.sequence).unwrap().effects,
+            effects
+        );
+        let retained_events = state.events.after(0, state.sequence).unwrap();
+        assert_eq!(retained_events.cursor, events.cursor);
+        assert_eq!(retained_events.events, events.events);
+        assert_eq!(state.failure.unwrap().kind(), crate::ErrorKind::Protocol);
+    }
+}
+
+#[test]
+fn damage_rejects_received_registry_until_configuration_is_complete() {
+    let mut state = State {
+        phase: Phase::Configuration,
+        ..State::default()
+    };
+    state
+        .receive(
+            crate::versions::java_1_21_11::ids::configuration_clientbound::REGISTRY_DATA,
+            &registry_packet(&["example:custom"]),
+            16,
+        )
+        .unwrap();
+    let registries = state
+        .registries
+        .capture(state.snapshot_session(), state.sequence);
+    assert!(!registries.complete());
+    assert!(
+        registries
+            .registries()
+            .contains_key("minecraft:damage_type")
+    );
+    let bytes = damage(0, None, None, None);
+    assert!(decode(&state, input::DAMAGE_EVENT, &bytes).is_err());
+
+    state.registries.finish();
+    let Some(PlayEffect::Damage(observed)) = decode(&state, input::DAMAGE_EVENT, &bytes).unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(observed.source_type_name, "example:custom");
 }
 
 #[test]
