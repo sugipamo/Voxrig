@@ -1,7 +1,9 @@
 //! Received team declarations and scoreboard-holder membership, not permissions.
 use super::{UiText, received};
 use crate::client::adapter::UiOps;
+use crate::client::recording::invalid;
 use crate::client::{ObservedValue, SessionStamp};
+use crate::versions::ui_decode::TeamPacket;
 use crate::{MinecraftVersion, Result};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -95,28 +97,6 @@ impl TeamColor {
     pub(crate) fn native_id(self) -> i32 {
         self as i32
     }
-    fn decode(id: i32) -> Result<Self> {
-        Ok(match id {
-            0 => Self::Black,
-            1 => Self::DarkBlue,
-            2 => Self::DarkGreen,
-            3 => Self::DarkAqua,
-            4 => Self::DarkRed,
-            5 => Self::DarkPurple,
-            6 => Self::Gold,
-            7 => Self::Gray,
-            8 => Self::DarkGray,
-            9 => Self::Blue,
-            10 => Self::Green,
-            11 => Self::Aqua,
-            12 => Self::Red,
-            13 => Self::LightPurple,
-            14 => Self::Yellow,
-            15 => Self::White,
-            21 => Self::Reset,
-            _ => return Err(invalid("unsupported team color")),
-        })
-    }
 }
 /// Complete received team parameters, supplied together in ADD or CHANGE.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -185,89 +165,6 @@ pub(crate) struct TeamLedger {
     owners: BTreeMap<String, String>,
     sequence: Option<u64>,
 }
-pub(crate) struct TeamPacket {
-    pub name: String,
-    pub operation: u8,
-    pub parameters: Option<TeamParameters>,
-    pub members: Vec<String>,
-}
-fn invalid(message: &str) -> crate::Error {
-    super::super::recording::invalid(message)
-}
-pub(crate) fn decode(version: MinecraftVersion, payload: &[u8]) -> Result<TeamPacket> {
-    let modern = version == MinecraftVersion::Java1_21_11;
-    let mut r = crate::versions::java_1_21_11::ScoreboardReader::new(payload);
-    let name = r.string()?;
-    let operation = r.u8()?;
-    if operation > 4 {
-        return Err(invalid("unknown team operation"));
-    }
-    let parameters = if operation == 0 || operation == 2 {
-        let display = super::text(&mut r, modern)?;
-        let friendly_flags = r.u8()?;
-        let visibility = if modern {
-            match r.varint()? {
-                0 => TeamVisibility::Always,
-                1 => TeamVisibility::Never,
-                2 => TeamVisibility::HideForOtherTeams,
-                3 => TeamVisibility::HideForOwnTeam,
-                _ => return Err(invalid("unsupported team visibility")),
-            }
-        } else {
-            match r.string()?.as_str() {
-                "always" => TeamVisibility::Always,
-                "never" => TeamVisibility::Never,
-                "hideForOtherTeams" => TeamVisibility::HideForOtherTeams,
-                "hideForOwnTeam" => TeamVisibility::HideForOwnTeam,
-                _ => return Err(invalid("unsupported team visibility")),
-            }
-        };
-        let collision = if modern {
-            match r.varint()? {
-                0 => TeamCollision::Always,
-                1 => TeamCollision::Never,
-                2 => TeamCollision::PushOtherTeams,
-                3 => TeamCollision::PushOwnTeam,
-                _ => return Err(invalid("unsupported team collision")),
-            }
-        } else {
-            match r.string()?.as_str() {
-                "always" => TeamCollision::Always,
-                "never" => TeamCollision::Never,
-                "pushOtherTeams" => TeamCollision::PushOtherTeams,
-                "pushOwnTeam" => TeamCollision::PushOwnTeam,
-                _ => return Err(invalid("unsupported team collision")),
-            }
-        };
-        let color = TeamColor::decode(r.varint()?)?;
-        let prefix = super::text(&mut r, modern)?;
-        let suffix = super::text(&mut r, modern)?;
-        Some(TeamParameters {
-            display,
-            friendly_flags,
-            visibility,
-            collision,
-            color,
-            prefix,
-            suffix,
-        })
-    } else {
-        None
-    };
-    let mut members = Vec::new();
-    if operation == 0 || operation == 3 || operation == 4 {
-        for _ in 0..r.count(4096)? {
-            members.push(r.string()?);
-        }
-    }
-    r.end()?;
-    Ok(TeamPacket {
-        name,
-        operation,
-        parameters,
-        members,
-    })
-}
 impl TeamLedger {
     pub(crate) fn reset_context(&mut self, sequence: u64) {
         *self = Self {
@@ -282,7 +179,15 @@ impl TeamLedger {
         payload: &[u8],
         sequence: u64,
     ) -> Result<()> {
-        let packet = decode(version, payload)?;
+        let packet = crate::versions::ui_decode::decode_team(version, payload)?;
+        self.apply_packet(version, packet, sequence)
+    }
+    pub(crate) fn apply_packet(
+        &mut self,
+        version: MinecraftVersion,
+        packet: TeamPacket,
+        sequence: u64,
+    ) -> Result<()> {
         // The native legacy scoreboard rejects duplicate ADD; modern reuses it.
         if packet.operation == 0
             && self.teams.contains_key(&packet.name)

@@ -98,3 +98,5 @@ fn validate_state_id(id: i32) -> anyhow::Result<()> {
     registry().validate_id(id)?;
     Ok(())
 }
+
+pub(crate) mod ui_decode;

@@ -1,6 +1,6 @@
 //! Structured chat messages and the server-maintained player list.
 
-use crate::versions::java_1_16_1::protocol::{get_string, get_varint};
+use crate::versions::java_1_16_1::protocol::get_string;
 use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 
@@ -60,16 +60,6 @@ fn read_uuid(rest: &mut &[u8]) -> Result<[u8; 16]> {
     Ok(uuid)
 }
 
-fn optional_string(rest: &mut &[u8]) -> Result<Option<String>> {
-    let present = *rest.first().context("missing optional string presence")? != 0;
-    *rest = &rest[1..];
-    Ok(if present {
-        Some(get_string(rest)?)
-    } else {
-        None
-    })
-}
-
 pub(crate) fn parse_chat(payload: &[u8]) -> Result<ChatMessage> {
     let mut rest = payload;
     let json = get_string(&mut rest)?;
@@ -80,77 +70,6 @@ pub(crate) fn parse_chat(payload: &[u8]) -> Result<ChatMessage> {
         position,
         sender: read_uuid(&mut rest)?,
     })
-}
-
-pub(crate) fn apply_player_info(
-    list: &mut PlayerList,
-    payload: &[u8],
-) -> Result<(i32, Vec<[u8; 16]>)> {
-    let mut rest = payload;
-    let action = get_varint(&mut rest)?;
-    let count = get_varint(&mut rest)?;
-    if !(0..=4096).contains(&count) {
-        bail!("invalid player info count {count}");
-    }
-    let mut changed = Vec::with_capacity(count as usize);
-    for _ in 0..count {
-        let uuid = read_uuid(&mut rest)?;
-        changed.push(uuid);
-        match action {
-            0 => {
-                let name = get_string(&mut rest)?;
-                let property_count = get_varint(&mut rest)?;
-                if !(0..=1024).contains(&property_count) {
-                    bail!("invalid player property count {property_count}");
-                }
-                let mut properties = Vec::with_capacity(property_count as usize);
-                for _ in 0..property_count {
-                    properties.push(PlayerProperty {
-                        name: get_string(&mut rest)?,
-                        value: get_string(&mut rest)?,
-                        signature: optional_string(&mut rest)?,
-                    });
-                }
-                let game_mode = get_varint(&mut rest)?;
-                let latency = get_varint(&mut rest)?;
-                let display_name_json = optional_string(&mut rest)?;
-                list.entries.insert(
-                    uuid,
-                    PlayerListEntry {
-                        uuid,
-                        name,
-                        properties,
-                        game_mode,
-                        latency,
-                        display_name_json,
-                    },
-                );
-            }
-            1 => {
-                let game_mode = get_varint(&mut rest)?;
-                if let Some(entry) = list.entries.get_mut(&uuid) {
-                    entry.game_mode = game_mode;
-                }
-            }
-            2 => {
-                let latency = get_varint(&mut rest)?;
-                if let Some(entry) = list.entries.get_mut(&uuid) {
-                    entry.latency = latency;
-                }
-            }
-            3 => {
-                let display_name_json = optional_string(&mut rest)?;
-                if let Some(entry) = list.entries.get_mut(&uuid) {
-                    entry.display_name_json = display_name_json;
-                }
-            }
-            4 => {
-                list.entries.remove(&uuid);
-            }
-            _ => bail!("unknown player info action {action}"),
-        }
-    }
-    Ok((action, changed))
 }
 
 #[cfg(test)]
@@ -169,3 +88,67 @@ mod tests {
         assert_eq!(message.sender, [7; 16]);
     }
 }
+
+pub(crate) fn project_player_info(
+    list: &mut PlayerList,
+    packet: crate::versions::ui_decode::PlayerPacket,
+) -> (i32, Vec<[u8; 16]>) {
+    use crate::versions::ui_decode::PlayerChanges;
+    let action = packet.action.expect("legacy player-info action");
+    let mut changed = Vec::new();
+    let json = |text| match text {
+        crate::client::ui::UiText::LegacyJson { json } => json,
+        _ => unreachable!("legacy player text"),
+    };
+    let mode = |value: Option<crate::client::GameMode>| value.map_or(-1, |value| value as i32);
+    match packet.changes {
+        PlayerChanges::Remove(uuids) => {
+            for uuid in uuids {
+                changed.push(uuid);
+                list.entries.remove(&uuid);
+            }
+        }
+        PlayerChanges::Updates(updates) => {
+            for u in updates {
+                changed.push(u.uuid);
+                if let Some(profile) = u.profile {
+                    list.entries.insert(
+                        u.uuid,
+                        PlayerListEntry {
+                            uuid: u.uuid,
+                            name: profile.name,
+                            properties: profile
+                                .properties
+                                .into_iter()
+                                .map(|p| PlayerProperty {
+                                    name: p.name,
+                                    value: p.value,
+                                    signature: p.signature,
+                                })
+                                .collect(),
+                            game_mode: mode(u.game_mode.unwrap()),
+                            latency: u.latency.unwrap(),
+                            display_name_json: u.display_name.unwrap().map(json),
+                        },
+                    );
+                } else if let Some(entry) = list.entries.get_mut(&u.uuid) {
+                    if let Some(value) = u.game_mode {
+                        entry.game_mode = mode(value);
+                    }
+                    if let Some(value) = u.latency {
+                        entry.latency = value;
+                    }
+                    if let Some(value) = u.display_name {
+                        entry.display_name_json = value.map(json);
+                    }
+                }
+            }
+        }
+    }
+    (action, changed)
+}
+
+#[cfg(test)]
+mod original_decode;
+#[cfg(test)]
+pub(crate) use original_decode::apply_player_info;

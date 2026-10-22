@@ -133,3 +133,5 @@ pub use world::{
     BlockEntityData, BlockObservation, BlockRegion, ChunkPos, ChunkSnapshot, ChunkStorageStats,
     EnvironmentState, FluidKind, SharedChunkStorage,
 };
+
+pub(crate) mod ui_decode;

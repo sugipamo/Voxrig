@@ -8,7 +8,7 @@ pub mod teams;
 pub use super::container::ScreenTitle as UiText;
 use super::{ObservedValue, SessionStamp, received};
 use crate::client::adapter::UiOps;
-use crate::versions::ui_decode::{ScoreboardUpdate, decode_scoreboard, text};
+use crate::versions::ui_decode::{ScoreboardUpdate, decode_scoreboard};
 use crate::{MinecraftVersion, Result};
 pub use boss_bar::{
     BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, ReceivedBossBar,
@@ -132,6 +132,9 @@ impl ScoreboardLedger {
         sequence: u64,
     ) -> Result<()> {
         let update = decode_scoreboard(version, id, payload)?;
+        self.apply(update, sequence)
+    }
+    pub(crate) fn apply(&mut self, update: ScoreboardUpdate, sequence: u64) -> Result<()> {
         let adds = match &update {
             ScoreboardUpdate::Objective(o) => !self.objectives.contains_key(&o.name),
             ScoreboardUpdate::Display(slot, name) => {
