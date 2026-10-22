@@ -233,6 +233,8 @@ impl super::Client {
                 if !log.events.is_empty() {
                     return Ok(log);
                 }
+                #[cfg(test)]
+                super::wait::tests::before_registration().await;
                 if let Err(error) = self
                     .wait_for_receive(log.receive_sequence, Duration::MAX)
                     .await
@@ -258,6 +260,54 @@ impl super::Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl crate::Client {
+        pub(crate) async fn assert_common_event_wait_progress<
+            F: std::future::Future<Output = ()>,
+        >(
+            client: &Self,
+            mut update: impl FnMut() -> F,
+        ) {
+            let limit = Duration::from_secs(1);
+            for race in [false, true] {
+                let before = client.events_after(0).await.unwrap();
+                assert!(
+                    client
+                        .events_after(before.cursor)
+                        .await
+                        .unwrap()
+                        .events
+                        .is_empty()
+                );
+                let log = super::super::wait::tests::complete_after_update(
+                    race,
+                    client.wait_for_events(before.cursor, limit),
+                    update(),
+                )
+                .await
+                .unwrap();
+                assert_eq!(log.cursor, before.cursor + 1);
+                assert_eq!(log.receive_sequence, before.receive_sequence + 1);
+                assert_eq!(log.events.len(), 1);
+                assert_eq!(log.events[0].receive_sequence, log.receive_sequence);
+                assert_eq!(log.events[0].kind, EventKind::ChatReceived);
+                let ready = client
+                    .wait_for_events(before.cursor, Duration::ZERO)
+                    .await
+                    .unwrap();
+                assert_eq!(ready.cursor, log.cursor);
+                assert_eq!(ready.events, log.events);
+                assert!(
+                    client
+                        .events_after(log.cursor)
+                        .await
+                        .unwrap()
+                        .events
+                        .is_empty()
+                );
+            }
+        }
+    }
 
     async fn disconnect_wait_scenario(version: crate::MinecraftVersion, pending: bool) {
         use crate::client::{ConnectionStatus, Server};

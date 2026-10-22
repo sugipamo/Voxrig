@@ -1165,6 +1165,48 @@ pub(super) mod tests {
     use crate::client::adapter::PathMotionOps;
 
     #[tokio::test]
+    async fn common_waits_complete_pending_and_observation_registration_races() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_motion(&bot).await;
+        tokio::time::pause();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        crate::Client::assert_common_wait_progress(&client, |position| {
+            let bot = bot.clone();
+            async move {
+                if let Some([x, y, z]) = position {
+                    let _gate = bot.coherent_state_gate.lock().await;
+                    let mut chunk = vec![0; 14];
+                    chunk[..4].copy_from_slice(&x.div_euclid(16).to_be_bytes());
+                    chunk[4..8].copy_from_slice(&z.div_euclid(16).to_be_bytes());
+                    let mut world = bot.world.lock().await;
+                    world.apply_chunk(&chunk, 256).unwrap();
+                    world.set_block_for_test(BlockPos { x, y, z }, 1);
+                    bot.protocol_packet_sequence.fetch_add(1, Ordering::AcqRel);
+                    bot.packet_applied.notify_waiters();
+                } else {
+                    let mut chat = Vec::new();
+                    put_string(&mut chat, r#"{"text":"progress"}"#);
+                    chat.push(1); // system chat
+                    chat.extend([0; 16]);
+                    bot.apply_packet(0x0e, chat).await.unwrap();
+                    // apply_packet is the decoder fixture; the receiver normally
+                    // publishes this notification after applying the packet.
+                    bot.packet_applied.notify_waiters();
+                }
+            }
+        })
+        .await;
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
     async fn common_state_waits_cover_present_racing_and_closed_state() {
         let (bot, _packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

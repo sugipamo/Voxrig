@@ -1116,6 +1116,8 @@ fn setup_only_accepts_exact_implemented_versions() {
 
 pub(crate) async fn common_motion_dispatch_scenario(client: &Client) {
     use super::survival::{MotionStatus, SurvivalControl, SurvivalInput};
+    // The owner ticks and observation polling use virtual time in both fixtures.
+    tokio::time::pause();
     let controls: Vec<_> = (0..35)
         .map(|tick| SurvivalControl {
             yaw: 35.57,
@@ -1167,7 +1169,7 @@ pub(crate) async fn common_motion_dispatch_scenario(client: &Client) {
             if run.status != MotionStatus::Running {
                 break run;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
     })
     .await
@@ -1214,11 +1216,12 @@ pub(crate) async fn common_motion_dispatch_scenario(client: &Client) {
                 assert_eq!(run.status, MotionStatus::Predicted, "{:?}", run.problem);
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
     })
     .await
     .unwrap();
+    tokio::time::resume();
 }
 
 // Identical mining consumer calls run against both native adapters. Only fixture
