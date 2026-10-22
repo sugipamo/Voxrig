@@ -56,6 +56,8 @@ loop {
 | `EntityUpdated { native_id }` | `EntityUpdated`（移動・向き・速度・metadata・装備） | `SYNC_ENTITY_POSITION`、`REL_ENTITY_MOVE`、`ENTITY_MOVE_LOOK`、`ENTITY_LOOK`、`ENTITY_HEAD_ROTATION`、`ENTITY_METADATA`、`ENTITY_VELOCITY`、`ENTITY_EQUIPMENT`、`ENTITY_TELEPORT` |
 | `EntityStatus { native_id, status }` | `EntityStatus` | `ENTITY_STATUS`（codeは版ごとに違う） |
 | `EntityDamaged { native_id }` | `EntityStatus`のうち被害のcode（2・33・36・37・44） | `DAMAGE_EVENT` |
+| `HurtAnimationReceived { native_id }` | この共通通知は未対応 | `HURT_ANIMATION` |
+| `CombatChanged` | この共通通知は未対応 | `ENTER_COMBAT_EVENT` / `END_COMBAT_EVENT` |
 | `PlayerKilled { native_id }` | 自分の死亡（combat eventのdeath） | `DEATH_COMBAT_EVENT` |
 
 - `BlocksChanged`の範囲は実際の変更を含む上位集合。1.21.11のmulti-block変更はsection（16×16×16）単位になる。
@@ -148,6 +150,55 @@ level eventを検証する。driverが空きport（25572・25581を除外）を�
 続くworld eventは2001・data 1だった。切断後の履歴も読めた。serverは終了・削除済み。
 [`検証記録`](evidence/effect-events-20261022.json)にoriginal packet bytes・結果・SDK file hashesを保存した。
 `SOUND_ENTITY`は公式codec fixtureで検証し、このlive scenarioでは個別に発生させていない。
+
+## Java 1.21.11 の damage・hurt・combat 詳細（#46）
+
+`Client::effects_after(receive_sequence)`はdamage・hurt・combatも保持する。
+変更通知の`EntityDamaged`／`HurtAnimationReceived`／`CombatChanged`／`PlayerKilled`と
+payloadの`receive_sequence`を照合する。通知cursorと受信連番cursorは別である。
+
+| `PlayEffect` | 元packetから保持する値 | 変更通知 |
+| --- | --- | --- |
+| `Damage(DamageObservation)` | entity ID、damage typeの接続・configuration付きIDと受信名、optional cause/direct entity ID、optional source位置 | `EntityDamaged` |
+| `HurtAnimation` | entity ID、degree単位のyaw（正規化しない） | `HurtAnimationReceived` |
+| `CombatEntered` | payloadなし。自分のcombat trackerの通知 | `CombatChanged` |
+| `CombatEnded` | signed duration（server tick）。attacker IDはこの版では送られない | `CombatChanged` |
+| `CombatKill` | player ID、完全なunnamed NBTの`UiText` | `PlayerKilled` |
+
+`DamageObservation::source_type`はzero-basedの`ServerRegistryId`で、
+`source_type_name`はそのpacket受信時の`minecraft:damage_type` entry名。
+実際に受信したregistryの順序を使い、vanillaの固定ID一覧で補わない。
+registry未受信・未完了・範囲外IDはprotocol errorとなり、payloadも通知も記録しない。
+保存済みの名前と所有情報は再設定後も当時のまま残る。現在のregistry snapshotで旧IDを
+再解決すると所有検査で失敗する（[server registry](common-server-registries.md)）。
+
+cause/directはwireの0を`None`、それ以外をJavaのsigned int演算で1引いたIDとして保持する。
+entityが追跡範囲外でも破棄せず、現在のentity位置へ置き換えない。
+source位置がない場合もentity位置から補完しない。hurt yawはdamage sourceの方角推定とは別の受信値。
+damage量・最終health・攻撃の成功はこの通知だけでは分からない。
+killは履歴内に元メッセージを保持し、自分のIDなら既存の`death_message()`も同じ受信連番で更新する。
+
+既存effectsと共通で1024件・1packet 16 KiBの保持上限、gapエラー、切断後の読み出しを使う。
+解決済みdamage type名は別に保持し、受信identifierの最大32,767 ASCII bytesまでを各標本で使用し得る。
+切り詰め・末尾余剰・不正bool・非有限yaw/座標・切れたNBTはprotocol errorで部分記録しない。
+1.16.1の`effects_after`は引き続き`Unsupported`で、既存のdamage/death通知とnative combat APIを使う。
+Microsoft認証・署名はこの対応のスコープ外。
+
+再現用consumerは`examples/damage_details_probe.rs`。公式JARの使い捨てserverで、
+次のdriverが`CMD`行をconsoleへ転送する。空きportを選び、25572・25581を除外し、終了時にserverを停止・削除する。
+
+```bash
+cargo build --locked --example damage_details_probe -j2
+python3 -B scripts/run_effect_events.py --accept-eula \
+  --server-jar /absolute/path/to/server.jar \
+  --binary target/debug/examples/damage_details_probe --output /tmp/damage-live
+```
+
+2026-10-22に上記consumerで全項目を確認した。受信registryではgenericがID 18、
+mob_attackがID 28で、原因entity 3・直接entity 2、hurt yaw 0、combat end 314 ticksだった。
+kill messageと既存`death_message()`のbytes・受信連番が一致し、切断後も履歴を読めた。
+元packet・受信registry・SDK/JAR/binary hashは[検証記録](evidence/damage-details-20261022.json)に保存した。
+全7packetをunit testで再適用し、6件のlive観測と照合する。serverはexit 0で終了・削除済み。
 
 ## 死亡の文言・切断の理由・接続状態
 

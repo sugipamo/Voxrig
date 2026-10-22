@@ -153,10 +153,49 @@ pub struct ParticleObservation {
     /// Options decoded with the Java 1.21.11 type table.
     pub data: ParticleData,
 }
+/// Original Java 1.21.11 damage source, resolved in the received configuration.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct DamageObservation {
+    /// Native ID of the damaged entity in the observation's world.
+    pub entity_id: i32,
+    /// Zero-based damage-type ID with connection/configuration ownership.
+    pub source_type: super::registry::ServerRegistryId,
+    /// Name resolved from the received damage_type registry at receipt.
+    pub source_type_name: String,
+    /// Causing entity; wire zero means absent, otherwise wire value minus one.
+    pub cause_entity_id: Option<i32>,
+    /// Direct entity; wire zero means absent, otherwise wire value minus one.
+    pub direct_entity_id: Option<i32>,
+    /// Explicit source position in blocks, when present in the packet.
+    pub source_position: Option<[f64; 3]>,
+}
 /// Original transient packet fields, without simulated world or inventory changes.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub enum PlayEffect {
+    /// Received damage source. Does not establish damage amount or new health.
+    Damage(DamageObservation),
+    /// Hurt animation with the original yaw in degrees.
+    HurtAnimation {
+        /// Native entity ID in the observation's world.
+        entity_id: i32,
+        /// Original animation yaw, without normalization.
+        yaw: f32,
+    },
+    /// Own player's combat tracker entered combat; no entity ID is sent.
+    CombatEntered,
+    /// Own player's combat tracker ended combat; no entity ID is sent.
+    CombatEnded {
+        /// Original signed duration in server ticks.
+        duration_ticks: i32,
+    },
+    /// Death notification with the original native text component.
+    CombatKill {
+        /// Native player entity ID supplied by the server.
+        player_id: i32,
+        /// Original unnamed NBT text; no rendering or translation.
+        message: super::ui::UiText,
+    },
     /// Position or entity sound.
     Sound(SoundObservation),
     /// Stop all sounds matching the optional source and/or name.

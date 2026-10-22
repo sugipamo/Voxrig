@@ -168,6 +168,7 @@ fn official_codec_packets_cover_every_particle_layout_and_preserve_native_fields
                 collector_id,
                 amount,
             } => assert_eq!((collected_id, collector_id, amount), (37, 99, 5)),
+            _ => panic!("unexpected effect fixture"),
         }
     }
     assert_eq!(
