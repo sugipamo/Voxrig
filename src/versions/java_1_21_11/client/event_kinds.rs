@@ -2,6 +2,17 @@
 use super::super::{ids::play_clientbound as input, wire::Reader};
 use crate::client::EventKind as K;
 
+/// Transient packet notifications; payloads are retained by the effect decoder.
+pub(super) const EFFECT_KINDS: &[(i32, K)] = &[
+    (input::SOUND_EFFECT, K::SoundReceived),
+    (input::ENTITY_SOUND_EFFECT, K::SoundReceived),
+    (input::STOP_SOUND, K::SoundStopped),
+    (input::WORLD_PARTICLES, K::ParticlesReceived),
+    (input::WORLD_EVENT, K::LevelEventReceived),
+    (input::BLOCK_BREAK_ANIMATION, K::BlockDestructionReceived),
+    (input::COLLECT, K::ItemPickupReceived),
+];
+
 /// Kinds for one packet that has already been applied successfully. Fields are
 /// re-read only for coordinates and identifiers; a short read yields nothing.
 pub(super) fn kinds(id: i32, payload: &[u8]) -> Vec<K> {
@@ -9,6 +20,9 @@ pub(super) fn kinds(id: i32, payload: &[u8]) -> Vec<K> {
 }
 
 fn read(id: i32, payload: &[u8]) -> anyhow::Result<Vec<K>> {
+    if let Some((_, kind)) = EFFECT_KINDS.iter().find(|(packet, _)| *packet == id) {
+        return Ok(vec![*kind]);
+    }
     let mut r = Reader::new(payload);
     let block = |p: [i32; 3]| K::BlocksChanged { min: p, max: p };
     let mut kinds = match id {

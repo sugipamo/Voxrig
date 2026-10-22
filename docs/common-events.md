@@ -47,6 +47,11 @@ loop {
 | `UiChanged` | `UiStateUpdated`、`PlayerListUpdated` | scoreboard・boss bar・teams・player info・title・tab list・world borderの各パケット |
 | `ResourcePackRequested { uuid }` | この共通通知は未対応 | configuration・playの`ADD_RESOURCE_PACK`。最新の要求は[`resource_pack_request`](common-resource-packs.md)で読む |
 | `CodeOfConductReceived` | このpacketは存在しない | configurationの`CODE_OF_CONDUCT`。最新の本文は[`code_of_conduct`](common-code-of-conduct.md)で読む。自動acceptの受理通知ではない |
+| `SoundReceived` / `SoundStopped` | この共通通知は未対応 | `SOUND` / `SOUND_ENTITY` / `STOP_SOUND` |
+| `ParticlesReceived` | この共通通知は未対応 | `LEVEL_PARTICLES` |
+| `LevelEventReceived` | この共通通知は未対応 | `LEVEL_EVENT`（world event） |
+| `BlockDestructionReceived` | この共通通知は未対応 | `BLOCK_DESTRUCTION`（他のbreakerのcrack進捗） |
+| `ItemPickupReceived` | この共通通知は未対応 | `TAKE_ITEM_ENTITY`（pickup animation） |
 | `Disconnected` | `Disconnected`、接続エラー | 切断を検知した最初の読み出し時 |
 | `EntityUpdated { native_id }` | `EntityUpdated`（移動・向き・速度・metadata・装備） | `SYNC_ENTITY_POSITION`、`REL_ENTITY_MOVE`、`ENTITY_MOVE_LOOK`、`ENTITY_LOOK`、`ENTITY_HEAD_ROTATION`、`ENTITY_METADATA`、`ENTITY_VELOCITY`、`ENTITY_EQUIPMENT`、`ENTITY_TELEPORT` |
 | `EntityStatus { native_id, status }` | `EntityStatus` | `ENTITY_STATUS`（codeは版ごとに違う） |
@@ -59,6 +64,88 @@ loop {
 - 各eventの`received_after`は、接続のevent logを作ってからそのeventを記録する（パケットを適用する）までの
   時間（clientの時計）。移動の標本の到着時刻などに使う。
 - 1.16.1の`Bot::subscribe()` / `Event`はネイティブAPIとしてそのまま残る。
+
+## 1.21.11の一過性packetの構造化観測（#46）
+
+sound・particle・level event・break progress・pickupは現在値から復元できないため、
+`Client::effects_after(after_sequence)`でoriginal payloadの構造化履歴を読む。
+イベントは上表の通知だけを持ち、既存の`EventKind` / `ClientEvent`の`Copy`・`Eq`を維持する。
+
+```rust,no_run
+use voxrig::client::{effects::PlayEffect, prelude::*};
+async fn read(client: &Client) -> Result<()> {
+    let mut after_sequence = 0;
+    let log = client.effects_after(after_sequence).await?;
+    for received in log.effects {
+        if let PlayEffect::ItemPickup { collected_id, collector_id, amount } = received.effect {
+            println!("{collected_id} -> {collector_id}: {amount}");
+        }
+    }
+    after_sequence = log.receive_sequence;
+    let _next = client.effects_after(after_sequence).await?;
+    Ok(())
+}
+```
+
+- `EffectLog::receive_sequence`を次のcursorとして渡す。これは受信連番であり、
+  `EventLog::cursor`（通知の通し番号）とは別。初回は0。通知とpayloadは同じ受信連番を持つ。
+- `ReceivedEffect::session`は受信時のconnection・version・world。respawnや再設定の後も
+  古い標本はそのworld付きで残る。native entity IDを現在のworldの操作対象へ流用しない。
+- 最新1024件（`MAX_RETAINED_EFFECTS`）、1 packetは展開後16 KiB以下
+  （`MAX_EFFECT_PACKET_BYTES`）。particleの`count`個のobjectを生成しない。
+  既存の4096件の通知履歴とは独立して保持する。保持できるpacket bytesの合計は最大16 MiBで、
+  構造体・文字列・componentの管理領域は別に必要となる。
+- 落とした標本より古いcursorは`ErrorKind::State`。一過性payloadは再観測で復元できない。
+  完全な履歴として扱うのをやめ、現在の受信連番（例: `received_player_snapshot()`の`boundary().ordinal()`）を
+  明示的に取得して再開する。受信より先のcursorは`InvalidInput`。切断後も読める。
+- 1.16.1の共通`effects_after`は`Unsupported`。既存のnative event APIはそのまま使える。
+- 切り詰め・既知layoutの末尾余剰・不正なbool/source・非有限float・上限超過は
+  受信のprotocol errorとなり、そのpacketのpayloadも通知も記録しない。
+
+| `PlayEffect` | 保持するoriginal値 |
+| --- | --- |
+| `Sound` | sound holder（zero-based registry ID、またはinlineの名前とoptional固定距離）、source ordinal、1/8 block単位の整数座標またはentity ID、volume・pitch・signed seed |
+| `SoundStopped` | optional sourceと名前。両方Noneなら全soundの停止要求 |
+| `Particles` | limiter/always-show、座標・offset・speed・signed count、native type ID、型別options |
+| `LevelEvent` | 未知の値を含むevent code、block座標、signed data、global flag |
+| `BlockDestruction` | breaker ID、block座標、unsigned progress byte。0..=9はstage、それ以外はcrackの解除 |
+| `ItemPickup` | collected entity ID、collector entity ID、signed amount |
+
+particleの115種類はRustのconst tableでlayoutを選ぶ。block state・packed color・dustと色遷移・
+power/spell・sculk roll・shriek delay・item component patch・vibrationのblock/entity destination・
+trailを型付きで保持する。未知のparticle IDやvibration sourceは、推測せず全option bytesを
+`ParticleData::Unknown`に保持する。sound registry IDから名前を静的に推測することもしない。
+
+これらはサーバーから受け取った提示用の事実。soundの再生・可聴性、particleの描画、
+blockの実際の除去、inventoryの増加やentityの消滅は保証しない。
+`TAKE_ITEM_ENTITY`は他のcollectorやexperience orbを含み得る。break progressのbreakerも
+現在追跡中のplayerとは限らない。これらだけで`InventoryChanged`や`BlocksChanged`を捏造しない。
+Microsoft認証・署名はこの対応のスコープ外。
+
+公式1.21.11 server JARの変更していないcodecで構築packetをdecodeし、同じbytesへencodeし直した
+135例を[`effect_packets-1.21.11.json`](../data/client_api/effect_packets-1.21.11.json)に保存した。
+registryのID・名前・option classも実物から取得している。
+`Server`のoriginal bundled JARとlibrariesをclasspathへ入れ、使い捨てdirectoryで次を実行すると再生成できる
+（出力先を明示し、JVMのlogも使い捨てdirectoryへ置く）。
+
+```bash
+java -Xmx512M -XX:ActiveProcessorCount=1 -cp "$ORIGINAL_SERVER_CLASSPATH" \
+  /absolute/path/to/Voxrig/scripts/ExportEffectPackets.java /tmp/effect-packets.json
+```
+
+`examples/effect_events_probe.rs`は`CMD`行をconsoleへ転送するdriver用。
+`python3 -B scripts/run_effect_events.py --accept-eula --server-jar /path/to/server.jar
+--binary target/debug/examples/effect_events_probe --output /tmp/effect-live`で実行する
+（先に`cargo build --locked --example effect_events_probe -j2`）。
+使い捨てoffline serverに対し、sound・停止・particle・pickup・もう一人の通常採掘によるbreak progress・
+level eventを検証する。`VOXRIG_PORT`でportを、`VOXRIG_EFFECT_TRACE`でoriginal traceの保存先を指定できる。
+
+2026-10-22、公式1.21.11 JAR（SHA-1 `64bb6d763bed0a9f1d632ec347938594144943ed`）の
+使い捨てserverで上記6種類の通知とpayloadの同一受信連番を確認した。
+通常の採掘でbreaker ID 3・`[2,65,0]`のstage 0を受け取り、pickupはcollector ID 1・3個、
+続くworld eventは2001・data 1だった。切断後の履歴も読めた。serverは終了・削除済み。
+[`検証記録`](evidence/effect-events-20261022.json)にoriginal packet bytes・結果・SDK file hashesを保存した。
+`SOUND_ENTITY`は公式codec fixtureで検証し、このlive scenarioでは個別に発生させていない。
 
 ## 死亡の文言・切断の理由・接続状態
 
