@@ -49,7 +49,7 @@ async fn observe(
 async fn scenario(observer: &Client, miner: &Client) -> anyhow::Result<()> {
     for line in [
         "gamerule minecraft:spawn_mobs false",
-        "gamerule minecraft:do_weather_cycle false",
+        "gamerule minecraft:advance_weather false",
         "weather clear",
         "fill -8 64 -4 8 64 4 minecraft:stone",
         "fill -8 65 -4 8 68 4 minecraft:air",

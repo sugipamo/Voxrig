@@ -138,7 +138,9 @@ java -Xmx512M -XX:ActiveProcessorCount=1 -cp "$ORIGINAL_SERVER_CLASSPATH" \
 --binary target/debug/examples/effect_events_probe --output /tmp/effect-live`で実行する
 （先に`cargo build --locked --example effect_events_probe -j2`）。
 使い捨てoffline serverに対し、sound・停止・particle・pickup・もう一人の通常採掘によるbreak progress・
-level eventを検証する。`VOXRIG_PORT`でportを、`VOXRIG_EFFECT_TRACE`でoriginal traceの保存先を指定できる。
+level eventを検証する。driverが空きport（25572・25581を除外）を選び、original traceを
+`--output`配下の`live-trace.json`へ保存する。probeを別のdriverから実行する場合は、
+`VOXRIG_PORT`でportを、`VOXRIG_EFFECT_TRACE`でoriginal traceの保存先を指定する。
 
 2026-10-22、公式1.21.11 JAR（SHA-1 `64bb6d763bed0a9f1d632ec347938594144943ed`）の
 使い捨てserverで上記6種類の通知とpayloadの同一受信連番を確認した。
