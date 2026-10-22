@@ -91,6 +91,18 @@ pub enum EventKind {
         /// Native entity id within the current world.
         native_id: i32,
     },
+    /// Java 1.21.11 position/entity sound; read `Client::effects_after`.
+    SoundReceived,
+    /// Java 1.21.11 stop-sound request; read `Client::effects_after`.
+    SoundStopped,
+    /// Java 1.21.11 particle packet; read `Client::effects_after`.
+    ParticlesReceived,
+    /// Java 1.21.11 level/world event; read `Client::effects_after`.
+    LevelEventReceived,
+    /// Java 1.21.11 breaker crack progress; read `Client::effects_after`.
+    BlockDestructionReceived,
+    /// Java 1.21.11 pickup animation; read `Client::effects_after`.
+    ItemPickupReceived,
     /// The own player died; the message is `Client::death_message`.
     PlayerKilled {
         /// Native entity id of the player.

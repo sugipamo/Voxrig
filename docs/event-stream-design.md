@@ -87,3 +87,17 @@ cursor = log.receive_sequence;
 通知だけでは過去の位置・速度・角度を再構成できない。通知APIは維持し、
 [boundedなentity受信履歴](common-entity-history.md)を別APIとして追加する。
 SDKのpacket適用時に値を凍結し、cursor・保持欠落・時刻の意味・lifetimeを明示する。
+
+## 一過性packetの構造化履歴（#46、2026-10-22）
+
+Java 1.21.11のsound・particle・level event・break progress・pickupは、現在値を取り直しても
+元のpayloadを得られない。共通eventは通知のまま種類を追加し、別のboundedな
+`effects_after(receive_sequence)`でoriginal値を読む。通知と標本を同じpacket適用境界で公開し、
+標本には受信時のworld/connectionと受信連番を保存する。通知cursorはevent ordinal、
+payload cursorはreceive sequenceであり、互いを代用しない。
+
+既存の`EventKind`と`ClientEvent`の`Copy` / `Eq`は維持する。
+payloadは1024件・各packet 16 KiBまでで、欠落を`State`で報告する。
+復元できない一過性payloadの欠落を、現在値の再観測で埋まったとは扱わない。
+型・上限・unknown optionsと版ごとの境界は[共通event](common-events.md)を参照。
+Microsoft認証・署名はスコープ外。

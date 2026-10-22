@@ -20,6 +20,7 @@ pub mod blocks;
 pub use blocks::{BlockRaycast, BlockRaycastObservation, BlockSearch};
 pub(crate) mod books;
 pub mod chat;
+pub mod effects;
 pub mod events;
 pub use events::{ClientEvent, EventKind, EventLog};
 pub mod code_of_conduct;

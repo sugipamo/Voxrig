@@ -1,0 +1,1151 @@
+{
+  "version": "1.21.11",
+  "authority": "Constructed payloads decoded and byte-for-byte re-encoded by unchanged official server codecs; original particle registry IDs, names and decoded option classes reflected.",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
+  "packets": [
+    {
+      "name": "particle/angry_villager/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000000",
+      "option_class": "md",
+      "particle_id": 0,
+      "particle_name": "minecraft:angry_villager",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/block/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f40000000000000017b",
+      "option_class": "lp",
+      "particle_id": 1,
+      "particle_name": "minecraft:block",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/block_marker/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f40000000000000027b",
+      "option_class": "lp",
+      "particle_id": 2,
+      "particle_name": "minecraft:block_marker",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/bubble/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000003",
+      "option_class": "md",
+      "particle_id": 3,
+      "particle_name": "minecraft:bubble",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/cloud/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000004",
+      "option_class": "md",
+      "particle_id": 4,
+      "particle_name": "minecraft:cloud",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/copper_fire_flame/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000005",
+      "option_class": "md",
+      "particle_id": 5,
+      "particle_name": "minecraft:copper_fire_flame",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/crit/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000006",
+      "option_class": "md",
+      "particle_id": 6,
+      "particle_name": "minecraft:crit",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/damage_indicator/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000007",
+      "option_class": "md",
+      "particle_id": 7,
+      "particle_name": "minecraft:damage_indicator",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dragon_breath/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f40000000000000083f400000",
+      "option_class": "lz",
+      "particle_id": 8,
+      "particle_name": "minecraft:dragon_breath",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dripping_lava/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000009",
+      "option_class": "md",
+      "particle_id": 9,
+      "particle_name": "minecraft:dripping_lava",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_lava/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000000a",
+      "option_class": "md",
+      "particle_id": 10,
+      "particle_name": "minecraft:falling_lava",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/landing_lava/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000000b",
+      "option_class": "md",
+      "particle_id": 11,
+      "particle_name": "minecraft:landing_lava",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dripping_water/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000000c",
+      "option_class": "md",
+      "particle_id": 12,
+      "particle_name": "minecraft:dripping_water",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_water/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000000d",
+      "option_class": "md",
+      "particle_id": 13,
+      "particle_name": "minecraft:falling_water",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dust/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000000e001234563fa00000",
+      "option_class": "ls",
+      "particle_id": 14,
+      "particle_name": "minecraft:dust",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dust_color_transition/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000000f0012345600abcdef3fa00000",
+      "option_class": "lr",
+      "particle_id": 15,
+      "particle_name": "minecraft:dust_color_transition",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/effect/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001081abcdef3f400000",
+      "option_class": "me",
+      "particle_id": 16,
+      "particle_name": "minecraft:effect",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/elder_guardian/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000011",
+      "option_class": "md",
+      "particle_id": 17,
+      "particle_name": "minecraft:elder_guardian",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/enchanted_hit/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000012",
+      "option_class": "md",
+      "particle_id": 18,
+      "particle_name": "minecraft:enchanted_hit",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/enchant/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000013",
+      "option_class": "md",
+      "particle_id": 19,
+      "particle_name": "minecraft:enchant",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/end_rod/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000014",
+      "option_class": "md",
+      "particle_id": 20,
+      "particle_name": "minecraft:end_rod",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/entity_effect/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001581abcdef",
+      "option_class": "lq",
+      "particle_id": 21,
+      "particle_name": "minecraft:entity_effect",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/explosion_emitter/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000016",
+      "option_class": "md",
+      "particle_id": 22,
+      "particle_name": "minecraft:explosion_emitter",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/explosion/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000017",
+      "option_class": "md",
+      "particle_id": 23,
+      "particle_name": "minecraft:explosion",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/gust/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000018",
+      "option_class": "md",
+      "particle_id": 24,
+      "particle_name": "minecraft:gust",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/small_gust/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000019",
+      "option_class": "md",
+      "particle_id": 25,
+      "particle_name": "minecraft:small_gust",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/gust_emitter_large/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001a",
+      "option_class": "md",
+      "particle_id": 26,
+      "particle_name": "minecraft:gust_emitter_large",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/gust_emitter_small/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001b",
+      "option_class": "md",
+      "particle_id": 27,
+      "particle_name": "minecraft:gust_emitter_small",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/sonic_boom/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001c",
+      "option_class": "md",
+      "particle_id": 28,
+      "particle_name": "minecraft:sonic_boom",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_dust/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001d7b",
+      "option_class": "lp",
+      "particle_id": 29,
+      "particle_name": "minecraft:falling_dust",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/firework/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001e",
+      "option_class": "md",
+      "particle_id": 30,
+      "particle_name": "minecraft:firework",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/fishing/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000001f",
+      "option_class": "md",
+      "particle_id": 31,
+      "particle_name": "minecraft:fishing",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/flame/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000020",
+      "option_class": "md",
+      "particle_id": 32,
+      "particle_name": "minecraft:flame",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/infested/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000021",
+      "option_class": "md",
+      "particle_id": 33,
+      "particle_name": "minecraft:infested",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/cherry_leaves/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000022",
+      "option_class": "md",
+      "particle_id": 34,
+      "particle_name": "minecraft:cherry_leaves",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/pale_oak_leaves/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000023",
+      "option_class": "md",
+      "particle_id": 35,
+      "particle_name": "minecraft:pale_oak_leaves",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/tinted_leaves/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000002481abcdef",
+      "option_class": "lq",
+      "particle_id": 36,
+      "particle_name": "minecraft:tinted_leaves",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/sculk_soul/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000025",
+      "option_class": "md",
+      "particle_id": 37,
+      "particle_name": "minecraft:sculk_soul",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/sculk_charge/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f40000000000000263f400000",
+      "option_class": "mb",
+      "particle_id": 38,
+      "particle_name": "minecraft:sculk_charge",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/sculk_charge_pop/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000027",
+      "option_class": "md",
+      "particle_id": 39,
+      "particle_name": "minecraft:sculk_charge_pop",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/soul_fire_flame/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000028",
+      "option_class": "md",
+      "particle_id": 40,
+      "particle_name": "minecraft:soul_fire_flame",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/soul/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000029",
+      "option_class": "md",
+      "particle_id": 41,
+      "particle_name": "minecraft:soul",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/flash/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000002a81abcdef",
+      "option_class": "lq",
+      "particle_id": 42,
+      "particle_name": "minecraft:flash",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/happy_villager/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000002b",
+      "option_class": "md",
+      "particle_id": 43,
+      "particle_name": "minecraft:happy_villager",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/composter/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000002c",
+      "option_class": "md",
+      "particle_id": 44,
+      "particle_name": "minecraft:composter",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/heart/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000002d",
+      "option_class": "md",
+      "particle_id": 45,
+      "particle_name": "minecraft:heart",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/instant_effect/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000002e81abcdef3f400000",
+      "option_class": "me",
+      "particle_id": 46,
+      "particle_name": "minecraft:instant_effect",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/item/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000002f02010000",
+      "option_class": "lu",
+      "particle_id": 47,
+      "particle_name": "minecraft:item",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/item/1",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000007fffffff2f020101000307",
+      "option_class": "lu",
+      "particle_id": 47,
+      "particle_name": "minecraft:item",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/vibration/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000003000fffffbc000017fc40c",
+      "option_class": "mg",
+      "particle_id": 48,
+      "particle_name": "minecraft:vibration",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/vibration/1",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000007fffffff3001253fa000000c",
+      "option_class": "mg",
+      "particle_id": 48,
+      "particle_name": "minecraft:vibration",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/trail/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000031c0120000000000004051900000000000402040000000000081abcdef0c",
+      "option_class": "mf",
+      "particle_id": 49,
+      "particle_name": "minecraft:trail",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/item_slime/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000032",
+      "option_class": "md",
+      "particle_id": 50,
+      "particle_name": "minecraft:item_slime",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/item_cobweb/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000033",
+      "option_class": "md",
+      "particle_id": 51,
+      "particle_name": "minecraft:item_cobweb",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/item_snowball/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000034",
+      "option_class": "md",
+      "particle_id": 52,
+      "particle_name": "minecraft:item_snowball",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/large_smoke/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000035",
+      "option_class": "md",
+      "particle_id": 53,
+      "particle_name": "minecraft:large_smoke",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/lava/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000036",
+      "option_class": "md",
+      "particle_id": 54,
+      "particle_name": "minecraft:lava",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/mycelium/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000037",
+      "option_class": "md",
+      "particle_id": 55,
+      "particle_name": "minecraft:mycelium",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/note/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000038",
+      "option_class": "md",
+      "particle_id": 56,
+      "particle_name": "minecraft:note",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/poof/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000039",
+      "option_class": "md",
+      "particle_id": 57,
+      "particle_name": "minecraft:poof",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/portal/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000003a",
+      "option_class": "md",
+      "particle_id": 58,
+      "particle_name": "minecraft:portal",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/rain/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000003b",
+      "option_class": "md",
+      "particle_id": 59,
+      "particle_name": "minecraft:rain",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/smoke/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000003c",
+      "option_class": "md",
+      "particle_id": 60,
+      "particle_name": "minecraft:smoke",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/white_smoke/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000003d",
+      "option_class": "md",
+      "particle_id": 61,
+      "particle_name": "minecraft:white_smoke",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/sneeze/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000003e",
+      "option_class": "md",
+      "particle_id": 62,
+      "particle_name": "minecraft:sneeze",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/spit/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000003f",
+      "option_class": "md",
+      "particle_id": 63,
+      "particle_name": "minecraft:spit",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/squid_ink/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000040",
+      "option_class": "md",
+      "particle_id": 64,
+      "particle_name": "minecraft:squid_ink",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/sweep_attack/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000041",
+      "option_class": "md",
+      "particle_id": 65,
+      "particle_name": "minecraft:sweep_attack",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/totem_of_undying/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000042",
+      "option_class": "md",
+      "particle_id": 66,
+      "particle_name": "minecraft:totem_of_undying",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/underwater/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000043",
+      "option_class": "md",
+      "particle_id": 67,
+      "particle_name": "minecraft:underwater",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/splash/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000044",
+      "option_class": "md",
+      "particle_id": 68,
+      "particle_name": "minecraft:splash",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/witch/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000045",
+      "option_class": "md",
+      "particle_id": 69,
+      "particle_name": "minecraft:witch",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/bubble_pop/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000046",
+      "option_class": "md",
+      "particle_id": 70,
+      "particle_name": "minecraft:bubble_pop",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/current_down/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000047",
+      "option_class": "md",
+      "particle_id": 71,
+      "particle_name": "minecraft:current_down",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/bubble_column_up/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000048",
+      "option_class": "md",
+      "particle_id": 72,
+      "particle_name": "minecraft:bubble_column_up",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/nautilus/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000049",
+      "option_class": "md",
+      "particle_id": 73,
+      "particle_name": "minecraft:nautilus",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dolphin/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000004a",
+      "option_class": "md",
+      "particle_id": 74,
+      "particle_name": "minecraft:dolphin",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/campfire_cosy_smoke/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000004b",
+      "option_class": "md",
+      "particle_id": 75,
+      "particle_name": "minecraft:campfire_cosy_smoke",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/campfire_signal_smoke/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000004c",
+      "option_class": "md",
+      "particle_id": 76,
+      "particle_name": "minecraft:campfire_signal_smoke",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dripping_honey/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000004d",
+      "option_class": "md",
+      "particle_id": 77,
+      "particle_name": "minecraft:dripping_honey",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_honey/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000004e",
+      "option_class": "md",
+      "particle_id": 78,
+      "particle_name": "minecraft:falling_honey",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/landing_honey/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000004f",
+      "option_class": "md",
+      "particle_id": 79,
+      "particle_name": "minecraft:landing_honey",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_nectar/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000050",
+      "option_class": "md",
+      "particle_id": 80,
+      "particle_name": "minecraft:falling_nectar",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_spore_blossom/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000051",
+      "option_class": "md",
+      "particle_id": 81,
+      "particle_name": "minecraft:falling_spore_blossom",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/ash/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000052",
+      "option_class": "md",
+      "particle_id": 82,
+      "particle_name": "minecraft:ash",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/crimson_spore/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000053",
+      "option_class": "md",
+      "particle_id": 83,
+      "particle_name": "minecraft:crimson_spore",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/warped_spore/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000054",
+      "option_class": "md",
+      "particle_id": 84,
+      "particle_name": "minecraft:warped_spore",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/spore_blossom_air/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000055",
+      "option_class": "md",
+      "particle_id": 85,
+      "particle_name": "minecraft:spore_blossom_air",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dripping_obsidian_tear/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000056",
+      "option_class": "md",
+      "particle_id": 86,
+      "particle_name": "minecraft:dripping_obsidian_tear",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_obsidian_tear/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000057",
+      "option_class": "md",
+      "particle_id": 87,
+      "particle_name": "minecraft:falling_obsidian_tear",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/landing_obsidian_tear/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000058",
+      "option_class": "md",
+      "particle_id": 88,
+      "particle_name": "minecraft:landing_obsidian_tear",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/reverse_portal/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000059",
+      "option_class": "md",
+      "particle_id": 89,
+      "particle_name": "minecraft:reverse_portal",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/white_ash/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000005a",
+      "option_class": "md",
+      "particle_id": 90,
+      "particle_name": "minecraft:white_ash",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/small_flame/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000005b",
+      "option_class": "md",
+      "particle_id": 91,
+      "particle_name": "minecraft:small_flame",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/snowflake/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000005c",
+      "option_class": "md",
+      "particle_id": 92,
+      "particle_name": "minecraft:snowflake",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dripping_dripstone_lava/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000005d",
+      "option_class": "md",
+      "particle_id": 93,
+      "particle_name": "minecraft:dripping_dripstone_lava",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_dripstone_lava/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000005e",
+      "option_class": "md",
+      "particle_id": 94,
+      "particle_name": "minecraft:falling_dripstone_lava",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dripping_dripstone_water/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000005f",
+      "option_class": "md",
+      "particle_id": 95,
+      "particle_name": "minecraft:dripping_dripstone_water",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/falling_dripstone_water/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000060",
+      "option_class": "md",
+      "particle_id": 96,
+      "particle_name": "minecraft:falling_dripstone_water",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/glow_squid_ink/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000061",
+      "option_class": "md",
+      "particle_id": 97,
+      "particle_name": "minecraft:glow_squid_ink",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/glow/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000062",
+      "option_class": "md",
+      "particle_id": 98,
+      "particle_name": "minecraft:glow",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/wax_on/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000063",
+      "option_class": "md",
+      "particle_id": 99,
+      "particle_name": "minecraft:wax_on",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/wax_off/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000064",
+      "option_class": "md",
+      "particle_id": 100,
+      "particle_name": "minecraft:wax_off",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/electric_spark/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000065",
+      "option_class": "md",
+      "particle_id": 101,
+      "particle_name": "minecraft:electric_spark",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/scrape/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000066",
+      "option_class": "md",
+      "particle_id": 102,
+      "particle_name": "minecraft:scrape",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/shriek/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f40000000000000670c",
+      "option_class": "mc",
+      "particle_id": 103,
+      "particle_name": "minecraft:shriek",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/egg_crack/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000068",
+      "option_class": "md",
+      "particle_id": 104,
+      "particle_name": "minecraft:egg_crack",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dust_plume/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000069",
+      "option_class": "md",
+      "particle_id": 105,
+      "particle_name": "minecraft:dust_plume",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/trial_spawner_detection/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000006a",
+      "option_class": "md",
+      "particle_id": 106,
+      "particle_name": "minecraft:trial_spawner_detection",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/trial_spawner_detection_ominous/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000006b",
+      "option_class": "md",
+      "particle_id": 107,
+      "particle_name": "minecraft:trial_spawner_detection_ominous",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/vault_connection/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000006c",
+      "option_class": "md",
+      "particle_id": 108,
+      "particle_name": "minecraft:vault_connection",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/dust_pillar/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000006d7b",
+      "option_class": "lp",
+      "particle_id": 109,
+      "particle_name": "minecraft:dust_pillar",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/ominous_spawning/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000006e",
+      "option_class": "md",
+      "particle_id": 110,
+      "particle_name": "minecraft:ominous_spawning",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/raid_omen/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f400000000000006f",
+      "option_class": "md",
+      "particle_id": 111,
+      "particle_name": "minecraft:raid_omen",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/trial_omen/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000070",
+      "option_class": "md",
+      "particle_id": 112,
+      "particle_name": "minecraft:trial_omen",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/block_crumble/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f40000000000000717b",
+      "option_class": "lp",
+      "particle_id": 113,
+      "particle_name": "minecraft:block_crumble",
+      "options_hex": ""
+    },
+    {
+      "name": "particle/firefly/0",
+      "packet_id": 46,
+      "payload_hex": "0100c029000000000000405010000000000040200000000000003e8000003f000000be0000003f4000000000000072",
+      "option_class": "md",
+      "particle_id": 114,
+      "particle_name": "minecraft:firefly",
+      "options_hex": ""
+    },
+    {
+      "name": "sound/false/0",
+      "packet_id": 115,
+      "payload_hex": "0107fffffcdffffffe00000006443f4000003fa00000ffffffffffffffe3"
+    },
+    {
+      "name": "sound/false/1",
+      "packet_id": 115,
+      "payload_hex": "000c766f787269673a70726f62650007fffffcdffffffe00000006443f4000003fa00000ffffffffffffffe3"
+    },
+    {
+      "name": "sound/false/2",
+      "packet_id": 115,
+      "payload_hex": "000c766f787269673a70726f62650141c4000007fffffcdffffffe00000006443f4000003fa00000ffffffffffffffe3"
+    },
+    {
+      "name": "sound/true/0",
+      "packet_id": 114,
+      "payload_hex": "0107253f4000003fa00000ffffffffffffffe3"
+    },
+    {
+      "name": "sound/true/1",
+      "packet_id": 114,
+      "payload_hex": "000c766f787269673a70726f62650007253f4000003fa00000ffffffffffffffe3"
+    },
+    {
+      "name": "sound/true/2",
+      "packet_id": 114,
+      "payload_hex": "000c766f787269673a70726f62650141c4000007253f4000003fa00000ffffffffffffffe3"
+    },
+    {
+      "name": "stop/0",
+      "packet_id": 117,
+      "payload_hex": "00"
+    },
+    {
+      "name": "stop/1",
+      "packet_id": 117,
+      "payload_hex": "0107"
+    },
+    {
+      "name": "stop/2",
+      "packet_id": 117,
+      "payload_hex": "020c766f787269673a70726f6265"
+    },
+    {
+      "name": "stop/3",
+      "packet_id": 117,
+      "payload_hex": "03070c766f787269673a70726f6265"
+    },
+    {
+      "name": "level",
+      "packet_id": 45,
+      "payload_hex": "000007d1fffffbc000017fc4ffffff8501"
+    },
+    {
+      "name": "break/0",
+      "packet_id": 5,
+      "payload_hex": "25fffffbc000017fc400"
+    },
+    {
+      "name": "break/9",
+      "packet_id": 5,
+      "payload_hex": "25fffffbc000017fc409"
+    },
+    {
+      "name": "break/-1",
+      "packet_id": 5,
+      "payload_hex": "25fffffbc000017fc4ff"
+    },
+    {
+      "name": "break/10",
+      "packet_id": 5,
+      "payload_hex": "25fffffbc000017fc40a"
+    },
+    {
+      "name": "break/127",
+      "packet_id": 5,
+      "payload_hex": "25fffffbc000017fc47f"
+    },
+    {
+      "name": "break/-128",
+      "packet_id": 5,
+      "payload_hex": "25fffffbc000017fc480"
+    },
+    {
+      "name": "pickup",
+      "packet_id": 122,
+      "payload_hex": "256305"
+    }
+  ]
+}

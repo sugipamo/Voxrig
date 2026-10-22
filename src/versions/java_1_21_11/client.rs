@@ -4,6 +4,7 @@ mod context;
 mod correction;
 #[cfg(test)]
 mod edge_native_trials;
+mod effects;
 mod entity;
 mod event_kinds;
 mod loading;
@@ -114,6 +115,7 @@ struct State {
     boss_bars: crate::client::ui::boss_bar::BossBarLedger,
     chat: crate::client::chat::ChatLedger,
     events: crate::client::events::EventLedger,
+    effects: crate::client::effects::EffectLedger,
     display: crate::client::ui::display::DisplayLedger,
     teams: crate::client::ui::teams::TeamLedger,
     player_list: crate::client::ui::player_list::PlayerListLedger,
@@ -182,6 +184,7 @@ impl Default for State {
             boss_bars: Default::default(),
             chat: Default::default(),
             events: Default::default(),
+            effects: Default::default(),
             display: Default::default(),
             teams: Default::default(),
             player_list: Default::default(),
@@ -1054,6 +1057,16 @@ fn apply_play(
     use ids::{play_clientbound as input, play_serverbound as output};
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
+    if let Some(effect) = effects::decode(id, payload)? {
+        state
+            .effects
+            .record(crate::client::effects::ReceivedEffect {
+                session: state.snapshot_session(),
+                receive_sequence: state.sequence,
+                effect,
+            });
+        return Ok(responses);
+    }
     entity::receive(state, id, payload)?;
     if context::receive(state, id, payload)? {
         return Ok(responses);
@@ -1458,6 +1471,14 @@ impl crate::client::adapter::EventOps for operations::Operations {
             cursor,
             maximum,
         )
+    }
+
+    async fn effects_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::effects::EffectLog> {
+        let state = self.bot.session.state.lock().await;
+        state.effects.after(after_sequence, state.sequence)
     }
 
     async fn events_after(&self, cursor: u64) -> Result<crate::client::EventLog> {
