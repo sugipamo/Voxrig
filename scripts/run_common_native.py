@@ -36,9 +36,10 @@ def native_probe_binary():
     return target / "debug/examples/common_native_probe"
 
 
-def download(version):
-    DOWNLOADS.mkdir(parents=True, exist_ok=True)
-    source = DOWNLOADS / (version + "-source.json")
+def download(version, *, downloads=None, server_jar=None):
+    downloads = DOWNLOADS if downloads is None else downloads
+    downloads.mkdir(parents=True, exist_ok=True)
+    source = downloads / (version + "-source.json")
     if source.exists():
         record = json.loads(source.read_text())
     else:
@@ -49,7 +50,9 @@ def download(version):
             raise RuntimeError("metadata SHA-1 mismatch")
         record = {"version": version, "metadata_url": entry["url"], "metadata_sha1": entry["sha1"], "server": json.loads(raw)["downloads"]["server"]}
         source.write_text(json.dumps(record, indent=2) + "\n")
-    jar = DOWNLOADS / (version + "-server.jar")
+    jar = Path(server_jar) if server_jar is not None else downloads / (version + "-server.jar")
+    if server_jar is not None and not jar.is_file():
+        raise RuntimeError("supplied server jar does not exist")
     if not jar.exists():
         with urllib.request.urlopen(record["server"]["url"], timeout=60) as incoming, jar.open("wb") as outgoing:
             while block := incoming.read(1024 * 1024):

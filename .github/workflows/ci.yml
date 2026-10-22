@@ -28,6 +28,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: python3 scripts/test_native_trace.py
+      - run: python3 -B scripts/test_native_trials.py
       - run: python3 -B scripts/contact_policy_export.py --check
       - run: python3 -B scripts/audit_contact_capabilities.py --check
       - run: python3 -B scripts/audit_contact_packets.py --check
