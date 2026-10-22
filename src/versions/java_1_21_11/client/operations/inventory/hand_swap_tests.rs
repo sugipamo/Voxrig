@@ -25,6 +25,14 @@ async fn fixture() -> CommonFixture {
         "minecraft:block".into(),
         serde_json::from_value(raw["block_tags"].clone()).unwrap(),
     );
+    f.receive(ids::play_clientbound::TAGS, &tags_packet(tags))
+        .await;
+    f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+    f.slot(45, plain("shield", 1)).await;
+    f
+}
+
+fn tags_packet(tags: crate::client::registry::ServerRegistryTags) -> Vec<u8> {
     let mut payload = Vec::new();
     let name = |payload: &mut Vec<u8>, value: &str| {
         put_varint(payload, value.len() as i32);
@@ -42,18 +50,7 @@ async fn fixture() -> CommonFixture {
             }
         }
     }
-    f.api
-        .bot
-        .session
-        .state
-        .lock()
-        .await
-        .registries
-        .receive_tags(&payload, 4, MinecraftVersion::Java1_21_11)
-        .unwrap();
-    f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
-    f.slot(45, plain("shield", 1)).await;
-    f
+    payload
 }
 
 #[tokio::test]
@@ -498,4 +495,126 @@ async fn hand_swap_after_local_close_and_actual_reconfiguration_keep_owned_histo
     assert_eq!(latest.stage, Stage::RequiresInspection);
     assert!(client.survival().swap_hands().await.is_err());
     f.stop().await;
+}
+
+#[tokio::test]
+async fn hand_swap_tag_reload_keeps_conflict_even_when_destinations_later_match() {
+    let mut f = fixture().await;
+    let client = f.client();
+    let tags = client
+        .server_registry_state()
+        .await
+        .unwrap()
+        .tags()
+        .unwrap()
+        .value
+        .as_ref()
+        .clone();
+    let sent = client.survival().swap_hands().await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    // One hand is already confirmed. Even identical tag bytes are a new
+    // named-holder lifetime and must not silently replace the captured owner.
+    f.slot(36, plain("shield", 1)).await;
+    let partial = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert!(partial.main_receipt.is_some() && partial.offhand_receipt.is_none());
+    f.receive(ids::play_clientbound::TAGS, &tags_packet(tags))
+        .await;
+    let conflict = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert_eq!(conflict.id, sent.id);
+    assert_eq!(conflict.stage, Stage::RequiresInspection);
+    assert!(
+        conflict
+            .requires_inspection
+            .as_ref()
+            .unwrap()
+            .contains("tag reload")
+    );
+    f.slot(45, plain("dirt", 12)).await;
+    let retained = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert_eq!(retained.stage, Stage::RequiresInspection);
+    assert_eq!(retained.requires_inspection, conflict.requires_inspection);
+    assert!(client.survival().swap_hands().await.is_err());
+    assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+    assert!(
+        timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn hand_swap_full_contents_requires_both_hands_and_unchanged_cursor_atomically() {
+    for cursor_conflict in [false, true] {
+        let mut f = fixture().await;
+        let client = f.client();
+        let mut cursor = Vec::new();
+        put_slot(&mut cursor, &plain("stone", 7));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        let sent = client.survival().swap_hands().await.unwrap();
+        read_packet(&mut f.peer, None).await.unwrap();
+        let mut inventory = f
+            .api
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .operations
+            .inventory
+            .clone();
+        inventory.slots.swap(36, 45);
+        if cursor_conflict {
+            inventory.cursor = InventorySlot::Empty;
+        }
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+            .await;
+        let observed = client.survival().hand_swap_record().await.unwrap().unwrap();
+        assert_eq!(observed.id, sent.id);
+        assert!(observed.send.dispatched);
+        if cursor_conflict {
+            assert_eq!(observed.stage, Stage::RequiresInspection);
+            assert!(
+                observed
+                    .requires_inspection
+                    .as_ref()
+                    .unwrap()
+                    .contains("cursor changed")
+            );
+            // Restoring all values in another full packet cannot clear the conflict.
+            inventory.cursor = plain("stone", 7);
+            f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 132))
+                .await;
+            assert_eq!(
+                client
+                    .survival()
+                    .hand_swap_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::RequiresInspection
+            );
+            assert!(client.survival().swap_hands().await.is_err());
+            assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+        } else {
+            assert_eq!(observed.stage, Stage::ObservedSwapped);
+            let main = observed.main_receipt.unwrap();
+            let offhand = observed.offhand_receipt.unwrap();
+            assert_eq!(main.value, sent.offhand_before.value);
+            assert_eq!(offhand.value, sent.main_before.value);
+            assert_eq!(main.source, offhand.source);
+            assert!(
+                matches!(main.source, crate::client::ValueSource::Received { sequence } if sequence > sent.send.after_sequence)
+            );
+            f.api.bot.session.ledger.cut(false).wait().await.unwrap();
+        }
+        assert!(
+            timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+    }
 }

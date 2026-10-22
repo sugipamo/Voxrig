@@ -43,6 +43,8 @@ writer待ち中の取消は未送信intentを保持し、他actorの更新が後
 
 合成packet試験は両mode、両受信順、片側受信、raw player slot mapping、data保持と不一致、
 競合の復元、未送信取消、部分write、排他、ledgerを検査する。
+同値tagの再受信によるnamed-holder寿命の更新と、両手・cursorを同時更新するfull contentsも検査し、
+cursor競合やregistry寿命の変更を後の一致packetで解除しない。
 `scripts/ExportHandSwap.java`は未改変の公式1.21.11 codecでsequence境界5件を往復し、
 `data/client_api/hand_swap_packets-1.21.11.json`を生成する（元serverと同梱libraryのclasspathが必要）。
 ライブ再実行はbuild済み共通consumerと、指定JARの一時copyだけを使う。
