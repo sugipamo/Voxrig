@@ -1,7 +1,5 @@
 //! Structured chat messages and the server-maintained player list.
 
-use crate::versions::java_1_16_1::protocol::get_string;
-use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -48,28 +46,6 @@ pub struct PlayerListEntry {
 pub struct PlayerList {
     /// The `entries` value.
     pub entries: HashMap<[u8; 16], PlayerListEntry>,
-}
-
-fn read_uuid(rest: &mut &[u8]) -> Result<[u8; 16]> {
-    if rest.len() < 16 {
-        bail!("truncated player UUID");
-    }
-    let mut uuid = [0; 16];
-    uuid.copy_from_slice(&rest[..16]);
-    *rest = &rest[16..];
-    Ok(uuid)
-}
-
-pub(crate) fn parse_chat(payload: &[u8]) -> Result<ChatMessage> {
-    let mut rest = payload;
-    let json = get_string(&mut rest)?;
-    let position = *rest.first().context("missing chat position")? as i8;
-    rest = &rest[1..];
-    Ok(ChatMessage {
-        json,
-        position,
-        sender: read_uuid(&mut rest)?,
-    })
 }
 
 #[cfg(test)]
@@ -151,4 +127,4 @@ pub(crate) fn project_player_info(
 #[cfg(test)]
 mod original_decode;
 #[cfg(test)]
-pub(crate) use original_decode::apply_player_info;
+pub(crate) use original_decode::{apply_player_info, parse_chat};

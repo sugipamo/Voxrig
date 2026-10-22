@@ -1052,7 +1052,10 @@ fn apply_play(
         return Ok(responses);
     }
     match id {
-        input::MAP => state.context.maps.receive(payload, true, state.sequence)?,
+        input::MAP => state
+            .context
+            .maps
+            .apply(super::map_decode::decode_map(payload)?, state.sequence)?,
         input::LOGIN => {
             let entity_id = r.i32()?;
             anyhow::ensure!(entity_id >= 0, "invalid own entity identifier");
@@ -1134,7 +1137,11 @@ fn apply_play(
                 .receive(MinecraftVersion::Java1_21_11, payload, state.sequence)?;
         }
         input::PLAYER_CHAT | input::PROFILELESS_CHAT => {
-            state.chat.receive_modern(id, payload, state.sequence)?;
+            state.chat.apply(super::chat_decode::decode_chat(
+                id,
+                payload,
+                state.sequence,
+            )?);
         }
         input::BOSS_BAR => {
             state

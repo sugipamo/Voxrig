@@ -1229,11 +1229,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             });
         }
         input::SYSTEM_CHAT => {
-            state.chat.receive_modern(id, payload, state.sequence)?;
-            // Validate framing even when presentation exceeds our projection budget.
-            r.skip_nbt()?;
-            let overlay = r.bool()?;
-            r.end()?;
+            let message = super::super::chat_decode::decode_chat(id, payload, state.sequence)?;
+            let overlay = message.kind == crate::client::chat::ChatKind::ActionBar;
+            state.chat.apply(message);
+            // The decoder validated the whole frame. Keep the native presentation
+            // budget separate from the common history's original NBT bytes.
             let component = if payload.len() <= 65536 {
                 super::super::component_nbt::read(&mut Reader::new(payload)).ok()
             } else {

@@ -28,7 +28,7 @@ mod common_vehicle;
 use crate::error::state_error;
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{
-    chat::{ChatMessage, PlayerList, parse_chat, project_player_info},
+    chat::{ChatMessage, PlayerList, project_player_info},
     entity::{
         EntityState, EntityTracker, MetadataValue, apply_relative, parse_metadata,
         parse_spawn_living, parse_spawn_object, parse_spawn_orb, parse_spawn_painting,
@@ -50,7 +50,7 @@ use crate::versions::java_1_16_1::{
         OperationAdmissionError, OperationClass, OperationContext, ProtocolTransaction,
         TerminalClassification,
     },
-    map::{MapData, MapStore, MapUpdate, parse_map_update},
+    map::{MapData, MapStore, MapUpdate, project_map_update},
     operation::{
         AcknowledgedOperation, CleanupDispatchOutcome, CleanupOperation, DispatchError,
         DispatchOutcome, EquipOperation, Operation, SlotExpectation, WindowClick,
@@ -5840,11 +5840,8 @@ impl Bot {
             0x0c => self.receive_boss_bar(&p, packet_sequence).await?,
             0x0d => self.receive_difficulty(&p, packet_sequence).await?,
             0x0e => {
-                let chat = parse_chat(&p)?;
-                self.common_chat
-                    .lock()
-                    .await
-                    .receive_legacy(&p, packet_sequence)?;
+                let (message, chat) = super::chat_decode::decode_chat(&p, packet_sequence)?;
+                self.common_chat.lock().await.apply(message);
                 self.emit(Event::Chat(chat));
             }
             0x0f => self.receive_multi_block_change(&p, packet_sequence).await?,
@@ -5933,13 +5930,13 @@ impl Bot {
                 // Validate the whole common packet/budget before changing either
                 // cache. The common cache has explicit missing pixel coverage.
                 let mut received_maps = self.common_receipts.lock().await.context.maps.clone();
-                received_maps.receive_with_limit(
-                    &p,
-                    false,
+                let update = super::map_decode::decode_map(&p)?;
+                received_maps.apply_with_limit(
+                    update.clone(),
                     packet_sequence,
                     self.connection_options.max_maps,
                 )?;
-                let update = parse_map_update(&p)?;
+                let update = project_map_update(update);
                 self.maps
                     .write()
                     .await
