@@ -226,10 +226,10 @@ pub mod prelude {
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{
-        InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,
-        InventoryClickStage, InventorySource, InventorySwapId, InventorySwapRecord,
-        InventorySwapSource, InventorySwapStage, InventoryTransferId, InventoryTransferRecord,
-        InventoryTransferStage,
+        HandSwapId, HandSwapRecord, HandSwapSend, HandSwapStage, InventoryClickButton,
+        InventoryClickId, InventoryClickRecord, InventoryClickSource, InventoryClickStage,
+        InventorySource, InventorySwapId, InventorySwapRecord, InventorySwapSource,
+        InventorySwapStage, InventoryTransferId, InventoryTransferRecord, InventoryTransferStage,
     };
     pub use super::maps::{
         MAX_RECEIVED_MAPS, MapIconKind, MapIdentity, MapObservation, ReceivedMapIcon,

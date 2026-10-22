@@ -269,6 +269,16 @@ impl Survival {
     ) -> Result<super::inventory::InventorySwapRecord> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_container_hotbar(a, GameMode::Survival, screen, slot, hotbar).await)
     }
+    /// Exchange the selected main hand and offhand once (Java 1.21.11).
+    /// Read `hand_swap_record` for both fresh slot receipts; never retry a pending action.
+    pub async fn swap_hands(&self) -> Result<super::inventory::HandSwapRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hands(a, GameMode::Survival).await)
+    }
+    /// Read the retained hand exchange without sending another packet.
+    pub async fn hand_swap_record(&self) -> Result<Option<super::inventory::HandSwapRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::hand_swap_record(a).await)
+    }
+
     /// Exchange main screen slot 9..35 and hotbar index 0..8 once.
     /// Uses complete received stacks and empty cursor; retains registry ownership before I/O.
     pub async fn swap_hotbar(
@@ -653,6 +663,16 @@ impl Creative {
     ) -> Result<super::inventory::InventorySwapRecord> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_container_hotbar(a, GameMode::Creative, screen, slot, hotbar).await)
     }
+    /// Exchange the selected main hand and offhand once (Java 1.21.11).
+    /// Read `hand_swap_record` for both fresh slot receipts; never retry a pending action.
+    pub async fn swap_hands(&self) -> Result<super::inventory::HandSwapRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hands(a, GameMode::Creative).await)
+    }
+    /// Read the retained hand exchange without sending another packet.
+    pub async fn hand_swap_record(&self) -> Result<Option<super::inventory::HandSwapRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::hand_swap_record(a).await)
+    }
+
     /// Exchange complete received player stacks once in creative mode.
     /// This ordinary inventory click does not create items or change mode.
     pub async fn swap_hotbar(

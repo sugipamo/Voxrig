@@ -47,6 +47,16 @@ impl State {
             Family::Swap,
             operations::inventory::common::swap_ledger_state(self),
         );
+        self.finite_work.reconcile(
+            Family::HandSwap,
+            self.common_hand_swap.as_ref().map(|r| {
+                (
+                    r.id.attempt(),
+                    !r.unresolved(),
+                    r.requires_inspection.is_some(),
+                )
+            }),
+        );
         for slot in 0..9 {
             self.finite_work.reconcile(
                 Family::Creative(slot),

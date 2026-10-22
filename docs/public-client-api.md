@@ -12,6 +12,8 @@ queryを採掘/設置の実行許可にしません。[狙い判定の範囲・�
 共通の`Survival::place_cube`と`placement_record`はdefault cubeの一度の設置と、対象・材料の実受信を両版で保持します。
 native ACKの有無と取消後の未解決状態は[共通設置の契約](common-survival-placement.md)を参照してください。
 両modeの`swap_hotbar` / `inventory_swap_record`はdefault player stackの交換を両版に実装しています。
+`swap_hands` / `hand_swap_record`は1.21.11の選択中主手とオフハンドを専用recordで交換・観測します。
+1.16.1は明示Unsupportedです。[手とslotの交換](common-inventory-swaps.md)を参照してください。
 一般containerとの違い、legacy応答とmodern revisionの扱いは[共通在庫交換](common-inventory-swaps.md)を参照してください。
 共通Clientの両modeで通常Shift転送を使う場合は[転送契約](common-inventory-transfers.md)を参照してください。
 `Client::screen_state()`は開いたcontainerのidentity・実内容・cursor・native layoutを両版で観測します。

@@ -3,6 +3,8 @@
 pub(crate) mod armor_tests;
 pub(crate) mod click;
 mod data;
+pub(crate) mod hands;
+pub use hands::{HandSwapId, HandSwapRecord, HandSwapSend, HandSwapStage};
 #[cfg(test)]
 pub(crate) mod held_cursor_tests;
 pub(crate) use data::ItemContext;

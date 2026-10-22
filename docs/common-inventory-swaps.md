@@ -1,5 +1,68 @@
 # 共通Clientの在庫交換
 
+## 主手とオフハンドの交換（1.21.11）
+
+`survival.swap_hands()` / `creative.swap_hands()`は、選択中のhotbar slotと
+オフハンド45番のwhole stackを一度だけ交換する。通常のslot指定PICKUPやSWAPと別の
+`PLAYER_ACTION`（SWAP_ITEM_WITH_OFFHAND=6、position ZERO、face DOWN）を使い、
+sequenceはdig/use/placeと同じ接続全体のcounterから確保する。
+1.16.1の両methodと読取は明示`Unsupported`で、legacy native送信の成功を共通結果に読み替えない。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn exchange_hands(client: &Client) -> Result<()> {
+let intent = client.survival().swap_hands().await?;
+let latest = client.survival().hand_swap_record().await?;
+// Pending/RequiresInspectionでは再送しない。読取はpacketを送らない。
+# let _ = (intent, latest);
+# Ok(())
+# }
+```
+
+専用の`HandSwapRecord`は、同一境界で捕捉した`initial`（mode・selection・cursor・screenを含む）、
+canonical `main_slot`（36..44）、両方の元stack、`HandSwapSend`を保持する。
+完全受信configuration、handleに一致するSurvival/Creative、received player screenまたは
+同じworld/openingへの完全送信済みclose、既知のselection（実受信または完全送信済み選択）、
+実受信の両stackとcursor、競合するownerがないことを要求する。
+既知の非空cursorも保持して交換できる。item dataは受信時のregistryとnative constructorで比較し、
+破損値やcomponentsをdefaultへ落とさない。欠測・不正count・未知constructorや同値の両手はI/O前に拒否する。
+同値の両手ではnativeから変更slotが返らないため、完了可能な操作として扱わない。
+
+`send.dispatched`はframeの完全送信だけを表す。`ObservedSwapped`には、
+元offhandと一致する`main_receipt`、元mainと一致する`offhand_receipt`の両方が必要で、
+各slotの実更新ordinalは`send.after_sequence`より新しくなければならない。
+片側だけの更新、無関係なslot、block ACKや現在cacheの一致では完了しない。
+これはclientの実受信根拠であり、変更したactorの証明ではない。
+
+既存inventory ownerとledgerに接続する。未解決中は通常クリック・交換・選択等の競合操作を拒否し、
+drainは両slotの確認を待つ。取消・partial write・切断、選択/mode/cursor/screen/worldやregistry寿命の変更、
+片側receiptの巻き戻りは`RequiresInspection`へ保持する。元の値に戻っても解除しない。
+writer待ち中の取消は未送信intentを保持し、他actorの更新が後から一致しても成功にしない。
+自動再送・rollbackはない。完了済みrecordは後の在庫変更・切断から独立した履歴として凍結する。
+次の明示的な交換だけが最新captureから新しい`HandSwapId`を作る。
+
+合成packet試験は両mode、両受信順、片側受信、raw player slot mapping、data保持と不一致、
+競合の復元、未送信取消、部分write、排他、ledgerを検査する。
+同値tagの再受信によるnamed-holder寿命の更新と、両手・cursorを同時更新するfull contentsも検査し、
+cursor競合やregistry寿命の変更を後の一致packetで解除しない。
+`scripts/ExportHandSwap.java`は未改変の公式1.21.11 codecでsequence境界5件を往復し、
+`data/client_api/hand_swap_packets-1.21.11.json`を生成する（元serverと同梱libraryのclasspathが必要）。
+ライブ再実行はbuild済み共通consumerと、指定JARの一時copyだけを使う。
+server/world/EULAは一時directoryに作成し、終了時に全processを停止する。
+
+```bash
+cargo build --locked --example climbing_control_probe -j2
+python3 -B scripts/run_hand_swap_live.py --accept-eula \
+  --server-jar /absolute/path/1.21.11/server.jar --output /absolute/path/evidence
+```
+
+両modeで盾・道具・空手を6回交換し、両slotのfresh receipt、data保持、元packetの一度性と
+独立RCONのSelectedItem/equipment.offhandを照合する。合成packet試験とライブの根拠は区別する。
+2026-10-22の6ケースは成功し、公式JAR/同梱40classpath入力のhashと元packet・両slot・RCONの対応を
+[実行根拠](evidence/common-hand-swap-20261022.json)に保持した。
+
+## slot指定の交換
+
 `Client::survival().swap_hotbar(main_slot, hotbar)`と`Client::creative().swap_hotbar(...)`は、
 通常在庫のscreen slot 9..35とhotbar index 0..8のwhole stack交換を一度だけ送る。
 1.16.1と1.21.11で同じ`client::inventory::InventorySwapRecord`を返し、利用側の版分岐を不要にする。
