@@ -2,6 +2,10 @@
 
 `voxrig`は、外部の頭脳から直接操作するMinecraft Java Edition向けheadless clientクレートです。
 
+Voxrigの対象はoffline-modeサーバー（`online-mode=false`、`enforce-secure-profile=false`）です。
+Microsoftアカウント認証・online-mode暗号化、および署名付きchat・command
+（chat session、message signature、offlineサーバーで必要な範囲を超えるlast-seen acknowledgement）はスコープ外です。
+
 `Bot` の既存説明は1.16.1専用です。共存する1.21.11観測アダプタは
 [移行計画](dustroute-integration.md)、[対応範囲と検証](version-adapter-validation.md)、
 [ピストン通知と階段の未同期](piston-client-update-prerequisite.md)を参照してください。
