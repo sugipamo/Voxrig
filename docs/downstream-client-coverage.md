@@ -91,6 +91,10 @@ Java 1.21.11の[resource-pack negotiation](common-resource-packs.md)はconfigura
 要求UUIDへ自動応答し、共通の`resource_pack_request()`と`ResourcePackRequested`で受信事実を公開する。
 この観測は1.21.11限定で、download・描画と1.16.1の共通観測は後続範囲。
 
+Java 1.21.11の[code-of-conduct](common-code-of-conduct.md)はconfigurationで本文を保存して
+自動acceptする。共通の`code_of_conduct()`と`CodeOfConductReceived`で受信事実を公開する。
+1.16.1には対応するpacketがなく、この追加観測APIは`Unsupported`を返す。
+
 ## 共通化の残件
 
 利用側の具体的な移行阻害項目を先に扱う。継続操作の停止／再開で古い速度を再適用し向きを0へ戻す

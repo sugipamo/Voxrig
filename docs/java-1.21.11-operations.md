@@ -11,6 +11,10 @@ protocol policy. Removal is accepted silently. The common
 `Client::resource_pack_request()` and `EventKind::ResourcePackRequested` expose
 received facts, not asset loading or response-delivery receipts; see
 [resource-pack contract and verification](common-resource-packs.md).
+Configuration code-of-conduct requests are automatically accepted with an empty
+accept packet. `Client::code_of_conduct()` and `EventKind::CodeOfConductReceived`
+expose the latest received text and sequence; see the
+[code-of-conduct contract and verification](common-code-of-conduct.md).
 Microsoft authentication and signed chat/commands remain out of scope.
 
 For checked survival operations, `client.java_1_21_11()?.checked_survival()` provides the common

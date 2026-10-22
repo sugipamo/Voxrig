@@ -139,6 +139,12 @@ pub(crate) trait ChunkOps {
 
 /// Change notifications.
 pub(crate) trait EventOps {
+    async fn code_of_conduct(&self) -> Result<Option<super::ObservedValue<String>>> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("code-of-conduct observation requires Java 1.21.11"),
+        ))
+    }
     async fn resource_pack_request(
         &self,
     ) -> Result<Option<super::ObservedValue<super::ResourcePackRequest>>> {

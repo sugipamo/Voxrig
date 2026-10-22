@@ -22,6 +22,7 @@ pub(crate) mod books;
 pub mod chat;
 pub mod events;
 pub use events::{ClientEvent, EventKind, EventLog};
+pub mod code_of_conduct;
 pub mod resource_pack;
 pub use resource_pack::ResourcePackRequest;
 mod wait;
