@@ -1,4 +1,5 @@
 //! Ordered 1.21.11 receive loop. Local state is committed under one session lock.
+mod attack;
 mod context;
 mod correction;
 #[cfg(test)]
@@ -74,6 +75,7 @@ struct State {
     code_of_conduct: Option<crate::client::ObservedValue<String>>,
     loading: loading::InteractionLoading,
     motion: motion::OwnMotion,
+    attack_strength: attack::AttackStrength,
     identity: Option<LoginIdentity>,
     retirement: Option<operations::MiningRetirementRecord>,
     mining: Option<operations::MiningRecord>,
@@ -143,6 +145,7 @@ impl Default for State {
             code_of_conduct: None,
             loading: loading::InteractionLoading::default(),
             motion: motion::OwnMotion::default(),
+            attack_strength: Default::default(),
             identity: None,
             retirement: None,
             mining: None,
@@ -1033,6 +1036,7 @@ fn apply_spawn_info(
     }
     state.reconstruction = Reconstruction::default();
     state.operations.reset_world(entry.game_mode)?;
+    state.attack_strength.reset_world();
     state.players.reset_world();
     state.entities.clear();
     state.vehicles.clear();
@@ -1350,6 +1354,7 @@ fn apply_play(
             state.world.reset();
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
+            state.attack_strength.reset_world();
             state.players = players::PlayerTracker::default();
             // Reconfiguration creates a new native play listener/scoreboard.
             // Ordinary respawn retains these connection-level registrations.

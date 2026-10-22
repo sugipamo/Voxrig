@@ -76,6 +76,12 @@ pub(crate) trait CoreOps {
     async fn connection_identity(&self) -> Result<ConnectionIdentity>;
     async fn server_registry_state(&self) -> Result<ServerRegistryObservation>;
     async fn player_state(&self) -> Result<PlayerObservation>;
+    async fn attack_strength(&self) -> Result<f32> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("local attack strength is only supported for Java 1.21.11"),
+        ))
+    }
     async fn player_context(&self) -> Result<super::PlayerContextObservation>;
     async fn map_observation(&self, native_id: i32) -> Result<Option<super::MapObservation>>;
     async fn received_player_snapshot(&self) -> Result<super::ReceivedPlayerSnapshot>;

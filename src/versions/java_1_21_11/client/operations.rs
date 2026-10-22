@@ -717,6 +717,7 @@ impl Operations {
                     .as_mut()
                     .expect("selection attempt")
                     .dispatched = true;
+                attack::observe(&mut state, Some(slot));
                 Ok(())
             })
             .await
@@ -1362,6 +1363,15 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         state.control.observe_abilities(payload[0], state.sequence);
     }
     state.operations = next;
+    let selected_slot = (id == input::HELD_ITEM_SLOT).then(|| {
+        state
+            .operations
+            .selected_hotbar
+            .as_ref()
+            .expect("received selection")
+            .slot
+    });
+    attack::observe(state, selected_slot);
     if matches!(
         id,
         input::WINDOW_ITEMS | input::SET_SLOT | input::SET_PLAYER_INVENTORY
@@ -1755,7 +1765,7 @@ impl crate::client::adapter::CoreOps for Operations {
                 use crate::client::operations::Action;
                 match action {
                     Action::Entity(target, interaction) => {
-                        let state = self.bot.session.state.lock().await;
+                        let mut state = self.bot.session.state.lock().await;
                         self.mutable(&state)?;
                         self.require_mode(&state, Some(mode))?;
                         state.entities.validate(
@@ -1773,6 +1783,12 @@ impl crate::client::adapter::CoreOps for Operations {
                                 &interaction.payload(target),
                             )
                             .await?;
+                        if matches!(
+                            interaction,
+                            crate::client::entity::EntityAction::Attack { .. }
+                        ) {
+                            state.attack_strength.reset();
+                        }
                     }
 
                     Action::EntityPart(_, _) => {
@@ -1830,7 +1846,7 @@ impl crate::client::adapter::CoreOps for Operations {
                         return self.dig_survival(mode, position, face, 2).await.map(Some);
                     }
                     Action::Swing(hand) => {
-                        let state = self.bot.session.state.lock().await;
+                        let mut state = self.bot.session.state.lock().await;
                         self.mutable(&state)?;
                         self.require_mode(&state, Some(mode))?;
                         let mut payload = Vec::new();
@@ -1839,6 +1855,7 @@ impl crate::client::adapter::CoreOps for Operations {
                             .session
                             .send(ids::play_serverbound::ARM_ANIMATION, &payload)
                             .await?;
+                        state.attack_strength.reset();
                     }
                 }
                 Ok(None)
@@ -1903,6 +1920,9 @@ impl crate::client::adapter::CoreOps for Operations {
         );
         self.bot.check_received_snapshot(&state)?;
         Ok(snapshot)
+    }
+    async fn attack_strength(&self) -> Result<f32> {
+        Operations::attack_strength(self).await
     }
     async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
         let state = self.bot.session.state.lock().await;
