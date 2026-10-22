@@ -65,6 +65,95 @@ class ControllerTests(unittest.TestCase):
             self.assertEqual(records[0]["stage"], "request")
             self.assertEqual(records[-1]["stage"], "reply")
 
+    def test_movement_setup_once_and_predicted_wall_preserves_state(self):
+        for trial_id in runner.MOVEMENT:
+            with self.subTest(trial=trial_id):
+                peer = self.peer(trial_id)
+                self.assertFalse(peer.complete())
+                peer.handle(self.request(peer))
+                self.assertEqual(self.rcon.commands[:2], [
+                    "fill -5 -61 -5 10 -61 6 minecraft:stone",
+                    "fill -5 -60 -5 10 -54 6 minecraft:air"])
+                self.assertEqual(self.rcon.commands.count("clear NatMineBot"), 1)
+                self.assertIn("item replace entity NatMineBot inventory.0 with minecraft:dirt 3",
+                              self.rcon.commands)
+                self.assertFalse(any("4 -60 0" in c for c in self.rcon.commands))
+                before = list(self.rcon.commands)
+                if trial_id == "movement_predicted":
+                    self.assertFalse(peer.complete())
+                    reply = peer.handle(self.request(peer, "wall", "install_wall"))
+                    self.assertEqual(reply["phase"], "install_wall")
+                    self.assertEqual(self.rcon.commands[len(before):], [
+                        "fill 4 -60 0 4 -59 0 minecraft:dirt"])
+                self.assertTrue(peer.complete())
+                records = [json.loads(line) for line in self.log.getvalue().splitlines()]
+                self.assertEqual(sum(r["stage"] == "request" for r in records),
+                                 2 if trial_id == "movement_predicted" else 1)
+
+    def test_movement_rejects_resets_and_invalid_wall_requests_without_edits(self):
+        for trial_id, setup, case, phase, elapsed in (
+                ("movement_predicted", False, "wall", "install_wall", None),
+                ("movement_observed", True, "wall", "install_wall", None),
+                ("movement_predicted", True, "jump", "install_wall", None),
+                ("movement_predicted", True, "wall", "install_wall", 0),
+                ("movement_predicted", True, "walk", "setup", None),
+                ("movement_observed", True, "jump", "setup", None),
+                ("movement_predicted", True, "wall", "setup", None)):
+            with self.subTest(trial=trial_id, setup=setup, case=case, phase=phase, elapsed=elapsed):
+                peer = self.peer(trial_id)
+                if setup:
+                    peer.handle(self.request(peer))
+                before = list(self.rcon.commands)
+                with self.assertRaises(ValueError):
+                    peer.handle(self.request(peer, case, phase, elapsed))
+                self.assertEqual(self.rcon.commands, before)
+                self.assertFalse(peer.complete())
+        peer = self.peer("movement_predicted")
+        peer.handle(self.request(peer))
+        peer.handle(self.request(peer, "wall", "install_wall"))
+        before = list(self.rcon.commands)
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            peer.handle(self.request(peer, "wall", "install_wall"))
+        self.assertEqual(self.rcon.commands, before)
+
+    def test_wall_rcon_failure_closes_control_without_acknowledgement(self):
+        peer = self.peer("movement_predicted")
+        peer.handle(self.request(peer))
+        self.rcon.command = Mock(side_effect=TimeoutError("wall update absent"))
+        stream, listener, process = Mock(), Mock(), Mock()
+        stream.recv.return_value = (json.dumps(self.request(peer, "wall", "install_wall")) + "\n").encode()
+        listener.accept.return_value = (stream, None)
+        process.poll.return_value = None
+        with self.assertRaisesRegex(TimeoutError, "wall update absent"):
+            runner.control_loop(listener, process, peer, 2)
+        stream.sendall.assert_not_called()
+        stream.close.assert_called_once()
+        self.assertFalse(peer.complete())
+        self.assertIn('"phase": "install_wall"', self.log.getvalue())
+        self.assertEqual(self.log.getvalue().count('"stage": "reply"'), 1)
+
+    def test_movement_evidence_requires_every_ordered_motion_and_placement(self):
+        for trial_id in runner.MOVEMENT:
+            peer = self.peer(trial_id)
+            phases = ["walk", "walk_placement", "jump", "jump_placement",
+                      "wall_endpoint_refused_before_io", "wall", "wall_placement"]
+            if trial_id == "movement_predicted":
+                phases = ["walk", "walk_trajectory_comparison", "walk_independent_comparison", "walk_placement",
+                          "jump", "jump_trajectory_comparison", "jump_independent_comparison", "jump_placement",
+                          "wall_endpoint_refused_before_io", "wall", "wall_trajectory_comparison",
+                          "wall_independent_comparison", "wall_placement"]
+            evidence = {"error": None, "cases": [{"phase": p} for p in phases]}
+            runner.validate_evidence(peer.trial, evidence)
+            for index in range(len(phases)):
+                partial = copy.deepcopy(evidence)
+                partial["cases"].pop(index)
+                with self.assertRaisesRegex(RuntimeError, "incomplete movement"):
+                    runner.validate_evidence(peer.trial, partial)
+            for cases, error in ((list(reversed(evidence["cases"])), None),
+                                 (evidence["cases"] * 2, None), (evidence["cases"], "failed")):
+                with self.assertRaisesRegex(RuntimeError, "incomplete movement"):
+                    runner.validate_evidence(peer.trial, {"cases": cases, "error": error})
+
     def test_stale_duplicate_and_wrong_identity_fail_before_edits(self):
         for key, value in (("request_id", 0), ("request_id", True), ("game_port", 25572),
                            ("trial_id", "mining_raw"), ("schema_version", 2), ("run_id", ""),
@@ -201,9 +290,11 @@ class ControllerTests(unittest.TestCase):
             self.assertTrue((folder / "server.log").exists())
 
     def test_trial_panic_and_timeout_keep_partial_output_and_reap_both_groups(self):
-        for failure in ("panic", "timeout", "interrupt"):
-            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+        for trial_id, failure in ((t, f) for t in runner.TRIALS
+                                  for f in ("panic", "timeout", "interrupt")):
+            with self.subTest(trial=trial_id, failure=failure), tempfile.TemporaryDirectory() as directory:
                 folder = Path(directory) / "trial"
+                trial = self.peer(trial_id).trial
                 server = Mock(pid=123, returncode=0)
                 server.poll.return_value = None
                 cargo = Mock(pid=456, returncode=101)
@@ -227,12 +318,16 @@ class ControllerTests(unittest.TestCase):
                 with patch.object(runner, "configure"), \
                         patch.object(runner, "free_port", side_effect=[31001, 31002]), \
                         patch.object(runner.socket, "socket", return_value=listener), \
-                        patch.object(runner.subprocess, "Popen", side_effect=[server, cargo]), \
+                        patch.object(runner.subprocess, "Popen", side_effect=[server, cargo]) as launch, \
                         patch.object(runner, "until", side_effect=[rcon, True]), \
                         patch.object(runner, "control_loop", side_effect=fail), \
                         patch.object(runner, "stop_group") as stop:
                     with self.assertRaises((RuntimeError, TimeoutError, KeyboardInterrupt)):
-                        runner.run_trial(self.peer().trial, Path("jar"), folder, True)
+                        runner.run_trial(trial, Path("jar"), folder, True)
+                command = launch.call_args.args[0]
+                module = "movement_native_trials" if trial_id in runner.MOVEMENT else "mining_native_trials"
+                self.assertIn(f'versions::java_1_21_11::client::{module}::{trial["test"]}', command)
+                self.assertEqual(launch.call_args.kwargs["stdin"], subprocess.DEVNULL)
                 stop.assert_any_call(server)
                 stop.assert_any_call(cargo)
                 rcon.close.assert_called_once()

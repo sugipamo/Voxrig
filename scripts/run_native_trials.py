@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Own the three ignored Java 1.21.11 mining trials, one fresh world at a time.
+"""Own five ignored Java 1.21.11 mining/movement trials in fresh worlds.
 
 Run from a checkout with Java 21 and Rust installed:
   python3 -B scripts/run_native_trials.py --accept-eula --server-jar /path/server.jar
@@ -7,7 +7,8 @@ Run from a checkout with Java 21 and Rust installed:
 The jar (including a supplied jar) is SHA1 verified against Mojang metadata.
 All mutable server state and retained diagnostics live in a printed tempfile
 folder. Nothing is uploaded. Ctrl-C/SIGTERM stop owned process groups; logs and
-partial trial output survive failure. No mining action or edit is retried.
+partial trial output survive failure. No action or edit is retried. Movement
+keeps pose, inventory and placements across walk, jump and wall within a test.
 """
 import argparse
 from contextlib import ExitStack
@@ -29,6 +30,8 @@ from run_common_native import REPO, Rcon, download, free_port, until
 
 SPEC = REPO / "scripts/fixtures/native_trials_1_21_11.json"
 MINING = ("mining_raw", "mining_api", "mining_recovery")
+MOVEMENT = ("movement_observed", "movement_predicted")
+TRIALS = MINING + MOVEMENT
 IDENTITY = ("schema_version", "run_id", "trial_id", "case_id", "request_id", "phase")
 REQUEST_FIELDS = set(IDENTITY) | {"game_port", "action_elapsed_ms"}
 
@@ -105,7 +108,9 @@ class Peer:
             if self.case_index >= 0 and not self.case_complete():
                 raise ValueError("previous case missing external edit")
             case = cases[index]
-            if case["setup"] != "reset_before_case":
+            if case["setup"] != "reset_before_case" and not (
+                    self.trial["id"] in MOVEMENT and index == 0
+                    and case["setup"] == "initial_only"):
                 raise ValueError("unsupported setup policy")
             for region in case["regions"]:
                 coords = " ".join(map(str, region["min"] + region["max"]))
@@ -152,6 +157,21 @@ class Peer:
                 raise TimeoutError("external edit exceeded action deadline")
             self.rcon.stream.settimeout(10)
             self.edited.add(case["id"])
+        elif phase == "install_wall":
+            case = cases[-1]
+            edits = case["permitted_external_edits"]
+            if (self.trial["id"] != "movement_predicted" or self.case_index != 0
+                    or request["case_id"] != case["id"] or elapsed is not None
+                    or case["id"] in self.edited or len(edits) != 1
+                    or edits[0]["phase"] != phase):
+                raise ValueError("undeclared, duplicate or out-of-order wall installation")
+            # Only the declared wall cells may be touched. Never reset the air,
+            # teleport profiles or replenish the stack between movement cases.
+            for region in case["regions"]:
+                if region["role"] == "wall":
+                    coords = " ".join(map(str, region["min"] + region["max"]))
+                    self.command(f'fill {coords} minecraft:{region["material"]}')
+            self.edited.add(case["id"])
         else:
             raise ValueError("undeclared control phase")
         self.run_id = request["run_id"]
@@ -167,8 +187,31 @@ class Peer:
         return not case["permitted_external_edits"] or case["id"] in self.edited
 
     def complete(self):
+        if self.trial["id"] in MOVEMENT:
+            # Later movement cases have received-state gates, not setup requests.
+            # Their completion is checked separately in the test evidence.
+            return (self.usable and self.case_index == 0
+                    and all(case["id"] in self.edited for case in self.trial["cases"]
+                            if case["permitted_external_edits"]))
         return (self.usable and self.case_index == len(self.trial["cases"]) - 1
                 and self.case_complete())
+
+
+def validate_evidence(trial, evidence):
+    if trial["id"] in MOVEMENT:
+        phases = []
+        for case in trial["cases"]:
+            name = case["id"]
+            if name == "wall":
+                phases.append("wall_endpoint_refused_before_io")
+            phases.append(name)
+            if trial["id"] == "movement_predicted":
+                phases.extend((f"{name}_trajectory_comparison", f"{name}_independent_comparison"))
+            phases.append(f"{name}_placement")
+        if evidence.get("error") is not None or [c["phase"] for c in evidence["cases"]] != phases:
+            raise RuntimeError("incomplete movement evidence")
+    elif len(evidence["cases"]) != len(trial["cases"]):
+        raise RuntimeError("incomplete trial evidence")
 
 
 def control_loop(listener, process, peer, timeout):
@@ -317,7 +360,8 @@ def run_trial(trial, jar, folder, accept_eula):
             env = dict(os.environ, NATIVE_TRIAL_CONTROL=endpoint)
             env[trial["port_env"]] = str(port)
             env[trial["output_env"]] = str(folder / "trial.json")
-            name = "versions::java_1_21_11::client::mining_native_trials::" + trial["test"]
+            module = "movement_native_trials" if trial["id"] in MOVEMENT else "mining_native_trials"
+            name = f'versions::java_1_21_11::client::{module}::{trial["test"]}'
             command = ["cargo", "+stable", "test", "--locked", "--lib", "--features", "native",
                        "-j2", name, "--", "--exact", "--ignored", "--nocapture", "--test-threads=1"]
             test_log = stack.enter_context((folder / "test.log").open("w"))
@@ -333,8 +377,7 @@ def run_trial(trial, jar, folder, accept_eula):
             if code != 0 or not peer.complete() or not any("1 passed; 0 failed" in s for s in results):
                 raise RuntimeError("trial failed or control phases incomplete; see test.log/journal.jsonl")
             evidence = json.loads((folder / "trial.json").read_text())
-            if len(evidence["cases"]) != len(trial["cases"]):
-                raise RuntimeError("incomplete trial evidence")
+            validate_evidence(trial, evidence)
             report["result"] = "PASS"
         except BaseException:
             report.update(result="FAIL", error=traceback.format_exc())
@@ -378,11 +421,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--server-jar", type=Path)
-    parser.add_argument("--trial", choices=MINING, action="append", help="default: all three, sequentially")
+    parser.add_argument("--trial", choices=TRIALS, action="append", help="default: all five, sequentially")
     args = parser.parse_args()
     if not args.accept_eula:
         parser.error("--accept-eula is required; no server files have been written")
-    root = Path(tempfile.mkdtemp(prefix="voxrig-native-mining-"))
+    root = Path(tempfile.mkdtemp(prefix="voxrig-native-trials-"))
     print(f"Retained run directory: {root}", flush=True)
     summary = {"result": "running", "trials": []}
 
@@ -404,7 +447,7 @@ def main():
                                server_jar=args.server_jar.resolve() if args.server_jar else None)
         save(root / "source.json", source)
         spec = json.loads(SPEC.read_text())
-        for trial_id in args.trial or MINING:
+        for trial_id in args.trial or TRIALS:
             trial = next(t for t in spec["trials"] if t["id"] == trial_id)
             folder = root / trial_id
             print(f"Running {trial_id}: {folder}", flush=True)
