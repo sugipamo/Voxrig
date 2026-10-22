@@ -80,7 +80,10 @@ Nodeは生成時だけの道具であり、新クライアントの実行時に�
 
 **第2段階の時点で実装していなかったもの:** 1.21.11の移動物理、inventory、汎用の配置・撤去、
 ピストンのBlock Actionから起こすローカル移動・隣接更新、完全なblock entity観測。
-online-mode、resource pack要求、experimental feature set等は未対応として拒否する。
+当時はonline-mode、resource pack要求、experimental feature set等を未対応として拒否していた。
+現在のresource pack要求はconfiguration・playでheadless応答する。
+受信観測とdownloadを行わない契約は[resource-pack要求](common-resource-packs.md)を参照。
+Microsoft認証・online-mode暗号化と署名付きchat・commandはスコープ外。
 既存の1.16.1 `Bot` の機能が全て新版でも使えるという意味ではない。
 
 ## 隔離したJava 1.21.11サーバーと階段の診断

@@ -34,6 +34,8 @@ Microsoftアカウント認証・online-mode暗号化、および署名付きcha
 
 構築packetのunit testで両フェーズのUUID別応答順、任意prompt、forced、空hash、
 複数要求・重複UUID、remove、reconfiguration、不正／truncated packetの非commitを確認する。
+hashのUTF-16長とpacketサイズの上限も検査し、公式serverから捕捉した要求payloadを
+固定の応答packet ID・bytesと照合する回帰testを持つ。
 実接続用の共通API probeは`examples/resource_pack_probe.rs`。
 使い捨ての公式1.21.11 serverに`resource-pack=https://example.invalid/pack.zip`、
 40桁の`resource-pack-sha1`、`require-resource-pack=true`、`online-mode=false`を設定し、

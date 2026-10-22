@@ -41,6 +41,87 @@ const RESOURCE_PACK_PHASES: [(Phase, i32, i32, i32); 2] = [
 ];
 
 #[test]
+fn resource_pack_captured_configuration_request_matches_wire_replies() {
+    // Original ADD_RESOURCE_PACK payload and response IDs from the official
+    // server capture in docs/evidence/resource-pack-20261022.json.
+    let payload = hex::decode(concat!(
+        "12345678123456789abc123456789abc20",
+        "68747470733a2f2f6578616d706c652e696e76616c69642f7061636b2e7a6970",
+        "2830313233343536373839616263646566303132333435363738396162636465663031323334353637",
+        "0101080013486561646c657373207061636b2070726f6265"
+    ))
+    .unwrap();
+    let mut state = State::default();
+    let responses = state.receive(9, &payload, 64).unwrap();
+    assert_eq!(
+        responses,
+        vec![
+            (
+                6,
+                hex::decode("12345678123456789abc123456789abc03").unwrap()
+            ),
+            (
+                6,
+                hex::decode("12345678123456789abc123456789abc00").unwrap()
+            ),
+        ]
+    );
+    let request = state.resource_pack_request.unwrap();
+    assert_eq!(request.value.url, "https://example.invalid/pack.zip");
+    assert_eq!(
+        request.value.hash,
+        "0123456789abcdef0123456789abcdef01234567"
+    );
+    assert!(request.value.forced);
+    assert_eq!(
+        request.value.prompt,
+        Some(crate::client::ui::UiText::NativeNbt {
+            bytes: hex::decode("080013486561646c657373207061636b2070726f6265").unwrap(),
+        })
+    );
+}
+
+#[test]
+fn resource_pack_limits_count_utf16_and_reject_oversized_packets_without_commit() {
+    for (phase, add, _, _) in RESOURCE_PACK_PHASES {
+        let mut valid = vec![5; 16];
+        put_string(&mut valid, "https://example.invalid/pack.zip");
+        // Twenty supplementary characters occupy exactly forty UTF-16 units.
+        put_string(&mut valid, &"😀".repeat(20));
+        valid.extend([0, 0]);
+        for oversized in [false, true] {
+            let mut state = State {
+                phase,
+                ..play_state()
+            };
+            assert_eq!(state.receive(add, &valid, 64).unwrap().len(), 2);
+            let before = state.resource_pack_request.clone();
+            let mut invalid = valid.clone();
+            if oversized {
+                invalid.resize(crate::protocol::MAX_PACKET_SIZE + 1, 0);
+            } else {
+                invalid = vec![6; 16];
+                put_string(&mut invalid, "https://example.invalid/pack.zip");
+                // Fewer than forty characters, but forty-two UTF-16 units.
+                put_string(&mut invalid, &"😀".repeat(21));
+                invalid.extend([0, 0]);
+            }
+            let error = state.receive(add, &invalid, 64).unwrap_err();
+            assert!(error.to_string().contains(if oversized {
+                "resource-pack request exceeds packet limit"
+            } else {
+                "resource-pack hash exceeds 40 UTF-16 code units"
+            }));
+            assert_eq!(state.resource_pack_request, before);
+            assert_eq!(
+                state.events.after(0, state.sequence).unwrap().events.len(),
+                1
+            );
+        }
+    }
+}
+
+#[test]
 fn resource_pack_acknowledges_each_uuid_in_both_phases_and_retains_received_fields() {
     use crate::client::{EventKind, ValueSource, ui::UiText};
     for (phase, add, remove, output) in RESOURCE_PACK_PHASES {
