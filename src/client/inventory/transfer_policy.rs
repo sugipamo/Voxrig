@@ -250,7 +250,15 @@ fn calculate_inner(
     mode: crate::client::GameMode,
     context: Option<&super::data::ItemContext>,
 ) -> Result<Prediction> {
-    let storage = if menu == "minecraft:player" {
+    let input = crate::client::crafting::layout::input_transfer(version, menu, source);
+    let storage = if let Some(route) = input {
+        if before.len() != route.total_slots {
+            return Err(crate::client::registry::invalid(
+                "transfer outside native crafting input layout",
+            ));
+        }
+        None
+    } else if menu == "minecraft:player" {
         if before.len() != 46 || !(5..=45).contains(&source) {
             return Err(crate::client::registry::invalid(
                 "player transfer requires slots 5..45 and native 46-slot layout",
@@ -299,24 +307,34 @@ fn calculate_inner(
     let mut remaining = original.count;
     // Every successful round reduces this valid original count; never an I/O retry.
     while remaining > 0 {
-        let destinations: Vec<usize> = match storage {
-            Some(n) if source < n => (n..n + 36).rev().collect(),
-            Some(n) => (0..n).collect(),
-            None if (5..=8).contains(&source) => (9..45).collect(),
-            None => {
-                let equipment = if version == MinecraftVersion::Java1_21_11 {
-                    if let Some(context) = context {
-                        context.transfer_equipment_slot(original)?
+        let destinations: Vec<usize> = if let Some(route) = input {
+            route.destinations.clone().collect()
+        } else {
+            match storage {
+                Some(n) if source < n => (n..n + 36).rev().collect(),
+                Some(n) => (0..n).collect(),
+                None if (5..=8).contains(&source) => (9..45).collect(),
+                None => {
+                    let equipment = if version == MinecraftVersion::Java1_21_11 {
+                        if let Some(context) = context {
+                            context.transfer_equipment_slot(original)?
+                        } else {
+                            route.preferred_equipment_slot
+                        }
                     } else {
                         route.preferred_equipment_slot
-                    }
-                } else {
-                    route.preferred_equipment_slot
-                };
-                if let Some(slot) = equipment {
-                    validate(version, &result.slots[slot], context)?;
-                    if result.slots[slot] == SlotKnowledge::Empty {
-                        vec![slot]
+                    };
+                    if let Some(slot) = equipment {
+                        validate(version, &result.slots[slot], context)?;
+                        if result.slots[slot] == SlotKnowledge::Empty {
+                            vec![slot]
+                        } else if (9..=35).contains(&source) {
+                            (36..45).collect()
+                        } else if (36..=44).contains(&source) {
+                            (9..36).collect()
+                        } else {
+                            (9..45).collect()
+                        }
                     } else if (9..=35).contains(&source) {
                         (36..45).collect()
                     } else if (36..=44).contains(&source) {
@@ -324,12 +342,6 @@ fn calculate_inner(
                     } else {
                         (9..45).collect()
                     }
-                } else if (9..=35).contains(&source) {
-                    (36..45).collect()
-                } else if (36..=44).contains(&source) {
-                    (9..36).collect()
-                } else {
-                    (9..45).collect()
                 }
             }
         };

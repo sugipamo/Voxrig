@@ -5256,3 +5256,219 @@ mod hand_swaps;
 
 #[path = "drop_tests.rs"]
 mod selected_drops;
+
+async fn crafting_input_transfer_fixture(
+    table: bool,
+    mode: crate::client::GameMode,
+    blocked: bool,
+) -> (CommonFixture, crate::client::inventory::InventorySource) {
+    use crate::client::inventory::InventorySource;
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    if mode == crate::client::GameMode::Creative {
+        let mut change = vec![3];
+        change.extend(1f32.to_be_bytes());
+        f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &change)
+            .await;
+    }
+    if table {
+        f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 12, 10, 0])
+            .await;
+    }
+    let start = if table { 10 } else { 9 };
+    let mut full = vec![if table { 3 } else { 0 }, 7, 46];
+    for index in 0..46 {
+        let value = if index == 1 {
+            component_swap_item(7, 16, true)
+        } else if (start..start + 36).contains(&index) {
+            if !blocked && index < start + 2 {
+                component_swap_item(if index == start { 15 } else { 14 }, 16, false)
+            } else {
+                plain("dirt", 64)
+            }
+        } else {
+            InventorySlot::Empty
+        };
+        put_slot(&mut full, &value);
+    }
+    put_slot(&mut full, &component_swap_item(2, 16, false));
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full).await;
+    let source = if table {
+        InventorySource::Container {
+            screen: f.client().screen_state().await.unwrap().screen.unwrap().id,
+        }
+    } else {
+        InventorySource::Player
+    };
+    (f, source)
+}
+
+#[tokio::test]
+async fn crafting_input_transfer_packets_both_menus_modes_preserve_data_and_wait_for_every_changed_slot()
+ {
+    use crate::client::{GameMode, inventory::InventoryTransferStage as Stage};
+    for table in [false, true] {
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            let (mut f, source) = crafting_input_transfer_fixture(table, mode, false).await;
+            let client = f.client();
+            let record = if mode == GameMode::Creative {
+                client.creative().transfer_inventory(source, 1).await
+            } else {
+                client.survival().transfer_inventory(source, 1).await
+            }
+            .unwrap();
+            let (id, payload) = read_packet(&mut f.peer, None).await.unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            assert_eq!(payload, super::transfer::payload(&record).unwrap());
+            assert_eq!(record.changed_slots.len(), 3);
+            assert!(record.send.request_full_resync); // data-bearing held cursor
+            let start = if table { 10 } else { 9 };
+            let updates = [
+                (0, plain("oak_button", 1)),
+                (start + 1, component_swap_item(16, 16, false)),
+                (1, component_swap_item(4, 16, false)),
+                (start, component_swap_item(16, 16, false)),
+            ];
+            for (ordinal, (slot, value)) in updates.into_iter().enumerate() {
+                if table {
+                    f.container_slot(slot, value).await;
+                } else {
+                    f.slot(slot, value).await;
+                }
+                let current = client
+                    .survival()
+                    .inventory_transfer_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(current.id, record.id);
+                assert_eq!(
+                    current.stage,
+                    if ordinal == 3 {
+                        Stage::ObservedTransferred
+                    } else {
+                        Stage::Pending
+                    },
+                    "{current:?}"
+                );
+                assert_eq!(
+                    current.cursor_inspected.as_ref().unwrap().value,
+                    record.cursor_before.value
+                );
+                if ordinal == 0 {
+                    assert!(current.changed_slots.iter().all(|s| s.receipt.is_none()));
+                }
+                if ordinal == 3 {
+                    assert!(current.changed_slots.iter().all(|s| s.receipt.as_ref().is_some_and(|r| matches!(r.source, crate::client::ValueSource::Received {sequence} if sequence > current.send.after_sequence))));
+                }
+            }
+            assert!(
+                timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.stop().await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn crafting_input_transfer_packets_full_no_effect_result_and_table_player_slots_send_nothing()
+{
+    use crate::client::GameMode;
+    for table in [false, true] {
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            let (mut f, source) = crafting_input_transfer_fixture(table, mode, true).await;
+            let client = f.client();
+            for slot in if table { vec![0, 1, 10] } else { vec![0, 1] } {
+                let result = if mode == GameMode::Creative {
+                    client.creative().transfer_inventory(source, slot).await
+                } else {
+                    client.survival().transfer_inventory(source, slot).await
+                };
+                assert!(result.is_err());
+                assert!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .is_none()
+                );
+            }
+            assert!(
+                timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.stop().await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn crafting_input_transfer_packets_competing_input_and_replaced_or_closed_table_never_heal() {
+    use crate::client::{GameMode, inventory::InventoryTransferStage as Stage};
+    for table in [false, true] {
+        for conflict in 0..if table { 3 } else { 1 } {
+            let (mut f, source) =
+                crafting_input_transfer_fixture(table, GameMode::Survival, false).await;
+            let client = f.client();
+            let record = client
+                .survival()
+                .transfer_inventory(source, 1)
+                .await
+                .unwrap();
+            read_packet(&mut f.peer, None).await.unwrap();
+            match conflict {
+                0 => {
+                    if table {
+                        f.container_slot(2, plain("oak_planks", 1)).await;
+                    } else {
+                        f.slot(2, plain("oak_planks", 1)).await;
+                    }
+                }
+                1 => {
+                    f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 12, 10, 0])
+                        .await
+                }
+                _ => f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await,
+            }
+            let current = client
+                .survival()
+                .inventory_transfer_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(current.stage, Stage::RequiresInspection);
+            if conflict == 0 {
+                if table {
+                    f.container_slot(2, InventorySlot::Empty).await;
+                } else {
+                    f.slot(2, InventorySlot::Empty).await;
+                }
+            }
+            let current = client
+                .survival()
+                .inventory_transfer_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(current.id, record.id);
+            assert_eq!(current.stage, Stage::RequiresInspection);
+            assert!(
+                client
+                    .survival()
+                    .transfer_inventory(source, 1)
+                    .await
+                    .is_err()
+            );
+            assert!(
+                timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.stop().await;
+        }
+    }
+}

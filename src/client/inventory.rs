@@ -623,3 +623,6 @@ pub(crate) fn same_received_value(
             matches!(v.source, ValueSource::Received { .. }) && v.value == before.value
         })
 }
+
+#[cfg(test)]
+mod crafting_input_tests;

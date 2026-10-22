@@ -1,0 +1,5261 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "version": "1.21.11",
+  "passed": true,
+  "authority_limits": "Unchanged official 1.21.11 loopback server, original packet frames, common Client consumer and independent RCON. Both modes and both grids, full and partial input recovery, named custom data and occupied damaged/custom-data cursor. Every changed source/destination has fresh received evidence; output recomputation is diagnostic only. RCON independently verifies destination counts/data and the later explicitly deposited cursor. Source remainder is a native slot receipt, not inferred from RCON inventory. Legacy routing is covered by separate original menu fixtures and constructed packet/reply tests, not a legacy live run. No cancellation or packet loss is claimed by this live run.",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "consumer_binary_sha256": "3aaf67d1bb1680bb6720eb574837797d301813bc51932f692dc8f1313682ec2b",
+  "source_manifest_sha256": "28a547d27cc6717c9ad92e52ddfd486dd3d44a8d2da3ca0c7223d9dbe0738e1a",
+  "source_sha256": {
+    "src/client/crafting/layout.rs": "0f96b0bd4bd9d74f1cf151df96da4fa609b05ec11c6be6440e91a9d70b652c36",
+    "src/client/inventory/transfer.rs": "3c6142932a2aa5c1d816678ec8d7d746a37da671b96e7edb5d643b6d84dad3c4",
+    "src/client/inventory/transfer_policy.rs": "3dd3fe93f9a455b35f1195097b9a7c73dbdec8d5d4fc046acd7b2e0b66a6987f",
+    "src/client/inventory/data.rs": "303f80d76dd97f992b74dbbb64a9ee6ab0b01353cfcb94b008844a38e8d206a4",
+    "src/client/inventory/slot_policy.rs": "9175d65c4150b4031757dc956d5aa88528cc8e71b635b66b4aa36213134e065e",
+    "src/client/container.rs": "74134bb52dd18b971cafb968c014b395ee43aedf52f5383e530b8671ef492115",
+    "src/versions/java_1_21_11/client/operations/inventory/transfer.rs": "5566959142976aeb683860024b9a9c2a9e52901b390b077f1af8d5b49807ca56",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "0ef9c8ccdedda0cdbabd63f7a7822cf60b515eb5993b6fef9bb54fbe71e4a04a",
+    "src/versions/java_1_16_1/client/common_transfer.rs": "0a8ebd25ee5fe88a489f53237218878f9876dd7ac0ede0a7429098b0fe9da1d9",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "981104dcee37a0e9ae1936cb487276c1d9e13c282133619acc1354e8834ffedc",
+    "src/versions/java_1_16_1/client/common_inventory.rs": "af5d1224150ae1273b4767dbce02031062ade42714b8404ac49a839956e6d78e",
+    "examples/climbing_control_probe.rs": "b11c5d6e4851d8287625df75c9fc5fb948d1e36ec070e9fdc9004c93eb72f3d0",
+    "scripts/run_crafting_input_transfer_live.py": "2c29c6b7805f9c907193babc90e7a51ebf041cc461349cdd2f4202e05add62b2",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
+    "data/client_api/crafting_input_transfer_source.json": "6e7a48778817a40a56df56e45d9a822f6deb89f8d774d47c4d6c00d6f9eccf81"
+  },
+  "artifacts_sha256": {
+    "inputs.json": "28a547d27cc6717c9ad92e52ddfd486dd3d44a8d2da3ca0c7223d9dbe0738e1a",
+    "packets.jsonl": "862735d4fffd16e87f54f20f5f23d1b8c0132cc596f6b5e725a55d8509f4aee3",
+    "probe.log": "1ee3e81978d0b25e0c15085d65b342279248f15d6ee6d89f2099a3a2dbc618ae",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "report.json": "1aae5cf0e65414e9542cd140a685b911798a9bcf3e6eda689d754e571b3e9864",
+    "server.log": "a8f1eec52f361e70283ccaf332d0c867bf1046ab42df4440b4172799582e2b1f"
+  },
+  "trace_errors": [],
+  "checks": [
+    {
+      "mode": "survival",
+      "table": false,
+      "partial": false,
+      "id": {
+        "attempt": 1,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "player"
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 139,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 8,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 139
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 1,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 141
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 139
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 141
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 9
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 139
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 141
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 139
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 141
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 7, Slot: 9b, id: \"minecraft:oak_planks\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 163,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "2563c4c9f8e058f1abb9385ccd2c91e4a7ef3d538a9110e546524a0f566706bd",
+          "body_sha256": "3c40a27fdf0e5ce585c9a0bab4107d2c23a5dd7e38bac8e1731b2a48e72303c0",
+          "body_hex": "0000000100010000"
+        },
+        {
+          "ordinal": 164,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "10ffc7f14acc179f47dde2ce3190dee5128c915b754abc7a3a7ceae545787a0a",
+          "body_sha256": "2e51551ca053453b23ea0f33dab63bdec9ddd8c4a938f2402d856206dcd5133b",
+          "body_hex": "0009000000"
+        },
+        {
+          "ordinal": 165,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 114,
+          "wire_sha256": "3b01582a0225ea4065af1bb77dbad096441cbc20da65c01c262594d0d95470d1",
+          "body_sha256": "4062eb3de35d2e08355430f64807f72b99e7239f5ebb55068735e9d3da488e76",
+          "body_hex": "000a2e00000000000000000007240100000a03000e696e7075745f7472616e736665720000002a0000000000000000000000000000000000000000000000000000000000000000000000000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        }
+      ]
+    },
+    {
+      "mode": "survival",
+      "table": false,
+      "partial": true,
+      "id": {
+        "attempt": 2,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "player"
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 192,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 58,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 151
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 1,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 193
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 191
+            },
+            "value": {
+              "item": {
+                "count": 63,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 193
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 9
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 192
+            },
+            "value": {
+              "item": {
+                "count": 62,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 10,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 193
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 10
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 151
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 193
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 151
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 193
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{count: 64, Slot: 0b, id: \"minecraft:dirt\"}, {count: 64, Slot: 1b, id: \"minecraft:dirt\"}, {count: 64, Slot: 2b, id: \"minecraft:dirt\"}, {count: 64, Slot: 3b, id: \"minecraft:dirt\"}, {count: 64, Slot: 4b, id: \"minecraft:dirt\"}, {count: 64, Slot: 5b, id: \"minecraft:dirt\"}, {count: 64, Slot: 6b, id: \"minecraft:dirt\"}, {count: 64, Slot: 7b, id: \"minecraft:dirt\"}, {count: 64, Slot: 8b, id: \"minecraft:dirt\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 9b, id: \"minecraft:oak_planks\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 10b, id: \"minecraft:oak_planks\"}, {count: 64, Slot: 11b, id: \"minecraft:dirt\"}, {count: 64, Slot: 12b, id: \"minecraft:dirt\"}, {count: 64, Slot: 13b, id: \"minecraft:dirt\"}, {count: 64, Slot: 14b, id: \"minecraft:dirt\"}, {count: 64, Slot: 15b, id: \"minecraft:dirt\"}, {count: 64, Slot: 16b, id: \"minecraft:dirt\"}, {count: 64, Slot: 17b, id: \"minecraft:dirt\"}, {count: 64, Slot: 18b, id: \"minecraft:dirt\"}, {count: 64, Slot: 19b, id: \"minecraft:dirt\"}, {count: 64, Slot: 20b, id: \"minecraft:dirt\"}, {count: 64, Slot: 21b, id: \"minecraft:dirt\"}, {count: 64, Slot: 22b, id: \"minecraft:dirt\"}, {count: 64, Slot: 23b, id: \"minecraft:dirt\"}, {count: 64, Slot: 24b, id: \"minecraft:dirt\"}, {count: 64, Slot: 25b, id: \"minecraft:dirt\"}, {count: 64, Slot: 26b, id: \"minecraft:dirt\"}, {count: 64, Slot: 27b, id: \"minecraft:dirt\"}, {count: 64, Slot: 28b, id: \"minecraft:dirt\"}, {count: 64, Slot: 29b, id: \"minecraft:dirt\"}, {count: 64, Slot: 30b, id: \"minecraft:dirt\"}, {count: 64, Slot: 31b, id: \"minecraft:dirt\"}, {count: 64, Slot: 32b, id: \"minecraft:dirt\"}, {count: 64, Slot: 33b, id: \"minecraft:dirt\"}, {count: 64, Slot: 34b, id: \"minecraft:dirt\"}, {count: 64, Slot: 35b, id: \"minecraft:dirt\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 221,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "2563c4c9f8e058f1abb9385ccd2c91e4a7ef3d538a9110e546524a0f566706bd",
+          "body_sha256": "3c40a27fdf0e5ce585c9a0bab4107d2c23a5dd7e38bac8e1731b2a48e72303c0",
+          "body_hex": "0000000100010000"
+        },
+        {
+          "ordinal": 222,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 274,
+          "wire_sha256": "85791b0d7a770aafe52993b03d5f68cbfe8bd04e154380c8a50095944647e27f",
+          "body_sha256": "d275d9e3852a93a2e50a58c6f7436ebb922512df5a0ad495ac1e66b052ef6267",
+          "body_hex": "003b2e01ef05000004240100000a03000e696e7075745f7472616e736665720000002a000000000000000040240100000a03000e696e7075745f7472616e736665720000002a0040240100000a03000e696e7075745f7472616e736665720000002a00401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c00000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        }
+      ]
+    },
+    {
+      "mode": "survival",
+      "table": true,
+      "partial": false,
+      "id": {
+        "attempt": 3,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "container",
+        "screen": {
+          "opened_sequence": 240,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 1
+        }
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 248,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 5,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 248
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": null,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 250
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 248
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 250
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 10
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 248
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 250
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 248
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 250
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 7, Slot: 9b, id: \"minecraft:oak_planks\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 285,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "c05a16b7599653fb3e803e6596a2e4175dd44a27cf93ba6efacbdc48c29cd32e",
+          "body_sha256": "7ff64ec162db8c97c257ac8f14726a819f6f62fded20d61db5a95eed1d031dc4",
+          "body_hex": "0100000100010000"
+        },
+        {
+          "ordinal": 286,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "9da27ccb064def232e6404b215e1ed352f8921c0dc091af4efa6d98cadf4d184",
+          "body_sha256": "80569f688402f2d68b010f171325310039d47eed931da4eef9dceb8cb2084f2a",
+          "body_hex": "0106000000"
+        },
+        {
+          "ordinal": 287,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 114,
+          "wire_sha256": "631e2ced80230fd1304a983e8f670300e63109e984e012be2aa7ff348b1c15c5",
+          "body_sha256": "8f64049f8a4c6225a0d3de3fd5cd71cb22badfc9cdb6ffeae20d886b7ee0ac52",
+          "body_hex": "01072e0000000000000000000007240100000a03000e696e7075745f7472616e736665720000002a00000000000000000000000000000000000000000000000000000000000000000000000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        }
+      ]
+    },
+    {
+      "mode": "survival",
+      "table": true,
+      "partial": true,
+      "id": {
+        "attempt": 4,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "container",
+        "screen": {
+          "opened_sequence": 257,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 2
+        }
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 304,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 43,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 265
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": null,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 305
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 303
+            },
+            "value": {
+              "item": {
+                "count": 63,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 305
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 10
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 304
+            },
+            "value": {
+              "item": {
+                "count": 62,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 10,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 305
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 11
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 265
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 305
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 265
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 305
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{count: 64, Slot: 0b, id: \"minecraft:dirt\"}, {count: 64, Slot: 1b, id: \"minecraft:dirt\"}, {count: 64, Slot: 2b, id: \"minecraft:dirt\"}, {count: 64, Slot: 3b, id: \"minecraft:dirt\"}, {count: 64, Slot: 4b, id: \"minecraft:dirt\"}, {count: 64, Slot: 5b, id: \"minecraft:dirt\"}, {count: 64, Slot: 6b, id: \"minecraft:dirt\"}, {count: 64, Slot: 7b, id: \"minecraft:dirt\"}, {count: 64, Slot: 8b, id: \"minecraft:dirt\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 9b, id: \"minecraft:oak_planks\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 10b, id: \"minecraft:oak_planks\"}, {count: 64, Slot: 11b, id: \"minecraft:dirt\"}, {count: 64, Slot: 12b, id: \"minecraft:dirt\"}, {count: 64, Slot: 13b, id: \"minecraft:dirt\"}, {count: 64, Slot: 14b, id: \"minecraft:dirt\"}, {count: 64, Slot: 15b, id: \"minecraft:dirt\"}, {count: 64, Slot: 16b, id: \"minecraft:dirt\"}, {count: 64, Slot: 17b, id: \"minecraft:dirt\"}, {count: 64, Slot: 18b, id: \"minecraft:dirt\"}, {count: 64, Slot: 19b, id: \"minecraft:dirt\"}, {count: 64, Slot: 20b, id: \"minecraft:dirt\"}, {count: 64, Slot: 21b, id: \"minecraft:dirt\"}, {count: 64, Slot: 22b, id: \"minecraft:dirt\"}, {count: 64, Slot: 23b, id: \"minecraft:dirt\"}, {count: 64, Slot: 24b, id: \"minecraft:dirt\"}, {count: 64, Slot: 25b, id: \"minecraft:dirt\"}, {count: 64, Slot: 26b, id: \"minecraft:dirt\"}, {count: 64, Slot: 27b, id: \"minecraft:dirt\"}, {count: 64, Slot: 28b, id: \"minecraft:dirt\"}, {count: 64, Slot: 29b, id: \"minecraft:dirt\"}, {count: 64, Slot: 30b, id: \"minecraft:dirt\"}, {count: 64, Slot: 31b, id: \"minecraft:dirt\"}, {count: 64, Slot: 32b, id: \"minecraft:dirt\"}, {count: 64, Slot: 33b, id: \"minecraft:dirt\"}, {count: 64, Slot: 34b, id: \"minecraft:dirt\"}, {count: 64, Slot: 35b, id: \"minecraft:dirt\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 348,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "cdfb850e670a6bafbe7636d52c3dc86a1e153ebc57af68962f001e63fb7c461e",
+          "body_sha256": "decf0145db750dc6ce9585b4407a6c0d4cc423c11239e29d322f311812c11abc",
+          "body_hex": "0200000100010000"
+        },
+        {
+          "ordinal": 349,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 274,
+          "wire_sha256": "0e06d4d06e21c693d3f402eb37e0cffb5670e317f97daad4fa6d44939a3764b7",
+          "body_sha256": "e9438c7f150b8714c3186a2b4a3b649ea6633f3445f04dad0abd1c133228cbbe",
+          "body_hex": "022c2e01ef05000004240100000a03000e696e7075745f7472616e736665720000002a00000000000000000040240100000a03000e696e7075745f7472616e736665720000002a0040240100000a03000e696e7075745f7472616e736665720000002a00401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        }
+      ]
+    },
+    {
+      "mode": "creative",
+      "table": false,
+      "partial": false,
+      "id": {
+        "attempt": 5,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "player"
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 361,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 111,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 360
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 1,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 363
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 360
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 363
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 9
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 360
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 363
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 360
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 363
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 7, Slot: 9b, id: \"minecraft:oak_planks\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 413,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "2563c4c9f8e058f1abb9385ccd2c91e4a7ef3d538a9110e546524a0f566706bd",
+          "body_sha256": "3c40a27fdf0e5ce585c9a0bab4107d2c23a5dd7e38bac8e1731b2a48e72303c0",
+          "body_hex": "0000000100010000"
+        },
+        {
+          "ordinal": 414,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "c0e18126d9f4f875c2c7e92549f2b7e8b39cb8df68bba554f1949b98b7167256",
+          "body_sha256": "9d16ad3b9d314a2b5c45fbe476e7b7f3b05b8c5dd043108bfa641855dfed83e2",
+          "body_hex": "0070000000"
+        },
+        {
+          "ordinal": 415,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 114,
+          "wire_sha256": "643dc0d150a64f90c38a7e534ca6d2545ce70134f1ef09386104f5917ffe8d37",
+          "body_sha256": "9ded9d6c0f0bd15f733dbd0ccc77bf2f2cc63b7ef468d981194664f92d09a6e5",
+          "body_hex": "00712e00000000000000000007240100000a03000e696e7075745f7472616e736665720000002a0000000000000000000000000000000000000000000000000000000000000000000000000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        }
+      ]
+    },
+    {
+      "mode": "creative",
+      "table": false,
+      "partial": true,
+      "id": {
+        "attempt": 6,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "player"
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 411,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 161,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 373
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 1,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 412
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 410
+            },
+            "value": {
+              "item": {
+                "count": 63,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 412
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 9
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 411
+            },
+            "value": {
+              "item": {
+                "count": 62,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 10,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 412
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 10
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 373
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 412
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 373
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 412
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{count: 64, Slot: 0b, id: \"minecraft:dirt\"}, {count: 64, Slot: 1b, id: \"minecraft:dirt\"}, {count: 64, Slot: 2b, id: \"minecraft:dirt\"}, {count: 64, Slot: 3b, id: \"minecraft:dirt\"}, {count: 64, Slot: 4b, id: \"minecraft:dirt\"}, {count: 64, Slot: 5b, id: \"minecraft:dirt\"}, {count: 64, Slot: 6b, id: \"minecraft:dirt\"}, {count: 64, Slot: 7b, id: \"minecraft:dirt\"}, {count: 64, Slot: 8b, id: \"minecraft:dirt\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 9b, id: \"minecraft:oak_planks\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 10b, id: \"minecraft:oak_planks\"}, {count: 64, Slot: 11b, id: \"minecraft:dirt\"}, {count: 64, Slot: 12b, id: \"minecraft:dirt\"}, {count: 64, Slot: 13b, id: \"minecraft:dirt\"}, {count: 64, Slot: 14b, id: \"minecraft:dirt\"}, {count: 64, Slot: 15b, id: \"minecraft:dirt\"}, {count: 64, Slot: 16b, id: \"minecraft:dirt\"}, {count: 64, Slot: 17b, id: \"minecraft:dirt\"}, {count: 64, Slot: 18b, id: \"minecraft:dirt\"}, {count: 64, Slot: 19b, id: \"minecraft:dirt\"}, {count: 64, Slot: 20b, id: \"minecraft:dirt\"}, {count: 64, Slot: 21b, id: \"minecraft:dirt\"}, {count: 64, Slot: 22b, id: \"minecraft:dirt\"}, {count: 64, Slot: 23b, id: \"minecraft:dirt\"}, {count: 64, Slot: 24b, id: \"minecraft:dirt\"}, {count: 64, Slot: 25b, id: \"minecraft:dirt\"}, {count: 64, Slot: 26b, id: \"minecraft:dirt\"}, {count: 64, Slot: 27b, id: \"minecraft:dirt\"}, {count: 64, Slot: 28b, id: \"minecraft:dirt\"}, {count: 64, Slot: 29b, id: \"minecraft:dirt\"}, {count: 64, Slot: 30b, id: \"minecraft:dirt\"}, {count: 64, Slot: 31b, id: \"minecraft:dirt\"}, {count: 64, Slot: 32b, id: \"minecraft:dirt\"}, {count: 64, Slot: 33b, id: \"minecraft:dirt\"}, {count: 64, Slot: 34b, id: \"minecraft:dirt\"}, {count: 64, Slot: 35b, id: \"minecraft:dirt\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 468,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "2563c4c9f8e058f1abb9385ccd2c91e4a7ef3d538a9110e546524a0f566706bd",
+          "body_sha256": "3c40a27fdf0e5ce585c9a0bab4107d2c23a5dd7e38bac8e1731b2a48e72303c0",
+          "body_hex": "0000000100010000"
+        },
+        {
+          "ordinal": 469,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 275,
+          "wire_sha256": "bc5a8954f9cd2c1edc1bc7267955c4b73f430736880b7f442006dedd4a38d80f",
+          "body_sha256": "cdbec0693838e1e55f3b9b04de1367ae461495a0cde0d46e2d6b146b85bbcb51",
+          "body_hex": "00a2012e01ef05000004240100000a03000e696e7075745f7472616e736665720000002a000000000000000040240100000a03000e696e7075745f7472616e736665720000002a0040240100000a03000e696e7075745f7472616e736665720000002a00401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c00000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        },
+        {
+          "ordinal": 470,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 111,
+          "body_length": 17,
+          "wire_sha256": "1e454ad6178de173d9b6de443d5ffcf92a67360994400ce60717a9b3b3dc781f",
+          "body_sha256": "ed40eb12539953557abf8ff919c240351786c257005cac99934a771561e8e1d4",
+          "body_hex": "000000000000004f000000000000000c00"
+        }
+      ]
+    },
+    {
+      "mode": "creative",
+      "table": true,
+      "partial": false,
+      "id": {
+        "attempt": 7,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "container",
+        "screen": {
+          "opened_sequence": 460,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 3
+        }
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 468,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 5,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 468
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": null,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 470
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 468
+            },
+            "value": {
+              "kind": "empty"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 470
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 10
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 468
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 470
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 468
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 470
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 7, Slot: 9b, id: \"minecraft:oak_planks\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 533,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "ec14d4c42c0014e0d7a4f81d5128328847b1f887b9c7e1c12ccae73aeaf98f87",
+          "body_sha256": "fa46a15a1a057cb3beac4a80235428757483d9054fb12cd34201a3b1fd67b69a",
+          "body_hex": "0300000100010000"
+        },
+        {
+          "ordinal": 534,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "e54ade643d9e927a851b1e50d136b5da6f004441d0c7b520c2f2b78b63786373",
+          "body_sha256": "5958d3d94f7df0e03d8db380023604a85e9ab719a6ae601ab40ee38a9aa61496",
+          "body_hex": "0306000000"
+        },
+        {
+          "ordinal": 535,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 114,
+          "wire_sha256": "4a8d278141c77b339d939848a08c99305972e9db4fcc3391f3ac626f1d1da1ba",
+          "body_sha256": "d791e853c4e0bd2abe85ad87ba7e171c51aaf116272144ea5b156d3ed5f8187e",
+          "body_hex": "03072e0000000000000000000007240100000a03000e696e7075745f7472616e736665720000002a00000000000000000000000000000000000000000000000000000000000000000000000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        }
+      ]
+    },
+    {
+      "mode": "creative",
+      "table": true,
+      "partial": true,
+      "id": {
+        "attempt": 8,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        }
+      },
+      "source": {
+        "kind": "container",
+        "screen": {
+          "opened_sequence": 477,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 4
+        }
+      },
+      "source_slot": 1,
+      "send": {
+        "after_sequence": 523,
+        "dispatched": true,
+        "legacy_action": null,
+        "legacy_comparison": null,
+        "request_full_resync": true,
+        "screen_revision": 43,
+        "sent_screen_revision": 0
+      },
+      "stage": "observed_transferred",
+      "changed_slots": [
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 485
+            },
+            "value": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": null,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 524
+            },
+            "value": {
+              "item": {
+                "count": 4,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 1
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 522
+            },
+            "value": {
+              "item": {
+                "count": 63,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 9,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 524
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 10
+        },
+        {
+          "before": {
+            "source": {
+              "kind": "received",
+              "sequence": 523
+            },
+            "value": {
+              "item": {
+                "count": 62,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "player_slot": 10,
+          "prediction": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 524
+            },
+            "value": {
+              "item": {
+                "count": 64,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          14,
+                          105,
+                          110,
+                          112,
+                          117,
+                          116,
+                          95,
+                          116,
+                          114,
+                          97,
+                          110,
+                          115,
+                          102,
+                          101,
+                          114,
+                          0,
+                          0,
+                          0,
+                          42,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 36,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:oak_planks"
+              },
+              "kind": "item"
+            }
+          },
+          "slot": 11
+        }
+      ],
+      "cursor_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 485
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "cursor_inspected": {
+        "source": {
+          "kind": "received",
+          "sequence": 524
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "modern_components",
+              "patch": {
+                "added": [
+                  {
+                    "bytes": [
+                      7
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 3,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:damage"
+                    }
+                  },
+                  {
+                    "bytes": [
+                      10,
+                      3,
+                      0,
+                      21,
+                      105,
+                      110,
+                      112,
+                      117,
+                      116,
+                      95,
+                      116,
+                      114,
+                      97,
+                      110,
+                      115,
+                      102,
+                      101,
+                      114,
+                      95,
+                      99,
+                      117,
+                      114,
+                      115,
+                      111,
+                      114,
+                      0,
+                      0,
+                      0,
+                      43,
+                      0
+                    ],
+                    "definition": {
+                      "id": {
+                        "kind": "ItemComponent",
+                        "value": 0,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:custom_data"
+                    }
+                  }
+                ],
+                "removed": []
+              }
+            },
+            "id": {
+              "kind": "Item",
+              "value": 970,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:diamond_helmet"
+          },
+          "kind": "item"
+        }
+      },
+      "result_before": {
+        "source": {
+          "kind": "received",
+          "sequence": 485
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "result_after": {
+        "source": {
+          "kind": "received",
+          "sequence": 524
+        },
+        "value": {
+          "item": {
+            "count": 1,
+            "data": {
+              "kind": "default"
+            },
+            "id": {
+              "kind": "Item",
+              "value": 751,
+              "version": "Java1_21_11"
+            },
+            "name": "minecraft:oak_button"
+          },
+          "kind": "item"
+        }
+      },
+      "rcon_inventory": "ClimbingProbe has the following entity data: [{count: 64, Slot: 0b, id: \"minecraft:dirt\"}, {count: 64, Slot: 1b, id: \"minecraft:dirt\"}, {count: 64, Slot: 2b, id: \"minecraft:dirt\"}, {count: 64, Slot: 3b, id: \"minecraft:dirt\"}, {count: 64, Slot: 4b, id: \"minecraft:dirt\"}, {count: 64, Slot: 5b, id: \"minecraft:dirt\"}, {count: 64, Slot: 6b, id: \"minecraft:dirt\"}, {count: 64, Slot: 7b, id: \"minecraft:dirt\"}, {count: 64, Slot: 8b, id: \"minecraft:dirt\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 9b, id: \"minecraft:oak_planks\"}, {components: {\"minecraft:custom_data\": {input_transfer: 42}}, count: 64, Slot: 10b, id: \"minecraft:oak_planks\"}, {count: 64, Slot: 11b, id: \"minecraft:dirt\"}, {count: 64, Slot: 12b, id: \"minecraft:dirt\"}, {count: 64, Slot: 13b, id: \"minecraft:dirt\"}, {count: 64, Slot: 14b, id: \"minecraft:dirt\"}, {count: 64, Slot: 15b, id: \"minecraft:dirt\"}, {count: 64, Slot: 16b, id: \"minecraft:dirt\"}, {count: 64, Slot: 17b, id: \"minecraft:dirt\"}, {count: 64, Slot: 18b, id: \"minecraft:dirt\"}, {count: 64, Slot: 19b, id: \"minecraft:dirt\"}, {count: 64, Slot: 20b, id: \"minecraft:dirt\"}, {count: 64, Slot: 21b, id: \"minecraft:dirt\"}, {count: 64, Slot: 22b, id: \"minecraft:dirt\"}, {count: 64, Slot: 23b, id: \"minecraft:dirt\"}, {count: 64, Slot: 24b, id: \"minecraft:dirt\"}, {count: 64, Slot: 25b, id: \"minecraft:dirt\"}, {count: 64, Slot: 26b, id: \"minecraft:dirt\"}, {count: 64, Slot: 27b, id: \"minecraft:dirt\"}, {count: 64, Slot: 28b, id: \"minecraft:dirt\"}, {count: 64, Slot: 29b, id: \"minecraft:dirt\"}, {count: 64, Slot: 30b, id: \"minecraft:dirt\"}, {count: 64, Slot: 31b, id: \"minecraft:dirt\"}, {count: 64, Slot: 32b, id: \"minecraft:dirt\"}, {count: 64, Slot: 33b, id: \"minecraft:dirt\"}, {count: 64, Slot: 34b, id: \"minecraft:dirt\"}, {count: 64, Slot: 35b, id: \"minecraft:dirt\"}]",
+      "rcon_returned_cursor": "ClimbingProbe has the following entity data: {components: {\"minecraft:damage\": 7, \"minecraft:custom_data\": {input_transfer_cursor: 43}}, count: 1, Slot: 11b, id: \"minecraft:diamond_helmet\"}",
+      "frames": [
+        {
+          "ordinal": 595,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 17,
+          "body_length": 8,
+          "wire_sha256": "b4e5de5355a63338c2d6a481fe07e5c9cdd2987ca69f6329cff69b0f2ccb9e0c",
+          "body_sha256": "421ec2bdd6e472279cc696cb73f21c56911a3cde1260d877a465a909f50fafab",
+          "body_hex": "0400000100010000"
+        },
+        {
+          "ordinal": 596,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 18,
+          "body_length": 274,
+          "wire_sha256": "0b67218b417bfa3d56054ac253a5dc5c237a78eed1039505f55eb9fc7bc8414f",
+          "body_sha256": "ef456d4f40f8e4e6a6a805556fe0fa43b226084f433b25f8361a02b5f41fa851",
+          "body_hex": "042c2e01ef05000004240100000a03000e696e7075745f7472616e736665720000002a00000000000000000040240100000a03000e696e7075745f7472616e736665720000002a0040240100000a03000e696e7075745f7472616e736665720000002a00401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c0000401c000001ca0702000307000a030015696e7075745f7472616e736665725f637572736f720000002b00"
+        },
+        {
+          "ordinal": 597,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 111,
+          "body_length": 17,
+          "wire_sha256": "0abde875e084e7e1778a99d2124af284071a2c3a3f67a11d688d0acc37264091",
+          "body_sha256": "0af3e198ee4cda53a83ae205348e06ce383116a8c53c93d99affc962d9fe5ea9",
+          "body_hex": "0000000000000063000000000000000c00"
+        }
+      ]
+    }
+  ]
+}

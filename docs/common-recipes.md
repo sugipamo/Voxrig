@@ -251,7 +251,7 @@ fences the owned request and leaves its uncertainty available for inspection.
 Once placement is observed, use a fresh `received_crafting()` capture for each
 explicit `take_crafting_result`, then ordinary cursor deposit and actual inventory
 inspection. Maximum placement does not perform automatic shift crafting.
-Compatible held-result cursor merging is supported below. Table SWAP/QUICK_MOVE
+Compatible held-result cursor merging is supported below. Table input SWAP
 and the remaining B4 equipment/entity/data work still require implementation.
 
 The version-independent native consumer covers both modes, both 2x2/player and
@@ -344,7 +344,7 @@ remaining4. The final grid/cursor is empty, the original table closes and the
 same Client selects and disconnects. Independent native inventory and captured
 frames verify 64+4 sticks and exactly five clicks.
 See [native validation](common-client-native-validation.md) and its evidence.
-Native result QUICK_MOVE is described below. Table input SWAP/QUICK_MOVE remains required B4 work.
+Native result QUICK_MOVE is described below. Table input SWAP remains required B4 work; input QUICK_MOVE uses [the ordinary transfer owner](common-inventory-transfers.md).
 
 
 ## Native result QUICK_MOVE through the common Client
@@ -387,7 +387,7 @@ shift and explicitly deposits it afterward; Maximum starts with an empty cursor
 and produces an observed stock increase across three native internal crafts.
 Both finish with empty inputs/result/cursor, exact independent server inventory,
 original table close, a subsequent selection and disconnect. Wider B4 remains
-open; table input SWAP/QUICK_MOVE is separate from this result operation.
+open; table input QUICK_MOVE uses the ordinary transfer owner; input SWAP remains separate work.
 
 [Native inputs and results](evidence/common-recipe-result-transfer-20261006.json)
 retain all 16 cases and unchanged original method hashes.

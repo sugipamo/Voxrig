@@ -177,7 +177,14 @@ fn prepare_inner(
     }
     let (cursor, before, menu, revision) = match source {
         InventorySource::Player => {
-            if !(5..=45).contains(&slot) {
+            if !(5..=45).contains(&slot)
+                && crate::client::crafting::layout::input_transfer(
+                    initial.session.version,
+                    "minecraft:player",
+                    usize::from(slot),
+                )
+                .is_none()
+            {
                 return Err(crate::client::registry::invalid(
                     "player transfer requires slot 5..45; crafting/result remain separate",
                 ));
@@ -230,7 +237,19 @@ fn prepare_inner(
             let menu = s
                 .menu_name
                 .as_deref()
-                .filter(|n| super::storage_menu(n))
+                .filter(|n| {
+                    super::storage_menu(n)
+                        || crate::client::crafting::layout::input_transfer(
+                            initial.session.version,
+                            n,
+                            usize::from(slot),
+                        )
+                        .is_some_and(|route| {
+                            layout.total_slots == route.total_slots
+                                && crate::client::crafting::native_menu(initial.session.version, n)
+                                    .is_some_and(|menu| menu.native_id == s.native_menu_id)
+                        })
+                })
                 .ok_or_else(|| unavailable("audited storage transfer menu required"))?;
             for mapping in &layout.player_slots {
                 if s.slots.get(mapping.screen_slot)
@@ -266,6 +285,15 @@ fn prepare_inner(
                 .map_or(SlotKnowledge::Unavailable, |v| v.value.clone())
         })
         .collect();
+    if let Some(route) = crate::client::crafting::layout::input_transfer(
+        initial.session.version,
+        menu,
+        usize::from(slot),
+    ) {
+        for index in route.inputs.clone() {
+            known(before.get(index).and_then(Option::as_ref))?;
+        }
+    }
     let has_data = values.iter().chain(std::iter::once(&cursor.value)).any(|v| matches!(v, SlotKnowledge::Item {item} if item.data != crate::client::ItemData::Default));
     let item_context = if let (true, Some(registries)) = (has_data, registries) {
         let context = super::data::ItemContext::new(registries, &initial)?;
@@ -564,7 +592,22 @@ fn receive_inner(
             return;
         }
     }
+    let menu = record
+        .initial_screen
+        .as_ref()
+        .and_then(|s| s.menu_name.as_deref())
+        .unwrap_or("minecraft:player");
+    let input = crate::client::crafting::layout::input_transfer(
+        record.initial.session.version,
+        menu,
+        usize::from(record.source_slot),
+    );
     for (index, before) in record.before_slots.iter().enumerate() {
+        // Native input callbacks recompute the result independently. It is neither
+        // an input conflict nor evidence that any source/destination was received.
+        if input.is_some_and(|route| index == route.result_slot) {
+            continue;
+        }
         let Some(before) = before.as_ref().filter(|v| {
             matches!(v.source, ValueSource::Received { .. })
                 && v.value != SlotKnowledge::Unavailable
@@ -929,5 +972,287 @@ mod tests {
         receive(&mut record, &current, None);
         record.inspection("disconnected");
         assert_eq!(serde_json::to_value(&record).unwrap(), previous);
+    }
+    fn input_fixture(
+        version: MinecraftVersion,
+        table: bool,
+    ) -> (PlayerObservation, Option<ContainerScreen>) {
+        let mut initial = fixture(version, false).initial;
+        initial.inventory.slots[9] = Some(received(SlotKnowledge::Empty, 10));
+        initial.inventory.cursor = Some(received(
+            super::super::held_cursor_tests::data_cursor(version, false),
+            10,
+        ));
+        let source = super::super::held_cursor_tests::data_cursor(version, false);
+        let destination = super::super::held_cursor_tests::data_cursor(version, true);
+        let mut source = source;
+        let mut destination = destination;
+        if let SlotKnowledge::Item { item } = &mut source {
+            item.count = 7;
+        }
+        if let SlotKnowledge::Item { item } = &mut destination {
+            item.count = 63;
+        }
+        let mut slots = vec![Some(received(SlotKnowledge::Empty, 10)); 46];
+        slots[1] = Some(received(source, 10));
+        let start = if table { 10 } else { 9 };
+        slots[start] = Some(received(destination, 10));
+        slots[start + 1] = Some(received(stack(version, "minecraft:stone", 64), 10));
+        for value in &mut slots[start + 2..start + 36] {
+            *value = Some(received(stack(version, "minecraft:dirt", 64), 10));
+        }
+        if !table {
+            initial.inventory.slots = slots;
+            return (initial, None);
+        }
+        let native = crate::client::crafting::native_menu(version, "minecraft:crafting").unwrap();
+        let mut receipts = crate::client::container::ScreenReceipts::open(
+            version,
+            3,
+            native.native_id,
+            crate::client::container::ScreenTitle::Unavailable,
+            8,
+        );
+        receipts.full_items(slots, Some(7), 10).unwrap();
+        let screen = receipts.capture(initial.session);
+        for mapping in &screen.layout.as_ref().unwrap().player_slots {
+            initial.inventory.slots[mapping.player_slot] =
+                screen.slots[mapping.screen_slot].clone();
+        }
+        initial.inventory.window_id = Some(3);
+        initial.inventory.player_screen = None;
+        (initial, Some(screen))
+    }
+    #[test]
+    fn crafting_input_transfer_data_partial_requires_source_and_all_destinations_not_result() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for table in [false, true] {
+                for mode in [GameMode::Survival, GameMode::Creative] {
+                    let (mut initial, screen) = input_fixture(version, table);
+                    initial.game_mode = Some(mode);
+                    let mut registries =
+                        crate::client::registry::received::ReceivedRegistries::default();
+                    registries.reset(1);
+                    super::super::armor_tests::install(&mut registries, version, None);
+                    let owner = registries.capture(initial.session, 10);
+                    let source = screen.as_ref().map_or(InventorySource::Player, |s| {
+                        InventorySource::Container { screen: s.id }
+                    });
+                    let mut record =
+                        prepare_received((initial, owner), mode, source, 1, 1, screen).unwrap();
+                    // The plain stone stack cannot absorb data-bearing stone.
+                    assert_eq!(record.changed_slots.len(), 2);
+                    let mut current = record.initial.clone();
+                    let mut screen = record.initial_screen.clone();
+                    record.send.dispatched = true;
+                    let update = |current: &mut PlayerObservation,
+                                  screen: &mut Option<ContainerScreen>,
+                                  index: usize,
+                                  value: SlotKnowledge,
+                                  sequence| {
+                        current.receive_sequence = sequence;
+                        if let Some(s) = screen {
+                            s.slots[index] = Some(received(value, sequence));
+                            if let Some(mapping) = s
+                                .layout
+                                .as_ref()
+                                .unwrap()
+                                .player_slots
+                                .iter()
+                                .find(|m| m.screen_slot == index)
+                            {
+                                current.inventory.slots[mapping.player_slot] =
+                                    s.slots[index].clone();
+                            }
+                        } else {
+                            current.inventory.slots[index] = Some(received(value, sequence));
+                        }
+                    };
+                    // Recipe output is unrelated to input completion and may change repeatedly.
+                    update(
+                        &mut current,
+                        &mut screen,
+                        0,
+                        stack(version, "minecraft:oak_button", 1),
+                        11,
+                    );
+                    receive_with_registries(
+                        &mut record,
+                        &current,
+                        screen.as_ref(),
+                        &registries.capture(current.session, 11),
+                    );
+                    assert!(record.requires_inspection.is_none());
+                    assert!(!record.ready());
+                    assert!(record.changed_slots.iter().all(|s| s.receipt.is_none()));
+                    let dest = record.changed_slots[1].clone();
+                    update(
+                        &mut current,
+                        &mut screen,
+                        usize::from(dest.slot),
+                        dest.prediction.value,
+                        12,
+                    );
+                    receive_with_registries(
+                        &mut record,
+                        &current,
+                        screen.as_ref(),
+                        &registries.capture(current.session, 12),
+                    );
+                    assert!(!record.ready());
+                    assert!(record.changed_slots[0].receipt.is_none());
+                    let source = record.changed_slots[0].clone();
+                    assert!(
+                        matches!(&source.prediction.value, SlotKnowledge::Item {item} if item.count == 6)
+                    );
+                    update(&mut current, &mut screen, 1, source.prediction.value, 13);
+                    receive_with_registries(
+                        &mut record,
+                        &current,
+                        screen.as_ref(),
+                        &registries.capture(current.session, 13),
+                    );
+                    if version == MinecraftVersion::Java1_16_1 {
+                        record.legacy_reply = Some(InventoryTransactionReply {
+                            window_id: record.window_id() as i8,
+                            action: 1,
+                            accepted: false,
+                            receive_sequence: 14,
+                        });
+                    }
+                    assert!(
+                        record.ready(),
+                        "{version:?} table={table}: {:?}",
+                        record.requires_inspection
+                    );
+                    assert_eq!(
+                        record.cursor_inspected.as_ref().unwrap().value,
+                        record.cursor_before.value
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn crafting_input_transfer_missing_grid_competing_input_and_old_opening_are_rejected_or_latched()
+     {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for table in [false, true] {
+                let (mut initial, mut screen) = input_fixture(version, table);
+                // Default data keeps this ownership test independent of registry resolution.
+                initial.inventory.cursor = Some(received(SlotKnowledge::Empty, 10));
+                let values = if let Some(s) = &mut screen {
+                    &mut s.slots
+                } else {
+                    &mut initial.inventory.slots
+                };
+                values[1] = Some(received(stack(version, "minecraft:stone", 7), 10));
+                let start = if table { 10 } else { 9 };
+                values[start] = Some(received(stack(version, "minecraft:stone", 62), 10));
+                values[start + 1] = Some(received(stack(version, "minecraft:stone", 63), 10));
+                if let Some(s) = &screen {
+                    for m in &s.layout.as_ref().unwrap().player_slots {
+                        initial.inventory.slots[m.player_slot] = s.slots[m.screen_slot].clone();
+                    }
+                }
+                let source = screen.as_ref().map_or(InventorySource::Player, |s| {
+                    InventorySource::Container { screen: s.id }
+                });
+                let mut record = prepare(
+                    initial.clone(),
+                    GameMode::Survival,
+                    source,
+                    1,
+                    1,
+                    screen.clone(),
+                )
+                .unwrap();
+                let mut missing_grid = initial.clone();
+                let mut missing_screen = screen.clone();
+                if let Some(s) = &mut missing_screen {
+                    s.slots[2] = None;
+                } else {
+                    missing_grid.inventory.slots[2] = None;
+                }
+                assert!(
+                    prepare(
+                        missing_grid,
+                        GameMode::Survival,
+                        source,
+                        1,
+                        2,
+                        missing_screen
+                    )
+                    .is_err()
+                );
+
+                assert_eq!(record.changed_slots.len(), 3);
+                record.send.dispatched = true;
+                let mut current = initial.clone();
+                current.receive_sequence = 11;
+                if let Some(s) = &mut screen {
+                    s.slots[2] = Some(received(stack(version, "minecraft:dirt", 1), 11));
+                } else {
+                    current.inventory.slots[2] =
+                        Some(received(stack(version, "minecraft:dirt", 1), 11));
+                }
+                receive(&mut record, &current, screen.as_ref());
+                assert_eq!(record.stage, InventoryTransferStage::RequiresInspection);
+                let restored_screen = record.initial_screen.clone();
+                receive(&mut record, &initial, restored_screen.as_ref());
+                assert!(!record.ready());
+                // A missing destination cannot be guessed empty or admitted.
+                if let Some(s) = &mut screen {
+                    s.slots[start] = None;
+                } else {
+                    initial.inventory.slots[start] = None;
+                }
+                assert!(
+                    prepare(
+                        initial.clone(),
+                        GameMode::Survival,
+                        source,
+                        1,
+                        2,
+                        screen.clone()
+                    )
+                    .is_err()
+                );
+                if let Some(mut s) = record.initial_screen.clone() {
+                    // Same numeric window with a newer opening cannot use the old source handle.
+                    let mut receipts = crate::client::container::ScreenReceipts::open(
+                        version,
+                        3,
+                        s.native_menu_id,
+                        crate::client::container::ScreenTitle::Unavailable,
+                        20,
+                    );
+                    receipts.full_items(s.slots.clone(), Some(8), 21).unwrap();
+                    s = receipts.capture(initial.session);
+                    assert!(
+                        prepare(
+                            record.initial.clone(),
+                            GameMode::Survival,
+                            source,
+                            1,
+                            2,
+                            Some(s)
+                        )
+                        .is_err()
+                    );
+                    assert!(
+                        prepare(
+                            record.initial.clone(),
+                            GameMode::Survival,
+                            source,
+                            1,
+                            2,
+                            None
+                        )
+                        .is_err()
+                    );
+                }
+            }
+        }
     }
 }

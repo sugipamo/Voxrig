@@ -85,7 +85,7 @@ pub(crate) fn slot(version: MinecraftVersion, wire: &str) -> SlotKnowledge {
 // Compare field preservation independently of compound wire ordering. Float bits
 // are retained here: this oracle checks a menu operation's metadata, not the
 // equality of independently decoded network receipts (where NaN is unequal).
-fn preserved(version: MinecraftVersion, value: &SlotKnowledge) -> serde_json::Value {
+pub(super) fn preserved(version: MinecraftVersion, value: &SlotKnowledge) -> serde_json::Value {
     match value {
         SlotKnowledge::Item { item } => {
             let data = match &item.data {
