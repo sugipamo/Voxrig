@@ -70,6 +70,8 @@ mod hash_ops;
 pub(crate) mod identifier;
 pub mod inventory;
 mod inventory_helpers;
+#[cfg(test)]
+pub(crate) use inventory_helpers::scripted_tests as inventory_helper_tests;
 pub use inventory_helpers::{
     CraftOnceError, CraftOnceRecord, CraftOnceUnknownCause, CraftingFillRecord,
 };

@@ -205,6 +205,8 @@ impl super::Survival {
                     format!("click on slot {slot} not received"),
                 ));
             }
+            #[cfg(test)]
+            scripted_tests::click_waiting(sent.id);
             tokio::time::sleep(Duration::from_millis(20)).await;
             if let Some(latest) = self.inventory_click_record().await? {
                 if latest.id == sent.id {
@@ -405,6 +407,8 @@ impl super::Survival {
         let deadline = tokio::time::Instant::now() + CLICK_TIMEOUT;
         let mut take = sent.clone();
         while take.stage == CraftingTakeStage::Pending && tokio::time::Instant::now() < deadline {
+            #[cfg(test)]
+            scripted_tests::take_waiting(sent.id);
             tokio::time::sleep(Duration::from_millis(20)).await;
             if let Some(latest) = self.crafting_take_record().await? {
                 if latest.id == sent.id {
@@ -652,3 +656,6 @@ mod tests {
         assert_eq!(super::item_name("minecraft:stick"), "minecraft:stick");
     }
 }
+
+#[cfg(test)]
+pub(crate) mod scripted_tests;

@@ -422,6 +422,110 @@ impl crate::client::adapter::InventorySwapOps for Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod helper_sequences {
+        use super::*;
+        use api::inventory_helper_tests::{self as script, Fixture};
+
+        struct LegacyFixture {
+            bot: Bot,
+            packets: tokio::sync::mpsc::UnboundedReceiver<(i32, Vec<u8>)>,
+        }
+        fn native(value: &api::SlotKnowledge) -> Option<ItemStack> {
+            match value {
+                api::SlotKnowledge::Empty => None,
+                api::SlotKnowledge::Item { item } => Some(ItemStack {
+                    item_id: item.id.value(),
+                    count: item.count as i8,
+                    nbt: None,
+                }),
+                _ => panic!("known fixture stack required"),
+            }
+        }
+        impl Fixture for LegacyFixture {
+            fn client(&self) -> crate::Client {
+                crate::Client::from_java_1_16_1(self.bot.clone())
+            }
+            async fn inventory(
+                &mut self,
+                slots: &[api::SlotKnowledge],
+                cursor: &api::SlotKnowledge,
+            ) {
+                let mut payload = vec![0, 0, 46];
+                for value in slots {
+                    write_slot(&mut payload, native(value).as_ref());
+                }
+                self.bot.apply_packet(0x14, payload).await.unwrap();
+                self.cursor(cursor).await;
+            }
+            async fn slot(&mut self, index: u16, value: &api::SlotKnowledge) {
+                super::slot(&self.bot, index as i16, value, false).await;
+            }
+            async fn cursor(&mut self, value: &api::SlotKnowledge) {
+                let mut payload = vec![255, 255, 255];
+                write_slot(&mut payload, native(value).as_ref());
+                self.bot.apply_packet(0x16, payload).await.unwrap();
+            }
+            async fn reply(&mut self, action: Option<i16>) {
+                super::ack(&self.bot, action.unwrap(), false).await;
+                assert_eq!(script::ready(self.packets.recv()).await.unwrap().0, 0x07);
+            }
+            async fn click_packet(&mut self, record: &api::inventory::InventoryClickRecord) {
+                let (id, payload) = script::ready(self.packets.recv()).await.unwrap();
+                let mut expected = vec![0];
+                expected.extend(record.source_slot.to_be_bytes());
+                expected.push(record.button.native());
+                expected.extend(record.send.legacy_action.unwrap().to_be_bytes());
+                expected.push(0); // PICKUP
+                write_slot(
+                    &mut expected,
+                    native(record.send.legacy_comparison.as_ref().unwrap()).as_ref(),
+                );
+                assert_eq!((id, payload), (0x09, expected));
+            }
+            async fn take_packet(&mut self, record: &api::CraftingTakeRecord) {
+                let (id, payload) = script::ready(self.packets.recv()).await.unwrap();
+                assert_eq!(id, 0x09);
+                assert_eq!(&payload[..4], &[0, 0, 0, 0]);
+                assert_eq!(
+                    &payload[4..6],
+                    &record.send.legacy_action.unwrap().to_be_bytes()
+                );
+                assert_eq!(payload[6], 1); // QUICK_MOVE
+            }
+            async fn replace_screen(&mut self) {
+                let mut open = vec![3, 2];
+                put_string(&mut open, "{}");
+                self.bot.apply_packet(0x2e, open).await.unwrap();
+            }
+            async fn forget_cursor(&mut self) {
+                self.bot.common_receipts.lock().await.inventory.cursor = None;
+            }
+            async fn no_packets(&mut self) {
+                assert!(
+                    tokio::time::timeout(Duration::from_millis(1), self.packets.recv())
+                        .await
+                        .is_err(),
+                    "helper must not resend"
+                );
+            }
+        }
+        #[tokio::test]
+        async fn scripted_inventory_helper_sequences() {
+            for &case in script::CASES {
+                let (bot, packets, release, server) =
+                    super::super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                seed(&bot).await;
+                bot.common_receipts.lock().await.registries.finish();
+                let mut fixture = LegacyFixture { bot, packets };
+                tokio::time::pause();
+                script::run(&mut fixture, case).await;
+                tokio::time::resume();
+                fixture.bot.disconnect().await.unwrap();
+                drop(release);
+                server.await.unwrap();
+            }
+        }
+    }
     #[tokio::test]
     async fn preclosed_empty_cursor_quiesces_seals_and_joins_shutdown() {
         let (bot, mut packets, release, server) =
