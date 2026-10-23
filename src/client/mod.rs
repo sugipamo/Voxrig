@@ -22,6 +22,7 @@ pub(crate) mod books;
 pub mod chat;
 pub mod effects;
 pub mod events;
+pub mod explosions;
 pub use events::{ClientEvent, EventKind, EventLog};
 pub mod code_of_conduct;
 pub mod resource_pack;

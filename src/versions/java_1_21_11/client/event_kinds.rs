@@ -26,6 +26,7 @@ fn read(id: i32, payload: &[u8]) -> anyhow::Result<Vec<K>> {
     let mut r = Reader::new(payload);
     let block = |p: [i32; 3]| K::BlocksChanged { min: p, max: p };
     let mut kinds = match id {
+        input::EXPLOSION => vec![K::ExplosionReceived],
         input::BLOCK_CHANGE | input::TILE_ENTITY_DATA => {
             vec![block(super::super::wire::unpack_position(r.u64()?))]
         }

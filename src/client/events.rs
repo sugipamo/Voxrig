@@ -15,6 +15,8 @@ pub const MAX_RETAINED_EVENTS: usize = 4096;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub enum EventKind {
+    /// Original explosion context; read `Client::explosions_after`.
+    ExplosionReceived,
     /// Block states changed inside these inclusive bounds (a superset for
     /// multi-block packets).
     BlocksChanged {

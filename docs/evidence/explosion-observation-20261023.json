@@ -1,0 +1,793 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "status": "PASS",
+  "base_main": "6d657719ded9ba2d958dfea850a5665d4bb74fa7",
+  "version": "1.21.11",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "port": 35099,
+  "binary_sha256": "5135d1596ad989448f4b5484c07e0831208bf18b34d257c6a0a805bd4f5d6255",
+  "runtime_source_sha256": {
+    "src/client/explosions.rs": "fc3168bcdf60ab8fe5fa8f1abbc43f29bb2b22748c29df233f202637a579e2ed",
+    "src/client/events.rs": "61a7774abdcf1dc29d5cfaae7f8f919129f5b3fb8f36a189105b24e0fec92f8d",
+    "src/client/adapter.rs": "18c4f9a726fedd4ae0b10d773d53ed8a8587f538904916a03bc85eff13c3dcfd",
+    "src/client/mod.rs": "a11d8feb7c21db905b8ef984fdd92bc0850eb765080f9514685b6663df0f21dc",
+    "src/versions/java_1_21_11/client.rs": "91c61cef99280bc24d2a09e2dde862836c54c334f9299beb64505bbead94d07b",
+    "src/versions/java_1_21_11/client/explosions.rs": "026ce4df15cbf8529ed742502ca35a081b37081a295c22573156c0326f32b4f3",
+    "src/versions/java_1_21_11/client/effects.rs": "52128d6ac9bacfd09a335d0f8843cf410a879182f9ae5121b2212ffb740b6e6d",
+    "src/versions/java_1_21_11/client/event_kinds.rs": "95e8287396ebe506b576546556a2d5dd9e43e6175b05f8fa734124f20a0d9adc",
+    "src/versions/java_1_21_11/client/operations/survival.rs": "4fa4577b6a25753f16fb37fd8bc859f2776fc6d1e2cea370781cd00141590d0a",
+    "examples/explosion_observation_probe.rs": "9443fee0ba390d8731a9ed2b471f253d7f115926f28c6dfd64d92860f9c9b481",
+    "scripts/run_effect_events.py": "f6a1bfe0d4a81a209234f2c9cd63aac902f23236d1f0ec5a9a2c65272c953426"
+  },
+  "artifact_sha256": {
+    "live-trace.json": "2d1213addbeeb63fc70bad2712b8cea0ff4bec62084170bd68f26c098a782d64",
+    "live-server.log": "665b18dc44269679992f52853abf69d465f4a2a4c720b18b30bdfa21a3c84f4d",
+    "live-result.json": "3329248c05f656b6ccaa68907f7b51d9e563d5c14337f833dc747442ef3e3e82",
+    "live-probe.log": "10e3019601c22ba0fee9d73eba49b88260c76fef3e949e862c1707796fa7f2d0"
+  },
+  "scope": "Unchanged official disposable offline server. Console commands independently cause TNT, ignited creeper and downward wind-charge impacts at far/near positions. Three omitted impulses and three present nonzero impulses; packet/notification ordinal equality, world ownership, receive order and closed history checked by the consumer. Zero vector is covered by official codec constructed fixtures, not claimed as live. Runtime hashes precede captured-packet regression tests and documentation. The driver waited for server exit 0 and removed its temporary directory.",
+  "commands": [
+    "gamerule minecraft:spawn_mobs false",
+    "gamerule minecraft:mob_griefing false",
+    "fill -8 64 -4 24 64 4 minecraft:stone",
+    "fill -8 65 -4 24 68 4 minecraft:air",
+    "gamemode survival Q12Observer",
+    "effect give Q12Observer minecraft:resistance infinite 255 true",
+    "tp Q12Observer 0.5 65 0.5 0 0",
+    "tp Q12Observer 0.5 65 0.5 0 0",
+    "fill -8 64 -4 24 64 4 minecraft:stone",
+    "summon minecraft:tnt 18.5 65 0.5 {fuse:1}",
+    "tp Q12Observer 0.5 65 0.5 0 0",
+    "fill -8 64 -4 24 64 4 minecraft:stone",
+    "summon minecraft:tnt 2.5 65 0.5 {fuse:1}",
+    "tp Q12Observer 0.5 65 0.5 0 0",
+    "fill -8 64 -4 24 64 4 minecraft:stone",
+    "summon minecraft:creeper 18.5 65 0.5 {Fuse:1s,ignited:1b,NoAI:1b}",
+    "tp Q12Observer 0.5 65 0.5 0 0",
+    "fill -8 64 -4 24 64 4 minecraft:stone",
+    "summon minecraft:creeper 2.5 65 0.5 {Fuse:1s,ignited:1b,NoAI:1b}",
+    "tp Q12Observer 0.5 65 0.5 0 0",
+    "fill -8 64 -4 24 64 4 minecraft:stone",
+    "summon minecraft:wind_charge 18.5 65.1 0.5 {Motion:[0.0d,-1.0d,0.0d]}",
+    "tp Q12Observer 0.5 65 0.5 0 0",
+    "fill -8 64 -4 24 64 4 minecraft:stone",
+    "summon minecraft:wind_charge 2.5 65.1 0.5 {Motion:[0.0d,-1.0d,0.0d]}"
+  ],
+  "packets": [
+    {
+      "receive_sequence": 172,
+      "packet_id": 36,
+      "payload_hex": "4032800000000000405043eb852000003fe0000000000000408000000000024b00169d0502393f0000003f800000013c3f8000003f80000001"
+    },
+    {
+      "receive_sequence": 197,
+      "packet_id": 36,
+      "payload_hex": "4004000000000000405043eb852000003fe0000000000000408000000000024101bfe2ed44ef9641113fdd8090421c9ad60000000000000000169d0502393f0000003f800000013c3f8000003f80000001"
+    },
+    {
+      "receive_sequence": 221,
+      "packet_id": 36,
+      "payload_hex": "403280000000000040504000000000003fe0000000000000404000000000011900179d0502393f0000003f800000013c3f8000003f80000001"
+    },
+    {
+      "receive_sequence": 240,
+      "packet_id": 36,
+      "payload_hex": "400400000000000040504000000000003fe0000000000000404000000000012001bfe093ce0b172c2b3fdadaf6c15f71a40000000000000000179d0502393f0000003f800000013c3f8000003f80000001"
+    },
+    {
+      "receive_sequence": 253,
+      "packet_id": 36,
+      "payload_hex": "403280000000000040505000000000003fe00000000000003f99999a00000041001baa0d00"
+    },
+    {
+      "receive_sequence": 265,
+      "packet_id": 36,
+      "payload_hex": "400400000000000040505000000000003fe00000000000003f99999a0000004101bfc4a2f7f2f4d21e3fbc45aabc94c30e00000000000000001baa0d00"
+    }
+  ],
+  "observations": [
+    {
+      "session": {
+        "version": "Java1_21_11",
+        "connection_id": 1,
+        "world_generation": 29
+      },
+      "receive_sequence": 172,
+      "explosion": {
+        "center": [
+          18.5,
+          65.0612500011921,
+          0.5
+        ],
+        "radius": 4.0,
+        "block_count": 587,
+        "player_knockback": null,
+        "presentation": {
+          "Decoded": {
+            "particle": {
+              "native_id": 22,
+              "data": "Simple"
+            },
+            "sound": {
+              "RegistryId": 668
+            },
+            "block_particles": [
+              {
+                "particle": {
+                  "native_id": 57,
+                  "data": "Simple"
+                },
+                "scaling": 0.5,
+                "speed": 1.0,
+                "weight": 1
+              },
+              {
+                "particle": {
+                  "native_id": 60,
+                  "data": "Simple"
+                },
+                "scaling": 1.0,
+                "speed": 1.0,
+                "weight": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "session": {
+        "version": "Java1_21_11",
+        "connection_id": 1,
+        "world_generation": 29
+      },
+      "receive_sequence": 197,
+      "explosion": {
+        "center": [
+          2.5,
+          65.0612500011921,
+          0.5
+        ],
+        "radius": 4.0,
+        "block_count": 577,
+        "player_knockback": [
+          -0.5914635352546914,
+          0.4609718938467443,
+          0.0
+        ],
+        "presentation": {
+          "Decoded": {
+            "particle": {
+              "native_id": 22,
+              "data": "Simple"
+            },
+            "sound": {
+              "RegistryId": 668
+            },
+            "block_particles": [
+              {
+                "particle": {
+                  "native_id": 57,
+                  "data": "Simple"
+                },
+                "scaling": 0.5,
+                "speed": 1.0,
+                "weight": 1
+              },
+              {
+                "particle": {
+                  "native_id": 60,
+                  "data": "Simple"
+                },
+                "scaling": 1.0,
+                "speed": 1.0,
+                "weight": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "session": {
+        "version": "Java1_21_11",
+        "connection_id": 1,
+        "world_generation": 29
+      },
+      "receive_sequence": 221,
+      "explosion": {
+        "center": [
+          18.5,
+          65.0,
+          0.5
+        ],
+        "radius": 3.0,
+        "block_count": 281,
+        "player_knockback": null,
+        "presentation": {
+          "Decoded": {
+            "particle": {
+              "native_id": 23,
+              "data": "Simple"
+            },
+            "sound": {
+              "RegistryId": 668
+            },
+            "block_particles": [
+              {
+                "particle": {
+                  "native_id": 57,
+                  "data": "Simple"
+                },
+                "scaling": 0.5,
+                "speed": 1.0,
+                "weight": 1
+              },
+              {
+                "particle": {
+                  "native_id": 60,
+                  "data": "Simple"
+                },
+                "scaling": 1.0,
+                "speed": 1.0,
+                "weight": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "session": {
+        "version": "Java1_21_11",
+        "connection_id": 1,
+        "world_generation": 29
+      },
+      "receive_sequence": 240,
+      "explosion": {
+        "center": [
+          2.5,
+          65.0,
+          0.5
+        ],
+        "radius": 3.0,
+        "block_count": 288,
+        "player_knockback": [
+          -0.5180425850497888,
+          0.4196144951254388,
+          0.0
+        ],
+        "presentation": {
+          "Decoded": {
+            "particle": {
+              "native_id": 23,
+              "data": "Simple"
+            },
+            "sound": {
+              "RegistryId": 668
+            },
+            "block_particles": [
+              {
+                "particle": {
+                  "native_id": 57,
+                  "data": "Simple"
+                },
+                "scaling": 0.5,
+                "speed": 1.0,
+                "weight": 1
+              },
+              {
+                "particle": {
+                  "native_id": 60,
+                  "data": "Simple"
+                },
+                "scaling": 1.0,
+                "speed": 1.0,
+                "weight": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "session": {
+        "version": "Java1_21_11",
+        "connection_id": 1,
+        "world_generation": 29
+      },
+      "receive_sequence": 253,
+      "explosion": {
+        "center": [
+          18.5,
+          65.25,
+          0.5
+        ],
+        "radius": 1.2,
+        "block_count": 65,
+        "player_knockback": null,
+        "presentation": {
+          "Decoded": {
+            "particle": {
+              "native_id": 27,
+              "data": "Simple"
+            },
+            "sound": {
+              "RegistryId": 1705
+            },
+            "block_particles": []
+          }
+        }
+      }
+    },
+    {
+      "session": {
+        "version": "Java1_21_11",
+        "connection_id": 1,
+        "world_generation": 29
+      },
+      "receive_sequence": 265,
+      "explosion": {
+        "center": [
+          2.5,
+          65.25,
+          0.5
+        ],
+        "radius": 1.2,
+        "block_count": 65,
+        "player_knockback": [
+          -0.16122340548612696,
+          0.11043803314238351,
+          0.0
+        ],
+        "presentation": {
+          "Decoded": {
+            "particle": {
+              "native_id": 27,
+              "data": "Simple"
+            },
+            "sound": {
+              "RegistryId": 1705
+            },
+            "block_particles": []
+          }
+        }
+      }
+    }
+  ],
+  "packet_order": [
+    {
+      "receive_sequence": 160,
+      "packet_id": 70
+    },
+    {
+      "receive_sequence": 161,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 162,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 163,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 164,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 165,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 166,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 167,
+      "packet_id": 75
+    },
+    {
+      "receive_sequence": 168,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 169,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 170,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 171,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 172,
+      "packet_id": 36
+    },
+    {
+      "receive_sequence": 173,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 174,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 175,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 176,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 177,
+      "packet_id": 70
+    },
+    {
+      "receive_sequence": 178,
+      "packet_id": 111
+    },
+    {
+      "receive_sequence": 179,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 180,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 181,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 182,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 183,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 184,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 185,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 186,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 187,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 188,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 189,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 190,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 191,
+      "packet_id": 75
+    },
+    {
+      "receive_sequence": 192,
+      "packet_id": 25
+    },
+    {
+      "receive_sequence": 193,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 194,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 195,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 196,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 197,
+      "packet_id": 36
+    },
+    {
+      "receive_sequence": 198,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 199,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 200,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 201,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 202,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 203,
+      "packet_id": 70
+    },
+    {
+      "receive_sequence": 204,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 205,
+      "packet_id": 82
+    },
+    {
+      "receive_sequence": 206,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 207,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 208,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 209,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 210,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 211,
+      "packet_id": 35
+    },
+    {
+      "receive_sequence": 212,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 213,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 214,
+      "packet_id": 111
+    },
+    {
+      "receive_sequence": 215,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 216,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 217,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 218,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 219,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 220,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 221,
+      "packet_id": 36
+    },
+    {
+      "receive_sequence": 222,
+      "packet_id": 75
+    },
+    {
+      "receive_sequence": 223,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 224,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 225,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 226,
+      "packet_id": 35
+    },
+    {
+      "receive_sequence": 227,
+      "packet_id": 70
+    },
+    {
+      "receive_sequence": 228,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 229,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 230,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 231,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 232,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 233,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 234,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 235,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 236,
+      "packet_id": 97
+    },
+    {
+      "receive_sequence": 237,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 238,
+      "packet_id": 115
+    },
+    {
+      "receive_sequence": 239,
+      "packet_id": 25
+    },
+    {
+      "receive_sequence": 240,
+      "packet_id": 36
+    },
+    {
+      "receive_sequence": 241,
+      "packet_id": 75
+    },
+    {
+      "receive_sequence": 242,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 243,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 244,
+      "packet_id": 70
+    },
+    {
+      "receive_sequence": 245,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 246,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 247,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 248,
+      "packet_id": 111
+    },
+    {
+      "receive_sequence": 249,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 250,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 251,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 252,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 253,
+      "packet_id": 36
+    },
+    {
+      "receive_sequence": 254,
+      "packet_id": 75
+    },
+    {
+      "receive_sequence": 255,
+      "packet_id": 70
+    },
+    {
+      "receive_sequence": 256,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 257,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 258,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 259,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 260,
+      "packet_id": 1
+    },
+    {
+      "receive_sequence": 261,
+      "packet_id": 0
+    },
+    {
+      "receive_sequence": 262,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 263,
+      "packet_id": 99
+    },
+    {
+      "receive_sequence": 264,
+      "packet_id": 51
+    },
+    {
+      "receive_sequence": 265,
+      "packet_id": 36
+    },
+    {
+      "receive_sequence": 266,
+      "packet_id": 75
+    }
+  ],
+  "server_stopped": {
+    "exit_code": 0,
+    "temporary_directory_removed": true
+  }
+}

@@ -158,8 +158,18 @@ impl LocalPlayerState {
 pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Result<bool> {
     use ids::play_clientbound as input;
     if matches!(id, input::EXPLOSION | input::VEHICLE_MOVE) {
-        // These known packets previously had no advertised projection. Do not
-        // pretend their ignored complex payload establishes stationary motion.
+        if id == input::EXPLOSION {
+            let explosion = super::super::explosions::decode(payload)?;
+            state
+                .explosions
+                .record(crate::client::explosions::ReceivedExplosion {
+                    session: state.snapshot_session(),
+                    receive_sequence: state.sequence,
+                    explosion,
+                });
+        }
+        // Observation does not establish a new movement baseline, even when
+        // the explosion has no player impulse. Preserve the existing interruption.
         interrupt(state, id);
         state.vehicles.interrupt_motion(state.sequence);
         return Ok(true);

@@ -158,15 +158,7 @@ pub(super) fn decode(id: i32, payload: &[u8]) -> Result<Option<PlayEffect>> {
     let mut r = Reader::new(payload);
     let effect = match id {
         input::SOUND_EFFECT | input::ENTITY_SOUND_EFFECT => {
-            let holder = r.count(i32::MAX as usize)? as i32;
-            let sound = if holder == 0 {
-                SoundReference::Inline {
-                    name: identifier(&mut r)?,
-                    fixed_range: if r.bool()? { Some(r.f32()?) } else { None },
-                }
-            } else {
-                SoundReference::RegistryId(holder - 1)
-            };
+            let sound = sound_reference(&mut r)?;
             let source = source(&mut r)?;
             let origin = if id == input::SOUND_EFFECT {
                 SoundOrigin::PositionEighths([r.i32()?, r.i32()?, r.i32()?])
@@ -239,6 +231,17 @@ pub(super) fn decode(id: i32, payload: &[u8]) -> Result<Option<PlayEffect>> {
     r.end()?;
     Ok(Some(effect))
 }
+pub(super) fn sound_reference(r: &mut Reader<'_>) -> Result<SoundReference> {
+    let holder = r.count(i32::MAX as usize)? as i32;
+    Ok(if holder == 0 {
+        SoundReference::Inline {
+            name: identifier(r)?,
+            fixed_range: if r.bool()? { Some(r.f32()?) } else { None },
+        }
+    } else {
+        SoundReference::RegistryId(holder - 1)
+    })
+}
 fn source(r: &mut Reader<'_>) -> Result<i32> {
     Ok(r.count(9)? as i32)
 }
@@ -253,7 +256,24 @@ fn identifier(r: &mut Reader<'_>) -> Result<String> {
 }
 fn particle(r: &mut Reader<'_>, native_id: i32) -> Result<ParticleData> {
     let original = r.remaining();
-    Ok(match PARTICLE_LAYOUTS.get(native_id as usize) {
+    Ok(match particle_data(r, native_id)? {
+        Some(data) => data,
+        None => {
+            r.take(r.remaining().len())?;
+            ParticleData::Unknown {
+                bytes: original.to_vec(),
+            }
+        }
+    })
+}
+// Embedded options have no length prefix. Unknown layouts cannot establish the
+// boundary of the following sound/list fields; the caller retains that context.
+pub(super) fn embedded_particle(r: &mut Reader<'_>) -> Result<Option<(i32, ParticleData)>> {
+    let native_id = r.count(i32::MAX as usize)? as i32;
+    Ok(particle_data(r, native_id)?.map(|data| (native_id, data)))
+}
+fn particle_data(r: &mut Reader<'_>, native_id: i32) -> Result<Option<ParticleData>> {
+    Ok(Some(match PARTICLE_LAYOUTS.get(native_id as usize) {
         Some(L::Simple) => ParticleData::Simple,
         Some(L::Block) => ParticleData::BlockState(r.count(i32::MAX as usize)? as i32),
         Some(L::Color) => ParticleData::Color(r.u32()?),
@@ -286,10 +306,7 @@ fn particle(r: &mut Reader<'_>, native_id: i32) -> Result<ParticleData> {
                     eye_height: r.f32()?,
                 },
                 id if id >= 0 => {
-                    r.take(r.remaining().len())?;
-                    return Ok(ParticleData::Unknown {
-                        bytes: original.to_vec(),
-                    });
+                    return Ok(None);
                 }
                 _ => bail!("negative vibration source type"),
             };
@@ -310,10 +327,8 @@ fn particle(r: &mut Reader<'_>, native_id: i32) -> Result<ParticleData> {
                 components,
             })
         }
-        None => ParticleData::Unknown {
-            bytes: r.take(r.remaining().len())?.to_vec(),
-        },
-    })
+        None => return Ok(None),
+    }))
 }
 
 #[cfg(test)]
