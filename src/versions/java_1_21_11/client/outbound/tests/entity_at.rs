@@ -1,7 +1,7 @@
 use super::*;
 use crate::client::{EntityId, GameMode, Hand, operations::DispatchReceipt};
 
-async fn spawn(session: &Session, client: &crate::Client) -> EntityId {
+fn spawn_packet(client: &crate::Client) -> Vec<u8> {
     let mut packet = Vec::new();
     put_varint(&mut packet, 300);
     packet.extend([7; 16]);
@@ -17,6 +17,11 @@ async fn spawn(session: &Session, client: &crate::Client) -> EntityId {
         packet.extend(v.to_be_bytes());
     }
     packet.extend([0; 5]);
+    packet
+}
+
+async fn spawn(session: &Session, client: &crate::Client) -> EntityId {
+    let packet = spawn_packet(client);
     session
         .state
         .lock()
@@ -270,4 +275,48 @@ async fn entity_at_rechecks_received_mode_and_mutation_admission() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn entity_at_rechecks_spawn_after_waiting_for_received_state() {
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let old = spawn(&session, &client).await;
+        let mut state = session.state.lock().await;
+        let mut attempt = Box::pin(interact(&client, mode, old, [0.0; 3], Hand::Main, false));
+        pending(attempt.as_mut()).await;
+        // The same native ID and UUID acquire a new lifetime before admission
+        // can inspect the received state. The queued old intent must not retarget.
+        let mut destroy = vec![1];
+        put_varint(&mut destroy, old.native_id());
+        state
+            .receive(ids::play_clientbound::ENTITY_DESTROY, &destroy, 256)
+            .unwrap();
+        state
+            .receive(
+                ids::play_clientbound::SPAWN_ENTITY,
+                &spawn_packet(&client),
+                256,
+            )
+            .unwrap();
+        drop(state);
+        assert_eq!(attempt.await.unwrap_err().kind(), ErrorKind::State);
+        assert_eq!(session.ledger.test_written_through(), 0);
+        assert!(
+            timeout(Duration::from_millis(10), peer.read_u8())
+                .await
+                .is_err()
+        );
+        let fresh = client.entity_spawns().await.unwrap().entities[0].id;
+        assert_ne!(old, fresh);
+        interact(&client, mode, fresh, [0.0; 3], Hand::Main, false)
+            .await
+            .unwrap();
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap().0,
+            ids::play_serverbound::USE_ENTITY
+        );
+        assert_eq!(session.ledger.test_written_through(), 1);
+    }
 }
