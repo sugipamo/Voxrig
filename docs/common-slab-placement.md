@@ -76,7 +76,9 @@ classpath・fixtureのhashを保持する。2,520件のcontextは6面、0.5の�
 同種・異種・double・水を含む。360件の原版clipと216件のnative shape交差を別に照合する。
 fixtureはserverの設置権限やentity dimensionの全体を証明するものではない。
 構成packet試験はblock・材料・ACKの独立した受信順と欠測、完全state競合、元状態への復帰、
-chunk変更、身体／entityのhalf交差、取消した未送信intent、履歴と一度性を検査する。
+chunk変更、身体／entityのhalf交差、livingのscale・baby・poseとscale欠測、
+取消した未送信intent、block/material/ACKの全6受信順とgetter前に完了した履歴の保持、
+一度性を検査する。
 
 ```bash
 python3 -B scripts/export_slab_placement.py \

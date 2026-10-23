@@ -1822,3 +1822,114 @@ async fn slab_rejects_the_connection_invalidated_by_a_nonfinite_entity_packet() 
     );
     f.stop().await;
 }
+
+#[tokio::test]
+async fn slab_living_obstruction_uses_received_scale_baby_and_pose_without_defaulting_scale() {
+    use crate::client::adapter::PlacementOps;
+    let version = MinecraftVersion::Java1_21_11;
+    let baby_index = version
+        .table()
+        .entity_data("minecraft:pig")
+        .iter()
+        .find(|r| {
+            crate::client::EntityDataField::Baby
+                .official_names()
+                .contains(&(r.owner, r.field))
+        })
+        .unwrap()
+        .index;
+    // An adult at unit scale ends below TARGET. Scaling it to 2 crosses the
+    // top half, while baby scaling or the fixed sleeping dimensions clear it.
+    for (scale, baby, pose, blocked) in [
+        (None, false, 0, true),
+        (Some(1.0f64), false, 0, false),
+        (Some(2.0), false, 0, true),
+        (Some(2.0), true, 0, false),
+        (Some(2.0), false, 2, false),
+    ] {
+        let mut f = Fixture::new().await;
+        slab_stack(&mut f, 1).await;
+        slab_fixed_entity(&mut f, "pig", [1.5, 1., 0.5]).await;
+        f.receive(
+            ids::play_clientbound::ENTITY_METADATA,
+            &[55, 6, 20, pose, baby_index, 8, u8::from(baby), 255],
+        )
+        .await;
+        if let Some(scale) = scale {
+            let mut packet = vec![55, 1];
+            put_varint(&mut packet, ids::SCALE_ATTRIBUTE);
+            packet.extend(scale.to_be_bytes());
+            packet.push(0); // No attribute modifiers.
+            f.receive(ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES, &packet)
+                .await;
+        }
+        let result = f
+            .api
+            .place_slab(SUPPORT, crate::BlockFace::West, TARGET, native("air"))
+            .await;
+        if blocked {
+            let error = result.unwrap_err().to_string();
+            assert!(
+                error.contains(if scale.is_none() {
+                    "qualified entity geometry"
+                } else {
+                    "building-blocking entity"
+                }),
+                "{error}"
+            );
+            assert!(f.api.slab_placement_record().await.unwrap().is_none());
+            assert!(
+                timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+        } else {
+            let sent = result.unwrap();
+            assert_eq!(sent.expected, oak("top"));
+            f.expected_packet("slab clear of received living geometry")
+                .await;
+        }
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn slab_all_receipt_orders_complete_on_receive_and_freeze_before_first_getter() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    for order in [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
+    ] {
+        let mut f = Fixture::new().await;
+        let sent = slab_start(&mut f, true, 1).await;
+        for (index, receipt) in order.into_iter().enumerate() {
+            match receipt {
+                0 => replacement_block(&mut f, sent.target, &sent.expected).await,
+                1 => slab_stack(&mut f, 0).await,
+                2 => f.ack(sent.send.interaction_sequence.unwrap()).await,
+                _ => unreachable!(),
+            }
+            let state = f.api.bot.session.state.lock().await;
+            let native = state.placement.as_ref().unwrap();
+            assert_eq!(native.observation.is_some(), index == 2, "{order:?}");
+            assert!(native.requires_inspection.is_none());
+        }
+        // No getter after dispatch: later conflicts and new ACKs must not
+        // rewrite the receipts committed by the final required packet.
+        let frozen = {
+            let state = f.api.bot.session.state.lock().await;
+            serde_json::to_value(slab::record_in(&state).unwrap().unwrap()).unwrap()
+        };
+        f.block(sent.target, "stone").await;
+        f.stack(12).await;
+        f.ack(99).await;
+        let historical = f.api.slab_placement_record().await.unwrap().unwrap();
+        assert_eq!(historical.stage, PlacementStage::ObservedPlaced);
+        assert_eq!(serde_json::to_value(historical).unwrap(), frozen);
+        f.stop().await;
+    }
+}
