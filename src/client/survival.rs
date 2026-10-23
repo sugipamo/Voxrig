@@ -26,6 +26,9 @@ pub use motion::{
     MAX_SURVIVAL_CONTROL_TICKS, MotionPreview, MotionRecord, MotionStatus, PredictedMotionFrame,
     SurvivalControl, SurvivalInput, TerminalClearance,
 };
-pub use target::{BlockTargetHit, BlockTargetObservation};
+pub use target::{
+    BlockTargetHit, BlockTargetObservation, BlockTargetPose, BlockTargetPoseSource,
+    ContextualBlockTargetObservation,
+};
 #[cfg(test)]
 mod oracle_tests;

@@ -45,3 +45,7 @@ item、経験値オーブ、矢などは妨げません。
 ## 公式サーバーでの確認
 
 `examples/placement_check_probe.rs` で両版を確認しました。空き・自分の位置・豚（NoAI）・marker armor stand・通常の armor stand の 5 セルに石を置き、`clear()` とサーバーの設置結果がすべて一致しました。範囲外（目から 5.73）は `reachable == false` になりました。
+
+姿勢・scale・実受信reachに基づくfirst outlineの読取には、1.21.11の追加API
+[`target_block_with_context`](common-survival-targeting.md#姿勢scalereach付きの読取12111)を使えます。
+このqueryのvisibilityも設置先の置換可否や操作許可とは別で、`PlacementCheck::clear()`の契約は変えません。

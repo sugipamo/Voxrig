@@ -1,4 +1,5 @@
 //! Bounded dry-terrain prediction and separately observed native controls.
+mod contextual;
 mod control;
 mod endpoint;
 mod scenario;
@@ -315,6 +316,15 @@ impl Model {
     }
 }
 impl crate::client::adapter::StandingQueryOps for Operations {
+    async fn target_block_with_context(
+        &self,
+        mode: crate::client::GameMode,
+    ) -> Result<crate::client::ContextualBlockTargetObservation> {
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        contextual::query(self, &mut state, mode)
+    }
+
     async fn target_block(
         &self,
         mode: crate::client::GameMode,

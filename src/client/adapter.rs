@@ -346,6 +346,15 @@ pub(crate) trait PlacementOps {
 
 /// Read-only queries from a dry standing pose: block target and path preview.
 pub(crate) trait StandingQueryOps {
+    async fn target_block_with_context(
+        &self,
+        _mode: GameMode,
+    ) -> Result<super::ContextualBlockTargetObservation> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("contextual block targeting is unavailable for this version"),
+        ))
+    }
     async fn target_block(&self, mode: GameMode, distance: f64) -> Result<BlockTargetObservation>;
     async fn preview_path(
         &self,

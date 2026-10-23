@@ -13,7 +13,7 @@ pub struct BlockTargetHit {
     pub face: BlockFace,
     /// Model hit position, separate from packet-received geometry.
     pub point: [f64; 3],
-    /// Model distance from the captured player's native standing eye.
+    /// Model distance from the enclosing observation's eye.
     pub distance: f64,
 }
 /// Own-player capture and a bounded mode-checked dry-standing outline query at one boundary.
@@ -30,6 +30,64 @@ pub struct BlockTargetObservation {
     pub maximum_distance: f64,
     /// None only after a complete available query found no static block outline.
     pub hit: Option<BlockTargetHit>,
+}
+
+/// Supported own-player poses for the contextual read-only query.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum BlockTargetPose {
+    /// Native standing dimensions.
+    Standing,
+    /// Native crouching dimensions.
+    Crouching,
+}
+
+/// Evidence for the own pose, without interpreting missing metadata as standing.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum BlockTargetPoseSource {
+    /// Explicit native world-entry initialization, not a metadata receipt.
+    NativeReset,
+    /// Actual own-entity metadata packet in this world.
+    Received {
+        /// Packet ordinal.
+        sequence: u64,
+    },
+}
+
+/// Coherent, stationary ground query using the own pose and received attributes.
+/// Visibility does not establish replaceability or permission to perform an action.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ContextualBlockTargetObservation {
+    /// Player, full received attributes and position/rotation provenance at capture.
+    pub initial: crate::client::PlayerObservation,
+    /// World-cache revision used by support and first-outline selection.
+    pub world_revision: u64,
+    /// Supported own pose at capture.
+    pub pose: BlockTargetPose,
+    /// Native initialization or actual pose packet; never an inferred default.
+    pub pose_source: BlockTargetPoseSource,
+    /// Received effective scale before native float conversion; no unit fallback.
+    pub scale: crate::client::ObservedValue<f64>,
+    /// Native float scale used for the model dimensions and eye.
+    pub model_scale: f32,
+    /// Modeled eye derived from pose, scale and captured position.
+    pub eye: crate::client::ObservedValue<[f64; 3]>,
+    /// Received effective block_interaction_range; no default reach fallback.
+    pub reach: crate::client::ObservedValue<f64>,
+    /// Native scaled body box, min XYZ followed by max XYZ.
+    pub bounds: [f64; 6],
+    /// Known dry floor cells supporting the scaled body at capture.
+    pub support: Vec<[i32; 3]>,
+    /// First outline selected by the client model within received reach.
+    /// None means a complete available ray missed (also valid for zero reach).
+    pub visibility: crate::client::ObservedValue<Option<BlockTargetHit>>,
+    /// Not evaluated by an outline query. Requires placement/item context.
+    pub replaceable: Option<bool>,
+    /// Not evaluated by a read-only query. Never use visibility as authorization.
+    pub operation_permitted: Option<bool>,
 }
 
 pub(crate) fn validate_reach(distance: f64) -> crate::Result<()> {

@@ -1,0 +1,496 @@
+{
+  "date": "2026-10-23",
+  "version": "1.21.11",
+  "passed": true,
+  "scope": "Stationary own Standing/Crouching, received scale/reach, model first outline; read-only query. RCON position and received packets are separate evidence from numerical native clip fixtures.",
+  "compiled_base_revision": "fc68f6ef398dee26a6fe82153ed1a70d5aac7307",
+  "binary_sha256": "f3e1a13349053b1f187c80dbd4d2ef82490b6859c6ac03dbbba9fbaaa28398d6",
+  "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "source_sha256": {
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "examples/climbing_control_probe.rs": "69533568db8ff51f3bc32bff5624203cd4aa8863d9d2ec73740137a1f9cc4d64",
+    "src/client/adapter.rs": "00705fc7d21128f4ab58dce805d34d7d3d5e4b2bb4fd7b96d8ce9852e1c32b09",
+    "src/client/operations.rs": "b801ee8fcad42ba12769e91d3bd609d057c427be1e2a89f35036e4a18e9da9ca",
+    "src/client/survival/target.rs": "dbde40e812922b251b37e44632d4b3a1b5c855f3de09d7947367ca6608997938",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "bcfe43749a21c13467040569de9efe7b632242d2ac22dc562eda21bad0af69ed",
+    "src/versions/java_1_21_11/client/operations/movement/contextual.rs": "bd61820bca98b08ae1156c18a9cb8b1bc23e3baccfba4da7324fb2b5d8b7a9f6",
+    "src/versions/java_1_21_11/client/raycast.rs": "23557073d08ffa27cbcb53deb8cfd5555aa8906594c681083fb62e4beeff3c68",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "1096f4498af3f8e71bef10f7c1ac077b4e5c20cd19e6ad8b1a8571642da438fe",
+    "data/client_api/contextual_targeting.json.gz": "53046ca5f5f6711fbc7a18205dbdbf3ca6c3b61ec351cbca56a012b03ce5e6cb",
+    "scripts/run_contextual_targeting_live.py": "fc8b0441c4f56d743f99ebc6954bc1549555918f898df91cf49b166ec4b40f52",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
+  },
+  "oracle_source_sha256": "b71d94252e122feb766db6eef9acb1ee7e7d3bfcce3de3b9fc2ded2b398f4269",
+  "oracle_cases": 1344,
+  "runtime_artifacts_sha256": {
+    "report.json": "a1c0ba15ccd531d0fb58f6d3459bc824e857158082c4b51ed9f56a873960f7b0",
+    "server.log": "f31ce6e4f4b7b538ca1fc13f1d85255dfb79779295d174b2a159dca20f832fd5",
+    "packets.jsonl": "3319365c8ae04eb882a23d1573f433c75e0003c1164fbf9ca1782e6a962dced0",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "probe.log": "2d7018df7b0ad8494d90d107b5a02d765e8f94e4b18c53eab58c6223a3436488"
+  },
+  "checks": [
+    {
+      "name": "missing_attributes_rejected",
+      "pose": null,
+      "scale": null,
+      "reach": null,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.125_reach_0.0",
+      "pose": "standing",
+      "scale": 0.125,
+      "reach": 0.0,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.125_reach_0.5",
+      "pose": "standing",
+      "scale": 0.125,
+      "reach": 0.5,
+      "hit": {
+        "distance": 0.20250000059604645,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.125_reach_4.5",
+      "pose": "standing",
+      "scale": 0.125,
+      "reach": 4.5,
+      "hit": {
+        "distance": 0.20250000059604645,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.125_reach_8.0",
+      "pose": "standing",
+      "scale": 0.125,
+      "reach": 8.0,
+      "hit": {
+        "distance": 0.20250000059604645,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.5_reach_0.0",
+      "pose": "standing",
+      "scale": 0.5,
+      "reach": 0.0,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.5_reach_0.5",
+      "pose": "standing",
+      "scale": 0.5,
+      "reach": 0.5,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.5_reach_4.5",
+      "pose": "standing",
+      "scale": 0.5,
+      "reach": 4.5,
+      "hit": {
+        "distance": 0.8100000023841858,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000001
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_0.5_reach_8.0",
+      "pose": "standing",
+      "scale": 0.5,
+      "reach": 8.0,
+      "hit": {
+        "distance": 0.8100000023841858,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000001
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.0_reach_0.0",
+      "pose": "standing",
+      "scale": 1.0,
+      "reach": 0.0,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.0_reach_0.5",
+      "pose": "standing",
+      "scale": 1.0,
+      "reach": 0.5,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.0_reach_4.5",
+      "pose": "standing",
+      "scale": 1.0,
+      "reach": 4.5,
+      "hit": {
+        "distance": 1.6200000047683716,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000002
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.0_reach_8.0",
+      "pose": "standing",
+      "scale": 1.0,
+      "reach": 8.0,
+      "hit": {
+        "distance": 1.6200000047683716,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000002
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.3_reach_0.0",
+      "pose": "standing",
+      "scale": 1.3,
+      "reach": 0.0,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.3_reach_0.5",
+      "pose": "standing",
+      "scale": 1.3,
+      "reach": 0.5,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.3_reach_4.5",
+      "pose": "standing",
+      "scale": 1.3,
+      "reach": 4.5,
+      "hit": {
+        "distance": 2.1059999465942383,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000002
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_1.3_reach_8.0",
+      "pose": "standing",
+      "scale": 1.3,
+      "reach": 8.0,
+      "hit": {
+        "distance": 2.1059999465942383,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000002
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_2.0_reach_0.0",
+      "pose": "standing",
+      "scale": 2.0,
+      "reach": 0.0,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_2.0_reach_0.5",
+      "pose": "standing",
+      "scale": 2.0,
+      "reach": 0.5,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_2.0_reach_4.5",
+      "pose": "standing",
+      "scale": 2.0,
+      "reach": 4.5,
+      "hit": {
+        "distance": 3.240000009536743,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000004
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_2.0_reach_8.0",
+      "pose": "standing",
+      "scale": 2.0,
+      "reach": 8.0,
+      "hit": {
+        "distance": 3.240000009536743,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000004
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_4.0_reach_0.0",
+      "pose": "standing",
+      "scale": 4.0,
+      "reach": 0.0,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_4.0_reach_0.5",
+      "pose": "standing",
+      "scale": 4.0,
+      "reach": 0.5,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_4.0_reach_4.5",
+      "pose": "standing",
+      "scale": 4.0,
+      "reach": 4.5,
+      "hit": null,
+      "query_packets": 0
+    },
+    {
+      "name": "standing_scale_4.0_reach_8.0",
+      "pose": "standing",
+      "scale": 4.0,
+      "reach": 8.0,
+      "hit": {
+        "distance": 6.480000019073486,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000008
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "stationary_forced_crouch_scale_2",
+      "pose": "crouching",
+      "scale": 2.0,
+      "reach": 4.5,
+      "hit": {
+        "distance": 2.5399999618530273,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000003
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    },
+    {
+      "name": "creative_ground_received_reach",
+      "pose": "standing",
+      "scale": 2.0,
+      "reach": 4.5,
+      "hit": {
+        "distance": 3.240000009536743,
+        "face": "Up",
+        "point": [
+          0.5,
+          65.0,
+          0.5000000000000004
+        ],
+        "position": [
+          0,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "query_packets": 0
+    }
+  ],
+  "limits": [
+    "Model eye and hit use source=Predicted; no server hit acknowledgement.",
+    "RCON confirms unchanged Pos and constructs the known stone floor; numerical faces/points/distances are compared with original clip fixtures.",
+    "Crouching is retained under a low full-cube ceiling at scale 2 after control stop and a fresh stationary teleport.",
+    "No fluid/entity targeting, arbitrary dynamic outlines, replaceability or operation permission is qualified.",
+    "Raw packets/RCON and server credentials remain outside the repository."
+  ]
+}

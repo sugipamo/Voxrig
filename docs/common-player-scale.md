@@ -29,7 +29,8 @@ step heightは元のattribute値であり、移動速度・jump・gravity等へ�
 
 他生物の通常scale接触の資格化は[生物接触owner](common-entity-owners.md)に従う。
 他生物の非unit scaleや特殊hookは一般化していない。
-到達距離・単発の採掘/インタラクション・有限path・乗車のscale対応は別契約で、
+姿勢・scale・実受信reachを使うread-only照準は[追加query](common-survival-targeting.md#姿勢scalereach付きの読取12111)で提供する。
+単発の採掘/インタラクション・有限path・乗車のscale対応は別契約で、
 既存のunit制限を一括解除しない。
 
 ## 検証

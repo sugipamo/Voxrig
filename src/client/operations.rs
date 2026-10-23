@@ -371,6 +371,14 @@ impl Survival {
     pub async fn mining_record(&self) -> Result<Option<super::survival::MiningRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => MiningOps::mining_record(a).await)
     }
+    /// Query the first outline using the own Standing/Crouching pose, received
+    /// scale and received block interaction range at one boundary. Read-only;
+    /// stationary dry ground only. Currently supported on Java 1.21.11.
+    pub async fn target_block_with_context(
+        &self,
+    ) -> Result<super::ContextualBlockTargetObservation> {
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_block_with_context(a, GameMode::Survival).await)
+    }
     /// Query the first static outline from a coherent dry-standing capture.
     /// Known version shapes and native view-vector math are used. Unavailable or
     /// unsupported geometry errors; the result never grants mining permission.
@@ -581,6 +589,14 @@ impl Creative {
         crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_open_record(a).await)
     }
 
+    /// Query the first outline using the own Standing/Crouching pose, received
+    /// scale and received block interaction range at one boundary. Read-only;
+    /// stationary dry ground only. Currently supported on Java 1.21.11.
+    pub async fn target_block_with_context(
+        &self,
+    ) -> Result<super::ContextualBlockTargetObservation> {
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_block_with_context(a, GameMode::Creative).await)
+    }
     /// Read the first audited static outline from a coherent dry-standing capture.
     /// Checks received creative mode; no flight, mutation or open result is implied.
     /// Shares native shape selection with Survival::target_block, reach <=4.5.
