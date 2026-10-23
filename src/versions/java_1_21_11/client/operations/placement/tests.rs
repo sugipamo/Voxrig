@@ -1341,3 +1341,484 @@ async fn replacement_stale_ack_and_old_new_history_remain_separate() {
     );
     f.stop().await;
 }
+
+fn oak(kind: &str) -> crate::NativeBlockState {
+    crate::NativeBlockState {
+        name: "minecraft:oak_slab".into(),
+        properties: [
+            ("type".into(), kind.into()),
+            ("waterlogged".into(), "false".into()),
+        ]
+        .into(),
+    }
+}
+async fn slab_stack(f: &mut Fixture, count: i32) {
+    let mut bytes = vec![0, 2];
+    bytes.extend(36i16.to_be_bytes());
+    put_varint(&mut bytes, count);
+    if count > 0 {
+        put_varint(&mut bytes, default_item("oak_slab", 1).unwrap().item_id);
+        bytes.extend([0, 0]);
+    }
+    f.receive(ids::play_clientbound::SET_SLOT, &bytes).await;
+}
+async fn slab_start(
+    f: &mut Fixture,
+    merge: bool,
+    count: i32,
+) -> crate::client::survival::SlabPlacementRecord {
+    use crate::client::adapter::PlacementOps;
+    slab_stack(f, count).await;
+    if merge {
+        // The exposed upper face of a bottom slab merges in the same cell.
+        replacement_block(f, SUPPORT, &oak("bottom")).await;
+        let mut state = f.api.bot.session.state.lock().await;
+        state.rotation = [-90., 3.0];
+    }
+    let before = if merge { oak("bottom") } else { native("air") };
+    let target = if merge { SUPPORT } else { TARGET };
+    let face = if merge {
+        crate::BlockFace::Up
+    } else {
+        crate::BlockFace::West
+    };
+    let sent = f
+        .api
+        .place_slab(SUPPORT, face, target, before)
+        .await
+        .unwrap();
+    assert_eq!(sent.merges_clicked, merge);
+    assert_eq!(sent.expected, oak(if merge { "double" } else { "top" }));
+    assert_eq!(sent.first_outline.position, SUPPORT);
+    let (id, bytes) = f.expected_packet("slab BLOCK_PLACE").await;
+    assert_eq!(id, ids::play_serverbound::BLOCK_PLACE);
+    let mut r = Reader::new(&bytes);
+    assert_eq!(r.varint().unwrap(), 0);
+    assert_eq!(r.take(8).unwrap(), pack_position(SUPPORT).to_be_bytes());
+    assert_eq!(r.varint().unwrap(), face as i32);
+    for coordinate in sent.cursor {
+        assert_eq!(r.f32().unwrap(), coordinate);
+    }
+    assert!(!r.bool().unwrap());
+    assert!(!r.bool().unwrap());
+    assert_eq!(r.varint().unwrap(), sent.send.interaction_sequence.unwrap());
+    r.end().unwrap();
+    sent
+}
+#[tokio::test]
+async fn slab_independent_receipts_full_state_last_item_and_frozen_separate_history() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    for merge in [false, true] {
+        for count in [1, 5] {
+            for inventory_first in [false, true] {
+                let mut f = Fixture::new().await;
+                let sent = slab_start(&mut f, merge, count).await;
+                assert!(f.api.placement_record().await.unwrap().is_none());
+                assert!(
+                    f.api
+                        .replaceable_cube_placement_record()
+                        .await
+                        .unwrap()
+                        .is_none()
+                );
+                assert!(
+                    f.api
+                        .place_cube(SUPPORT, crate::BlockFace::West)
+                        .await
+                        .is_err()
+                );
+                f.ack(sent.send.interaction_sequence.unwrap()).await;
+                if inventory_first {
+                    slab_stack(&mut f, count - 1).await;
+                } else {
+                    replacement_block(&mut f, sent.target, &sent.expected).await;
+                }
+                assert_eq!(
+                    f.api.slab_placement_record().await.unwrap().unwrap().stage,
+                    PlacementStage::Pending
+                );
+                if inventory_first {
+                    replacement_block(&mut f, sent.target, &sent.expected).await;
+                } else {
+                    slab_stack(&mut f, count - 1).await;
+                }
+                let complete = f.api.slab_placement_record().await.unwrap().unwrap();
+                assert_eq!(
+                    complete.stage,
+                    PlacementStage::ObservedPlaced,
+                    "{:?}",
+                    complete.requires_inspection
+                );
+                assert_eq!(
+                    complete.target_receipt.as_ref().unwrap().value,
+                    sent.expected
+                );
+                let frozen = serde_json::to_value(&complete).unwrap();
+                f.block(sent.target, "stone").await;
+                f.stack(12).await;
+                f.ack(99).await;
+                assert_eq!(
+                    serde_json::to_value(f.api.slab_placement_record().await.unwrap().unwrap())
+                        .unwrap(),
+                    frozen
+                );
+                f.stop().await;
+            }
+        }
+    }
+}
+#[tokio::test]
+async fn slab_rejects_wrong_target_predecessor_foreign_wet_and_double_without_send() {
+    use crate::client::adapter::PlacementOps;
+    for case in [
+        "target",
+        "predecessor",
+        "spruce",
+        "wet",
+        "double",
+        "material",
+    ] {
+        let mut f = Fixture::new().await;
+        slab_stack(&mut f, 1).await;
+        let mut before = native("air");
+        let mut target = TARGET;
+        match case {
+            "target" => target = SUPPORT,
+            "predecessor" => before = native("stone"),
+            "spruce" => {
+                before = oak("bottom");
+                before.name = "minecraft:spruce_slab".into();
+            }
+            "wet" => {
+                before = oak("bottom");
+                before
+                    .properties
+                    .insert("waterlogged".into(), "true".into());
+            }
+            "double" => before = oak("double"),
+            "material" => f.stack(2).await,
+            _ => unreachable!(),
+        }
+        if matches!(case, "spruce" | "wet" | "double") {
+            replacement_block(&mut f, TARGET, &before).await;
+        }
+        assert!(
+            f.api
+                .place_slab(SUPPORT, crate::BlockFace::West, target, before)
+                .await
+                .is_err(),
+            "{case}"
+        );
+        assert!(f.api.slab_placement_record().await.unwrap().is_none());
+        assert!(
+            timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn slab_conflicts_latch_and_missing_or_stale_receipts_never_confirm() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    for case in [
+        "block",
+        "material",
+        "ack",
+        "stale_ack",
+        "wrong_type",
+        "wrong_waterlogged",
+        "support",
+        "restore",
+        "slot_restore",
+        "chunk",
+    ] {
+        let mut f = Fixture::new().await;
+        if case == "stale_ack" {
+            f.ack(100).await;
+        }
+        let sent = slab_start(&mut f, true, 1).await;
+        if case == "wrong_type" {
+            replacement_block(&mut f, sent.target, &oak("top")).await;
+        }
+        if case == "wrong_waterlogged" {
+            let mut wet = sent.expected.clone();
+            wet.properties.insert("waterlogged".into(), "true".into());
+            replacement_block(&mut f, sent.target, &wet).await;
+        }
+        if case == "support" {
+            f.block(sent.support, "stone").await;
+        }
+        if case == "chunk" {
+            placement_chunk_changed(&mut *f.api.bot.session.state.lock().await, [0, 0]);
+        }
+        if case != "block" {
+            replacement_block(&mut f, sent.target, &sent.expected).await;
+        }
+        if case == "restore" {
+            replacement_block(&mut f, sent.target, &sent.before).await;
+            replacement_block(&mut f, sent.target, &sent.expected).await;
+        }
+        if case != "material" {
+            slab_stack(&mut f, 0).await;
+        }
+        if case == "slot_restore" {
+            slab_stack(&mut f, 1).await;
+            slab_stack(&mut f, 0).await;
+        }
+        if !matches!(case, "ack" | "stale_ack") {
+            f.ack(sent.send.interaction_sequence.unwrap()).await;
+        }
+        let stage = f.api.slab_placement_record().await.unwrap().unwrap().stage;
+        assert_eq!(
+            stage,
+            if matches!(case, "block" | "material" | "ack" | "stale_ack") {
+                PlacementStage::Pending
+            } else {
+                PlacementStage::RequiresInspection
+            },
+            "{case}"
+        );
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn slab_cancelled_writer_keeps_unsent_intent_and_never_replays() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    let mut f = Fixture::new().await;
+    slab_stack(&mut f, 1).await;
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let future = f
+        .api
+        .place_slab(SUPPORT, crate::BlockFace::West, TARGET, native("air"));
+    assert!(timeout(Duration::from_millis(30), future).await.is_err());
+    drop(writer);
+    let intent = f.api.slab_placement_record().await.unwrap().unwrap();
+    assert!(!intent.send.dispatched);
+    replacement_block(&mut f, intent.target, &intent.expected).await;
+    slab_stack(&mut f, 0).await;
+    f.ack(intent.send.interaction_sequence.unwrap()).await;
+    assert_ne!(
+        f.api.slab_placement_record().await.unwrap().unwrap().stage,
+        PlacementStage::ObservedPlaced
+    );
+    assert!(
+        timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+
+async fn slab_fixed_entity(f: &mut Fixture, name: &str, position: [f64; 3]) {
+    let type_id = crate::client::registry::Registry::for_version(MinecraftVersion::Java1_21_11)
+        .builtin_id("minecraft:entity_type", &format!("minecraft:{name}"))
+        .unwrap()
+        .value();
+    let mut bytes = vec![55];
+    bytes.extend([55; 16]);
+    put_varint(&mut bytes, type_id);
+    for coordinate in position {
+        bytes.extend(coordinate.to_be_bytes());
+    }
+    bytes.extend([0, 0, 0, 0, 0]);
+    f.receive(ids::play_clientbound::SPAWN_ENTITY, &bytes).await;
+}
+#[tokio::test]
+async fn slab_obstruction_uses_actual_half_for_own_and_received_entity_boxes() {
+    let mut f = Fixture::new().await;
+    let own = [1.2, 2.5, 0.2, 1.8, 4.3, 0.8];
+    {
+        let state = f.api.bot.session.state.lock().await;
+        assert!(slab::unobstructed(&state, 72, own, TARGET, &oak("bottom")).is_ok());
+        assert!(slab::unobstructed(&state, 72, own, TARGET, &oak("top")).is_err());
+        assert!(slab::unobstructed(&state, 72, own, TARGET, &oak("double")).is_err());
+    }
+    // TNT's box is wholly in the top half or above it; the bottom remains clear.
+    slab_fixed_entity(&mut f, "tnt", [1.5, 2.5, 0.5]).await;
+    {
+        let state = f.api.bot.session.state.lock().await;
+        let own = [0., 1., 0., 0.8, 2.8, 0.8];
+        assert!(slab::unobstructed(&state, 72, own, TARGET, &oak("bottom")).is_ok());
+        assert!(slab::unobstructed(&state, 72, own, TARGET, &oak("top")).is_err());
+        assert!(slab::unobstructed(&state, 72, own, TARGET, &oak("double")).is_err());
+    }
+    use crate::client::adapter::PlacementOps;
+    slab_stack(&mut f, 1).await;
+    assert!(
+        f.api
+            .place_slab(SUPPORT, crate::BlockFace::West, TARGET, native("air"))
+            .await
+            .is_err()
+    );
+    assert!(f.api.slab_placement_record().await.unwrap().is_none());
+    f.stop().await;
+}
+#[tokio::test]
+async fn slab_bottom_side_and_top_underside_have_exact_native_expected_states() {
+    use crate::client::adapter::PlacementOps;
+    for underside in [false, true] {
+        let mut f = Fixture::new().await;
+        slab_stack(&mut f, 1).await;
+        let clicked = if underside { [2, 3, 0] } else { SUPPORT };
+        if underside {
+            f.block(SUPPORT, "air").await;
+            replacement_block(&mut f, clicked, &oak("top")).await;
+        }
+        f.api.bot.session.state.lock().await.rotation = [-90., if underside { -30. } else { 10. }];
+        let target = if underside { clicked } else { TARGET };
+        let before = if underside { oak("top") } else { native("air") };
+        let face = if underside {
+            crate::BlockFace::Down
+        } else {
+            crate::BlockFace::West
+        };
+        let sent = f
+            .api
+            .place_slab(clicked, face, target, before)
+            .await
+            .unwrap();
+        assert_eq!(
+            sent.expected,
+            oak(if underside { "double" } else { "bottom" })
+        );
+        f.expected_packet("slab other half").await;
+        replacement_block(&mut f, target, &sent.expected).await;
+        slab_stack(&mut f, 0).await;
+        f.ack(sent.send.interaction_sequence.unwrap()).await;
+        assert_eq!(
+            f.api.slab_placement_record().await.unwrap().unwrap().stage,
+            crate::client::survival::PlacementStage::ObservedPlaced
+        );
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn slab_history_survives_next_cube_and_connection_closure() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    let mut f = Fixture::new().await;
+    let sent = slab_start(&mut f, false, 1).await;
+    replacement_block(&mut f, sent.target, &sent.expected).await;
+    slab_stack(&mut f, 0).await;
+    f.ack(sent.send.interaction_sequence.unwrap()).await;
+    let historical =
+        serde_json::to_value(f.api.slab_placement_record().await.unwrap().unwrap()).unwrap();
+    f.block(TARGET, "air").await;
+    f.stack(2).await;
+    f.api
+        .place_cube(SUPPORT, crate::BlockFace::West)
+        .await
+        .unwrap();
+    f.expected_packet("next cube").await;
+    assert_eq!(
+        serde_json::to_value(f.api.slab_placement_record().await.unwrap().unwrap()).unwrap(),
+        historical
+    );
+    f.api.bot.disconnect().await.unwrap();
+    let cube = f.api.placement_record().await.unwrap().unwrap();
+    assert_eq!(cube.stage, PlacementStage::RequiresInspection);
+    assert!(cube.send.dispatched);
+    assert_eq!(
+        serde_json::to_value(f.api.slab_placement_record().await.unwrap().unwrap()).unwrap(),
+        historical
+    );
+    timeout(Duration::from_secs(1), f.receiver)
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test]
+async fn slab_partial_write_retains_inspection_and_never_replays() {
+    use crate::client::survival::PlacementStage;
+    let mut f = Fixture::new().await;
+    slab_stack(&mut f, 1).await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let control = crate::client::ledger::testing::Control::default();
+    f.api
+        .bot
+        .session
+        .writer
+        .lock()
+        .await
+        .stream
+        .test_replace(control.writer());
+    control.release(1, false);
+    let survival = client.survival();
+    let waiter = tokio::spawn(async move {
+        survival
+            .place_slab(SUPPORT, crate::BlockFace::West, TARGET, native("air"))
+            .await
+    });
+    control.until(|w| w.bytes().len() == 1).await;
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    let record = client
+        .survival()
+        .slab_placement_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!record.send.dispatched);
+    assert_eq!(record.stage, PlacementStage::RequiresInspection);
+    assert!(
+        client
+            .survival()
+            .place_slab(SUPPORT, crate::BlockFace::West, TARGET, native("air"))
+            .await
+            .is_err()
+    );
+    assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+    assert_eq!(control.bytes().len(), 1);
+    f.stop().await;
+}
+#[tokio::test]
+async fn slab_new_obstruction_before_confirmation_is_latched() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    let mut f = Fixture::new().await;
+    let sent = slab_start(&mut f, false, 1).await;
+    slab_fixed_entity(&mut f, "tnt", [1.5, 2.5, 0.5]).await;
+    replacement_block(&mut f, TARGET, &sent.expected).await;
+    slab_stack(&mut f, 0).await;
+    f.ack(sent.send.interaction_sequence.unwrap()).await;
+    let record = f.api.slab_placement_record().await.unwrap().unwrap();
+    assert_eq!(record.stage, PlacementStage::RequiresInspection);
+    assert!(
+        record
+            .requires_inspection
+            .unwrap()
+            .contains("building-blocking entity")
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn slab_rejects_the_connection_invalidated_by_a_nonfinite_entity_packet() {
+    let mut f = Fixture::new().await;
+    slab_stack(&mut f, 1).await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    slab_fixed_entity(&mut f, "tnt", [f64::NAN, 2.5, 0.5]).await;
+    {
+        let state = f.api.bot.session.state.lock().await;
+        assert!(state.failure.is_some());
+        assert!(!state.ready);
+    }
+    assert!(
+        client
+            .survival()
+            .place_slab(SUPPORT, crate::BlockFace::West, TARGET, native("air"))
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .survival()
+            .slab_placement_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    f.stop().await;
+}

@@ -87,7 +87,7 @@ pub(crate) mod item_components;
 pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
 pub(crate) mod item_use;
-mod placement_check;
+pub(crate) mod placement_check;
 mod player_control;
 pub(crate) mod player_facts;
 pub use chunk_context::{
@@ -267,7 +267,8 @@ pub mod prelude {
         MiningProfileRecovery, MiningRecord, MiningRecoveryAttempt, MiningRecoveryEvidence,
         MiningRecoveryMethod, MiningRecoveryTarget, MiningStage, MotionPreview, MotionRecord,
         MotionStatus, PlacementId, PlacementRecord, PlacementStage, RecoveredSurvivalClient,
-        ReplaceableCubePlacementRecord, ScenePreview, SceneSource, SurvivalControl, SurvivalInput,
+        ReplaceableCubePlacementRecord, ScenePreview, SceneSource, SlabPlacementRecord,
+        SurvivalControl, SurvivalInput,
     };
     pub use super::ui::{
         BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, PlayerChatSession,

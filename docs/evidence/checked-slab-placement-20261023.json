@@ -1,0 +1,696 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "authority": "Unmodified official Java 1.21.11 server in a disposable directory. Original forwarded packets and independent RCON checks; no server-side fixture patches.",
+  "scope": "Dry oak slab side top/bottom, bottom upper face and top lower face same-cell doubling, adjacent-cell doubling. Exactly one material including last-item Empty. Native context/shape/clip fixtures supply numerical rules; received outcomes are not causal actor attribution.",
+  "base_commit": "9b4281d47351bcc052f91459bbd524a83a42092a",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "binary_sha256": "af9c2201d5158d0f1e6bd72bd373a6841e447147988af8601d79e1bfa2e36c56",
+  "source_sha256": {
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "examples/climbing_control_probe.rs": "2f184d66d33c8c8f3f07cdbfbf2d09abdb510f3ac783e3956dc8e1edd107cfb3",
+    "src/client/adapter.rs": "559e4aaa30d771d074c49e83f8a0ea372cc8b06ccdd04ced7c938e75099c2a09",
+    "src/client/operations.rs": "e4b51704e15615bb14645933773711a0dabc0091aab79196d5cb2619eef3c257",
+    "src/client/survival/placement.rs": "b2b7af65d220f43b7e26ab6573a0a5ba58f03a88af3b6e1f96deab5d3febab9c",
+    "src/client/placement_check.rs": "ef27801b4c9cf692f7bccd2c44992aca301781dff8369cbdd6aaffcb3bf9810e",
+    "src/client/entity/geometry.rs": "9b9a21abce1c465097ac4c0e9e4f255312611fffd7296679f6e97df3599bf5d2",
+    "src/versions/java_1_21_11/client.rs": "f62fa15d986061c9ff5cbec4f0a21bd512105de223b109dcaa81e2959d521271",
+    "src/versions/java_1_21_11/client/operations/placement.rs": "b319afc325fd5b7a89cab6b573dbf382207b70ab301fe5bb1e0277b247cc92d4",
+    "src/versions/java_1_21_11/client/operations/placement/slab.rs": "5abeebcd44c5d95e4b1254536d5ed899157d5398c1d253ef2f8ec7f3e9bc4cfb",
+    "src/versions/java_1_21_11/client/operations/survival.rs": "045cdf51ecdd1a7c3fd0d2afbf2a4572aad1d472349ec51f39ba527e6d32d511",
+    "src/versions/java_1_21_11/client/raycast.rs": "2c53ffe2de8b5c29de6de331ba50e2463dcc531a169b7a8ba531506452f981a5",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "b0dff18a75ed5c0b4e1db3fc964d55081e457f23d964e310f7d1d29e2c6a7a99",
+    "data/client_api/slab_placement.json.gz": "06fca27fdc10ae1144eabc4110263eb55dda4c159bce9be5503c934661238c71",
+    "data/client_api/slab_placement_geometry.json.gz": "62c9bfaf9779365b69b19f7d87314ab8b2009db4c1434730041932943afc85be",
+    "data/client_api/slab_placement_obstruction.json.gz": "cd584ffa4a47bc9e9b609f6a6747ef49457400dfecd1d0058b5409fefdfa367f",
+    "data/client_api/slab_placement_source.json": "e822f761eb9c135efba134c1dd9ff500b7126fe179040fc54ec87832ca1df6a8",
+    "scripts/run_slab_placement_live.py": "236ebd62ea6a8f8ac67d1e6ff6be2702812ee65bb52346cd329ee4bae6d42d8c",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
+  },
+  "artifacts": {
+    "inputs.json": {
+      "sha256": "d08b7d7e69171619fe44456cbb9e8eab9386fb8f7797b5d40fd91de3feaef358",
+      "bytes": 90
+    },
+    "packets.jsonl": {
+      "sha256": "66732f2c6bf9e9bfc24f83405d44aa04ecacb625325a24cab6b10d52cfd2a0b9",
+      "bytes": 63770
+    },
+    "probe.log": {
+      "sha256": "842634fb190064fa01e5994685e7dccd5e750edad6d0d52bedde1a138779491c",
+      "bytes": 159378
+    },
+    "probe.stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "report.json": {
+      "sha256": "330b244f51428e277c167f75921f99b1948a59a79cee81ecb17cd242c704e924",
+      "bytes": 191245
+    },
+    "server.log": {
+      "sha256": "87feea4db953bb61f2005037a64a65b1d52f5c0ebfe9ce1f9f0bf9ffdf5d9463",
+      "bytes": 11286
+    }
+  },
+  "checks": [
+    {
+      "name": "side_bottom",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 147,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "aee27b585939e3980f1f528a6a64a998ae7142f5198344aa62c73dffdeed1e45",
+          "body_sha256": "9e40ac1a607ef2d23ac27f78f0adcb495cc764f6467713dcac057d26029d9518",
+          "body_hex": "0000008000000042cb66"
+        },
+        "material_receipt": {
+          "ordinal": 148,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "0f681d7ecd2efb5d91af3d1605711a7ae40b387ca3d7a66589bb581a0977ae1f",
+          "body_sha256": "4f44f95a34502d59629b1460a426f3b07d367e803986b6fc86b8f6c422fbf1e0",
+          "body_hex": "0003002400"
+        },
+        "processing": {
+          "ordinal": 149,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "7ab253baa431f391818b34fee7e927dbb19897c7a409be05d1be8521c74c956c",
+          "body_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+          "body_hex": "01"
+        }
+      },
+      "merges_clicked": false,
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.538547457819575,
+        "face": "West",
+        "point": [
+          3.0,
+          66.17929239693498,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 113,
+        "dispatched": true,
+        "interaction_sequence": 1
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 126
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 127
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 128,
+        "sequence": 1
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 144,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "3f08d303dbc66027f2d2be3a13fa89512c706a9af0b20e42f9e1f80cca1fc91e",
+        "body_sha256": "c8452a9bd1840f8f143f1b71eef9ad5850bcb21da5366cec09a5c0116e7e037d",
+        "body_hex": "00000000c00000004204000000003e37986d3f000000000001"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "side_top",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 157,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "098d09e77328ee0d484b7231d179c2c539b9771faf13561bf80626523e1129df",
+          "body_sha256": "cb6a09203dbea436d0787613bb90afdf3d442b6c4c2ea37c87e1abe2fe70fe5e",
+          "body_hex": "0000008000000042c966"
+        },
+        "material_receipt": {
+          "ordinal": 158,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "7eec22e80fd1d6e5d26c5ca89dc064da9ffdea457480d436a26a3db0afd24532",
+          "body_sha256": "ef6be3b04a54d0f16966d7055dd14abf816b15290d6bb8a5a3135aa2ba29fb99",
+          "body_hex": "0005002400"
+        },
+        "processing": {
+          "ordinal": 159,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "968d7dd2a50a991f8e4b38691c90ae51f0308014b9bdf9cb5de8b790a194c93f",
+          "body_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+          "body_hex": "02"
+        }
+      },
+      "merges_clicked": false,
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "top",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5245574949603284,
+        "face": "West",
+        "point": [
+          3.0,
+          66.97126990863201,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 130,
+        "dispatched": true,
+        "interaction_sequence": 2
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 133
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "top",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 134
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 135,
+        "sequence": 2
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 154,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "6a13ad2bdf765b110800f3af0c0ba221645ef9181e0656e4a924c67c0c635f73",
+        "body_sha256": "00cb1c3938aec468eb005675b00d6ef167819386d503b88f78f365fb66e837ef",
+        "body_hex": "00000000c00000004204000000003f78a5253f000000000002"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "bottom_up_double",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 167,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "3602ed9cd8daceca5ab921cc0a9620ccf56000303dc03a8c46ce987ed7441420",
+          "body_sha256": "2f8e117b5cd1387a5876dd5b11eddc93d555f44f9158f4113ed5cc3b374bcb28",
+          "body_hex": "0000008000000041cd66"
+        },
+        "material_receipt": {
+          "ordinal": 168,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "70d5df70afeebc81312fe424296657bbb0c5b6cf3fb80e377a3b90079bca341e",
+          "body_sha256": "b676334c713d9ac9d7933f57ab4e174263f1df97982a37f009ddba45e826c783",
+          "body_hex": "0007002400"
+        },
+        "processing": {
+          "ordinal": 169,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "cb8e5bb7b086a77015fc2a6c6f4e1c432aca8b00172d0f7cb257711dc72f4570",
+          "body_sha256": "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+          "body_hex": "03"
+        }
+      },
+      "merges_clicked": true,
+      "clicked": [
+        2,
+        65,
+        0
+      ],
+      "target": [
+        2,
+        65,
+        0
+      ],
+      "before": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "double",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.240124001555022,
+        "face": "Up",
+        "point": [
+          2.440040085065701,
+          65.5,
+          0.5000000000000002
+        ],
+        "position": [
+          2,
+          65,
+          0
+        ],
+        "state": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 137,
+        "dispatched": true,
+        "interaction_sequence": 3
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 141
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "double",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 142
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 143,
+        "sequence": 3
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 163,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "661e5f752f5627586a180fedf614c3aa009388b54ab895148dc318b21b433be6",
+        "body_sha256": "44e06ca8bd4fd92ea328470b318a92b8db4b4102aa87740266d9f2d8a2c5ea9e",
+        "body_hex": "000000008000000041013ee14cef3f0000003f000000000003"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "top_down_double",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 176,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "d7a74908d4c12b1c970e5d11fe3bd4f34c46a98fbd734bbe84a30cea7c09ccd6",
+          "body_sha256": "07471d6d2328f9cfe2c44ef88fe718abb9647ae3ccdfa6e0de0141078598bcdb",
+          "body_hex": "0000008000000043cd66"
+        },
+        "material_receipt": {
+          "ordinal": 177,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "043b421d130c0ba9eab0485763f4f44ac5c0a6fba8a5b44c0b5be66bd34bd31f",
+          "body_sha256": "d076c4fe4fbeaa1257fd252e7bddf416f43768d7d97cb0177054561eea73d70c",
+          "body_hex": "0009002400"
+        },
+        "processing": {
+          "ordinal": 178,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "ed1b385533761b94d9751e453dbf9324d7af580eabc89cb55354b8565eb52796",
+          "body_sha256": "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+          "body_hex": "04"
+        }
+      },
+      "merges_clicked": true,
+      "clicked": [
+        2,
+        67,
+        0
+      ],
+      "target": [
+        2,
+        67,
+        0
+      ],
+      "before": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "top",
+          "waterlogged": "false"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "double",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 1.7600243647325153,
+        "face": "Down",
+        "point": [
+          2.024232847318423,
+          67.5,
+          0.5000000000000002
+        ],
+        "position": [
+          2,
+          67,
+          0
+        ],
+        "state": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "top",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 145,
+        "dispatched": true,
+        "interaction_sequence": 4
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 148
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "double",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 149
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 150,
+        "sequence": 4
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 173,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "6c4af1d1162ca913e34ef95e0e67024aca1071ad580ce855480582a180291165",
+        "body_sha256": "3c4d472a526facbcb7980dcc1ef5cc547cf87d975c3c362be47338faa707b95f",
+        "body_hex": "000000008000000043003cc683f73f0000003f000000000004"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "adjacent_double",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 185,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "5616813d863614b83b6f44c96152994edce2c0da3f397a55227c87cf005d2289",
+          "body_sha256": "b6844be32b94807b1b30e7079eaa4cf8a3573f64b1bd14c510e4e8b85dfba470",
+          "body_hex": "0000008000000042cd66"
+        },
+        "material_receipt": {
+          "ordinal": 186,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "c07c3126897f2a56793438027c5f0a341499d9314bd6ad649beb1dc55f23cedb",
+          "body_sha256": "338f9564f7e5fc7cc3784399703d0af9f9d54701c9c2d66b7aa26d4f33154590",
+          "body_hex": "000b002400"
+        },
+        "processing": {
+          "ordinal": 187,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "f2e18fea99713c5b16af0ee90765aa27851f1ce33e5673c9db381cf2ef5b049c",
+          "body_sha256": "e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db",
+          "body_hex": "05"
+        }
+      },
+      "merges_clicked": false,
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "double",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5245574949603284,
+        "face": "West",
+        "point": [
+          3.0,
+          66.97126990863201,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 152,
+        "dispatched": true,
+        "interaction_sequence": 5
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 155
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "double",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 156
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 157,
+        "sequence": 5
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 182,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "5ff427ba1c93ccb666c4a7e9b1bdde1f19b93f5ff779f0eefac8c93ae84895ad",
+        "body_sha256": "a1cb9e4fc7c71b134500b68b196bc777dfbe0d85bc1f683d7f891c731c21062d",
+        "body_hex": "00000000c00000004204000000003f78a5253f000000000005"
+      },
+      "stage": "observed_placed"
+    }
+  ],
+  "passed": true,
+  "process_cleanup": "Shared harness stopped the probe, proxy and server; server log confirms all dimensions saved. EULA and world existed only in the disposable directory."
+}

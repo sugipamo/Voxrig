@@ -132,6 +132,48 @@ pub struct ReplaceableCubePlacementRecord {
     /// Retained outcome, separate from current world/slot contents.
     pub stage: PlacementStage,
 }
+/// Connection-owned diagnostic snapshot, also readable after closure.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct SlabPlacementRecord {
+    /// First native outline selected in the same boundary as all predecessors.
+    pub first_outline: super::BlockTargetHit,
+    /// True when the clicked slab becomes double in the same cell.
+    pub merges_clicked: bool,
+    /// Immutable attempt identity.
+    pub id: PlacementId,
+    /// Coherent player/inventory capture before possible submission I/O.
+    pub initial: PlayerObservation,
+    /// Original clicked cube or dry oak slab.
+    pub support: [i32; 3],
+    /// Complete support predecessor.
+    pub support_state: NativeBlockState,
+    /// First-outline face actually admitted.
+    pub face: BlockFace,
+    /// Native first hit, local to support, sent without an invented center.
+    pub cursor: [f32; 3],
+    /// Explicit destination selected by native replace-clicked rules.
+    pub target: [i32; 3],
+    /// Complete explicitly requested air or dry oak slab predecessor.
+    pub before: NativeBlockState,
+    /// Expected complete oak slab type and waterlogged properties.
+    pub expected: NativeBlockState,
+    /// Exact supported received selected stack before submission.
+    pub held_before: ItemStack,
+    /// Ordinal establishing that predecessor stack.
+    pub held_receive_sequence: u64,
+    /// Retained before I/O; no resend API exists.
+    pub send: PlacementSend,
+    /// Fresh target-specific received expected block, not a cache revision.
+    pub target_receipt: Option<ObservedValue<NativeBlockState>>,
+    /// Fresh selected-slot receipt showing exactly one material consumed.
+    pub material_receipt: Option<ObservedValue<SlotKnowledge>>,
+    /// Actual modern processing receipt; always absent on legacy.
+    pub processing: Option<PlacementProcessing>,
+    /// First latched conflict; restoration cannot erase it.
+    pub requires_inspection: Option<String>,
+    /// Retained outcome, separate from current world/slot contents.
+    pub stage: PlacementStage,
+}
 pub(crate) fn unavailable(message: impl std::fmt::Display) -> crate::Error {
     crate::error::state_error(message)
 }
@@ -142,6 +184,12 @@ pub(crate) fn air(state: &NativeBlockState) -> bool {
     )
 }
 pub(crate) fn selected_material(p: &PlayerObservation) -> Result<(ItemStack, u64)> {
+    selected_material_in(p, false)
+}
+pub(crate) fn selected_slab(p: &PlayerObservation) -> Result<(ItemStack, u64)> {
+    selected_material_in(p, true)
+}
+fn selected_material_in(p: &PlayerObservation, slab: bool) -> Result<(ItemStack, u64)> {
     if p.received_pose.is_none()
         || p.dimension.is_none()
         || p.inventory.player_screen.is_none()
@@ -173,8 +221,13 @@ pub(crate) fn selected_material(p: &PlayerObservation) -> Result<(ItemStack, u64
     };
     let registry = crate::client::registry::Registry::for_version(p.session.version);
     let definition = registry.item(&item.name)?;
-    if !super::model::DRY_CUBES.contains(&item.name.as_str())
-        || item.name == "minecraft:grass_block"
+    let admitted = if slab {
+        item.name == "minecraft:oak_slab"
+    } else {
+        super::model::DRY_CUBES.contains(&item.name.as_str())
+            && item.name != "minecraft:grass_block"
+    };
+    if !admitted
         || item.data != ItemData::Default
         || item.id != definition.id
         || item.count == 0
@@ -182,7 +235,11 @@ pub(crate) fn selected_material(p: &PlayerObservation) -> Result<(ItemStack, u64
     {
         return Err(crate::Error::new(
             crate::ErrorKind::Unsupported,
-            anyhow::anyhow!("placement admits default passive cube stacks only"),
+            anyhow::anyhow!(if slab {
+                "slab placement admits default oak slab stacks only"
+            } else {
+                "placement admits default passive cube stacks only"
+            }),
         ));
     }
     Ok((item.clone(), *sequence))
