@@ -5559,3 +5559,128 @@ async fn levitation_world_packet_retires_old_ground_model_and_effect() {
     assert!(survival.start_control().await.is_err()); // No fresh new-world pose/terrain.
     session.stop();
 }
+
+#[tokio::test(start_paused = true)]
+async fn levitation_packets_pause_held_flight_without_advancing_or_sending_the_model() {
+    use crate::client::{
+        GameMode,
+        control::{ControlKind, ControlStatus, Controls},
+    };
+    let effect = crate::client::physics::blocks::table(crate::MinecraftVersion::Java1_21_11)
+        .effect_ids["minecraft:levitation"];
+    for mode in [GameMode::Creative, GameMode::Spectator] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        let mut abilities = vec![6];
+        abilities.extend(0.05f32.to_be_bytes());
+        abilities.extend(0.1f32.to_be_bytes());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::ABILITIES, &abilities, 256)
+            .unwrap();
+        let start = handle
+            .start_flight_control(Controls {
+                jump: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        while read_packet(&mut peer, None).await.unwrap().0 != ids::play_serverbound::POSITION_LOOK
+        {
+        }
+        let before = handle.control_record().await.unwrap().unwrap();
+        assert_eq!(before.dispatched_ticks, 1);
+        assert!(before.frame.as_ref().unwrap().flying);
+        let body_before = session
+            .state
+            .lock()
+            .await
+            .control
+            .session
+            .as_ref()
+            .unwrap()
+            .body
+            .clone();
+        // Both a new effect and a replacement level must stay outside flight's
+        // qualified travel, even though the same receipts now allow Ground.
+        for amplifier in [0, 255] {
+            let mut packet = vec![42];
+            put_varint(&mut packet, effect);
+            put_varint(&mut packet, amplifier);
+            packet.extend([100, 0]);
+            session
+                .state
+                .lock()
+                .await
+                .receive(ids::play_clientbound::ENTITY_EFFECT, &packet, 256)
+                .unwrap();
+            let previous_tick = session
+                .state
+                .lock()
+                .await
+                .control
+                .session
+                .as_ref()
+                .unwrap()
+                .tick;
+            tokio::time::advance(Duration::from_millis(50)).await;
+            let paused = timeout(Duration::from_secs(2), async {
+                loop {
+                    let state = session.state.lock().await;
+                    let owner = state.control.session.as_ref().unwrap();
+                    if owner.tick > previous_tick {
+                        assert_eq!(owner.body, body_before);
+                        break owner.record();
+                    }
+                    drop(state);
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert!(
+                matches!(paused.status, ControlStatus::Paused { ref reason }
+                if reason.contains("levitation")),
+                "{paused:?}"
+            );
+            assert_eq!(paused.kind, ControlKind::Flight);
+            assert_eq!(paused.session_id, start.session_id);
+            assert_eq!(paused.dispatched_ticks, before.dispatched_ticks);
+            assert_eq!(paused.frame, before.frame);
+            assert!(
+                timeout(Duration::from_millis(10), read_packet(&mut peer, None))
+                    .await
+                    .is_err()
+            );
+        }
+        let mut remove = vec![42];
+        put_varint(&mut remove, effect);
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::REMOVE_ENTITY_EFFECT, &remove, 256)
+            .unwrap();
+        tokio::time::advance(Duration::from_millis(50)).await;
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap().0,
+            ids::play_serverbound::POSITION_LOOK
+        );
+        let resumed = handle.control_record().await.unwrap().unwrap();
+        assert_eq!(resumed.session_id, start.session_id);
+        assert_eq!(resumed.kind, ControlKind::Flight);
+        assert_eq!(resumed.status, ControlStatus::Running);
+        // Paused prediction attempts also advance the local tick ordinal.
+        assert!(resumed.dispatched_ticks > before.dispatched_ticks);
+        assert!(resumed.frame.as_ref().unwrap().flying);
+        assert!(
+            resumed.frame.as_ref().unwrap().position[1]
+                > before.frame.as_ref().unwrap().position[1]
+        );
+        handle.stop_control_for(start.session_id).await.unwrap();
+        session.stop();
+    }
+}

@@ -20,7 +20,7 @@
     "Cargo.toml": "a61c740eabdf0adf301ce5ccec00c444ad9e107ae8870fd2d8ed73611b1ce448",
     "docs/evidence/contact-envelopes-20261015.json": "566dff88316fe65c6d7ea422cab8b5a393bc0bed978e3d17c718be9d05e218ab",
     "src/client/physics/oracle_tests.rs": "0bc497f07c71e22ae7109012a0ce05a8d175640b1d6c25a657e469f3a9ba0c11",
-    "src/versions/java_1_21_11/client/outbound/tests.rs": "00402a716eb5e48723fc79b15ed58d84cbbee88d4068ceec4f1e1f38abbf8dea",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "6a183ce2cfaeb329075432b1399b1cfecd47b97bebae7484ab570f47e52c31d6",
     "scripts/run_levitation_oracle.py": "9f1777e7b98e61d133f79fd17e5a75f74f481bbc86160bb458eb9bc62123e6b2",
     "scripts/movement_oracle/levitation_scenarios.py": "3db750c47e46705f9753078d1695108393a43c3990b5ea6c5ab5e58ed9886a33",
     "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
