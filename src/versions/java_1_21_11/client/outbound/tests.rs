@@ -5979,3 +5979,81 @@ async fn contextual_target_preserves_first_outline_and_rejects_unknown_geometry(
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn contextual_target_uses_scaled_pose_clearance_and_unique_support_cells() {
+    use crate::client::GameMode;
+    let (session, ops, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    client.look([0., 90.]).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    contextual_attributes(&session, &[(25, 1.), (6, 4.5)]).await;
+    let stairs = crate::versions::java_1_21_11::state_id(&crate::NativeBlockState {
+        name: "minecraft:acacia_stairs".into(),
+        properties: [
+            ("facing".into(), "north".into()),
+            ("half".into(), "top".into()),
+            ("shape".into(), "straight".into()),
+            ("waterlogged".into(), "false".into()),
+        ]
+        .into(),
+    })
+    .unwrap();
+    let block_update = |position: [i32; 3], state_id: i32| {
+        let packed = ((i64::from(position[0]) & 0x3ffffff) << 38)
+            | ((i64::from(position[2]) & 0x3ffffff) << 12)
+            | (i64::from(position[1]) & 0xfff);
+        let mut packet = packed.to_be_bytes().to_vec();
+        put_varint(&mut packet, state_id);
+        packet
+    };
+    // A top stair has two adjacent native boxes reaching the same top face.
+    // They support the player through one cell, not two independent cells.
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::BLOCK_CHANGE,
+            &block_update([8, 64, 8], stairs),
+            256,
+        )
+        .unwrap();
+    let observation = client.survival().target_block_with_context().await.unwrap();
+    assert_eq!(observation.support, vec![[8, 64, 8]]);
+    assert_eq!(observation.visibility.value.unwrap().position, [8, 64, 8]);
+
+    // A top slab ceiling starts at 66.5: crouching fits, standing intersects it.
+    let slab = crate::versions::java_1_21_11::state_id(&crate::NativeBlockState {
+        name: "minecraft:stone_slab".into(),
+        properties: [
+            ("type".into(), "top".into()),
+            ("waterlogged".into(), "false".into()),
+        ]
+        .into(),
+    })
+    .unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::BLOCK_CHANGE,
+            &block_update([8, 66, 8], slab),
+            256,
+        )
+        .unwrap();
+    assert!(client.survival().target_block_with_context().await.is_err());
+    contextual_pose(&session, 5).await;
+    assert!(client.survival().target_block_with_context().await.is_ok());
+    contextual_attributes(&session, &[(25, 2.)]).await;
+    assert!(client.survival().target_block_with_context().await.is_err());
+    contextual_attributes(&session, &[(25, 0.5)]).await;
+    contextual_pose(&session, 0).await;
+    assert!(client.survival().target_block_with_context().await.is_ok());
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+}

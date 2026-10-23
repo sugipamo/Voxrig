@@ -137,7 +137,8 @@ first outlineを捕捉する。Standing/Crouching、scale 0.125〜4の静止・�
 位置はこのworldの実受信位置と実受信zero velocityが一致する場合だけ使う。
 実行中のcontrolや未解決dispatch、予測pathの位置、乗車、飛行、死亡、motion interruption、
 未ロード・移動geometry、再構築不足を拒否する。支持とbody周辺には既存の資格化済みdry形状を使い、
-bodyの固体への侵入や支持欠測を拒否する。一般的な液体・entity選択やworld依存shapeには拡張しない。
+bodyの固体への侵入や支持欠測を拒否する。`support`はcell単位で一意とし、
+階段の複数のcollision boxが同じcellを支持しても重複させない。一般的な液体・entity選択やworld依存shapeには拡張しない。
 1.16.1では専用のUnsupportedを返す。
 
 | field | 根拠・意味 |

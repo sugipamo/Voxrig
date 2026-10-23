@@ -198,6 +198,7 @@ fn grounded(state: &impl GeometryView, bounds: [f64; 6]) -> Result<Vec<[i32; 3]>
                         && bounds[2] + 1e-7 < b[5]
                         && bounds[5] - 1e-7 > b[2]
                         && (0.0..1e-7).contains(&(bounds[1] - b[4]))
+                        && !support.contains(&p)
                     {
                         support.push(p);
                     }

@@ -79,7 +79,7 @@ pub struct ContextualBlockTargetObservation {
     pub reach: crate::client::ObservedValue<f64>,
     /// Native scaled body box, min XYZ followed by max XYZ.
     pub bounds: [f64; 6],
-    /// Known dry floor cells supporting the scaled body at capture.
+    /// Unique known dry floor cells supporting the scaled body at capture.
     pub support: Vec<[i32; 3]>,
     /// First outline selected by the client model within received reach.
     /// None means a complete available ray missed (also valid for zero reach).
