@@ -38,6 +38,7 @@ pub struct Creative {
 
 pub(crate) enum Action<'a> {
     Entity(super::EntityId, super::entity::EntityAction),
+    EntityAt(super::EntityId, [f32; 3], super::Hand, bool),
     EntityPart(super::EntityPartId, super::entity::EntityAction),
     Look([f32; 2]),
     SelectHotbar(u8),
@@ -53,6 +54,15 @@ pub(crate) enum Action<'a> {
     DigStart([i32; 3], BlockFace),
     /// Survival STOP_DESTROY_BLOCK.
     DigFinish([i32; 3], BlockFace),
+}
+
+pub(crate) fn validate_entity_hit(hit: [f32; 3]) -> Result<()> {
+    if !hit.iter().all(|coordinate| coordinate.is_finite()) {
+        return Err(super::registry::invalid(
+            "entity interaction coordinates must be finite",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_hotbar_selection(mode: GameMode, slot: u8) -> Result<()> {
@@ -118,6 +128,26 @@ impl Survival {
                     target,
                     super::entity::EntityAction::Interact { hand, sneaking },
                 ),
+            )
+            .await
+    }
+    /// Dispatch one Java 1.21.11 INTERACT_AT at finite entity-relative coordinates.
+    /// Checks the received mode, connection/world/spawn lifetime and mutation admission.
+    /// Returns complete dispatch only; no ray, reach/visibility check, outcome ACK or retry.
+    /// Cancellation before the writer lock sends nothing; interrupted writes close the session.
+    /// Java 1.16.1 returns Unsupported through this common API.
+    pub async fn interact_entity_at(
+        &self,
+        target: super::EntityId,
+        hit: [f32; 3],
+        hand: super::Hand,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        validate_entity_hit(hit)?;
+        self.client
+            .execute(
+                GameMode::Survival,
+                Action::EntityAt(target, hit, hand, sneaking),
             )
             .await
     }
@@ -522,6 +552,26 @@ impl Creative {
                     target,
                     super::entity::EntityAction::Interact { hand, sneaking },
                 ),
+            )
+            .await
+    }
+    /// Dispatch one Java 1.21.11 INTERACT_AT at finite entity-relative coordinates.
+    /// Checks the received mode, connection/world/spawn lifetime and mutation admission.
+    /// Returns complete dispatch only; no ray, reach/visibility check, outcome ACK or retry.
+    /// Cancellation before the writer lock sends nothing; interrupted writes close the session.
+    /// Java 1.16.1 returns Unsupported through this common API.
+    pub async fn interact_entity_at(
+        &self,
+        target: super::EntityId,
+        hit: [f32; 3],
+        hand: super::Hand,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        validate_entity_hit(hit)?;
+        self.client
+            .execute(
+                GameMode::Creative,
+                Action::EntityAt(target, hit, hand, sneaking),
             )
             .await
     }

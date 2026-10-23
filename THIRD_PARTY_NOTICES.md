@@ -7,6 +7,15 @@ notices. Exact npm versions and registry integrity digests are recorded in
 
 ## Locally recorded Java 1.21.11 diagnostics
 
+`data/client_api/entity_interact_at_packets.json` contains factual packet bytes
+and numeric inputs constructed and roundtripped by the unchanged official Java
+1.21.11 `ServerboundInteractPacket` codec. The owned Java/Python exporters record
+the original JAR/mapping/classpath and tool hashes in `entity_interact_at_source.json`.
+`docs/evidence/entity-interact-at-20261023.json` separately records owned-fixture
+live packet/result observations. These observations do not redistribute or
+relicense game binaries, mappings or method bodies, and do not establish a
+general reach, visibility or gameplay-result guarantee.
+
 `data/client_api/regular_click_*` contains factual registry/default-capacity,
 native slot acceptance, PICKUP/SWAP outcomes and packet/hash encodings recorded
 from the unmodified official Java 1.16.1 and 1.21.11 server JARs. The original

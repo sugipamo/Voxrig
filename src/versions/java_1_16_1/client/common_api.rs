@@ -149,6 +149,12 @@ impl Bot {
             ));
         }
         let (id, payload) = match action {
+            Action::EntityAt(..) => {
+                return Err(crate::Error::new(
+                    crate::ErrorKind::Unsupported,
+                    anyhow::anyhow!("common interact_entity_at requires Java 1.21.11"),
+                ));
+            }
             Action::Entity(target, interaction) => {
                 let receipts = self.common_receipts.lock().await;
                 receipts.entities.validate(
@@ -2414,6 +2420,24 @@ mod tests {
             received.entities[0].type_name.as_deref(),
             Some("minecraft:sheep")
         );
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            bot.survival.write().await.game_mode = Some(mode_id(mode));
+            let error = match mode {
+                api::GameMode::Survival => client
+                    .survival()
+                    .interact_entity_at(target, [0.0; 3], api::Hand::Main, false)
+                    .await
+                    .unwrap_err(),
+                _ => client
+                    .creative()
+                    .interact_entity_at(target, [0.0; 3], api::Hand::Main, false)
+                    .await
+                    .unwrap_err(),
+            };
+            assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+            assert!(!client.player_state().await.unwrap().pending_dispatch);
+        }
+        bot.survival.write().await.game_mode = Some(0);
         let initial = client.entity_motion(target).await.unwrap();
         assert!(initial.on_ground.is_none());
         assert_eq!(initial.velocity.as_ref().unwrap().value, [0.0; 3]);

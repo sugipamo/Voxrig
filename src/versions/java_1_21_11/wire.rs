@@ -1,5 +1,24 @@
-//! Bounded field decoding for the 1.21.11 adapter.
+//! Bounded field decoding and packet encoding for the 1.21.11 adapter.
 use anyhow::{Context, Result, bail};
+
+/// ServerboundInteractPacket.INTERACT_AT: ID, action, relative floats, hand, secondary action.
+pub(crate) fn interact_entity_at(
+    native_id: i32,
+    hit: [f32; 3],
+    hand: crate::client::Hand,
+    sneaking: bool,
+) -> crate::Result<Vec<u8>> {
+    crate::client::operations::validate_entity_hit(hit)?;
+    let mut payload = Vec::new();
+    crate::protocol::put_varint(&mut payload, native_id);
+    crate::protocol::put_varint(&mut payload, 2);
+    for coordinate in hit {
+        payload.extend(coordinate.to_be_bytes());
+    }
+    crate::protocol::put_varint(&mut payload, hand as i32);
+    payload.push(u8::from(sneaking));
+    Ok(payload)
+}
 
 pub(crate) struct Reader<'a> {
     fields: crate::versions::fields::Reader<'a>,
@@ -246,5 +265,49 @@ mod tests {
             deep.extend([10, 0, 0]);
         }
         assert!(Reader::new(&deep).skip_nbt().is_err());
+    }
+}
+
+#[cfg(test)]
+mod entity_at_tests {
+    use super::*;
+
+    #[test]
+    fn entity_at_matches_original_packet_roundtrips() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../data/client_api/entity_interact_at_packets.json"
+        ))
+        .unwrap();
+        assert_eq!(cases.as_array().unwrap().len(), 96);
+        for case in cases.as_array().unwrap() {
+            let hit = std::array::from_fn(|i| {
+                f32::from_bits(case["hit_bits"][i].as_u64().unwrap() as u32)
+            });
+            let hand = if case["hand"] == 0 {
+                crate::client::Hand::Main
+            } else {
+                crate::client::Hand::Off
+            };
+            let encoded = interact_entity_at(
+                case["entity_id"].as_i64().unwrap() as i32,
+                hit,
+                hand,
+                case["sneaking"].as_bool().unwrap(),
+            )
+            .unwrap();
+            assert_eq!(hex::encode(encoded), case["payload_hex"].as_str().unwrap());
+        }
+        for hit in [
+            [f32::NAN, 0.0, 0.0],
+            [0.0, f32::INFINITY, 0.0],
+            [0.0, 0.0, f32::NEG_INFINITY],
+        ] {
+            assert_eq!(
+                interact_entity_at(300, hit, crate::client::Hand::Main, false)
+                    .unwrap_err()
+                    .kind(),
+                crate::ErrorKind::InvalidInput
+            );
+        }
     }
 }

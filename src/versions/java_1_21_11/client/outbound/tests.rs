@@ -1,3 +1,4 @@
+mod entity_at;
 use super::*;
 
 #[tokio::test]

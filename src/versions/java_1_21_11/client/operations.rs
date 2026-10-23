@@ -1790,6 +1790,29 @@ impl crate::client::adapter::CoreOps for Operations {
             .run_scoped(async {
                 use crate::client::operations::Action;
                 match action {
+                    Action::EntityAt(target, hit, hand, sneaking) => {
+                        let payload = super::super::wire::interact_entity_at(
+                            target.native_id(),
+                            hit,
+                            hand,
+                            sneaking,
+                        )?;
+                        let state = self.bot.session.state.lock().await;
+                        self.mutable(&state)?;
+                        self.require_mode(&state, Some(mode))?;
+                        state.entities.validate(
+                            crate::client::SessionStamp {
+                                version: crate::MinecraftVersion::Java1_21_11,
+                                connection_id: self.bot.session.id,
+                                world_generation: state.loading.generation,
+                            },
+                            target,
+                        )?;
+                        self.bot
+                            .session
+                            .send(ids::play_serverbound::USE_ENTITY, &payload)
+                            .await?;
+                    }
                     Action::Entity(target, interaction) => {
                         let mut state = self.bot.session.state.lock().await;
                         self.mutable(&state)?;

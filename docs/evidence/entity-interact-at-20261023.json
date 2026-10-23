@@ -1,0 +1,557 @@
+{
+  "date": "2026-10-23",
+  "version": "1.21.11",
+  "status": "PASS",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "base_main": "e07d6ff26cfacb50291e65b91a3789a1f8ff0ca2",
+  "binary_sha256": "29d4707b8b69b990ce97f361cc3f07be19a9c39b713faf01d71b84947a44822b",
+  "sdk_source_sha256": {
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "Cargo.toml": "a1bb8a931b7f39bcc567290a0045516cea3dcc2bd80fd7f0b00531d8b1ef7410",
+    "examples/climbing_control_probe.rs": "f4daa72410a7c0307ce568f9c316abfa92092d1473a94741565338fa19471448",
+    "src/client/operations.rs": "f5b60a4a746716fa1c873ddabcf1486503b290354bebf95e4bd9ba0bbac94fa6",
+    "src/versions/java_1_21_11/wire.rs": "37a60c6b7dde1531db22f7538722c067b0b5ec11e37810744b608f2fdc9922f8",
+    "src/versions/java_1_21_11/client/operations.rs": "5cd5a873cd55c89d6c7e6f98bc9c6f944193c84aff31fb1fcf87c79246e782be",
+    "scripts/run_entity_interact_at_live.py": "2d339c6d42e003ce1a23febd02aa8d16f1824671e5e2b20bd6916bf396c7089c",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
+  },
+  "oracle_source": "data/client_api/entity_interact_at_source.json",
+  "checks": [
+    {
+      "name": "survival_False_0.1",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 2,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 121
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 143,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "a1feb37272a8f281898b64069c8a29f60d1d90091912d061e47610ff63bcfba9",
+          "body_sha256": "1fbaaad11aaf6f331fd3cd280ac84a215fdeb136e918ad132a4aeba16477cf6a",
+          "body_hex": "0202000000003dcccccd000000000000"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: [{count: 1, Slot: 0b, id: \"minecraft:iron_boots\"}]",
+        "equipment": "ClimbingProbe has the following entity data: {}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 2,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 121
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 2,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 121
+        }
+      },
+      "retired_target_packets": []
+    },
+    {
+      "name": "survival_False_1.8",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 3,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 137
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 160,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "225d8f1d689d2b9647956bba20ccaf45980c274720ec98037b0f93cf9a7a1e25",
+          "body_sha256": "ba35b311c98107a16f4638f6d4ab68491537e7468d29a35b3fe59ec696d76aa2",
+          "body_hex": "0302000000003fe66666000000000000"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: [{count: 1, Slot: 0b, id: \"minecraft:iron_helmet\"}]",
+        "equipment": "ClimbingProbe has the following entity data: {}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 3,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 137
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 3,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 137
+        }
+      },
+      "retired_target_packets": []
+    },
+    {
+      "name": "survival_True_0.1",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 4,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 149
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 173,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "4f2f3060447e89d6ac6d9b63263f724aaab00a9adc81c2ed4dde34dbda0e3ed1",
+          "body_sha256": "79ef68b8417cf48f10b3413691dfad572e45e20a23ec43bdabb9b79e8d1beae0",
+          "body_hex": "0402000000003dcccccd000000000100"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: []",
+        "equipment": "ClimbingProbe has the following entity data: {offhand: {count: 1, id: \"minecraft:iron_boots\"}}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 4,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 149
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 4,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 149
+        }
+      },
+      "retired_target_packets": []
+    },
+    {
+      "name": "survival_True_1.8",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 5,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 162
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 191,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "2ede59a452dd6252cbd18137ac12806af2d4b0bfe6e727e26763b5191368d104",
+          "body_sha256": "6185a55ce908c3b6096c5512032cbae846a532f8c64b3100a480f40207684fbf",
+          "body_hex": "0502000000003fe66666000000000100"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: []",
+        "equipment": "ClimbingProbe has the following entity data: {offhand: {count: 1, id: \"minecraft:iron_helmet\"}}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 5,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 162
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 5,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 162
+        }
+      },
+      "retired_target_packets": []
+    },
+    {
+      "name": "creative_False_0.1",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 6,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 181
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 211,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "a4310e73d01477466518e342048a92c02c808e2fe4fdc89527f81a4238f057ab",
+          "body_sha256": "acb532a16ca75e36f1be166d455c9b0b251db0a7fb6f5cddc46cd2e5819aedbd",
+          "body_hex": "0602000000003dcccccd000000000000"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: [{count: 1, Slot: 0b, id: \"minecraft:iron_boots\"}]",
+        "equipment": "ClimbingProbe has the following entity data: {}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 6,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 181
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 6,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 181
+        }
+      },
+      "retired_target_packets": []
+    },
+    {
+      "name": "creative_False_1.8",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 7,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 196
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 223,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "8bda17d2bcec648fd8273cfb5e9048d9547fe37e3ed08754c5f2f3625cb648b3",
+          "body_sha256": "13a985e6c207c42afd24db8aea5bf5faf70e8574c24b9aa83f777a48a7b92c22",
+          "body_hex": "0702000000003fe66666000000000000"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: [{count: 1, Slot: 0b, id: \"minecraft:iron_helmet\"}]",
+        "equipment": "ClimbingProbe has the following entity data: {}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 7,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 196
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 7,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 196
+        }
+      },
+      "retired_target_packets": []
+    },
+    {
+      "name": "creative_True_0.1",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 8,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 208
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 236,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "296f705acbb7c1e63313fac9faff76cf44c3339f58447f74647047038ffd41a0",
+          "body_sha256": "e61003e7be6e029b9f19c918959d6e921b446e27ab7c96ecd40495b1fed7913d",
+          "body_hex": "0802000000003dcccccd000000000100"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: []",
+        "equipment": "ClimbingProbe has the following entity data: {offhand: {count: 1, id: \"minecraft:iron_boots\"}}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 8,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 208
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 8,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 208
+        }
+      },
+      "retired_target_packets": []
+    },
+    {
+      "name": "creative_True_1.8",
+      "result": {
+        "dispatch": {
+          "connection_id": 1,
+          "interaction_sequence": null,
+          "version": "Java1_21_11"
+        },
+        "target": {
+          "native_id": 9,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 221
+        }
+      },
+      "original_packets": [
+        {
+          "ordinal": 250,
+          "connection": 1,
+          "direction": "serverbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 16,
+          "wire_sha256": "bcaf13248c88f3f72aeab5effcce89b430b9823a52997a82891f868e963b75b5",
+          "body_sha256": "c5d4028047815ec41ea31e23a967185c052c9f77e9f62d0aa860ebf2bd6685a7",
+          "body_hex": "0902000000003fe66666000000000100"
+        }
+      ],
+      "native_before": "Armor Stand has the following entity data: {head: {count: 1, id: \"minecraft:iron_helmet\"}, feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_stand_after": "Armor Stand has the following entity data: {feet: {count: 1, id: \"minecraft:iron_boots\"}}",
+      "native_player_after": {
+        "Inventory": "ClimbingProbe has the following entity data: []",
+        "equipment": "ClimbingProbe has the following entity data: {offhand: {count: 1, id: \"minecraft:iron_helmet\"}}"
+      },
+      "wrong_mode": {
+        "error": "operation requires matching received game mode",
+        "kind": "State",
+        "target": {
+          "native_id": 9,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 221
+        }
+      },
+      "retired_target": {
+        "error": "entity target belongs to another connection/world or a retired spawn",
+        "kind": "State",
+        "target": {
+          "native_id": 9,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 221
+        }
+      },
+      "retired_target_packets": []
+    }
+  ],
+  "trace_errors": [],
+  "artifact_sha256": {
+    "server.log": "cef6fa4a32c4518b32e44cd6c2888d6cc24aa3cb6c556a4df0895d02066089ca",
+    "probe.log": "9983b8b4121507657a70ee5cd4399fd03b33b81d1cc7aac4794d5a80d5c470b5",
+    "packets.jsonl": "719eb98036d4357e77476348c8561030ecc196067687beb0a2643bda74de5bb5",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "report.json": "00b9071c45e159e2d2410455a34496d8ea11c58b5d5004b89a245f16ea1c8e51"
+  },
+  "initial_attempt": {
+    "status": "FAIL",
+    "completed_checks": 2,
+    "cause": "Fixture read only Inventory for an offhand result. Official modern player saves it in equipment.offhand; corrected RCON reads both. No SDK code change.",
+    "report_sha256": "6cd0cadcb9f842748c6fcab558b97d29e696741ca04a2696d85c21566eb73dc9"
+  },
+  "scope": "One INTERACT_AT per case; relative Y=0.1/1.8 selects boots/helmet, both hands and modes. Original packet plus independent server equipment/inventory readback. Mode mismatch and retired EntityId reject without sending. No general reach, visibility or result guarantee. Both processes were waited for and the disposable server directory removed by the runner."
+}

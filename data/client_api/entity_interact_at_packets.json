@@ -1,0 +1,1058 @@
+[
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff0f020000000000000000000000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff0f020000000000000000000000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff0f020000000000000000000000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff0f020000000000000000000000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0f02800000003fc00000be8000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0f02800000003fc00000be8000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0f02800000003fc00000be8000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0f02800000003fc00000be8000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff0f027f7fffffff7fffff000000010000",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff0f027f7fffffff7fffff000000010001",
+    "sneaking": true
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff0f027f7fffffff7fffff000000010100",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff0f027f7fffffff7fffff000000010101",
+    "sneaking": true
+  },
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0f02bfa000003dcccccd402000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0f02bfa000003dcccccd402000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0f02bfa000003dcccccd402000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": -1,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0f02bfa000003dcccccd402000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "00020000000000000000000000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "00020000000000000000000000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "00020000000000000000000000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "00020000000000000000000000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "0002800000003fc00000be8000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "0002800000003fc00000be8000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "0002800000003fc00000be8000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "0002800000003fc00000be8000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "00027f7fffffff7fffff000000010000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "00027f7fffffff7fffff000000010001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "00027f7fffffff7fffff000000010100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "00027f7fffffff7fffff000000010101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "0002bfa000003dcccccd402000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "0002bfa000003dcccccd402000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "0002bfa000003dcccccd402000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 0,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "0002bfa000003dcccccd402000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "7f020000000000000000000000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "7f020000000000000000000000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "7f020000000000000000000000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "7f020000000000000000000000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "7f02800000003fc00000be8000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "7f02800000003fc00000be8000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "7f02800000003fc00000be8000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "7f02800000003fc00000be8000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "7f027f7fffffff7fffff000000010000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "7f027f7fffffff7fffff000000010001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "7f027f7fffffff7fffff000000010100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "7f027f7fffffff7fffff000000010101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "7f02bfa000003dcccccd402000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "7f02bfa000003dcccccd402000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "7f02bfa000003dcccccd402000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 127,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "7f02bfa000003dcccccd402000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "8001020000000000000000000000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "8001020000000000000000000000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "8001020000000000000000000000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "8001020000000000000000000000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "800102800000003fc00000be8000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "800102800000003fc00000be8000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "800102800000003fc00000be8000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "800102800000003fc00000be8000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "8001027f7fffffff7fffff000000010000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "8001027f7fffffff7fffff000000010001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "8001027f7fffffff7fffff000000010100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "8001027f7fffffff7fffff000000010101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "800102bfa000003dcccccd402000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "800102bfa000003dcccccd402000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "800102bfa000003dcccccd402000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 128,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "800102bfa000003dcccccd402000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ac02020000000000000000000000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ac02020000000000000000000000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ac02020000000000000000000000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ac02020000000000000000000000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ac0202800000003fc00000be8000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ac0202800000003fc00000be8000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ac0202800000003fc00000be8000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ac0202800000003fc00000be8000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ac02027f7fffffff7fffff000000010000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ac02027f7fffffff7fffff000000010001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ac02027f7fffffff7fffff000000010100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ac02027f7fffffff7fffff000000010101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ac0202bfa000003dcccccd402000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ac0202bfa000003dcccccd402000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ac0202bfa000003dcccccd402000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 300,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ac0202bfa000003dcccccd402000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff07020000000000000000000000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff07020000000000000000000000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff07020000000000000000000000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      0,
+      0,
+      0
+    ],
+    "payload_hex": "ffffffff07020000000000000000000000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0702800000003fc00000be8000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0702800000003fc00000be8000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0702800000003fc00000be8000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      2147483648,
+      1069547520,
+      3196059648
+    ],
+    "payload_hex": "ffffffff0702800000003fc00000be8000000101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff07027f7fffffff7fffff000000010000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff07027f7fffffff7fffff000000010001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff07027f7fffffff7fffff000000010100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      2139095039,
+      4286578687,
+      1
+    ],
+    "payload_hex": "ffffffff07027f7fffffff7fffff000000010101",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0702bfa000003dcccccd402000000000",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 0,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0702bfa000003dcccccd402000000001",
+    "sneaking": true
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0702bfa000003dcccccd402000000100",
+    "sneaking": false
+  },
+  {
+    "entity_id": 2147483647,
+    "hand": 1,
+    "hit_bits": [
+      3214934016,
+      1036831949,
+      1075838976
+    ],
+    "payload_hex": "ffffffff0702bfa000003dcccccd402000000101",
+    "sneaking": true
+  }
+]
