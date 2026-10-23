@@ -178,3 +178,6 @@ bodyが固体へ侵入した状態をqueryへ許可する証拠ではない。�
 Creative地上の実受信reachを含む。queryの操作packetは0、元属性/pose packetのordinalと
 RCONのPos不変、native clip fixtureの面・交点・距離を照合した。
 [実行source・binary・元packet/RCONのhashと結果](evidence/contextual-block-targeting-20261023.json)を保持する。
+
+受信packet targetのboxに対するentity rayとblock遮蔽は、
+[受信targetのentity query](common-entity-targeting.md)を参照する。

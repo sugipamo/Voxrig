@@ -6057,3 +6057,474 @@ async fn contextual_target_uses_scaled_pose_clearance_and_unique_support_cells()
             .is_err()
     );
 }
+
+async fn entity_target_spawn(session: &Arc<Session>, id: i32, name: &str, position: [f64; 3]) {
+    let mut packet = Vec::new();
+    put_varint(&mut packet, id);
+    packet.extend([id as u8; 16]);
+    let kind = crate::client::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11)
+        .builtin_id("minecraft:entity_type", name)
+        .unwrap()
+        .value();
+    put_varint(&mut packet, kind);
+    for value in position {
+        packet.extend(value.to_be_bytes());
+    }
+    packet.extend([0; 5]);
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SPAWN_ENTITY, &packet, 256)
+        .unwrap();
+}
+async fn entity_target_scale(session: &Arc<Session>, id: i32, scale: f64) {
+    let mut packet = Vec::new();
+    put_varint(&mut packet, id);
+    packet.extend([1, 25]);
+    packet.extend(scale.to_be_bytes());
+    packet.push(0);
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+            256,
+        )
+        .unwrap();
+}
+async fn entity_target_block(session: &Arc<Session>, position: [i32; 3], state: i32) {
+    let packed = ((i64::from(position[0]) & 0x3ffffff) << 38)
+        | ((i64::from(position[2]) & 0x3ffffff) << 12)
+        | (i64::from(position[1]) & 0xfff);
+    let mut packet = packed.to_be_bytes().to_vec();
+    put_varint(&mut packet, state);
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::BLOCK_CHANGE, &packet, 256)
+        .unwrap();
+}
+
+#[tokio::test]
+async fn entity_target_packets_cover_overlap_wall_lifetimes_and_no_sends() {
+    use crate::client::{GameMode, ValueSource};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, ops, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+        let query = || async {
+            if mode == GameMode::Survival {
+                client.survival().target_entities().await
+            } else {
+                client.creative().target_entities().await
+            }
+        };
+        assert!(query().await.is_err());
+        // Block interaction range is deliberately never received.
+        contextual_attributes(&session, &[(25, 1.), (10, 6.)]).await;
+        entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 10.5]).await;
+        assert!(query().await.is_err()); // No missing remote scale fallback.
+        entity_target_scale(&session, 43, 1.).await;
+        entity_target_spawn(&session, 44, "minecraft:zombie", [8.5, 65., 10.5]).await;
+        entity_target_scale(&session, 44, 1.).await;
+        let before = client.player_state().await.unwrap();
+        let result = query().await.unwrap();
+        assert_eq!(result.candidates.len(), 2);
+        assert_eq!(result.reach.value, 6.);
+        assert_eq!(result.eye.source, ValueSource::Predicted);
+        assert!(matches!(result.reach.source, ValueSource::Received { .. }));
+        assert_eq!(
+            result.candidates[0].distance_squared,
+            result.candidates[1].distance_squared
+        );
+        assert!(result.candidates.iter().all(|c| !c.block_occluded
+            && c.pick_radius == 0.
+            && c.geometry.evidence.receive_sequence == result.receive_sequence));
+        let original = result.candidates[0].entity;
+        entity_target_block(&session, [8, 66, 9], 1).await;
+        let wall = query().await.unwrap();
+        assert!(wall.candidates.iter().all(|c| c.block_occluded));
+        assert_eq!(wall.block_hit.unwrap().position, [8, 66, 9]);
+        // Removing a body does not rewrite an earlier result.
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 43], 256)
+            .unwrap();
+        assert_eq!(query().await.unwrap().candidates.len(), 1);
+        entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 10.5]).await;
+        assert!(query().await.is_err());
+        entity_target_scale(&session, 43, 1.).await;
+        let reused = query().await.unwrap();
+        assert_ne!(reused.candidates[0].entity, original);
+        assert_eq!(result.candidates[0].entity, original);
+        assert!(client.entity_motion(original).await.is_err());
+        assert_eq!(
+            client.player_state().await.unwrap().position,
+            before.position
+        );
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn entity_target_packets_strict_range_block_tie_zero_and_unknown_geometry() {
+    use crate::client::GameMode;
+    let (session, ops, _peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    contextual_attributes(&session, &[(25, 1.), (10, 4.)]).await;
+    // At exactly reach: native clip excludes t=1 and distance comparison is strict.
+    let half = f64::from(0.6f32 / 2.);
+    entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 12.5 + half]).await;
+    entity_target_scale(&session, 43, 1.).await;
+    assert!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+    contextual_attributes(&session, &[(10, 4.00001)]).await;
+    assert_eq!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .len(),
+        1
+    );
+    // Same plane as an outline: block wins equality.
+    entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 10. + half]).await;
+    entity_target_scale(&session, 43, 1.).await;
+    entity_target_block(&session, [8, 66, 10], 1).await;
+    let tie = client.survival().target_entities().await.unwrap();
+    assert_eq!(tie.candidates[0].point[2], 10.);
+    assert!(tie.candidates[0].block_occluded);
+    contextual_attributes(&session, &[(10, 0.)]).await;
+    assert!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+    // Unknown remote boxes cannot establish a miss even when the position is far away.
+    entity_target_spawn(&session, 44, "minecraft:sheep", [100., 65., 100.]).await;
+    assert!(client.survival().target_entities().await.is_err());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 44], 256)
+        .unwrap();
+    contextual_attributes(&session, &[(10, 64.)]).await;
+    // Known first hits stop traversal before unknown cells.
+    assert!(client.survival().target_entities().await.is_ok());
+    entity_target_block(&session, [8, 66, 10], 0).await;
+    // Query crosses the fixture's known chunk, and must not turn unknown blocks into air.
+    assert!(client.survival().target_entities().await.is_err());
+    assert!(client.creative().target_entities().await.is_err());
+    session.stop();
+}
+
+#[tokio::test]
+async fn entity_target_packets_same_root_excludes_outside_but_retains_inside() {
+    use crate::client::GameMode;
+    let (session, ops, _peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    contextual_attributes(&session, &[(25, 1.), (10, 4.)]).await;
+    entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 10.5]).await;
+    entity_target_scale(&session, 43, 1.).await;
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[42, 1, 43], 256)
+        .unwrap();
+    assert!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+    // Nested descendants use the same root; a cycle is unavailable rather than
+    // silently assigning a root from numeric visitation order.
+    entity_target_spawn(&session, 44, "minecraft:player", [8.5, 65., 11.5]).await;
+    entity_target_scale(&session, 44, 1.).await;
+    for (parent, children) in [(43, vec![44]), (44, vec![])] {
+        let mut packet = vec![parent, children.len() as u8];
+        packet.extend(children);
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &packet, 256)
+            .unwrap();
+    }
+    assert!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[44, 1, 43], 256)
+        .unwrap();
+    assert!(client.survival().target_entities().await.is_err());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[44, 0], 256)
+        .unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[43, 0], 256)
+        .unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 44], 256)
+        .unwrap();
+    // Replace the target, then receive a new actual edge to its new lifetime.
+    entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 8.5]).await;
+    entity_target_scale(&session, 43, 1.).await;
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[42, 1, 43], 256)
+        .unwrap();
+    let inside = client.survival().target_entities().await.unwrap();
+    assert!(inside.candidates[0].eye_inside && inside.candidates[0].same_vehicle);
+    assert_eq!(inside.candidates[0].distance, 0.);
+    contextual_attributes(&session, &[(10, 0.)]).await;
+    let zero = client.survival().target_entities().await.unwrap();
+    assert_eq!(zero.candidates.len(), 1);
+    assert!(zero.candidates[0].eye_inside);
+
+    // Mounted origins are outside the stationary own-eye contract.
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[43, 1, 42], 256)
+        .unwrap();
+    assert!(client.survival().target_entities().await.is_err());
+    session.stop();
+}
+
+#[tokio::test]
+async fn entity_target_query_budget_and_unknown_pose_never_skip_bodies() {
+    use crate::client::GameMode;
+    let (session, ops, _peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    contextual_attributes(&session, &[(25, 1.), (10, 3.)]).await;
+    entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 10.5]).await;
+    entity_target_scale(&session, 43, 1.).await;
+    // A decoded but unknown required pose makes the whole query unavailable.
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::ENTITY_METADATA,
+            &[43, 6, 20, 99, 255],
+            256,
+        )
+        .unwrap();
+    assert!(client.survival().target_entities().await.is_err());
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::ENTITY_METADATA,
+            &[43, 6, 20, 0, 255],
+            256,
+        )
+        .unwrap();
+    assert!(client.survival().target_entities().await.is_ok());
+    for id in 100..356 {
+        entity_target_spawn(&session, id, "minecraft:player", [0., 65., 0.]).await;
+    }
+    let error = client.survival().target_entities().await.unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "received-target entity query body limit exceeded"
+    );
+    session.stop();
+}
+
+#[tokio::test]
+async fn entity_target_packets_capture_pose_scale_and_entity_range_independently() {
+    use crate::client::{BlockTargetPose, BlockTargetPoseSource, GameMode};
+    let (session, ops, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    contextual_attributes(&session, &[(25, 1.), (6, 0.), (10, 4.)]).await;
+    entity_target_spawn(&session, 43, "minecraft:pig", [8.5, 65.5, 10.5]).await;
+    entity_target_scale(&session, 43, 1.).await;
+    // Standing looks over the pig; crouching intersects its received box.
+    let standing = client.survival().target_entities().await.unwrap();
+    assert!(standing.candidates.is_empty());
+    for scale in [1., 0.5] {
+        contextual_attributes(&session, &[(25, scale)]).await;
+        contextual_pose(&session, 5).await;
+        let before = client.player_state().await.unwrap();
+        let captured = client.survival().target_entities().await.unwrap();
+        assert_eq!(captured.pose, BlockTargetPose::Crouching);
+        assert_eq!(
+            captured.pose_source,
+            BlockTargetPoseSource::Received {
+                sequence: before.receive_sequence
+            }
+        );
+        assert_eq!(captured.receive_sequence, before.receive_sequence);
+        assert_eq!(
+            captured.scale.source,
+            before.attributes["minecraft:scale"].source
+        );
+        assert_eq!(
+            captured.reach.source,
+            before.attributes["minecraft:entity_interaction_range"].source
+        );
+        assert_eq!(captured.reach.value, 4.);
+        assert_eq!(
+            captured.eye.value,
+            [8.5, 65. + f64::from(1.27f32 * scale as f32), 8.5]
+        );
+        assert_eq!(captured.candidates.len(), 1);
+        assert_eq!(captured.candidates[0].point[1], captured.eye.value[1]);
+        assert_eq!(
+            captured.candidates[0].geometry.evidence.receive_sequence,
+            captured.receive_sequence
+        );
+        assert!(!captured.candidates[0].block_occluded);
+    }
+    // A long block reach cannot extend the separately received entity reach.
+    contextual_attributes(&session, &[(6, 64.), (10, 1.)]).await;
+    let short = client.survival().target_entities().await.unwrap();
+    assert_eq!(short.reach.value, 1.);
+    assert!(short.candidates.is_empty());
+    assert_eq!(standing.pose, BlockTargetPose::Standing);
+    assert_eq!(standing.scale.value, 1.);
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}
+
+#[tokio::test]
+async fn entity_target_passenger_packets_retire_edges_without_rebinding_reused_ids() {
+    use crate::client::GameMode;
+    let (session, ops, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    contextual_attributes(&session, &[(25, 1.), (10, 4.)]).await;
+    // An edge received without a known child lifetime cannot establish a root.
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[42, 1, 43], 256)
+        .unwrap();
+    assert!(client.survival().target_entities().await.is_err());
+    for id in [43, 44] {
+        entity_target_spawn(&session, id, "minecraft:player", [8.5, 65., 10.5]).await;
+        entity_target_scale(&session, id, 1.).await;
+    }
+    assert_eq!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .len(),
+        2
+    );
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[42, 2, 43, 44], 256)
+        .unwrap();
+    let excluded = client.survival().target_entities().await.unwrap();
+    assert!(excluded.candidates.is_empty());
+    // Removing one spawn preserves the live sibling's exclusion, but never
+    // transfers the retired edge to a replacement with the same numeric ID.
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 43], 256)
+        .unwrap();
+    assert!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+    entity_target_spawn(&session, 43, "minecraft:player", [8.5, 65., 10.5]).await;
+    entity_target_scale(&session, 43, 1.).await;
+    let replacement = client.survival().target_entities().await.unwrap();
+    assert_eq!(replacement.candidates.len(), 1);
+    assert_eq!(replacement.candidates[0].entity.native_id(), 43);
+    assert!(!replacement.candidates[0].same_vehicle);
+    // An explicit empty passenger receipt releases the remaining sibling.
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[42, 0], 256)
+        .unwrap();
+    assert_eq!(
+        client
+            .survival()
+            .target_entities()
+            .await
+            .unwrap()
+            .candidates
+            .len(),
+        2
+    );
+    assert!(excluded.candidates.is_empty());
+    assert_eq!(replacement.candidates.len(), 1);
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}

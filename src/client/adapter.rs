@@ -346,6 +346,12 @@ pub(crate) trait PlacementOps {
 
 /// Read-only queries from a dry standing pose: block target and path preview.
 pub(crate) trait StandingQueryOps {
+    async fn target_entities(&self, _mode: GameMode) -> Result<super::EntityTargetObservation> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("received-target entity query is unavailable for this version"),
+        ))
+    }
     async fn target_block_with_context(
         &self,
         _mode: GameMode,

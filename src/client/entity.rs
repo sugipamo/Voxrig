@@ -13,10 +13,15 @@ pub(crate) mod contact_tick;
 pub(crate) mod owned_contacts;
 pub use owned_contacts::{EntityContactFrame, EntityContactSample};
 mod query;
+mod targeting;
 pub use query::{
     LivingContactIndex, LivingContactIndexedBody, LivingContactKind, LivingContactQuery,
     LivingContactQueryUnavailable, MAX_LIVING_CONTACT_INDEX_BODIES,
     MAX_LIVING_CONTACT_INDEX_CHUNKS, MAX_LIVING_CONTACT_QUERY_CHUNKS,
+};
+pub(crate) use targeting::ray_candidate;
+pub use targeting::{
+    EntityTargetCandidate, EntityTargetObservation, MAX_ENTITY_TARGET_QUERY_BODIES,
 };
 mod data;
 pub use contact::{

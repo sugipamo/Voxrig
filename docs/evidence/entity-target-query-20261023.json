@@ -1,0 +1,1151 @@
+{
+  "date": "2026-10-23",
+  "version": "1.21.11",
+  "status": "PASS",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "base_main": "d546b4bc9167a87f53bd92323cca665ba6a6700b",
+  "binary_sha256": "1659491f7db4b224abb7b5a71bf175e60a8888a65eaaa39520fefab19d335c34",
+  "sdk_source_sha256": {
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "Cargo.toml": "f85059f3022c8a801fa7f512f9427c1ef767fb4035a6855eb3279d9c0e0aa5b9",
+    "examples/climbing_control_probe.rs": "3fa3bea3f3ccdb1ed85e0b3e145117bf6ea7b8d60b367124b831f2b883bb12f7",
+    "src/client/entity/targeting.rs": "ea7953f41cf281491bd2ec8e26b494bb2705fd160213216e94aa263adba5a1d0",
+    "src/client/entity/query.rs": "e7b3ac1c6383d531342ec708964e3dd249d9c52c56cd10fa67883ddaf04980a1",
+    "src/client/vehicle.rs": "eda2d2b10e88525c97392d2f9ccbc493581a0adb7aa56953f47179175b418019",
+    "src/client/adapter.rs": "8ce920386c731e13636e79edb311ec9a292f3b910210e482279e053c27a7a4a2",
+    "src/client/operations.rs": "c26b5785d10047fd9e4ab5c68242ffe4b9f29f9ac68a1557561916141b20b545",
+    "src/versions/java_1_21_11/client/operations/movement/contextual.rs": "be5b12197dea98d50a02fb3f0eb572123baa803c025fb4b23f82a90a57e90a4c",
+    "src/versions/java_1_21_11/client/raycast.rs": "23557073d08ffa27cbcb53deb8cfd5555aa8906594c681083fb62e4beeff3c68",
+    "scripts/run_entity_target_live.py": "ecfc0cf4bf46b5e6bdada7d6920cbd78952268a0626e8b70ac51bc91ea178a10",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
+    "data/client_api/entity_target_rays.json.gz": "c2f087baf0ca2760c6b34f7faffe2e16a9fb3f00596df59189c37835acd99783",
+    "src/client/mod.rs": "5f4a99a599e183d5f43d5309c8ddf320902c9a2e051818b9fc767150ef04e600",
+    "src/client/entity.rs": "85fba7751e4a6734216491155cc9ca7d0be516e2f95264be2f5ca9f2a1c4eb7a",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "ee0be3ca30eac901ca8b899fa1ef31e41a8c204e0cb7078a00d0da67d24155c1"
+  },
+  "oracle_source": {
+    "version": "1.21.11",
+    "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+    "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+    "generator_sha256": "0ce4bf89154443619d6d6203a80b9cd6b7758c0435f7ea959ce487d10a15a78f",
+    "fixture_sha256": "c2f087baf0ca2760c6b34f7faffe2e16a9fb3f00596df59189c37835acd99783",
+    "cases": 1521,
+    "scope": "Unchanged native AABB.clip/contains and Entity.getPickRadius; not native spatial query order, rendered interpolation or attack success.",
+    "bytecode_audit_sha256": {
+      "projectile": "3a2073ace8bab08fdeee099de4ddd38f6d2ef567b184931a16e4cf2ff0b8ae42",
+      "aabb": "0754663e56660bc0fec0f025feca852e90e9a111337c96b7acde13ef5d628d93"
+    }
+  },
+  "checks": [
+    {
+      "name": "cow_before_wall",
+      "receive_sequence": 130,
+      "entity": {
+        "native_id": 2,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 121
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        2.050000011920929
+      ],
+      "distance": 1.550000011920929,
+      "distance_squared": 2.40250003695488,
+      "block_occluded": false,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.949999988079071,
+          "max_y": 67.39999997615814,
+          "max_z": 2.949999988079071,
+          "min_x": 0.050000011920928955,
+          "min_y": 66.0,
+          "min_z": 2.050000011920929
+        },
+        "entity": {
+          "native_id": 2,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 121
+        },
+        "evidence": {
+          "baby": {
+            "index": 16,
+            "source": "TypeDefault",
+            "value": {
+              "Bool": false
+            }
+          },
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 124
+          },
+          "receive_sequence": 130,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 126
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 1.399999976158142,
+        "model": "AgeablePose",
+        "position_error": [
+          0.000244140625,
+          0.000244140625,
+          0.000244140625
+        ],
+        "width": 0.8999999761581421
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "Cow has the following entity data: [0.5d, 66.0d, 2.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "61d72824a7b8749c96d878931c6ee63755b9ac0330f21971a31e2b1265cfc080",
+          "connection": 1
+        }
+      }
+    },
+    {
+      "name": "cow_behind_wall",
+      "receive_sequence": 149,
+      "entity": {
+        "native_id": 3,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 139
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        4.050000011920929
+      ],
+      "distance": 3.550000011920929,
+      "distance_squared": 12.602500084638596,
+      "block_occluded": true,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.949999988079071,
+          "max_y": 67.39999997615814,
+          "max_z": 4.949999988079071,
+          "min_x": 0.050000011920928955,
+          "min_y": 66.0,
+          "min_z": 4.050000011920929
+        },
+        "entity": {
+          "native_id": 3,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 139
+        },
+        "evidence": {
+          "baby": {
+            "index": 16,
+            "source": "TypeDefault",
+            "value": {
+              "Bool": false
+            }
+          },
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 144
+          },
+          "receive_sequence": 149,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 146
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 1.399999976158142,
+        "model": "AgeablePose",
+        "position_error": [
+          0.000244140625,
+          0.000244140625,
+          0.000244140625
+        ],
+        "width": 0.8999999761581421
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "Cow has the following entity data: [0.5d, 66.0d, 4.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "cccba15e7a7905c530f60849e90326becf019cd527c9ed2161128699ee555c38",
+          "connection": 1
+        }
+      }
+    },
+    {
+      "name": "pig_before_wall",
+      "receive_sequence": 169,
+      "entity": {
+        "native_id": 4,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 158
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        2.050000011920929
+      ],
+      "distance": 1.550000011920929,
+      "distance_squared": 2.40250003695488,
+      "block_occluded": false,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.949999988079071,
+          "max_y": 66.89999997615814,
+          "max_z": 2.949999988079071,
+          "min_x": 0.050000011920928955,
+          "min_y": 66.0,
+          "min_z": 2.050000011920929
+        },
+        "entity": {
+          "native_id": 4,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 158
+        },
+        "evidence": {
+          "baby": {
+            "index": 16,
+            "source": "TypeDefault",
+            "value": {
+              "Bool": false
+            }
+          },
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 163
+          },
+          "receive_sequence": 169,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 165
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 0.8999999761581421,
+        "model": "AgeablePose",
+        "position_error": [
+          0.000244140625,
+          0.000244140625,
+          0.000244140625
+        ],
+        "width": 0.8999999761581421
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "Pig has the following entity data: [0.5d, 66.0d, 2.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "5ff6ef51f405c866f0e49d46c5aac033b349a9e2b76b920445b68d6c6c4ff098",
+          "connection": 1
+        }
+      }
+    },
+    {
+      "name": "pig_behind_wall",
+      "receive_sequence": 188,
+      "entity": {
+        "native_id": 5,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 178
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        4.050000011920929
+      ],
+      "distance": 3.550000011920929,
+      "distance_squared": 12.602500084638596,
+      "block_occluded": true,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.949999988079071,
+          "max_y": 66.89999997615814,
+          "max_z": 4.949999988079071,
+          "min_x": 0.050000011920928955,
+          "min_y": 66.0,
+          "min_z": 4.050000011920929
+        },
+        "entity": {
+          "native_id": 5,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 178
+        },
+        "evidence": {
+          "baby": {
+            "index": 16,
+            "source": "TypeDefault",
+            "value": {
+              "Bool": false
+            }
+          },
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 183
+          },
+          "receive_sequence": 188,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 185
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 0.8999999761581421,
+        "model": "AgeablePose",
+        "position_error": [
+          0.000244140625,
+          0.000244140625,
+          0.000244140625
+        ],
+        "width": 0.8999999761581421
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "Pig has the following entity data: [0.5d, 66.0d, 4.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "621d9c0e0c491f1e4ddd74c87009cd25d801839e38be610a950d464581f25dad",
+          "connection": 1
+        }
+      }
+    },
+    {
+      "name": "zombie_before_wall",
+      "receive_sequence": 209,
+      "entity": {
+        "native_id": 6,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 197
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        2.199999988079071
+      ],
+      "distance": 1.699999988079071,
+      "distance_squared": 2.8899999594688417,
+      "block_occluded": false,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.800000011920929,
+          "max_y": 67.95000004768372,
+          "max_z": 2.800000011920929,
+          "min_x": 0.19999998807907104,
+          "min_y": 66.0,
+          "min_z": 2.199999988079071
+        },
+        "entity": {
+          "native_id": 6,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 197
+        },
+        "evidence": {
+          "baby": {
+            "index": 16,
+            "source": "TypeDefault",
+            "value": {
+              "Bool": false
+            }
+          },
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 203
+          },
+          "receive_sequence": 209,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 206
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 1.9500000476837158,
+        "model": "AgeablePose",
+        "position_error": [
+          0.000244140625,
+          0.000244140625,
+          0.000244140625
+        ],
+        "width": 0.6000000238418579
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "Zombie has the following entity data: [0.5d, 66.0d, 2.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "5754dda17abcc94c72d3174db35f7d9175b828e79c2d7b0d53edbde04bdfe815",
+          "connection": 1
+        }
+      }
+    },
+    {
+      "name": "zombie_behind_wall",
+      "receive_sequence": 228,
+      "entity": {
+        "native_id": 7,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 218
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        4.199999988079071
+      ],
+      "distance": 3.699999988079071,
+      "distance_squared": 13.689999911785126,
+      "block_occluded": true,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.800000011920929,
+          "max_y": 67.95000004768372,
+          "max_z": 4.800000011920929,
+          "min_x": 0.19999998807907104,
+          "min_y": 66.0,
+          "min_z": 4.199999988079071
+        },
+        "entity": {
+          "native_id": 7,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 218
+        },
+        "evidence": {
+          "baby": {
+            "index": 16,
+            "source": "TypeDefault",
+            "value": {
+              "Bool": false
+            }
+          },
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 224
+          },
+          "receive_sequence": 228,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 226
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 1.9500000476837158,
+        "model": "AgeablePose",
+        "position_error": [
+          0.000244140625,
+          0.000244140625,
+          0.000244140625
+        ],
+        "width": 0.6000000238418579
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "Zombie has the following entity data: [0.5d, 66.0d, 4.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "b77696bc9ca132a7de9a54d6df3aaa621aa0aa9eb54c931cbcffd73e3c7836c6",
+          "connection": 1
+        }
+      }
+    },
+    {
+      "name": "player_before_wall",
+      "receive_sequence": 253,
+      "entity": {
+        "native_id": 8,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 242
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        2.199999988079071
+      ],
+      "distance": 1.699999988079071,
+      "distance_squared": 2.8899999594688417,
+      "block_occluded": false,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.800000011920929,
+          "max_y": 66.79999995231628,
+          "max_z": 2.800000011920929,
+          "min_x": 0.19999998807907104,
+          "min_y": 65.0,
+          "min_z": 2.199999988079071
+        },
+        "entity": {
+          "native_id": 8,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 242
+        },
+        "evidence": {
+          "baby": null,
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 251
+          },
+          "receive_sequence": 253,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 252
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 1.7999999523162842,
+        "model": "PlayerPose",
+        "position_error": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "width": 0.6000000238418579
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "RayPeer has the following entity data: [0.5d, 65.0d, 2.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "894af098954b6506aff90898d720620837282c49bf02cc6ef94b66c67c269a46",
+          "connection": 1
+        }
+      }
+    },
+    {
+      "name": "player_behind_wall",
+      "receive_sequence": 256,
+      "entity": {
+        "native_id": 8,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "spawn_sequence": 242
+      },
+      "point": [
+        0.5,
+        66.62000000476837,
+        4.199999988079071
+      ],
+      "distance": 3.699999988079071,
+      "distance_squared": 13.689999911785126,
+      "block_occluded": true,
+      "block_hit": {
+        "distance": 2.5,
+        "face": "North",
+        "point": [
+          0.5,
+          66.62000000476837,
+          3.0
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "geometry": {
+        "bounds": {
+          "max_x": 0.800000011920929,
+          "max_y": 66.79999995231628,
+          "max_z": 4.800000011920929,
+          "min_x": 0.19999998807907104,
+          "min_y": 65.0,
+          "min_z": 4.199999988079071
+        },
+        "entity": {
+          "native_id": 8,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "spawn_sequence": 242
+        },
+        "evidence": {
+          "baby": null,
+          "metadata_complete": true,
+          "pose": {
+            "index": 6,
+            "source": "TypeDefault",
+            "value": {
+              "Pose": 0
+            }
+          },
+          "position_source": {
+            "kind": "received",
+            "sequence": 256
+          },
+          "receive_sequence": 256,
+          "scale": {
+            "attribute": {
+              "source": {
+                "kind": "received",
+                "sequence": 252
+              },
+              "value": {
+                "base": 1.0,
+                "modifiers": []
+              }
+            },
+            "value": 1.0
+          }
+        },
+        "height": 1.7999999523162842,
+        "model": "PlayerPose",
+        "position_error": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "width": 0.6000000238418579
+      },
+      "eye": {
+        "source": {
+          "kind": "predicted"
+        },
+        "value": [
+          0.5,
+          66.62000000476837,
+          0.5
+        ]
+      },
+      "reach": {
+        "source": {
+          "kind": "received",
+          "sequence": 119
+        },
+        "value": 6.0
+      },
+      "native_target": "RayPeer has the following entity data: [0.5d, 65.0d, 4.5d]",
+      "native_wall": "Test passed",
+      "native_own_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+      "query_operation_packets": 0,
+      "original_sources": {
+        "own_scale": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "entity_range": {
+          "packet_id": 129,
+          "body_sha256": "2c524f4c9c011e31630454fd2e1e68772b051e369068ba464603c0ed4b4fb693",
+          "connection": 1
+        },
+        "remote_scale": {
+          "packet_id": 129,
+          "body_sha256": "894af098954b6506aff90898d720620837282c49bf02cc6ef94b66c67c269a46",
+          "connection": 1
+        }
+      }
+    }
+  ],
+  "trace_errors": [],
+  "artifact_sha256": {
+    "report.json": "54c2c59adfa0a25f4f3c2a333cd15025cdd20e6ae521e83ca437d7fc28601b3c",
+    "server.log": "0b435ba543da4acf11f0fb8f7c6a9c4f9262d25453f9f92c038c5dea323c4308",
+    "packets.jsonl": "20597932d6acef255d16b663bdbb77997d8c39748a6d91a55d05853cbad26c30",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "probe.log": "56327ea4ae70d1947577ca6fe5f60264eaf3440e8d5140b71926c79ed6b24a14"
+  },
+  "scope": "Received-target geometric candidates and static block occlusion only; no rendered/server-current hitbox, native spatial pick winner or attack success. Independent native AABB oracle: 1521 cases. Both processes and the temporary server were stopped/removed by the runner."
+}

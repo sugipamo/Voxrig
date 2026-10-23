@@ -6,6 +6,23 @@ use super::{
 use crate::{MinecraftVersion, client::Aabb};
 use std::collections::{BTreeMap, BTreeSet};
 
+impl super::SpawnLedger {
+    pub(crate) fn target_query_bodies(
+        &self,
+        session: crate::client::SessionStamp,
+        sequence: u64,
+    ) -> crate::Result<Vec<super::EntityObservation>> {
+        if self.0.len() > super::MAX_ENTITY_TARGET_QUERY_BODIES {
+            return Err(crate::client::inventory::unavailable(
+                "received-target entity query body limit exceeded",
+            ));
+        }
+        Ok(self
+            .capture_all(session.version, session, sequence)
+            .entities)
+    }
+}
+
 /// Maximum bodies and nonempty sections in one independent model index.
 pub const MAX_LIVING_CONTACT_INDEX_BODIES: usize = 256;
 /// Maximum explicitly known chunks, including empty chunks, in one index.

@@ -201,6 +201,66 @@ impl PassengerLedger {
         }
         Ok(())
     }
+    /// Query-only descendants of an unmounted own root. Never rebind receipt
+    /// edges to a later spawn with the same numeric ID.
+    pub(crate) fn target_query_exclusions(
+        &self,
+        player: i32,
+        spawns: &SpawnLedger,
+    ) -> crate::Result<Vec<i32>> {
+        let unavailable =
+            || super::inventory::unavailable("received-target query passenger graph unavailable");
+        if self.collision_parents_unavailable || self.motion_interrupted {
+            return Err(unavailable());
+        }
+        let mut descendants = vec![player];
+        let mut parents = std::collections::BTreeMap::from([(player, player)]);
+        for _ in 0..=128 {
+            let mut changed = false;
+            for (&parent, row) in &self.collision_parents {
+                let connected = descendants.contains(&parent)
+                    || row.children.iter().any(|(id, _)| descendants.contains(id));
+                if !connected {
+                    continue;
+                }
+                if parent != player && row.parent_spawn != spawns.spawn_sequence(parent)
+                    || row.children.iter().any(|&(id, spawn)| {
+                        id != player && (spawn.is_none() || spawn != spawns.spawn_sequence(id))
+                    })
+                {
+                    return Err(unavailable());
+                }
+                // Mounted own origins are outside this stationary ground model.
+                if row.children.iter().any(|&(id, _)| id == player) {
+                    return Err(unavailable());
+                }
+                if !descendants.contains(&parent) {
+                    return Err(unavailable());
+                }
+                if descendants.contains(&parent) {
+                    for &(child, _) in &row.children {
+                        if parents
+                            .insert(child, parent)
+                            .is_some_and(|old| old != parent)
+                        {
+                            return Err(unavailable());
+                        }
+                        if !descendants.contains(&child) {
+                            if descendants.len() >= 256 {
+                                return Err(unavailable());
+                            }
+                            descendants.push(child);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            if !changed {
+                return Ok(descendants);
+            }
+        }
+        Err(unavailable())
+    }
     pub(crate) fn interrupt_motion(&mut self, sequence: u64) {
         self.motion_correction_sequence = Some(sequence);
     }

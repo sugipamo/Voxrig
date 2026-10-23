@@ -1,0 +1,13 @@
+{
+  "version": "1.21.11",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "generator_sha256": "0ce4bf89154443619d6d6203a80b9cd6b7758c0435f7ea959ce487d10a15a78f",
+  "fixture_sha256": "c2f087baf0ca2760c6b34f7faffe2e16a9fb3f00596df59189c37835acd99783",
+  "cases": 1521,
+  "scope": "Unchanged native AABB.clip/contains and Entity.getPickRadius; not native spatial query order, rendered interpolation or attack success.",
+  "bytecode_audit_sha256": {
+    "projectile": "3a2073ace8bab08fdeee099de4ddd38f6d2ef567b184931a16e4cf2ff0b8ae42",
+    "aabb": "0754663e56660bc0fec0f025feca852e90e9a111337c96b7acde13ef5d628d93"
+  }
+}

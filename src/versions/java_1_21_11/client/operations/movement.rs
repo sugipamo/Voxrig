@@ -316,6 +316,14 @@ impl Model {
     }
 }
 impl crate::client::adapter::StandingQueryOps for Operations {
+    async fn target_entities(
+        &self,
+        mode: GameMode,
+    ) -> Result<crate::client::EntityTargetObservation> {
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        contextual::entity_query(self, &mut state, mode)
+    }
     async fn target_block_with_context(
         &self,
         mode: crate::client::GameMode,
