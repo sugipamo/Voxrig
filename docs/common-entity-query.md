@@ -70,3 +70,6 @@ python3 scripts/run_entity_query_live.py --accept-eula \
 
 元packetの一度だけの適用と版ごとのentity更新順は、
 [明示的なモデルschedule](common-entity-schedule.md)を参照。
+
+受信packet targetのboxに対するentity rayとblock遮蔽は、
+[受信targetのentity query](common-entity-targeting.md)を参照する。

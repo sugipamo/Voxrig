@@ -17,12 +17,28 @@ const DIMENSIONS: &[(BlockTargetPose, f32, f32)] = &[
 const ATTRIBUTE_LIMITS: &[(&str, f64, f64)] = &[
     ("minecraft:scale", 0.0625, 16.0),
     ("minecraft:block_interaction_range", 0.0, 64.0),
+    ("minecraft:entity_interaction_range", 0.0, 64.0),
 ];
 
 pub(super) fn query(
     ops: &Operations,
     state: &mut State,
     mode: GameMode,
+) -> Result<ContextualBlockTargetObservation> {
+    let mut capture = capture(ops, state, mode, "minecraft:block_interaction_range")?;
+    capture.visibility.value = super::super::super::raycast::contextual_outline_hit(
+        state,
+        capture.eye.value,
+        capture.reach.value,
+    )?;
+    Ok(capture)
+}
+
+pub(super) fn capture(
+    ops: &Operations,
+    state: &mut State,
+    mode: GameMode,
+    reach_attribute: &str,
 ) -> Result<ContextualBlockTargetObservation> {
     let initial = ops.common_player_unlocked(state)?;
     if initial.pending_dispatch || initial.game_mode != Some(mode) {
@@ -89,7 +105,7 @@ pub(super) fn query(
         })
     };
     let scale = attribute("minecraft:scale")?;
-    let reach = attribute("minecraft:block_interaction_range")?;
+    let reach = attribute(reach_attribute)?;
     if !crate::client::physics::supported_player_scale(
         crate::MinecraftVersion::Java1_21_11,
         Some(scale.value),
@@ -127,7 +143,6 @@ pub(super) fn query(
         return Err(invalid("client reconstruction incomplete"));
     }
     let support = grounded(state, bounds)?;
-    let hit = super::super::super::raycast::contextual_outline_hit(state, eye, reach.value)?;
     Ok(ContextualBlockTargetObservation {
         initial,
         world_revision: state.world.revision,
@@ -143,7 +158,7 @@ pub(super) fn query(
         bounds,
         support,
         visibility: ObservedValue {
-            value: hit,
+            value: None,
             source: ValueSource::Predicted,
         },
         replaceable: None,
@@ -212,6 +227,79 @@ fn grounded(state: &impl GeometryView, bounds: [f64; 6]) -> Result<Vec<[i32; 3]>
         ));
     }
     Ok(support)
+}
+
+pub(super) fn entity_query(
+    ops: &Operations,
+    state: &mut State,
+    mode: GameMode,
+) -> Result<crate::client::EntityTargetObservation> {
+    use crate::client::{EntityTargetObservation, entity::ray_candidate};
+    let own = capture(ops, state, mode, "minecraft:entity_interaction_range")?;
+    let player = state
+        .operations
+        .local_player
+        .entity_id
+        .ok_or_else(|| invalid("received-target query own entity identity unavailable"))?;
+    let same_vehicle = state
+        .vehicles
+        .target_query_exclusions(player, &state.entities)?;
+    let bodies = state
+        .entities
+        .target_query_bodies(own.initial.session, state.sequence)?;
+    let block_hit = super::super::super::raycast::contextual_outline_hit(
+        state,
+        own.eye.value,
+        own.reach.value,
+    )?;
+    let direction = crate::client::survival::target::direction(
+        crate::MinecraftVersion::Java1_21_11,
+        own.initial.rotation,
+    );
+    let end = std::array::from_fn(|i| own.eye.value[i] + direction[i] * own.reach.value);
+    let mut candidates = Vec::new();
+    for body in bodies {
+        if body.motion.entity.id.native_id() == player {
+            continue;
+        }
+        // No finite conservative envelope exists for an unqualified type or
+        // missing dimensions. Even a distant packet target cannot prove a miss.
+        let geometry = body.derived_geometry().map_err(|reason| {
+            invalid(&format!(
+                "received-target entity geometry unavailable for {}: {reason:?}",
+                body.motion.entity.id.native_id(),
+            ))
+        })?;
+        if let Some(candidate) = ray_candidate(
+            geometry,
+            own.eye.value,
+            end,
+            own.reach.value,
+            same_vehicle.contains(&body.motion.entity.id.native_id()),
+            block_hit.as_ref(),
+        ) {
+            candidates.push(candidate);
+        }
+    }
+    candidates.sort_by(|a, b| {
+        a.distance_squared
+            .total_cmp(&b.distance_squared)
+            .then(a.entity.native_id().cmp(&b.entity.native_id()))
+    });
+    Ok(EntityTargetObservation {
+        initial: own.initial,
+        world_revision: own.world_revision,
+        receive_sequence: state.sequence,
+        pose: own.pose,
+        pose_source: own.pose_source,
+        scale: own.scale,
+        eye: own.eye,
+        reach: own.reach,
+        bounds: own.bounds,
+        support: own.support,
+        block_hit,
+        candidates,
+    })
 }
 
 #[cfg(test)]

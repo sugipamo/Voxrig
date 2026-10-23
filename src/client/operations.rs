@@ -379,6 +379,13 @@ impl Survival {
     ) -> Result<super::ContextualBlockTargetObservation> {
         crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_block_with_context(a, GameMode::Survival).await)
     }
+
+    /// Read bounded entity ray candidates at received packet targets (Java 1.21.11).
+    /// Uses coherent own eye/range and static block outlines; never sends or proves a hit.
+    /// Unknown entity geometry anywhere in the retained catalogue rejects the query.
+    pub async fn target_entities(&self) -> Result<super::EntityTargetObservation> {
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_entities(a, GameMode::Survival).await)
+    }
     /// Query the first static outline from a coherent dry-standing capture.
     /// Known version shapes and native view-vector math are used. Unavailable or
     /// unsupported geometry errors; the result never grants mining permission.
@@ -596,6 +603,13 @@ impl Creative {
         &self,
     ) -> Result<super::ContextualBlockTargetObservation> {
         crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_block_with_context(a, GameMode::Creative).await)
+    }
+
+    /// Read bounded entity ray candidates at received packet targets (Java 1.21.11).
+    /// Uses coherent own eye/range and static block outlines; never sends or proves a hit.
+    /// Unknown entity geometry anywhere in the retained catalogue rejects the query.
+    pub async fn target_entities(&self) -> Result<super::EntityTargetObservation> {
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_entities(a, GameMode::Creative).await)
     }
     /// Read the first audited static outline from a coherent dry-standing capture.
     /// Checks received creative mode; no flight, mutation or open result is implied.

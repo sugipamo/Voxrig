@@ -26,6 +26,7 @@ Microsoftアカウント認証・online-mode暗号化、および署名付きcha
 - [ゲームモードをまたぐ基本操作](common-basic-actions.md)
 - [共通のchunk列（block stateと光）](common-chunks.md)
 - [共通のentity現在状態](common-entities.md)
+- [受信targetのentity rayとblock遮蔽](common-entity-targeting.md)
 - [Entityの受信履歴](common-entity-history.md)
 - [共通の継続操作（キーを押し続ける移動）](common-control.md)
 - [共通のアイテム使用](common-item-use.md)

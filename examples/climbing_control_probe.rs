@@ -371,6 +371,17 @@ async fn main() -> anyhow::Result<()> {
                 &saved_lighting,
                 &serde_json::from_value::<Vec<[i32; 3]>>(request["positions"].clone())?,
             ),
+            "entity_target" => {
+                let result = if request["mode"] == "creative" {
+                    client.creative().target_entities().await
+                } else {
+                    client.survival().target_entities().await
+                };
+                match result {
+                    Ok(value) => serde_json::json!({"observation": value}),
+                    Err(error) => serde_json::json!({"error": error.to_string(), "kind": format!("{:?}", error.kind())}),
+                }
+            }
             "contextual_target" => {
                 let result = if request["mode"] == "creative" {
                     client.creative().target_block_with_context().await

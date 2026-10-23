@@ -1389,6 +1389,17 @@ pub(super) mod tests {
         seed_motion(&bot).await;
         let client = crate::Client::from_java_1_16_1(bot.clone());
         for result in [
+            client.survival().target_entities().await,
+            client.creative().target_entities().await,
+        ] {
+            let error = result.unwrap_err();
+            assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+            assert_eq!(
+                error.to_string(),
+                "received-target entity query is unavailable for this version"
+            );
+        }
+        for result in [
             client.survival().target_block_with_context().await,
             client.creative().target_block_with_context().await,
         ] {
