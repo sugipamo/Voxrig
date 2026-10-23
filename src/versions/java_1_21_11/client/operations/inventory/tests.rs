@@ -5264,7 +5264,11 @@ async fn crafting_input_transfer_fixture(
 ) -> (CommonFixture, crate::client::inventory::InventorySource) {
     use crate::client::inventory::InventorySource;
     let mut f = CommonFixture::new().await;
-    f.api.bot.session.state.lock().await.registries.finish();
+    crate::client::inventory::armor_tests::install(
+        &mut f.api.bot.session.state.lock().await.registries,
+        MinecraftVersion::Java1_21_11,
+        None,
+    );
     if mode == crate::client::GameMode::Creative {
         let mut change = vec![3];
         change.extend(1f32.to_be_bytes());
@@ -5462,6 +5466,83 @@ async fn crafting_input_transfer_packets_competing_input_and_replaced_or_closed_
                     .transfer_inventory(source, 1)
                     .await
                     .is_err()
+            );
+            assert!(
+                timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.stop().await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn crafting_input_transfer_packets_bound_table_inputs_are_not_player_armor() {
+    use crate::client::{GameMode, inventory::InventoryTransferStage as Stage};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        for source_slot in 5..=8 {
+            let (mut f, source) = crafting_input_transfer_fixture(true, mode, false).await;
+            let crate::client::SlotKnowledge::Item { item } =
+                crate::client::inventory::armor_tests::fixture(MinecraftVersion::Java1_21_11, true)
+            else {
+                panic!("missing captured bound helmet")
+            };
+            let crate::client::ItemData::ModernComponents { patch } = item.data else {
+                panic!("missing captured components")
+            };
+            let bound = InventorySlot::ItemWithComponents {
+                item: PlainItem {
+                    name: item.name,
+                    item_id: item.id.value(),
+                    count: 1,
+                },
+                components: patch,
+            };
+            f.container_slot(1, InventorySlot::Empty).await;
+            f.container_slot(10, InventorySlot::Empty).await;
+            f.container_slot(source_slot, bound.clone()).await;
+            let client = f.client();
+            let record = if mode == GameMode::Creative {
+                client
+                    .creative()
+                    .transfer_inventory(source, source_slot)
+                    .await
+            } else {
+                client
+                    .survival()
+                    .transfer_inventory(source, source_slot)
+                    .await
+            }
+            .unwrap();
+            assert_eq!(
+                read_packet(&mut f.peer, None).await.unwrap().0,
+                ids::play_serverbound::WINDOW_CLICK
+            );
+            assert_eq!(record.changed_slots.len(), 2);
+            f.container_slot(source_slot, InventorySlot::Empty).await;
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_transfer_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::Pending
+            );
+            f.container_slot(10, bound).await;
+            let complete = client
+                .survival()
+                .inventory_transfer_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(complete.id, record.id);
+            assert_eq!(complete.stage, Stage::ObservedTransferred);
+            assert_eq!(
+                complete.cursor_inspected.as_ref().unwrap().value,
+                record.cursor_before.value
             );
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))

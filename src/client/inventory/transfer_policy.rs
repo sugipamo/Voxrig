@@ -288,7 +288,8 @@ fn calculate_inner(
         .iter()
         .find(|r| r.native_id == original.id.value() && r.name == original.name)
         .ok_or_else(|| unavailable("native default transfer route unavailable; update Voxrig"))?;
-    let may_pickup = if storage.is_none() && matches!(source, 5..=8 | 45) {
+    // Numeric table inputs 5..8 are ordinary slots, not player armor.
+    let may_pickup = if menu == "minecraft:player" && matches!(source, 5..=8 | 45) {
         equipment_may_pickup(
             version,
             source,

@@ -109,3 +109,40 @@ fn crafting_input_transfer_original_evidence_binds_owned_sources_and_outputs() {
         }
     }
 }
+
+#[test]
+fn crafting_input_transfer_binding_is_not_an_armor_pickup_rule() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let context = armor_tests::context(version, None);
+        // Captured original bound helmet, placed in ordinary crafting input slots.
+        let bound = armor_tests::fixture(version, true);
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            for (menu, end, destination) in
+                [("minecraft:player", 5, 9), ("minecraft:crafting", 10, 10)]
+            {
+                for source in 1..end {
+                    let mut before = vec![SlotKnowledge::Empty; 46];
+                    before[source] = bound.clone();
+                    let prediction = transfer_policy::calculate_with_data(
+                        version, menu, source, &before, mode, &context,
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        prediction.slots[source],
+                        SlotKnowledge::Empty,
+                        "{version:?} {mode:?} {menu} input {source}"
+                    );
+                    assert_eq!(prediction.slots[destination], bound);
+                    assert_eq!(
+                        prediction
+                            .slots
+                            .iter()
+                            .filter(|s| **s != SlotKnowledge::Empty)
+                            .count(),
+                        1
+                    );
+                }
+            }
+        }
+    }
+}

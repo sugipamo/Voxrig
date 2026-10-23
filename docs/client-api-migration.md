@@ -566,7 +566,8 @@ player側のslotを選び、各PICKUPの実source/cursor応答を確認してか
 材料の処理は同じ保証にしない。必要な材料の保存確認には、その後の実player slot受信や
 在庫の調査を用いる。再度開いた画面では新しい`ScreenId`を取得し、古いinput/close要求を再送しない。
 結果は空または互換の保持cursorへの`take_crafting_result`で取得し、消費・remainderを実受信として保持する。
-製作台でのSWAP/QUICK_MOVEは後続対応を要する。
+製作入力のQUICK_MOVEは既存の`transfer_inventory`で扱う。player入力1..4と同じopeningの製作台入力1..9から回収し、
+結果の再計算と独立に全changed slotのfresh受信を待つ。詳細は[通常転送](common-inventory-transfers.md)。製作台入力のSWAPは後続対応を要する。
 
 ### Recipe-book materials
 

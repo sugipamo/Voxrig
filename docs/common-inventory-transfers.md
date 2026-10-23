@@ -40,6 +40,7 @@ mode判定に従って取り出す。legacyのlevel getterとmodernの受信ench
 
 player入力からは9..44、作業台入力からは10..45へ正順で転送する。装備先への自動配置や
 空offhandへの配置は行わず、mergeを空slotより先に試す。保持中cursorは数量・dataとも保存する。
+製作入力の取り出しに鎧slotの束縛制限は適用しない。作業台入力5..8も通常の入力slotとして扱う。
 製作入力全体の受信済みbaselineを要求し、他の入力の変更は競合に残す。
 結果slotの再計算は完了証拠に含めず、sourceと変化した全destinationにfresh受信を要求する。
 結果slotだけが更新されてもPendingのままで、閉じた元openingや再利用されたwindowからは送らない。
