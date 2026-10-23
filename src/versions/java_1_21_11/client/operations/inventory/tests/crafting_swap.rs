@@ -185,6 +185,155 @@ async fn crafting_input_swap_packets_all_inputs_modes_empty_occupied_hotbar_endp
 }
 
 #[tokio::test]
+async fn crafting_input_swap_packets_recover_data_into_empty_hotbar() {
+    for table in [false, true] {
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            for hotbar in [0, 8] {
+                let (mut f, source) = fixture(table, mode, 1, hotbar, true).await;
+                let destination = (if table { 37 } else { 36 }) + u16::from(hotbar);
+                update(&mut f, table, destination, InventorySlot::Empty).await;
+                let client = f.client();
+                let sent = start(&client, mode, source, 1, hotbar).await.unwrap();
+                assert_eq!(
+                    sent.hotbar_before.value,
+                    crate::client::SlotKnowledge::Empty
+                );
+                let revision = if table { 6 } else { 130 };
+                assert_eq!(sent.send.screen_revision, Some(revision));
+                let mut expected = vec![if table { 3 } else { 0 }];
+                put_varint(&mut expected, revision);
+                expected.extend(1u16.to_be_bytes());
+                expected.extend([hotbar, 2, 0, 0]);
+                assert_eq!(
+                    read_packet(&mut f.peer, None).await.unwrap(),
+                    (ids::play_serverbound::WINDOW_CLICK, expected)
+                );
+                let updates = [
+                    (1, InventorySlot::Empty),
+                    (destination, component_swap_item(7, 16, false)),
+                ];
+                let order = if hotbar == 0 { [0, 1] } else { [1, 0] };
+                for (step, index) in order.into_iter().enumerate() {
+                    let (slot, value) = &updates[index];
+                    update(&mut f, table, *slot, value.clone()).await;
+                    let current = client
+                        .survival()
+                        .inventory_swap_record()
+                        .await
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(current.id, sent.id);
+                    assert_eq!(
+                        current.stage,
+                        if step == 0 {
+                            Stage::Pending
+                        } else {
+                            Stage::ObservedSwapped
+                        }
+                    );
+                    if step == 1 {
+                        assert_eq!(
+                            current.source_receipt.as_ref().unwrap().value,
+                            crate::client::SlotKnowledge::Empty
+                        );
+                        for receipt in [current.source_receipt, current.hotbar_receipt] {
+                            assert!(matches!(receipt.unwrap().source,
+                                crate::client::ValueSource::Received { sequence }
+                                    if sequence > sent.send.after_sequence));
+                        }
+                    }
+                }
+                assert_eq!(
+                    client.player_state().await.unwrap().inventory.cursor,
+                    sent.initial.inventory.cursor
+                );
+                assert!(
+                    timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                        .await
+                        .is_err()
+                );
+                f.stop().await;
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn crafting_input_swap_capture_rejects_preopening_and_future_receipts() {
+    use crate::client::{ValueSource, inventory as contract};
+    let (mut f, source) = fixture(true, GameMode::Survival, 1, 8, true).await;
+    let client = f.client();
+    let initial = client.player_state().await.unwrap();
+    let screen = client.screen_state().await.unwrap().screen.unwrap();
+    let owner = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .registries
+        .capture(initial.session, initial.receive_sequence);
+    for sequence in [
+        screen.id.opened_sequence() - 1,
+        initial.receive_sequence + 1,
+    ] {
+        for field in 0..4 {
+            let mut initial = initial.clone();
+            let mut screen = screen.clone();
+            let receipt = ValueSource::Received { sequence };
+            match field {
+                0 => screen.slots[1].as_mut().unwrap().source = receipt,
+                1 => {
+                    // Keep both aliases coherent: the failure must be opening ownership.
+                    screen.slots[45].as_mut().unwrap().source = receipt;
+                    initial.inventory.slots[44].as_mut().unwrap().source = receipt;
+                }
+                2 => initial.inventory.cursor.as_mut().unwrap().source = receipt,
+                _ => screen.revision.as_mut().unwrap().source = receipt,
+            }
+            let error = contract::prepare_received_source(
+                (initial, owner.clone()),
+                GameMode::Survival,
+                contract::InventorySwapSource::CraftingInput { source },
+                1,
+                8,
+                1,
+                Some(screen),
+            )
+            .unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                if field == 3 {
+                    "crafting SWAP received screen revision unavailable"
+                } else {
+                    "crafting SWAP predecessor outside original capture/opening"
+                }
+            );
+        }
+    }
+    assert!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    // Rejected captures did not acquire the inventory owner.
+    start(&client, GameMode::Survival, source, 1, 8)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.stop().await;
+}
+
+#[tokio::test]
 async fn crafting_input_swap_packets_reject_result_appended_equipment_and_invalid_hotbar_before_intent()
  {
     for table in [false, true] {
