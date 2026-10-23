@@ -409,3 +409,109 @@ async fn furnace_transfer_received_material_set_wins_over_fuel_even_when_input_b
         f.stop().await;
     }
 }
+
+#[tokio::test]
+async fn furnace_transfer_consumed_fuel_receipt_cannot_complete_or_heal() {
+    for (menu, _) in crate::client::furnace::TRANSFER_MENUS {
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            let (mut f, source) = fixture(menu, mode, 3, "coal", false, false).await;
+            f.container_slot(3, plain("coal", 1)).await;
+            f.container_slot(
+                0,
+                plain(
+                    if menu == "minecraft:smoker" {
+                        "beef"
+                    } else {
+                        "raw_iron"
+                    },
+                    1,
+                ),
+            )
+            .await;
+            let sent = start(&f, mode, source, 3).await.unwrap();
+            read_packet(&mut f.peer, None).await.unwrap();
+            f.container_slot(1, plain("coal", 1)).await;
+            assert_eq!(record(&f).await.stage, Stage::Pending);
+            // The server burns the last fuel before the source receipt arrives.
+            // Empty equals the predecessor, but invalidates the earlier receipt.
+            f.container_slot(1, InventorySlot::Empty).await;
+            assert_eq!(record(&f).await.stage, Stage::RequiresInspection);
+            f.container_slot(3, InventorySlot::Empty).await;
+            f.container_slot(1, plain("coal", 1)).await;
+            let retained = record(&f).await;
+            assert_eq!(retained.stage, Stage::RequiresInspection);
+            assert_eq!(retained.id, sent.id);
+            assert!(retained.changed_slots.iter().all(|c| c.receipt.is_some()));
+            assert!(
+                timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.stop().await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn furnace_transfer_reopened_window_requires_its_own_full_contents() {
+    for (menu, _) in crate::client::furnace::TRANSFER_MENUS {
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            let (mut f, old_source) = fixture(menu, mode, 3, "coal", false, false).await;
+            let native =
+                crate::client::furnace::native_menu(MinecraftVersion::Java1_21_11, menu).unwrap();
+            let mut open = vec![3];
+            put_varint(&mut open, native.native_id);
+            open.extend([10, 0]);
+            f.receive(ids::play_clientbound::OPEN_WINDOW, &open).await;
+            // A source/destination pair and cursor do not establish the other
+            // machine slots. The old full contents belong to another opening.
+            f.container_slot(3, plain("coal", 7)).await;
+            f.container_slot(1, InventorySlot::Empty).await;
+            f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &[0])
+                .await;
+            let screen = f.client().screen_state().await.unwrap().screen.unwrap();
+            let source = InventorySource::Container { screen: screen.id };
+            assert_ne!(source, old_source);
+            assert!(screen.full_contents_sequence.is_none());
+            assert!(screen.slots[0].is_none());
+            assert!(screen.slots[2].is_none());
+            for source in [old_source, source] {
+                assert!(start(&f, mode, source, 3).await.is_err());
+                assert!(
+                    f.client()
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .is_none()
+                );
+            }
+            assert!(
+                timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            let mut full = vec![3, 7, 39];
+            for slot in 0..39 {
+                put_slot(
+                    &mut full,
+                    &if slot == 3 {
+                        plain("coal", 7)
+                    } else {
+                        InventorySlot::Empty
+                    },
+                );
+            }
+            put_slot(&mut full, &InventorySlot::Empty);
+            f.receive(ids::play_clientbound::WINDOW_ITEMS, &full).await;
+            let sent = start(&f, mode, source, 3).await.unwrap();
+            assert_eq!(sent.source, source);
+            assert_eq!(sent.changed_slots.len(), 2);
+            assert_eq!(
+                read_packet(&mut f.peer, None).await.unwrap().0,
+                ids::play_serverbound::WINDOW_CLICK
+            );
+            f.stop().await;
+        }
+    }
+}
