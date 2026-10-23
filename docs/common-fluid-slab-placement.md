@@ -86,6 +86,8 @@ source／全flow level、wet/dry oak slab、異種slab、溶岩・bubble column�
 構成packet試験はsource／flow／falling／dry／wet slab、二重化、全6受信順、最後の1個と複数個stack、
 各受信の欠測・古いACK、途中fluid level／waterlogged／支持／選択／材料競合、復帰、
 隣接水更新、途中UNLOAD_CHUNK、writer前取消・部分write、一度性、別入口・接続終了後の履歴を検査する。
+piston再構成だけの支持は拒否し、明示block再受信後は許可する。身体cellへの水流入は送信前に拒否し、
+送信後は元に戻っても`RequiresInspection`を保持することも構成packetで検査する。
 
 ```bash
 python3 -B scripts/export_fluid_slab_placement.py \

@@ -528,3 +528,118 @@ fn fluid_slab_halo_preserves_qualified_dry_terrain_and_refuses_body_fluid() {
     assert!(fluid_slab_collision(&water(0), [0, 1, 0], own).is_err());
     assert!(fluid_slab_collision(&wet("bottom"), [0, 1, 0], own).is_err());
 }
+
+#[tokio::test]
+async fn fluid_slab_requires_received_support_after_piston_reconstruction() {
+    let mut f = Fixture::new().await;
+    slab_stack(&mut f, 1).await;
+    f.block(SUPPORT, "air").await;
+    f.block([3, 2, 0], "stone").await;
+    let piston = crate::NativeBlockState {
+        name: "minecraft:piston".into(),
+        properties: [
+            ("facing".into(), "west".into()),
+            ("extended".into(), "false".into()),
+        ]
+        .into(),
+    };
+    replacement_block(&mut f, [4, 2, 0], &piston).await;
+    let mut action = pack_position([4, 2, 0]).to_be_bytes().to_vec();
+    action.extend([0, 4]); // Extend west; move the stone into the clicked cell.
+    put_varint(&mut action, 138); // Native piston block ID, not a state ID.
+    f.receive(ids::play_clientbound::BLOCK_ACTION, &action)
+        .await;
+    {
+        let mut state = f.api.bot.session.state.lock().await;
+        let tick = state.reconstruction.tick + 8;
+        let State {
+            reconstruction,
+            world,
+            ..
+        } = &mut *state;
+        reconstruction.advance(world, tick);
+        assert!(reconstruction.issue.is_none(), "{:?}", reconstruction.issue);
+        let cell = reconstruction.cell(world, SUPPORT);
+        assert_eq!(cell.state, Some(native("stone")));
+        assert!(cell.moving.is_none());
+        assert!(matches!(
+            cell.origin,
+            crate::versions::java_1_21_11::reconstruction::StateOrigin::ClientUpdate { .. }
+        ));
+        assert_eq!(
+            world.block(SUPPORT),
+            Some(state_id(&native("air")).unwrap())
+        );
+    }
+    replacement_block(&mut f, TARGET, &water(0)).await;
+    let error = f
+        .api
+        .place_slab_with_fluid(SUPPORT, crate::BlockFace::West, TARGET, water(0))
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "fluid slab placement requires raw received block/fluid predecessors"
+    );
+    assert!(f.api.fluid_slab_placement_record().await.unwrap().is_none());
+    assert!(
+        timeout(Duration::from_millis(5), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+
+    // An explicit block receipt establishes the missing raw predecessor.
+    f.block(SUPPORT, "stone").await;
+    f.api
+        .place_slab_with_fluid(SUPPORT, crate::BlockFace::West, TARGET, water(0))
+        .await
+        .unwrap();
+    f.expected_packet("placement after explicit support receipt")
+        .await;
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn fluid_slab_body_water_rejects_submission_and_interrupts_pending_placement() {
+    for pending in [false, true] {
+        let mut f = Fixture::new().await;
+        slab_stack(&mut f, 1).await;
+        replacement_block(&mut f, TARGET, &water(0)).await;
+        let sent = if pending {
+            Some(start(&mut f, water(0), false, 1).await.placement)
+        } else {
+            None
+        };
+        replacement_block(&mut f, [0, 1, 0], &water(0)).await;
+        if let Some(sent) = sent {
+            // Restoration and all success receipts cannot erase the interruption.
+            f.block([0, 1, 0], "air").await;
+            replacement_block(&mut f, TARGET, &sent.expected).await;
+            slab_stack(&mut f, 0).await;
+            f.ack(sent.send.interaction_sequence.unwrap()).await;
+            let retained = f.api.fluid_slab_placement_record().await.unwrap().unwrap();
+            assert_eq!(retained.placement.stage, PlacementStage::RequiresInspection);
+            assert_eq!(
+                retained.placement.requires_inspection.as_deref(),
+                Some("fluid slab placement requires the standing body outside fluid cells")
+            );
+        } else {
+            let error = f
+                .api
+                .place_slab_with_fluid(SUPPORT, crate::BlockFace::West, TARGET, water(0))
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                "fluid slab placement requires the standing body outside fluid cells"
+            );
+            assert!(f.api.fluid_slab_placement_record().await.unwrap().is_none());
+        }
+        assert!(
+            timeout(Duration::from_millis(5), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+    }
+}
