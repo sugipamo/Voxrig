@@ -164,3 +164,7 @@ runnerは両方の実受信predecessorが揃うまで待つ。
 
 乾いたoak stairsのfacing/half/inner/outerは追加の[`place_stair`](common-stair-placement.md)で扱う。
 対象・材料・ACKに加え、必要な隣接階段のshape更新も専用recordで確認する。
+
+水源・流水・wet oak slabを明示する追加入口は
+[`place_slab_with_fluid`](common-fluid-slab-placement.md)で扱う。
+原版のfluid型に従いwaterloggedを選び、周辺流れの収束は設置の成功条件に含めない。

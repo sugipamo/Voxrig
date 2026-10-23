@@ -1,10 +1,12 @@
 //! One-shot checked placement with independent world/material receipts.
 mod slab;
 mod stair;
+mod wet_slab;
 #[derive(Clone, Copy, PartialEq)]
 enum Family {
     Cube,
     Slab,
+    FluidSlab,
     Stair,
 }
 use super::geometry::GeometryView;
@@ -110,6 +112,32 @@ diagnostic_record! {
     }
     diagnostic_serde { #[serde(tag = "status", rename_all = "snake_case")] }
 }
+// This placement-only halo permits audited fluids outside the dry player's cell box.
+// It does not qualify swimming, fluid motion or any other standing consumer.
+pub(super) fn fluid_slab_collision(
+    block: &crate::NativeBlockState,
+    p: [i32; 3],
+    bounds: [f64; 6],
+) -> Result<&'static [[f64; 6]]> {
+    use crate::client::survival::SlabFluidState;
+    let fluid = wet_slab::fluid(block).ok_or_else(|| {
+        unavailable("fluid slab standing halo contains an unaudited block/fluid family")
+    })?;
+    if matches!(fluid, SlabFluidState::Water { .. })
+        && (0..3).all(|i| bounds[i] < f64::from(p[i] + 1) && bounds[i + 3] > f64::from(p[i]))
+    {
+        return Err(unavailable(
+            "fluid slab placement requires the standing body outside fluid cells",
+        ));
+    }
+    if block.name == "minecraft:water" {
+        return Ok(&[]);
+    }
+    if let Some(kind) = slab::kind_with_fluid(block) {
+        return Ok(slab::collision(kind));
+    }
+    crate::client::survival::model::collision_shape(crate::MinecraftVersion::Java1_21_11, block)
+}
 fn unavailable(message: &str) -> Error {
     crate::error::state_error(message)
 }
@@ -204,7 +232,9 @@ fn prepare_in(
     if state.operations.game_mode != Some(GameMode::Survival) {
         return Err(unavailable("placement requires received survival mode"));
     }
-    let standing = if replacement.is_some() && family == Family::Cube {
+    let standing = if family == Family::FluidSlab {
+        survival::fluid_slab_context(state, connection_id, tick)?
+    } else if replacement.is_some() && family == Family::Cube {
         survival::replacement_context(state, connection_id, tick)?
     } else {
         survival::context(state, connection_id, tick)?
@@ -248,7 +278,7 @@ fn prepare_in(
     // but is not an exact state-free placement material.
     if if family == Family::Stair {
         item.name != "minecraft:oak_stairs"
-    } else if family == Family::Slab {
+    } else if matches!(family, Family::Slab | Family::FluidSlab) {
         item.name != "minecraft:oak_slab"
     } else {
         !survival::DRY_CUBES.contains(&item.name.as_str()) || item.name == "minecraft:grass_block"
@@ -257,7 +287,7 @@ fn prepare_in(
             ErrorKind::Unsupported,
             anyhow::anyhow!(if family == Family::Stair {
                 "stair placement requires oak stair material"
-            } else if family == Family::Slab {
+            } else if matches!(family, Family::Slab | Family::FluidSlab) {
                 "slab placement requires oak slab material"
             } else {
                 "placement requires an admitted passive cube material"
@@ -282,7 +312,7 @@ fn prepare_in(
             replacement.expect("stair predecessor"),
             state.rotation,
         )?
-    } else if family == Family::Slab {
+    } else if matches!(family, Family::Slab | Family::FluidSlab) {
         slab::geometry(
             state,
             &standing,
@@ -290,6 +320,7 @@ fn prepare_in(
             face,
             replacement.expect("slab predecessor"),
             state.rotation,
+            family == Family::FluidSlab,
         )?
     } else {
         placement_geometry_in(
@@ -313,8 +344,12 @@ fn prepare_in(
         let expected = stair::expected(state, target, state.rotation[0], face, cursor[1])?;
         stair::unobstructed(state, connection_id, standing.bounds, target, &expected)?;
         expected
-    } else if family == Family::Slab {
-        let expected = slab::expected(&before, face, cursor[1]);
+    } else if matches!(family, Family::Slab | Family::FluidSlab) {
+        let expected = if family == Family::FluidSlab {
+            slab::expected_with_fluid(&before, face, cursor[1])
+        } else {
+            slab::expected(&before, face, cursor[1])
+        };
         slab::unobstructed(state, connection_id, standing.bounds, target, &expected)?;
         expected
     } else {
@@ -532,7 +567,7 @@ impl Operations {
                 if let Some(p) = &initial {
                     if family == Family::Stair {
                         crate::client::survival::placement::selected_stair(p)?;
-                    } else if family == Family::Slab {
+                    } else if matches!(family, Family::Slab | Family::FluidSlab) {
                         crate::client::survival::placement::selected_slab(p)?;
                     } else {
                         crate::client::survival::placement::selected_material(p)?;
@@ -555,9 +590,14 @@ impl Operations {
                 } else {
                     None
                 };
+                let fluid_slab = (family == Family::FluidSlab)
+                    .then(|| wet_slab::capture(&state, &intent))
+                    .transpose()?;
                 intent.sequence = self.next_sequence()?;
                 if let Some(previous) = state.common_placement.as_ref() {
-                    if previous.stairs.is_some() {
+                    if previous.fluid_slab.is_some() {
+                        state.retired_fluid_slab_placement = wet_slab::record_in(&state)?;
+                    } else if previous.stairs.is_some() {
                         state.retired_stair_placement = stair::record_in(&state)?;
                     } else if previous.slab {
                         state.retired_slab_placement = slab::record_in(&state)?;
@@ -575,8 +615,9 @@ impl Operations {
                     sequence: intent.sequence,
                     replacement: replacement_capture,
                     processing: None,
-                    slab: family == Family::Slab,
+                    slab: matches!(family, Family::Slab | Family::FluidSlab),
                     stairs,
+                    fluid_slab,
                 });
                 let work = state.finite_work.begin(
                     &self.bot.session.ledger,
@@ -664,6 +705,12 @@ fn observe_in(
     }
     placement_context_received(state);
     let context = if state
+        .common_placement
+        .as_ref()
+        .is_some_and(|c| c.fluid_slab.is_some())
+    {
+        survival::fluid_slab_context(state, connection_id, tick)
+    } else if state
         .common_placement
         .as_ref()
         .is_some_and(|c| c.replacement.is_some() && !c.slab && c.stairs.is_none())
@@ -849,6 +896,7 @@ pub(in crate::versions::java_1_21_11::client) struct CommonPlacementCapture {
     sequence: i32,
     replacement: Option<ReplacementCapture>,
     slab: bool,
+    fluid_slab: Option<wet_slab::Capture>,
     stairs: Option<stair::Capture>,
     processing: Option<crate::client::survival::PlacementProcessing>,
 }
@@ -977,8 +1025,9 @@ pub(in crate::versions::java_1_21_11::client) fn common_placement_context_receiv
                 "common placement pose/selection/cursor context changed",
             ));
         }
-        let standing = if capture.replacement.is_some() && !capture.slab && capture.stairs.is_none()
-        {
+        let standing = if capture.fluid_slab.is_some() {
+            survival::fluid_slab_context(state, p.session.connection_id, state.reconstruction.tick)?
+        } else if capture.replacement.is_some() && !capture.slab && capture.stairs.is_none() {
             survival::replacement_context(
                 state,
                 p.session.connection_id,
@@ -1031,6 +1080,32 @@ pub(in crate::versions::java_1_21_11::client) fn common_placement_context_receiv
 }
 
 impl crate::client::adapter::PlacementOps for Operations {
+    async fn place_slab_with_fluid(
+        &self,
+        clicked: [i32; 3],
+        face: crate::BlockFace,
+        target: [i32; 3],
+        before: crate::NativeBlockState,
+    ) -> Result<crate::client::survival::FluidSlabPlacementRecord> {
+        self.place_cube_in(
+            clicked,
+            face,
+            true,
+            Some((target, before)),
+            Family::FluidSlab,
+        )
+        .await?;
+        self.fluid_slab_placement_record()
+            .await?
+            .ok_or_else(|| unavailable("fluid slab placement capture missing"))
+    }
+    async fn fluid_slab_placement_record(
+        &self,
+    ) -> Result<Option<crate::client::survival::FluidSlabPlacementRecord>> {
+        self.refresh_placement().await?;
+        wet_slab::record_in(&*self.bot.session.state.lock().await)
+    }
+
     async fn place_stair(
         &self,
         clicked: [i32; 3],

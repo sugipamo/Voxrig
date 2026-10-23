@@ -7,6 +7,16 @@ notices. Exact npm versions and registry integrity digests are recorded in
 
 ## Locally recorded Java 1.21.11 diagnostics
 
+`data/client_api/fluid_slab_placement*` records factual placement-context and
+fluid-state observations from the unmodified official Java 1.21.11 server.
+Original Java/Python tooling supplies cell/fluid lookups and invokes native
+slab/context/fluid methods; the source manifest pins JAR, official mappings,
+classpath, generator and output hashes. The accompanying
+`docs/evidence/fluid-slab-placement-20261023.json` records local raw packet/RCON
+observations. These data do not redistribute or relicense Minecraft binaries,
+mappings or method bodies. Reproduction and scope are documented in
+`docs/common-fluid-slab-placement.md`.
+
 `data/client_api/entity_interact_at_packets.json` contains factual packet bytes
 and numeric inputs constructed and roundtripped by the unchanged official Java
 1.21.11 `ServerboundInteractPacket` codec. The owned Java/Python exporters record

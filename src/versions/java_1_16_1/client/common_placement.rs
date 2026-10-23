@@ -931,6 +931,43 @@ mod tests {
             .unwrap();
     }
     #[tokio::test]
+    async fn fluid_slab_api_is_explicitly_unsupported_on_legacy_without_dispatch() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let error = client
+            .survival()
+            .place_slab_with_fluid(
+                SUPPORT,
+                crate::BlockFace::West,
+                TARGET,
+                crate::NativeBlockState {
+                    name: "minecraft:air".into(),
+                    properties: Default::default(),
+                },
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+        assert_eq!(
+            client
+                .survival()
+                .fluid_slab_placement_record()
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::Unsupported
+        );
+        assert!(packets.try_recv().is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
     async fn stair_api_is_explicitly_unsupported_on_legacy_without_dispatch() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

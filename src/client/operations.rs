@@ -372,6 +372,26 @@ impl Survival {
     ) -> Result<Option<super::survival::StairPlacementRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => PlacementOps::stair_placement_record(a).await)
     }
+    /// Place one oak slab in audited air, water or a same-family half (1.21.11).
+    /// Only native source water makes a new half waterlogged; merging clears it.
+    /// Exact target/predecessor and first outline are required. Never retry an
+    /// unresolved attempt. Neighboring fluid convergence is not a success condition.
+    pub async fn place_slab_with_fluid(
+        &self,
+        clicked: [i32; 3],
+        face: BlockFace,
+        target: [i32; 3],
+        before: crate::NativeBlockState,
+    ) -> Result<super::survival::FluidSlabPlacementRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::place_slab_with_fluid(a, clicked, face, target, before).await)
+    }
+    /// Read the retained liquid-aware attempt, including after closure.
+    pub async fn fluid_slab_placement_record(
+        &self,
+    ) -> Result<Option<super::survival::FluidSlabPlacementRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::fluid_slab_placement_record(a).await)
+    }
+
     /// Place one default oak slab using the current first outline (1.21.11).
     /// Native face/hit-height rules select a dry half or double slab. The actual
     /// destination and complete predecessor must equal `target` and `before`.

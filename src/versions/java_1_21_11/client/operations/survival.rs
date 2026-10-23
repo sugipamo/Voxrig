@@ -505,6 +505,28 @@ pub(super) fn replacement_context(
     let basis = super::movement::standing_basis(state)?;
     context_core(state, connection_id, tick, basis, false, false, true)
 }
+#[derive(Clone, Copy)]
+enum PlacementCells {
+    Dry,
+    Plants,
+    FluidSlab,
+}
+pub(super) fn fluid_slab_context(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+) -> Result<StandingContext> {
+    let basis = super::movement::standing_basis(state)?;
+    context_with_cells(
+        state,
+        connection_id,
+        tick,
+        basis,
+        false,
+        false,
+        PlacementCells::FluidSlab,
+    )
+}
 #[allow(clippy::too_many_arguments)]
 fn context_core(
     state: &mut State,
@@ -514,6 +536,30 @@ fn context_core(
     landing: bool,
     dismount: bool,
     replacement: bool,
+) -> Result<StandingContext> {
+    context_with_cells(
+        state,
+        connection_id,
+        tick,
+        position_basis,
+        landing,
+        dismount,
+        if replacement {
+            PlacementCells::Plants
+        } else {
+            PlacementCells::Dry
+        },
+    )
+}
+#[allow(clippy::too_many_arguments)]
+fn context_with_cells(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    position_basis: StandingPositionBasis,
+    landing: bool,
+    dismount: bool,
+    cells: PlacementCells,
 ) -> Result<StandingContext> {
     let player = &state.operations.local_player;
     if state.motion.position_basis == super::super::motion::PositionBasis::Received {
@@ -567,12 +613,7 @@ fn context_core(
     if state.reconstruction.issue.is_some() || !state.reconstruction.recovery_chunks.is_empty() {
         return Err(unavailable("client reconstruction incomplete"));
     }
-    let geometry = standing_geometry_in(
-        state,
-        position,
-        position_basis.geometry_reserve(),
-        replacement,
-    )?;
+    let geometry = standing_geometry_in(state, position, position_basis.geometry_reserve(), cells)?;
     if matches!(
         position_basis,
         StandingPositionBasis::Predicted { .. }
@@ -610,13 +651,13 @@ pub(super) fn standing_geometry(
     position: [f64; 3],
     error: [f64; 3],
 ) -> Result<StandingGeometry> {
-    standing_geometry_in(state, position, error, false)
+    standing_geometry_in(state, position, error, PlacementCells::Dry)
 }
 fn standing_geometry_in(
     state: &impl GeometryView,
     position: [f64; 3],
     error: [f64; 3],
-    replacement: bool,
+    cells: PlacementCells,
 ) -> Result<StandingGeometry> {
     validate_pose(position, [0.0; 2])?;
     let StandingRegion {
@@ -634,7 +675,11 @@ fn standing_geometry_in(
             for z in min[2]..=max[2] {
                 let p = [x, y, z];
                 let block = state.block(p)?;
-                let collision = if replacement && super::placement::replaceable_plant(&block) {
+                let collision = if matches!(cells, PlacementCells::FluidSlab) {
+                    super::placement::fluid_slab_collision(&block, p, bounds)?
+                } else if matches!(cells, PlacementCells::Plants)
+                    && super::placement::replaceable_plant(&block)
+                {
                     &[][..] // Original state fixture proves empty collision; no motion model expansion.
                 } else {
                     crate::client::survival::model::collision_shape(
