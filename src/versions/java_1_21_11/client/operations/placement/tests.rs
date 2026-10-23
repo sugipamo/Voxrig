@@ -1933,3 +1933,5 @@ async fn slab_all_receipt_orders_complete_on_receive_and_freeze_before_first_get
         f.stop().await;
     }
 }
+
+mod stairs;

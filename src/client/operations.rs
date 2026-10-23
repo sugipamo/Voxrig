@@ -355,6 +355,23 @@ impl Survival {
     ) -> Result<Option<super::inventory::InventorySwapRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::inventory_swap_record(a).await)
     }
+    /// Place one default dry oak stair into the exact adjacent air predecessor (1.21.11).
+    /// Facing and half come from the current yaw, first hit and face.
+    pub async fn place_stair(
+        &self,
+        clicked: [i32; 3],
+        face: BlockFace,
+        target: [i32; 3],
+        before: crate::NativeBlockState,
+    ) -> Result<super::survival::StairPlacementRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::place_stair(a, clicked, face, target, before).await)
+    }
+    /// Read target, material, ACK and required adjacent stair receipts independently.
+    pub async fn stair_placement_record(
+        &self,
+    ) -> Result<Option<super::survival::StairPlacementRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::stair_placement_record(a).await)
+    }
     /// Place one default oak slab using the current first outline (1.21.11).
     /// Native face/hit-height rules select a dry half or double slab. The actual
     /// destination and complete predecessor must equal `target` and `before`.

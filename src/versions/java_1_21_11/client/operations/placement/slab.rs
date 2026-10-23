@@ -127,9 +127,24 @@ pub(super) fn unobstructed(
     expected: &crate::NativeBlockState,
 ) -> Result<()> {
     let local = shape(expected).expect("qualified dry oak slab");
-    let bounds = std::array::from_fn(|i| local[i] + f64::from(target[i % 3]));
-    if intersects(own, bounds) {
-        return Err(unavailable("slab shape intersects the standing body"));
+    unobstructed_shapes(state, connection_id, own, target, &[local], "slab")
+}
+pub(super) fn unobstructed_shapes(
+    state: &State,
+    connection_id: u64,
+    own: [f64; 6],
+    target: [i32; 3],
+    local: &[[f64; 6]],
+    family: &str,
+) -> Result<()> {
+    let boxes: Vec<[f64; 6]> = local
+        .iter()
+        .map(|b| std::array::from_fn(|i| b[i] + f64::from(target[i % 3])))
+        .collect();
+    if boxes.iter().any(|b| intersects(own, *b)) {
+        return Err(unavailable(&format!(
+            "{family} shape intersects the standing body"
+        )));
     }
     let version = crate::MinecraftVersion::Java1_21_11;
     let entities = state.entities.capture_all(
@@ -143,7 +158,9 @@ pub(super) fn unobstructed(
     );
     for entity in entities.entities {
         if entity.motion.entity.type_name.is_none() {
-            return Err(unavailable("slab obstruction entity type unavailable"));
+            return Err(unavailable(&format!(
+                "{family} obstruction entity type unavailable"
+            )));
         }
         if !crate::client::placement_check::blocks_building(version, &entity) {
             continue;
@@ -161,7 +178,11 @@ pub(super) fn unobstructed(
                     }
                     b
                 })
-                .map_err(|_| unavailable("slab obstruction requires qualified entity geometry"))?
+                .map_err(|_| {
+                    unavailable(&format!(
+                        "{family} obstruction requires qualified entity geometry"
+                    ))
+                })?
         } else if [
             "minecraft:tnt",
             "minecraft:falling_block",
@@ -175,11 +196,9 @@ pub(super) fn unobstructed(
                 .as_deref()
                 .expect("known type"),
         ) {
-            let position = entity
-                .motion
-                .position
-                .as_ref()
-                .ok_or_else(|| unavailable("slab obstruction entity position unavailable"))?;
+            let position = entity.motion.position.as_ref().ok_or_else(|| {
+                unavailable(&format!("{family} obstruction entity position unavailable"))
+            })?;
             let dimensions = version
                 .table()
                 .entity_dimensions(
@@ -204,15 +223,19 @@ pub(super) fn unobstructed(
                 p[2] + half + error[2],
             ]
         } else {
-            return Err(unavailable("slab obstruction entity geometry unsupported"));
+            return Err(unavailable(&format!(
+                "{family} obstruction entity geometry unsupported"
+            )));
         };
         if bounds_entity.iter().any(|value| !value.is_finite()) {
-            return Err(unavailable("slab obstruction entity geometry is nonfinite"));
+            return Err(unavailable(&format!(
+                "{family} obstruction entity geometry is nonfinite"
+            )));
         }
-        if intersects(bounds_entity, bounds) {
-            return Err(unavailable(
-                "slab shape intersects a building-blocking entity",
-            ));
+        if boxes.iter().any(|b| intersects(bounds_entity, *b)) {
+            return Err(unavailable(&format!(
+                "{family} shape intersects a building-blocking entity"
+            )));
         }
     }
     Ok(())

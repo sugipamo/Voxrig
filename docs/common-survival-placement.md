@@ -161,3 +161,6 @@ runnerは両方の実受信predecessorが揃うまで待つ。
 
 乾いたoak slabのtop/bottom/doubleは追加の[`place_slab`](common-slab-placement.md)で扱う。
 専用recordに完全property stateと実際の対象cellを保持する。
+
+乾いたoak stairsのfacing/half/inner/outerは追加の[`place_stair`](common-stair-placement.md)で扱う。
+対象・材料・ACKに加え、必要な隣接階段のshape更新も専用recordで確認する。

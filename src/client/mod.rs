@@ -268,7 +268,7 @@ pub mod prelude {
         MiningRecoveryMethod, MiningRecoveryTarget, MiningStage, MotionPreview, MotionRecord,
         MotionStatus, PlacementId, PlacementRecord, PlacementStage, RecoveredSurvivalClient,
         ReplaceableCubePlacementRecord, ScenePreview, SceneSource, SlabPlacementRecord,
-        SurvivalControl, SurvivalInput,
+        StairNeighborUpdate, StairPlacementRecord, StairShapeInput, SurvivalControl, SurvivalInput,
     };
     pub use super::ui::{
         BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, PlayerChatSession,

@@ -174,6 +174,70 @@ pub struct SlabPlacementRecord {
     /// Retained outcome, separate from current world/slot contents.
     pub stage: PlacementStage,
 }
+/// Connection-owned diagnostic snapshot, also readable after closure.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct StairPlacementRecord {
+    /// First native outline selected in the same boundary as all predecessors.
+    pub first_outline: super::BlockTargetHit,
+    /// Exact cells read for target and adjacent shape calculations, before I/O.
+    pub shape_inputs: Vec<StairShapeInput>,
+    /// Adjacent stairs whose complete state must change and be freshly received.
+    pub neighbor_updates: Vec<StairNeighborUpdate>,
+    /// Immutable attempt identity.
+    pub id: PlacementId,
+    /// Coherent player/inventory capture before possible submission I/O.
+    pub initial: PlayerObservation,
+    /// Original clicked passive cube.
+    pub support: [i32; 3],
+    /// Complete support predecessor.
+    pub support_state: NativeBlockState,
+    /// First-outline face actually admitted.
+    pub face: BlockFace,
+    /// Native first hit, local to support, sent without an invented center.
+    pub cursor: [f32; 3],
+    /// Explicit adjacent destination.
+    pub target: [i32; 3],
+    /// Complete explicitly requested air predecessor.
+    pub before: NativeBlockState,
+    /// Expected complete oak stair facing, half, shape and waterlogged properties.
+    pub expected: NativeBlockState,
+    /// Exact supported received selected stack before submission.
+    pub held_before: ItemStack,
+    /// Ordinal establishing that predecessor stack.
+    pub held_receive_sequence: u64,
+    /// Retained before I/O; no resend API exists.
+    pub send: PlacementSend,
+    /// Fresh target-specific received expected block, not a cache revision.
+    pub target_receipt: Option<ObservedValue<NativeBlockState>>,
+    /// Fresh selected-slot receipt showing exactly one material consumed.
+    pub material_receipt: Option<ObservedValue<SlotKnowledge>>,
+    /// Actual modern processing receipt; always absent on legacy.
+    pub processing: Option<PlacementProcessing>,
+    /// First latched conflict; restoration cannot erase it.
+    pub requires_inspection: Option<String>,
+    /// Retained outcome, separate from current world/slot contents.
+    pub stage: PlacementStage,
+}
+/// A complete static state used by the bounded stair shape calculation.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct StairShapeInput {
+    /// Cell read under the original player/world/inventory lock.
+    pub position: [i32; 3],
+    /// Complete received predecessor; missing cells never become air.
+    pub before: NativeBlockState,
+}
+/// A required adjacent stair change, distinct from the target receipt.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct StairNeighborUpdate {
+    /// Adjacent cell whose shape changes.
+    pub position: [i32; 3],
+    /// Complete received predecessor.
+    pub before: NativeBlockState,
+    /// Complete expected successor.
+    pub expected: NativeBlockState,
+    /// Fresh matching block/section receipt, absent until independently observed.
+    pub receipt: Option<ObservedValue<NativeBlockState>>,
+}
 pub(crate) fn unavailable(message: impl std::fmt::Display) -> crate::Error {
     crate::error::state_error(message)
 }
@@ -184,12 +248,15 @@ pub(crate) fn air(state: &NativeBlockState) -> bool {
     )
 }
 pub(crate) fn selected_material(p: &PlayerObservation) -> Result<(ItemStack, u64)> {
-    selected_material_in(p, false)
+    selected_material_in(p, None)
 }
 pub(crate) fn selected_slab(p: &PlayerObservation) -> Result<(ItemStack, u64)> {
-    selected_material_in(p, true)
+    selected_material_in(p, Some("slab"))
 }
-fn selected_material_in(p: &PlayerObservation, slab: bool) -> Result<(ItemStack, u64)> {
+pub(crate) fn selected_stair(p: &PlayerObservation) -> Result<(ItemStack, u64)> {
+    selected_material_in(p, Some("stair"))
+}
+fn selected_material_in(p: &PlayerObservation, family: Option<&str>) -> Result<(ItemStack, u64)> {
     if p.received_pose.is_none()
         || p.dimension.is_none()
         || p.inventory.player_screen.is_none()
@@ -221,7 +288,9 @@ fn selected_material_in(p: &PlayerObservation, slab: bool) -> Result<(ItemStack,
     };
     let registry = crate::client::registry::Registry::for_version(p.session.version);
     let definition = registry.item(&item.name)?;
-    let admitted = if slab {
+    let admitted = if family == Some("stair") {
+        item.name == "minecraft:oak_stairs"
+    } else if family == Some("slab") {
         item.name == "minecraft:oak_slab"
     } else {
         super::model::DRY_CUBES.contains(&item.name.as_str())
@@ -235,7 +304,9 @@ fn selected_material_in(p: &PlayerObservation, slab: bool) -> Result<(ItemStack,
     {
         return Err(crate::Error::new(
             crate::ErrorKind::Unsupported,
-            anyhow::anyhow!(if slab {
+            anyhow::anyhow!(if family == Some("stair") {
+                "stair placement admits default oak stair stacks only"
+            } else if family == Some("slab") {
                 "slab placement admits default oak slab stacks only"
             } else {
                 "placement admits default passive cube stacks only"
