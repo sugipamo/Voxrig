@@ -563,3 +563,18 @@ JAR/mapping hashes and retains classpath digests; it does not redistribute game
 class bytes, mappings, bytecode or method bodies. This is a finite capability
 audit, not qualification of new posture or mounted movement. Implementation
 children remain open; the existing native/live evidence remains separate.
+
+
+`data/client_api/explosion_ground_oracle.json.gz` contains factual numerical
+trajectories from unchanged official Java 1.21.11 Entity/Player methods. The owned
+`run_explosion_ground_oracle.py` wrapper verifies original client/server JARs,
+mappings and remapping tool; it fingerprints the client explosion/velocity
+handlers and invokes their unchanged `addDeltaMovement`/`lerpMotion` callees
+before original travel. Only our generated harness receives the explicit ordered
+inputs and additional observations. Original JAR/mapping/tool, owned harness,
+wrapper and input hashes are retained. The separate
+`docs/evidence/common-explosion-ground-20261023.json` records original live packet
+bytes, submitted frames, independent RCON coordinates and source/binary hashes.
+These measurements do not redistribute or relicense game binaries, mappings,
+bytecode or method bodies, or establish a native client tick clock. Reproduction
+and boundaries are in `docs/common-explosions.md`.

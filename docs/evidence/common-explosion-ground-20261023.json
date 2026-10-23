@@ -1,0 +1,2028 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "status": "PASS",
+  "base_main": "ced79dc87774cf6ea56bca101bb00f6abcee894b",
+  "version": "1.21.11",
+  "port": 38107,
+  "binary_sha256": "f07617786fbe3a2334f7567cd959c62f7b2a6dcf5c0ba5691df55244455e100b",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "runtime_source_sha256": {
+    "src/client/control.rs": "dafd9dd952e1f70cd0e5e6900d02ce720547258d1cbf2c1ccfddfa30739fdc58",
+    "src/versions/java_1_21_11/client.rs": "11187c7e5767196ce318b87f27084028b5a0031fce5653d22501d1eb4d81ba36",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "becca9f444b85bac60accd734cdecab15c621526e0d707b0906a5e2b701f8ecb",
+    "src/versions/java_1_21_11/client/operations/survival.rs": "fd2fd4fbf0e25b5da4c198da592c1803aee01bc708e01b78ebe50bda71bbeb2f",
+    "examples/climbing_control_probe.rs": "77000e7f716ccd1bb2fd2b12de98f5b10ab998ddc3a47967c5692efc4eefbbbf",
+    "scripts/run_explosion_ground_live.py": "923530c4be02e8ae084d7ebea4dcae79d5a22f20befd6470ae794c5904845c0b",
+    "data/client_api/explosion_ground_oracle.json.gz": "9f462db4a857aa589cdb143e7e7d3e6a03a9f3ea7d86f4ea849ccd1eb14b55d4",
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf"
+  },
+  "scope": "Ground only. Original packet addition/replacement and unchanged travel are separate from live receipt order, submitted frames and independent RCON positions. Own correction retains the existing contact-origin refusal; a fresh owner resumes from the correction. No native tick-clock or server velocity equality claim.",
+  "checks": [
+    {
+      "name": "walking_before",
+      "record": {
+        "controls": {
+          "forward": 1,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 3,
+        "entity_contacts": {
+          "applied_record": 6,
+          "bodies": [],
+          "model_tick": 3,
+          "origin_after_record": 6,
+          "pair_calls": 0,
+          "receive_sequence": 127
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            0.19999998807907104,
+            65.0,
+            0.38910275314713383,
+            0.800000011920929,
+            66.79999995231628,
+            0.9891027769889917
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            0.5,
+            66.62000000476837,
+            0.6891027650680628
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": true,
+          "pose": "Standing",
+          "position": [
+            0.5,
+            65.0,
+            0.6891027650680628
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 3,
+          "using_item": null,
+          "velocity": [
+            0.0,
+            -0.0784000015258789,
+            0.07210846191205729
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 1,
+        "status": {
+          "status": "running"
+        },
+        "velocity_updates": 0
+      },
+      "native_position": [
+        0.5,
+        65.0,
+        0.5195999999433756
+      ],
+      "movement": {
+        "ordinal": 150,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "e43e4995d78faaae4546a8fac1481304d4101a8d7d072c90620da76bcd2dbc7f",
+        "body_sha256": "5ed74bb24e07a307852942d288c4bdef1b1c2871b61859dce9ebcfa8f0114814",
+        "body_hex": "3fe000000000000040504000000000003fe60d213df19db4000000000000000001"
+      }
+    },
+    {
+      "name": "walking_explosion",
+      "observations": {
+        "explosions": [
+          {
+            "explosion": {
+              "block_count": 23,
+              "center": [
+                2.0,
+                65.0,
+                0.8592112303477826
+              ],
+              "player_knockback": [
+                -0.1651268923430643,
+                0.17833704425543367,
+                0.021012863390856895
+              ],
+              "presentation": {
+                "Decoded": {
+                  "block_particles": [
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 57
+                      },
+                      "scaling": 0.5,
+                      "speed": 1.0,
+                      "weight": 1
+                    },
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 60
+                      },
+                      "scaling": 1.0,
+                      "speed": 1.0,
+                      "weight": 1
+                    }
+                  ],
+                  "particle": {
+                    "data": "Simple",
+                    "native_id": 23
+                  },
+                  "sound": {
+                    "RegistryId": 668
+                  }
+                }
+              },
+              "radius": 1.0
+            },
+            "receive_sequence": 136,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        ],
+        "receive_sequence": 139
+      },
+      "original_packets": [
+        {
+          "ordinal": 153,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 0,
+          "body_length": 0,
+          "wire_sha256": "070b13c004e9475fa155cd84d90de9f87db1b7dea6707329638a6ce66043d246",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "body_hex": ""
+        },
+        {
+          "ordinal": 154,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 1,
+          "body_length": 47,
+          "wire_sha256": "a8f53de99aa001e27a4915cb90a4a0302d3c9dd162172d183fb18ac089c5be62",
+          "body_sha256": "51e07532da886938b4261d80a22990e1fcd25561e08fed5e45e824834f8ad9fa",
+          "body_hex": "02eab7d0f1b38c4c2eb1c46b187b40c2c020400000000000000040504000000000003feb7ea88cd663860000000000"
+        },
+        {
+          "ordinal": 155,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 97,
+          "body_length": 14,
+          "wire_sha256": "9adfbe83b4251e6f00c77a48d804e8e0193a593a28c91538eecd663ae4ebb88d",
+          "body_sha256": "7e99e25489c844f8fdc85fcf8501fceb24f0b195d745d367c7f53c30cf7d3964",
+          "body_hex": "02090341a000000f0001120801ff"
+        },
+        {
+          "ordinal": 156,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 0,
+          "body_length": 0,
+          "wire_sha256": "070b13c004e9475fa155cd84d90de9f87db1b7dea6707329638a6ce66043d246",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "body_hex": ""
+        },
+        {
+          "ordinal": 158,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 51,
+          "body_length": 8,
+          "wire_sha256": "d272cbe99ef2fb78dd3ee30c25202c9081e034716bbe4a448f2ad6e3ae56666a",
+          "body_sha256": "d86e8112f3c4c4442126f8e9f44f16867da487f29052bf91b810457db34209a4",
+          "body_hex": "0200000000000000"
+        },
+        {
+          "ordinal": 159,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 97,
+          "body_length": 14,
+          "wire_sha256": "9adfbe83b4251e6f00c77a48d804e8e0193a593a28c91538eecd663ae4ebb88d",
+          "body_sha256": "7e99e25489c844f8fdc85fcf8501fceb24f0b195d745d367c7f53c30cf7d3964",
+          "body_hex": "02090341a000000f0001120801ff"
+        },
+        {
+          "ordinal": 160,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 115,
+          "body_length": 31,
+          "wire_sha256": "225e9ae6ce44a1c9e1e960dc35e2d3075252e4916cc8dae40f0123f263753269",
+          "body_sha256": "3b0b26191236f50268041f71801666a2b5b16574fe11085c1ea891b8f6b456c2",
+          "body_hex": "c303050000001000000208000000063f8000003f0000000aec785ea3bd78bc"
+        },
+        {
+          "ordinal": 161,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 5,
+          "wire_sha256": "1defd47ac79dfee762886dc9d54b2f7566185722cf50631b859373c6f579d3cf",
+          "body_sha256": "ed08fbe089975a2f518622c923fbf761869d6de3c86e8d4c9a2de5e2ed4f30ee",
+          "body_hex": "0123030300"
+        },
+        {
+          "ordinal": 162,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 36,
+          "body_length": 81,
+          "wire_sha256": "b7c172293f27683249c137cf17959b82a06501041ae1f77d1c4cddabe87a9c9d",
+          "body_sha256": "8331404e9029376a37bdbf375b2fd1d96da61fe928c587867c4a865e155166f6",
+          "body_hex": "400000000000000040504000000000003feb7ea88cd663863f8000000000001701bfc522e0c526db833fc6d3bf8e5f06b63f958465643c7690179d0502393f0000003f800000013c3f8000003f80000001"
+        },
+        {
+          "ordinal": 163,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 75,
+          "body_length": 2,
+          "wire_sha256": "bfb9808b04f65f794234b9e9042992688caa5c48a3a855efdfb28c59eff4d31b",
+          "body_sha256": "a12871fee210fb8619291eaea194581cbd2531e4b23759d225f6806923f63222",
+          "body_hex": "0102"
+        },
+        {
+          "ordinal": 164,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 99,
+          "body_length": 7,
+          "wire_sha256": "d671d3852f70d5624b6434152179962901827d3529f69ddd417fd7d1da2ba97e",
+          "body_sha256": "6218beedd54b785fb108df4df1bd199e02f42146a3d3d2aed8ee2d66dcb4ba67",
+          "body_hex": "01d1d1817704fd"
+        },
+        {
+          "ordinal": 166,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 111,
+          "body_length": 17,
+          "wire_sha256": "ad25a986c479a4495d7860311eb3bc48fe14651075b7d003e98beb39f139def3",
+          "body_sha256": "36b51fde4a084e5565b1e917ade244d2cf03fa3da51864dbf1db7015f8702bab",
+          "body_hex": "0000000000000027000000000000000c00"
+        }
+      ],
+      "airborne_movement_before_receipt": null,
+      "player_knockback_bits": [
+        "bfc522e0c526db83",
+        "3fc6d3bf8e5f06b6",
+        "3f958465643c7690"
+      ]
+    },
+    {
+      "name": "walking_after",
+      "record": {
+        "controls": {
+          "forward": 1,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 9,
+        "entity_contacts": {
+          "applied_record": 11,
+          "bodies": [],
+          "model_tick": 9,
+          "origin_after_record": 6,
+          "pair_calls": 0,
+          "receive_sequence": 139
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            0.015827100325900678,
+            65.0,
+            1.311389289866086,
+            0.6158271241677586,
+            66.79999995231628,
+            1.9113893137079438
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            0.31582711224682963,
+            66.62000000476837,
+            1.611389301787015
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": true,
+          "pose": "Standing",
+          "position": [
+            0.31582711224682963,
+            65.0,
+            1.611389301787015
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 9,
+          "using_item": null,
+          "velocity": [
+            -0.02445760097356456,
+            -0.0784000015258789,
+            0.0929455448240439
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 1,
+        "status": {
+          "status": "running"
+        },
+        "velocity_updates": 1
+      },
+      "native_position": [
+        0.3606212480210969,
+        65.0,
+        1.4411593859844973
+      ],
+      "movement": {
+        "ordinal": 168,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "a280052cd3ac0f40d8e573b3a8dad8783408060fc7b310f79bd7cd25bd1b1ebe",
+        "body_sha256": "1f1a9b33ea14d8ee2a3b15ee6b3d0f630bfcb647730acc246f99b1754d57dabd",
+        "body_hex": "3fd43682eb92938740504000000000003ff9c8402604cac4000000000000000001"
+      }
+    },
+    {
+      "name": "airborne_before",
+      "record": {
+        "controls": {
+          "forward": 0,
+          "jump": true,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 11,
+        "entity_contacts": {
+          "applied_record": 11,
+          "bodies": [],
+          "model_tick": 11,
+          "origin_after_record": 6,
+          "pair_calls": 0,
+          "receive_sequence": 139
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            -0.021984352330315093,
+            65.7531999805212,
+            1.455083108058603,
+            0.5780156715115428,
+            67.55319993283749,
+            2.055083131900461
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            0.27801565959061386,
+            67.37319998528957,
+            1.755083119979532
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": false,
+          "pose": "Standing",
+          "position": [
+            0.27801565959061386,
+            65.7531999805212,
+            1.755083119979532
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 11,
+          "using_item": null,
+          "velocity": [
+            -0.012152005381431298,
+            0.24813599859094576,
+            0.046180930096237104
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 1,
+        "status": {
+          "status": "running"
+        },
+        "velocity_updates": 1
+      },
+      "native_position": [
+        0.29136951127326505,
+        65.41999998688698,
+        1.7043348466110588
+      ],
+      "movement": {
+        "ordinal": 171,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "10ecc987fc0fc1c4d6d42a1aeb5e5c5d967fa30617ac87e8f40ec07e5b5ef8c4",
+        "body_sha256": "cace46280a9a1d618432d1e4f1b5fff853804ae3e1cafeec682bbd47627b11c0",
+        "body_hex": "3fd1cb02316dec6d405070346db0ebee3ffc14d209a12e04000000000000000000"
+      }
+    },
+    {
+      "name": "airborne_second_explosion",
+      "observations": {
+        "explosions": [
+          {
+            "explosion": {
+              "block_count": 27,
+              "center": [
+                1.791369511273265,
+                65.41999998688698,
+                1.7043348466110588
+              ],
+              "player_knockback": [
+                -0.13764608670606218,
+                0.17765199859601766,
+                0.004615775238879572
+              ],
+              "presentation": {
+                "Decoded": {
+                  "block_particles": [
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 57
+                      },
+                      "scaling": 0.5,
+                      "speed": 1.0,
+                      "weight": 1
+                    },
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 60
+                      },
+                      "scaling": 1.0,
+                      "speed": 1.0,
+                      "weight": 1
+                    }
+                  ],
+                  "particle": {
+                    "data": "Simple",
+                    "native_id": 23
+                  },
+                  "sound": {
+                    "RegistryId": 668
+                  }
+                }
+              },
+              "radius": 1.0
+            },
+            "receive_sequence": 147,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        ],
+        "receive_sequence": 148
+      },
+      "original_packets": [
+        {
+          "ordinal": 172,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 0,
+          "body_length": 0,
+          "wire_sha256": "070b13c004e9475fa155cd84d90de9f87db1b7dea6707329638a6ce66043d246",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "body_hex": ""
+        },
+        {
+          "ordinal": 173,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 1,
+          "body_length": 47,
+          "wire_sha256": "011a0bb25d5205f0a292fa90151583acaca93b54ab04676630358ddca04b992c",
+          "body_sha256": "33c967eefccfa37ec56f8a8ca8d88869f4d6afcb0f644243f99a99f6fc7415e0",
+          "body_hex": "0339691f4d9de64d6e98c3959e0d54f02a203ffca973139f85d840505ae147a000003ffb44f49dba0af40000000000"
+        },
+        {
+          "ordinal": 174,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 97,
+          "body_length": 14,
+          "wire_sha256": "97780792933b3d836716fcce4e3cfb4dc51325c4b058450acd4d1d9f32a31a69",
+          "body_sha256": "e6fd00ea86ba693f5da6def84ead5ec0cf81ff63c3630080161ae4be2b90c079",
+          "body_hex": "03090341a000000f0001120801ff"
+        },
+        {
+          "ordinal": 175,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 0,
+          "body_length": 0,
+          "wire_sha256": "070b13c004e9475fa155cd84d90de9f87db1b7dea6707329638a6ce66043d246",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "body_hex": ""
+        },
+        {
+          "ordinal": 176,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 51,
+          "body_length": 8,
+          "wire_sha256": "2a1673003e844c5980eac448fb91374b8399b936a043675eb12353d2ae9d04b9",
+          "body_sha256": "35be322d094f9d154a8aba4733b8497f180353bd7ae7b0a15f90b586b549f28b",
+          "body_hex": "0300000000000000"
+        },
+        {
+          "ordinal": 177,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 97,
+          "body_length": 14,
+          "wire_sha256": "97780792933b3d836716fcce4e3cfb4dc51325c4b058450acd4d1d9f32a31a69",
+          "body_sha256": "e6fd00ea86ba693f5da6def84ead5ec0cf81ff63c3630080161ae4be2b90c079",
+          "body_hex": "03090341a000000f0001120801ff"
+        },
+        {
+          "ordinal": 178,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 115,
+          "body_length": 31,
+          "wire_sha256": "13610b7d32b42cc0228a99ecd02f966e1f3a2ffa047dd998b30697dbe0b64bb0",
+          "body_sha256": "cee02d78bcdaf245cc8c4aced29717520ed9fcba047fc5ed5c85bc640c0bee38",
+          "body_hex": "c303050000000e0000020b0000000d3f8000003f000000ce87c07d5c835bf1"
+        },
+        {
+          "ordinal": 179,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 36,
+          "body_length": 81,
+          "wire_sha256": "99de3e4870378677c71d2609bcae335228a431aeb650c0dee5cf93d920c2f628",
+          "body_sha256": "9e05dd930197593a9fcee4cdfeb34b13d56f463d340abf7f437e080e0aaa16fb",
+          "body_hex": "3ffca973139f85d840505ae147a000003ffb44f49dba0af43f8000000000001b01bfc19e63106996e53fc6bd4cfa04fbc83f72e7fdbb259401179d0502393f0000003f800000013c3f8000003f80000001"
+        },
+        {
+          "ordinal": 180,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 75,
+          "body_length": 2,
+          "wire_sha256": "78ecb4a734624684c06be53dc51fe5a4f089efe283bd1a22f37abcff7a216053",
+          "body_sha256": "c79b932e1e1da3c0e098e5ad2c422937eb904a76cf61d83975a74a68fbb04b99",
+          "body_hex": "0103"
+        }
+      ],
+      "airborne_movement_before_receipt": {
+        "ordinal": 171,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "10ecc987fc0fc1c4d6d42a1aeb5e5c5d967fa30617ac87e8f40ec07e5b5ef8c4",
+        "body_sha256": "cace46280a9a1d618432d1e4f1b5fff853804ae3e1cafeec682bbd47627b11c0",
+        "body_hex": "3fd1cb02316dec6d405070346db0ebee3ffc14d209a12e04000000000000000000"
+      },
+      "player_knockback_bits": [
+        "bfc19e63106996e5",
+        "3fc6bd4cfa04fbc8",
+        "3f72e7fdbb259401"
+      ]
+    },
+    {
+      "name": "airborne_after",
+      "record": {
+        "controls": {
+          "forward": 0,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 15,
+        "entity_contacts": {
+          "applied_record": 16,
+          "bodies": [],
+          "model_tick": 15,
+          "origin_after_record": 6,
+          "pair_calls": 0,
+          "receive_sequence": 156
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            -0.5450300271660788,
+            66.94177593658061,
+            1.6324484980391458,
+            0.05496999667577901,
+            68.7417758888969,
+            2.232448521881004
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            -0.24503001524514995,
+            68.56177594134898,
+            1.9324485099600748
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": false,
+          "pose": "Standing",
+          "position": [
+            -0.24503001524514995,
+            66.94177593658061,
+            1.9324485099600748
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 15,
+          "using_item": null,
+          "velocity": [
+            -0.10272399506969346,
+            0.08841649463254682,
+            0.03483382488846029
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 1,
+        "status": {
+          "status": "running"
+        },
+        "velocity_updates": 1
+      },
+      "native_position": [
+        -0.13214650743283604,
+        66.7715550254462,
+        1.8941695826144094
+      ],
+      "movement": {
+        "ordinal": 193,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "331b43aee0348ad298d92f1d8bcde0aee03991d9a5e028ec67742e86652bc7a1",
+        "body_sha256": "a3c0f59f11117c4ce7b6338111f5354bc3b196233f93cd2a24cd308cb8bb7299",
+        "body_hex": "bfcf5d24bf0216224050bc460e93f1813ffeeb4f20f7b81f000000000000000000"
+      }
+    },
+    {
+      "name": "stop_restart_no_impulse_replay",
+      "result": {
+        "first": {
+          "controls": {
+            "forward": 0,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "corrections": 0,
+          "dispatched_ticks": 1,
+          "entity_contacts": {
+            "applied_record": 16,
+            "bodies": [],
+            "model_tick": 1,
+            "origin_after_record": 16,
+            "pair_calls": 0,
+            "receive_sequence": 156
+          },
+          "flight_change_sequence": null,
+          "flight_disable": null,
+          "flight_parameters": null,
+          "frame": {
+            "bounds": [
+              -0.6477540222357724,
+              67.03019243121315,
+              1.6672823229276061,
+              -0.047753998393914476,
+              68.83019238352944,
+              2.267282346769464
+            ],
+            "crouching": false,
+            "eye_in_water": false,
+            "eye_position": [
+              -0.34775401031484343,
+              68.65019243598152,
+              1.967282334848535
+            ],
+            "flying": false,
+            "gliding": false,
+            "horizontal_collision": false,
+            "in_water": false,
+            "model_scale": 1.0,
+            "on_ground": false,
+            "pose": "Standing",
+            "position": [
+              -0.34775401031484343,
+              67.03019243121315,
+              1.967282334848535
+            ],
+            "sprinting": false,
+            "swimming": false,
+            "tick": 1,
+            "using_item": null,
+            "velocity": [
+              -0.09347883820746503,
+              0.008248164900427776,
+              0.031698781562052275
+            ]
+          },
+          "glide": null,
+          "ground_jump": null,
+          "kind": "ground",
+          "mode": "survival",
+          "mode_change_sequence": null,
+          "movement_equipment": {
+            "available": true,
+            "depth_strider": 0,
+            "movement_efficiency": 0.0,
+            "soul_speed_blocks": null,
+            "water_movement_efficiency": 0.0
+          },
+          "movement_refusal": null,
+          "scale_change_sequence": null,
+          "session_id": 2,
+          "status": {
+            "status": "running"
+          },
+          "velocity_updates": 0
+        },
+        "started": {
+          "controls": {
+            "forward": 0,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "corrections": 0,
+          "dispatched_ticks": 0,
+          "entity_contacts": null,
+          "flight_change_sequence": null,
+          "flight_disable": null,
+          "flight_parameters": null,
+          "frame": null,
+          "glide": null,
+          "ground_jump": null,
+          "kind": "ground",
+          "mode": "survival",
+          "mode_change_sequence": null,
+          "movement_equipment": {
+            "available": true,
+            "depth_strider": 0,
+            "movement_efficiency": 0.0,
+            "soul_speed_blocks": null,
+            "water_movement_efficiency": 0.0
+          },
+          "movement_refusal": null,
+          "scale_change_sequence": null,
+          "session_id": 2,
+          "status": {
+            "status": "running"
+          },
+          "velocity_updates": 0
+        },
+        "stopped": {
+          "controls": {
+            "forward": 0,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "corrections": 0,
+          "dispatched_ticks": 15,
+          "entity_contacts": {
+            "applied_record": 16,
+            "bodies": [],
+            "model_tick": 15,
+            "origin_after_record": 6,
+            "pair_calls": 0,
+            "receive_sequence": 156
+          },
+          "flight_change_sequence": null,
+          "flight_disable": null,
+          "flight_parameters": null,
+          "frame": {
+            "bounds": [
+              -0.5450300271660788,
+              66.94177593658061,
+              1.6324484980391458,
+              0.05496999667577901,
+              68.7417758888969,
+              2.232448521881004
+            ],
+            "crouching": false,
+            "eye_in_water": false,
+            "eye_position": [
+              -0.24503001524514995,
+              68.56177594134898,
+              1.9324485099600748
+            ],
+            "flying": false,
+            "gliding": false,
+            "horizontal_collision": false,
+            "in_water": false,
+            "model_scale": 1.0,
+            "on_ground": false,
+            "pose": "Standing",
+            "position": [
+              -0.24503001524514995,
+              66.94177593658061,
+              1.9324485099600748
+            ],
+            "sprinting": false,
+            "swimming": false,
+            "tick": 15,
+            "using_item": null,
+            "velocity": [
+              -0.10272399506969346,
+              0.08841649463254682,
+              0.03483382488846029
+            ]
+          },
+          "glide": null,
+          "ground_jump": null,
+          "kind": "ground",
+          "mode": "survival",
+          "mode_change_sequence": null,
+          "movement_equipment": {
+            "available": true,
+            "depth_strider": 0,
+            "movement_efficiency": 0.0,
+            "soul_speed_blocks": null,
+            "water_movement_efficiency": 0.0
+          },
+          "movement_refusal": null,
+          "scale_change_sequence": null,
+          "session_id": 1,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "velocity_updates": 1
+        }
+      }
+    },
+    {
+      "name": "resumed_after_explosions",
+      "record": {
+        "controls": {
+          "forward": 0,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 3,
+        "entity_contacts": {
+          "applied_record": 16,
+          "bodies": [],
+          "model_tick": 3,
+          "origin_after_record": 16,
+          "pair_calls": 0,
+          "receive_sequence": 165
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            -0.8262986056636107,
+            66.96812379634744,
+            1.7278269965424595,
+            -0.22629858182175278,
+            68.76812374866373,
+            2.3278270203843174
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            -0.5262985937426817,
+            68.58812380111581,
+            2.0278270084633885
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": false,
+          "pose": "Standing",
+          "position": [
+            -0.5262985937426817,
+            66.96812379634744,
+            2.0278270084633885
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 3,
+          "using_item": null,
+          "velocity": [
+            -0.07740983038147763,
+            -0.14731046663788108,
+            0.02624976252456272
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 2,
+        "status": {
+          "status": "running"
+        },
+        "velocity_updates": 0
+      },
+      "native_position": [
+        -0.34775401031484343,
+        67.03019243121315,
+        1.967282334848535
+      ],
+      "movement": {
+        "ordinal": 207,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "29937ae1acb4e9a70566f95f46cf052f98b2f4a679787f6650481affafa29110",
+        "body_sha256": "19961859ee2f7d05cd832dfb7f34a7624ca3eee424a4d941d09973f315ecf30b",
+        "body_hex": "bfe0d7702601c78b4050bdf5bd82f2aa400038fd5dda5dbc000000000000000000"
+      }
+    },
+    {
+      "name": "correction_retains_contact_diagnosis",
+      "record": {
+        "controls": {
+          "forward": 0,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 1,
+        "dispatched_ticks": 3,
+        "entity_contacts": {
+          "applied_record": 16,
+          "bodies": [],
+          "model_tick": 3,
+          "origin_after_record": 16,
+          "pair_calls": 0,
+          "receive_sequence": 165
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            -0.8262986056636107,
+            66.96812379634744,
+            1.7278269965424595,
+            -0.22629858182175278,
+            68.76812374866373,
+            2.3278270203843174
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            -0.5262985937426817,
+            68.58812380111581,
+            2.0278270084633885
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": false,
+          "pose": "Standing",
+          "position": [
+            -0.5262985937426817,
+            66.96812379634744,
+            2.0278270084633885
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 3,
+          "using_item": null,
+          "velocity": [
+            -0.07740983038147763,
+            -0.14731046663788108,
+            0.02624976252456272
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": {
+          "Permanent": {
+            "context": {
+              "entity": null,
+              "entity_type": null,
+              "model_tick": 3,
+              "native_entity_id": null,
+              "owner_id": 2,
+              "owner_state": "Invalidated",
+              "packet": {
+                "opcode": 0,
+                "packet_type": "OwnPositionCorrection"
+              },
+              "reason": "entity contact model unavailable: \"own correction discarded contact origin\"",
+              "receive_sequence": 166,
+              "record_ordinal": 17,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            }
+          }
+        },
+        "scale_change_sequence": null,
+        "session_id": 2,
+        "status": {
+          "reason": "entity contact model unavailable: \"own correction discarded contact origin\"",
+          "status": "stopped"
+        },
+        "velocity_updates": 1
+      },
+      "native_position": [
+        0.5,
+        65.0,
+        0.5
+      ],
+      "player": {
+        "received_pose": {
+          "position": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "receive_sequence": 166,
+          "rotation": [
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "name": "fresh_owner_after_correction",
+      "record": {
+        "controls": {
+          "forward": 0,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 2,
+        "entity_contacts": {
+          "applied_record": 17,
+          "bodies": [],
+          "model_tick": 2,
+          "origin_after_record": 17,
+          "pair_calls": 0,
+          "receive_sequence": 183
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            0.19999998807907104,
+            65.0,
+            0.19999998807907104,
+            0.800000011920929,
+            66.79999995231628,
+            0.800000011920929
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            0.5,
+            66.62000000476837,
+            0.5
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": true,
+          "pose": "Standing",
+          "position": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 2,
+          "using_item": null,
+          "velocity": [
+            0.0,
+            -0.0784000015258789,
+            0.0
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 3,
+        "status": {
+          "status": "running"
+        },
+        "velocity_updates": 0
+      },
+      "native_position": [
+        0.5,
+        65.0,
+        0.5
+      ],
+      "movement": {
+        "ordinal": 233,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "72a43176fbe37c63cde26355d1908bc98580bbd40e319c79f61680a354f9c403",
+        "body_sha256": "0fa2119a1426a8126fc074e876adc48bb47de6729a5477a8bb1967d56e82c641",
+        "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001"
+      }
+    },
+    {
+      "name": "explosion_after_correction",
+      "observations": {
+        "explosions": [
+          {
+            "explosion": {
+              "block_count": 20,
+              "center": [
+                2.0,
+                65.0,
+                0.5
+              ],
+              "player_knockback": [
+                -0.1698520076054013,
+                0.18344016875377842,
+                0.0
+              ],
+              "presentation": {
+                "Decoded": {
+                  "block_particles": [
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 57
+                      },
+                      "scaling": 0.5,
+                      "speed": 1.0,
+                      "weight": 1
+                    },
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 60
+                      },
+                      "scaling": 1.0,
+                      "speed": 1.0,
+                      "weight": 1
+                    }
+                  ],
+                  "particle": {
+                    "data": "Simple",
+                    "native_id": 23
+                  },
+                  "sound": {
+                    "RegistryId": 668
+                  }
+                }
+              },
+              "radius": 1.0
+            },
+            "receive_sequence": 192,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        ],
+        "receive_sequence": 194
+      },
+      "original_packets": [
+        {
+          "ordinal": 234,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 0,
+          "body_length": 0,
+          "wire_sha256": "070b13c004e9475fa155cd84d90de9f87db1b7dea6707329638a6ce66043d246",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "body_hex": ""
+        },
+        {
+          "ordinal": 235,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 1,
+          "body_length": 47,
+          "wire_sha256": "e68ea579b7fa47535dfead2455d664865e5001fbbccbe9e24825223fe7c80819",
+          "body_sha256": "3297784747987ba828c4d2a53dee78cf07d5b86341cb95394eeccf5ce83bbd49",
+          "body_hex": "040fb6a9293b00473b9eeb447d75a6bfeb20400000000000000040504000000000003fe00000000000000000000000"
+        },
+        {
+          "ordinal": 236,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 97,
+          "body_length": 14,
+          "wire_sha256": "9d5a16b33aa8ad0f03b4c774eace448a5a15d8b4dd0385c56849f56d8c5aa00d",
+          "body_sha256": "893f0fada748c936080de897fe284b077955b403894b6f622e82b2ca87ed9576",
+          "body_hex": "04090341a000000f0001120801ff"
+        },
+        {
+          "ordinal": 237,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 0,
+          "body_length": 0,
+          "wire_sha256": "070b13c004e9475fa155cd84d90de9f87db1b7dea6707329638a6ce66043d246",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "body_hex": ""
+        },
+        {
+          "ordinal": 239,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 51,
+          "body_length": 8,
+          "wire_sha256": "68c9f751d0b445ae1bb373be2f19286e178075a99f5d0d23a313242e79177f61",
+          "body_sha256": "f0a0278e4372459cca6159cd5e71cfee638302a7b9ca9b05c34181ac0a65ac5d",
+          "body_hex": "0400000000000000"
+        },
+        {
+          "ordinal": 240,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 97,
+          "body_length": 14,
+          "wire_sha256": "9d5a16b33aa8ad0f03b4c774eace448a5a15d8b4dd0385c56849f56d8c5aa00d",
+          "body_sha256": "893f0fada748c936080de897fe284b077955b403894b6f622e82b2ca87ed9576",
+          "body_hex": "04090341a000000f0001120801ff"
+        },
+        {
+          "ordinal": 241,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 115,
+          "body_length": 31,
+          "wire_sha256": "48a5463604268b05fca1b13d2b2c322a40702220cab63c5e7538229d33b780a7",
+          "body_sha256": "62dccf56f86c35102f2eaa85419b31c89afb64a3f95f40b371df50511532daa0",
+          "body_hex": "c303050000001000000208000000043f8000003f0000002f9e442fcffb8bd5"
+        },
+        {
+          "ordinal": 242,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 25,
+          "body_length": 5,
+          "wire_sha256": "e7c41f62b2f62a2c9c1809461aa82f0c7bdd4d9bfdd944fd5d16c57ac8aa878c",
+          "body_sha256": "4792c12dd930c699862e13a0f80cbdb40ff945f18eb9230b12d1537a48931e24",
+          "body_hex": "0123050500"
+        },
+        {
+          "ordinal": 243,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 36,
+          "body_length": 81,
+          "wire_sha256": "1380133566b63f2f4cf053d0ade887adfedf89e3d3a6701522951604629411fe",
+          "body_sha256": "ee4ad49a19560fafcaec1ada0315ea88132e6de515a8267d471bb5aea1cca95b",
+          "body_hex": "400000000000000040504000000000003fe00000000000003f8000000000001401bfc5bdb5e8e99e403fc77af7aac8fc4b0000000000000000179d0502393f0000003f800000013c3f8000003f80000001"
+        },
+        {
+          "ordinal": 244,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 75,
+          "body_length": 2,
+          "wire_sha256": "08a38f04a687643cad83543bd7bcaa3989014f12cf8ff2f3d3191c350334c118",
+          "body_sha256": "a8d5dd63fba471ebcb1f3e8f7c1e1879b7152a6e7298a91ce119a63400ade7c5",
+          "body_hex": "0104"
+        },
+        {
+          "ordinal": 246,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 99,
+          "body_length": 7,
+          "wire_sha256": "f2434bdcd547ded935223a6f371a846f92b28f772ed7b41554a85923935c132d",
+          "body_sha256": "f41882c9e133ea0ad41fa17f620d4a8faa8a8dc7f5d170948dc0bff385ee60d3",
+          "body_hex": "0181d07fff0645"
+        }
+      ],
+      "airborne_movement_before_receipt": null,
+      "player_knockback_bits": [
+        "bfc5bdb5e8e99e40",
+        "3fc77af7aac8fc4b",
+        "0000000000000000"
+      ]
+    },
+    {
+      "name": "continued_after_correction_explosion",
+      "record": {
+        "controls": {
+          "forward": 0,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 9,
+        "entity_contacts": {
+          "applied_record": 22,
+          "bodies": [],
+          "model_tick": 9,
+          "origin_after_record": 17,
+          "pair_calls": 0,
+          "receive_sequence": 194
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            -0.2237233503168667,
+            65.0,
+            0.19999998807907104,
+            0.3762766735249912,
+            66.79999995231628,
+            0.800000011920929
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            0.07627666160406228,
+            66.62000000476837,
+            0.5
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": true,
+          "pose": "Standing",
+          "position": [
+            0.07627666160406228,
+            65.0,
+            0.5
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 9,
+          "using_item": null,
+          "velocity": [
+            -0.0698696482920074,
+            -0.0784000015258789,
+            0.0
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 3,
+        "status": {
+          "status": "running"
+        },
+        "velocity_updates": 1
+      },
+      "native_position": [
+        0.15305649267920096,
+        65.07522467450184,
+        0.5
+      ],
+      "movement": {
+        "ordinal": 249,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 30,
+        "body_length": 33,
+        "wire_sha256": "8f2c2f8e99937f26cc0a91851293342a5c1f2b9fc6d6d339f9f8ac0713f22235",
+        "body_sha256": "e7a1df38369fe43f5f32a0a3c301206320fb068bc67c101bae9695d2e28cb443",
+        "body_hex": "3fb386de07099a0540504000000000003fe0000000000000000000000000000001"
+      }
+    },
+    {
+      "name": "stopped_history_and_frame_retained",
+      "record": {
+        "controls": {
+          "forward": 0,
+          "jump": false,
+          "pitch": 0.0,
+          "sneak": false,
+          "sprint": false,
+          "strafe": 0,
+          "yaw": 0.0
+        },
+        "corrections": 0,
+        "dispatched_ticks": 9,
+        "entity_contacts": {
+          "applied_record": 22,
+          "bodies": [],
+          "model_tick": 9,
+          "origin_after_record": 17,
+          "pair_calls": 0,
+          "receive_sequence": 194
+        },
+        "flight_change_sequence": null,
+        "flight_disable": null,
+        "flight_parameters": null,
+        "frame": {
+          "bounds": [
+            -0.2237233503168667,
+            65.0,
+            0.19999998807907104,
+            0.3762766735249912,
+            66.79999995231628,
+            0.800000011920929
+          ],
+          "crouching": false,
+          "eye_in_water": false,
+          "eye_position": [
+            0.07627666160406228,
+            66.62000000476837,
+            0.5
+          ],
+          "flying": false,
+          "gliding": false,
+          "horizontal_collision": false,
+          "in_water": false,
+          "model_scale": 1.0,
+          "on_ground": true,
+          "pose": "Standing",
+          "position": [
+            0.07627666160406228,
+            65.0,
+            0.5
+          ],
+          "sprinting": false,
+          "swimming": false,
+          "tick": 9,
+          "using_item": null,
+          "velocity": [
+            -0.0698696482920074,
+            -0.0784000015258789,
+            0.0
+          ]
+        },
+        "glide": null,
+        "ground_jump": null,
+        "kind": "ground",
+        "mode": "survival",
+        "mode_change_sequence": null,
+        "movement_equipment": {
+          "available": true,
+          "depth_strider": 0,
+          "movement_efficiency": 0.0,
+          "soul_speed_blocks": null,
+          "water_movement_efficiency": 0.0
+        },
+        "movement_refusal": null,
+        "scale_change_sequence": null,
+        "session_id": 3,
+        "status": {
+          "reason": "stopped by request",
+          "status": "stopped"
+        },
+        "velocity_updates": 1
+      },
+      "observations": {
+        "explosions": [
+          {
+            "explosion": {
+              "block_count": 23,
+              "center": [
+                2.0,
+                65.0,
+                0.8592112303477826
+              ],
+              "player_knockback": [
+                -0.1651268923430643,
+                0.17833704425543367,
+                0.021012863390856895
+              ],
+              "presentation": {
+                "Decoded": {
+                  "block_particles": [
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 57
+                      },
+                      "scaling": 0.5,
+                      "speed": 1.0,
+                      "weight": 1
+                    },
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 60
+                      },
+                      "scaling": 1.0,
+                      "speed": 1.0,
+                      "weight": 1
+                    }
+                  ],
+                  "particle": {
+                    "data": "Simple",
+                    "native_id": 23
+                  },
+                  "sound": {
+                    "RegistryId": 668
+                  }
+                }
+              },
+              "radius": 1.0
+            },
+            "receive_sequence": 136,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          {
+            "explosion": {
+              "block_count": 27,
+              "center": [
+                1.791369511273265,
+                65.41999998688698,
+                1.7043348466110588
+              ],
+              "player_knockback": [
+                -0.13764608670606218,
+                0.17765199859601766,
+                0.004615775238879572
+              ],
+              "presentation": {
+                "Decoded": {
+                  "block_particles": [
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 57
+                      },
+                      "scaling": 0.5,
+                      "speed": 1.0,
+                      "weight": 1
+                    },
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 60
+                      },
+                      "scaling": 1.0,
+                      "speed": 1.0,
+                      "weight": 1
+                    }
+                  ],
+                  "particle": {
+                    "data": "Simple",
+                    "native_id": 23
+                  },
+                  "sound": {
+                    "RegistryId": 668
+                  }
+                }
+              },
+              "radius": 1.0
+            },
+            "receive_sequence": 147,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          {
+            "explosion": {
+              "block_count": 20,
+              "center": [
+                2.0,
+                65.0,
+                0.5
+              ],
+              "player_knockback": [
+                -0.1698520076054013,
+                0.18344016875377842,
+                0.0
+              ],
+              "presentation": {
+                "Decoded": {
+                  "block_particles": [
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 57
+                      },
+                      "scaling": 0.5,
+                      "speed": 1.0,
+                      "weight": 1
+                    },
+                    {
+                      "particle": {
+                        "data": "Simple",
+                        "native_id": 60
+                      },
+                      "scaling": 1.0,
+                      "speed": 1.0,
+                      "weight": 1
+                    }
+                  ],
+                  "particle": {
+                    "data": "Simple",
+                    "native_id": 23
+                  },
+                  "sound": {
+                    "RegistryId": 668
+                  }
+                }
+              },
+              "radius": 1.0
+            },
+            "receive_sequence": 192,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        ],
+        "receive_sequence": 194
+      }
+    }
+  ],
+  "commands": [
+    {
+      "command": "forceload add -8 -8 8 8",
+      "response": "Marked 4 chunks in minecraft:overworld from [-1, -1] to [0, 0] to be force loaded"
+    },
+    {
+      "command": "setblock 0 64 0 minecraft:stone",
+      "response": "Changed the block at 0, 64, 0"
+    },
+    {
+      "command": "execute if block 0 64 0 minecraft:stone",
+      "response": "Test passed"
+    },
+    {
+      "command": "fill -8 64 -8 8 64 8 minecraft:stone",
+      "response": "Successfully filled 288 block(s)"
+    },
+    {
+      "command": "fill -4 65 -4 4 84 4 minecraft:air",
+      "response": "No blocks were filled"
+    },
+    {
+      "command": "setworldspawn 0 65 0",
+      "response": "Set the world spawn point to 0, 65, 0 [0.0, 0.0] in minecraft:overworld"
+    },
+    {
+      "command": "difficulty peaceful",
+      "response": "The difficulty has been set to Peaceful"
+    },
+    {
+      "command": "gamerule minecraft:respawn_radius 0",
+      "response": "Gamerule respawn_radius is now set to: 0"
+    },
+    {
+      "command": "gamerule minecraft:spawn_mobs false",
+      "response": "Gamerule spawn_mobs is now set to: false"
+    },
+    {
+      "command": "gamerule minecraft:advance_time false",
+      "response": "Gamerule advance_time is now set to: false"
+    },
+    {
+      "command": "difficulty normal",
+      "response": "The difficulty has been set to Normal"
+    },
+    {
+      "command": "gamerule minecraft:mob_griefing false",
+      "response": "Gamerule mob_griefing is now set to: false"
+    },
+    {
+      "command": "effect give ClimbingProbe minecraft:resistance infinite 255 true",
+      "response": "Applied effect Resistance to ClimbingProbe"
+    },
+    {
+      "command": "fill -12 64 -12 12 64 12 minecraft:stone",
+      "response": "Successfully filled 336 block(s)"
+    },
+    {
+      "command": "fill -12 65 -12 12 84 12 minecraft:air",
+      "response": "No blocks were filled"
+    },
+    {
+      "command": "tp ClimbingProbe 0.5 65 0.5 0 0",
+      "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5195999999433756d]"
+    },
+    {
+      "command": "execute at ClimbingProbe run summon minecraft:creeper ~1.5 ~ ~ {Fuse:1s,ignited:1b,NoAI:1b,ExplosionRadius:1b}",
+      "response": "Summoned new Creeper"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [0.3606212480210969d, 65.0d, 1.4411593859844973d]"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [0.29136951127326505d, 65.41999998688698d, 1.7043348466110588d]"
+    },
+    {
+      "command": "execute at ClimbingProbe run summon minecraft:creeper ~1.5 ~ ~ {Fuse:1s,ignited:1b,NoAI:1b,ExplosionRadius:1b}",
+      "response": "Summoned new Creeper"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [-0.13214650743283604d, 66.7715550254462d, 1.8941695826144094d]"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [-0.34775401031484343d, 67.03019243121315d, 1.967282334848535d]"
+    },
+    {
+      "command": "tp ClimbingProbe 0.5 65 0.5 0 0",
+      "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+    },
+    {
+      "command": "execute at ClimbingProbe run summon minecraft:creeper ~1.5 ~ ~ {Fuse:1s,ignited:1b,NoAI:1b,ExplosionRadius:1b}",
+      "response": "Summoned new Creeper"
+    },
+    {
+      "command": "data get entity ClimbingProbe Pos",
+      "response": "ClimbingProbe has the following entity data: [0.15305649267920096d, 65.07522467450184d, 0.5d]"
+    }
+  ],
+  "trace_errors": [],
+  "artifact_sha256": {
+    "report.json": "7f41985821aeb3144b7884e13f12055f8541907553a272075480f99294c18cf8",
+    "packets.jsonl": "50eb374d3ba3e80ba00c422e55230dab089d2e789f8f2d257d2a428cfc0369b7",
+    "probe.log": "498f966081d7b0e699e33e1684b6dd3283045e03bbaafcf4560ce737aa298fd1",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server.log": "f70865097a21a36f3e8218c85643fd4f81950c5f21f66f66885faeccab81dd21"
+  },
+  "server_stopped": true,
+  "development_attempts": [
+    {
+      "report_sha256": "7f768c9d1a59818150e9daac3318deea2ffc4b101be2cfccee609b9c4de25f7b",
+      "passed": false,
+      "reason": "Fixture used peaceful difficulty; creeper did not explode."
+    },
+    {
+      "report_sha256": "6b310deda9c45e2d3b361943ce2f77c31eec7d9b21645c66804a9c475d184e2c",
+      "passed": false,
+      "reason": "Fixture compared the pre-tick frame immediately after correction receipt."
+    },
+    {
+      "report_sha256": "8853cfaf23574a1836d442e6a461d37e8aa32baa178bbfd2611bff95e6830497",
+      "passed": false,
+      "reason": "Weak walking impulse landed before the airborne check; use explicit jump and original pre-receipt movement."
+    },
+    {
+      "report_sha256": "b11f637ce46c3a23e241054f18798512d95eb5f3dde6bf7107c283462442b350",
+      "passed": false,
+      "reason": "Existing contact-origin correction refusal stopped the owner; preserve the diagnosis and start a fresh owner."
+    },
+    {
+      "report_sha256": "606d3c48e7869e0598a8a2d4098a8789aeb7346149246ee65a59afe6a20fe8ec",
+      "passed": true,
+      "reason": "Successful earlier qualification before the finite-owner admission guard."
+    },
+    {
+      "report_sha256": "4fc6a4e980b3b88b0a7482fff10b2a5bd70d29562d76f292a333541714782df2",
+      "passed": false,
+      "reason": "Fixture compared the advancing receive boundary instead of retained explosion rows."
+    }
+  ]
+}

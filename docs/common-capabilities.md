@@ -57,4 +57,5 @@
 
 `explosions_after`: Java 1.21.11限定の受信観測。optional impulseと表現文脈を分け、
 1024件の履歴に元ordinal・worldを保持する。1.16.1は`Unsupported`。
-既存の移動中断は維持する。[詳細](common-explosions.md)。
+同じworldの確定Ground ownerはimpulseを一度だけ加算する。Flight／Glide／vehicleや
+未decode・不確かなモデルでは移動中断を維持する。[詳細](common-explosions.md)。

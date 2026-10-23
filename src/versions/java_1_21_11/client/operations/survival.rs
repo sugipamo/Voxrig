@@ -160,6 +160,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     if matches!(id, input::EXPLOSION | input::VEHICLE_MOVE) {
         if id == input::EXPLOSION {
             let explosion = super::super::explosions::decode(payload)?;
+            let impulse = explosion.player_knockback;
+            let decoded = matches!(
+                explosion.presentation,
+                crate::client::explosions::ExplosionPresentation::Decoded { .. }
+            );
             state
                 .explosions
                 .record(crate::client::explosions::ReceivedExplosion {
@@ -167,9 +172,12 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                     receive_sequence: state.sequence,
                     explosion,
                 });
+            // Unknown presentation does not qualify the movement exception.
+            if decoded && super::continuous::ground_explosion(state, impulse) {
+                return Ok(true);
+            }
         }
-        // Observation does not establish a new movement baseline, even when
-        // the explosion has no player impulse. Preserve the existing interruption.
+        // Other owners and uncertain contexts retain the existing diagnosis.
         interrupt(state, id);
         state.vehicles.interrupt_motion(state.sequence);
         return Ok(true);
@@ -482,6 +490,23 @@ fn context_core(
     dismount: bool,
 ) -> Result<StandingContext> {
     let player = &state.operations.local_player;
+    if state.motion.position_basis == super::super::motion::PositionBasis::Received {
+        if let Some((world, sequence)) = state.control.explosion_sequence {
+            if world == state.loading.generation
+                && state
+                    .motion
+                    .received_pose
+                    .as_ref()
+                    .is_some_and(|p| p.receive_sequence < sequence)
+            {
+                return Err(unavailable(format!(
+                    "unsupported player motion packet {} at receive sequence {}; fresh world baseline required",
+                    ids::play_clientbound::EXPLOSION,
+                    sequence
+                )));
+            }
+        }
+    }
     if !dismount && !super::movement::submitted_dismount_stop(state) {
         if let Some(interruption) = &player.motion_interruption {
             return Err(unavailable(format!(

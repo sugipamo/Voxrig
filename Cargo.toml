@@ -61,6 +61,8 @@ include = [
     "/scripts/run_honey_oracle.py",
     "/scripts/run_levitation_oracle.py",
     "/scripts/run_levitation_live.py",
+    "/scripts/run_explosion_ground_oracle.py",
+    "/scripts/run_explosion_ground_live.py",
     "/scripts/run_honey_live.py",
     "/scripts/run_glide_oracle.py",
     "/scripts/run_glide_live.py",

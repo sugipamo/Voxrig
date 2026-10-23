@@ -24,6 +24,10 @@ pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
     model_attempt: Option<u64>,
     // Complete local disable wins only over older abilities in the same world.
     flight_disabled: Option<(u64, u64)>,
+    // A modelled impulse is not a stationary received-velocity baseline.
+    pub(super) explosion_sequence: Option<(u64, u64)>,
+    released_ground: Option<u64>,
+    dead_ground: Option<u64>,
 }
 
 impl ContinuousControl {
@@ -181,6 +185,101 @@ fn received(state: &State) -> Received {
     }
 }
 
+/// Only the current Ground model, including an explicitly stopped model whose
+/// momentum can be resumed. Failed writes and unrelated movement never qualify.
+fn ground_model_available(state: &State) -> bool {
+    let Some(session) = state.control.session.as_ref() else {
+        return false;
+    };
+    let generation = state.loading.generation;
+    let attempt = state.motion.last_submission.as_ref().map(|s| s.attempt_id);
+    state.ready
+        && state.failure.is_none()
+        && session.kind == crate::client::control::ControlKind::Ground
+        && (session.running() || state.control.released_ground == Some(session.id))
+        && !state
+            .survival_motion
+            .as_ref()
+            .is_some_and(|r| r.status == SurvivalMotionStatus::Running)
+        && !crate::client::flight::unresolved(&state.flight_history)
+        && !crate::client::vehicle::control::unresolved(&state.vehicle_control_history)
+        && state.control.generation == Some(generation)
+        && attempt == state.control.model_attempt
+        && !matches!(
+            state.motion.position_basis,
+            super::super::motion::PositionBasis::Unavailable
+                | super::super::motion::PositionBasis::PendingSubmission
+        )
+        && (Some(session.body.position) == state.position || session.has_new_pose(&received(state)))
+        && stop_reason(state, generation, session.mode, session.kind).is_none()
+}
+
+/// Numerical baseline for native relative corrections; never a received sample.
+pub(in crate::versions::java_1_21_11::client) fn ground_velocity(
+    state: &State,
+) -> Option<[f64; 3]> {
+    ground_model_available(state).then(|| state.control.session.as_ref().unwrap().body.velocity)
+}
+
+/// Consume each motion receipt under the reader's lock, before another impulse
+/// or relative correction can use the model. No queue or public getter drains it.
+pub(in crate::versions::java_1_21_11::client) fn ground_motion_received(
+    state: &mut State,
+    id: i32,
+) {
+    if id == ids::play_clientbound::UPDATE_HEALTH
+        && state
+            .operations
+            .local_player
+            .health
+            .as_ref()
+            .is_some_and(|h| h.health <= 0.0)
+    {
+        if let Some(owner) = state
+            .control
+            .session
+            .as_ref()
+            .filter(|s| s.kind == crate::client::control::ControlKind::Ground)
+        {
+            state.control.dead_ground = Some(owner.id);
+        }
+    }
+    if matches!(
+        id,
+        ids::play_clientbound::POSITION | ids::play_clientbound::ENTITY_VELOCITY
+    ) && ground_model_available(state)
+    {
+        let received = received(state);
+        state
+            .control
+            .session
+            .as_mut()
+            .unwrap()
+            .apply_received(&received);
+    }
+}
+
+pub(super) fn ground_explosion(state: &mut State, impulse: Option<[f64; 3]>) -> bool {
+    if !ground_model_available(state) {
+        return false;
+    }
+    let received = received(state);
+    if !state
+        .control
+        .session
+        .as_mut()
+        .unwrap()
+        .ground_explosion(state.sequence, impulse, &received)
+    {
+        return false;
+    }
+    if impulse.is_some() {
+        state.control.explosion_sequence = Some((state.loading.generation, state.sequence));
+        state.motion.on_ground = None;
+    }
+    true
+}
+
 /// Why the session must end, from facts outside the engine's scope.
 fn stop_reason(
     state: &State,
@@ -262,12 +361,18 @@ fn stop_reason(
         || state.operations.local_player.motion_interruption.is_some()
     {
         Some("vehicle or explosion motion outside the engine")
-    } else if state
-        .operations
-        .local_player
-        .health
-        .as_ref()
-        .is_some_and(|h| h.health <= 0.0)
+    } else if (state.control.generation == Some(generation)
+        && state
+            .control
+            .session
+            .as_ref()
+            .is_some_and(|s| state.control.dead_ground == Some(s.id)))
+        || state
+            .operations
+            .local_player
+            .health
+            .as_ref()
+            .is_some_and(|h| h.health <= 0.0)
     {
         Some("player died")
     } else if let Some(session) = state
@@ -348,6 +453,10 @@ impl Operations {
             return Ok(None);
         }
         let old_world = state.control.generation != Some(state.loading.generation);
+        let released_ground = !old_world
+            && session.running()
+            && self.ready(&state).is_ok()
+            && session.kind == crate::client::control::ControlKind::Ground;
         let release = if !old_world && session.running() && self.ready(&state).is_ok() {
             self.write_release(&session, entity).await
         } else {
@@ -363,6 +472,9 @@ impl Operations {
             };
         }
         let record = session.record();
+        if release.is_ok() && released_ground {
+            state.control.released_ground = Some(session.id);
+        }
         state.control.session = Some(session);
         self.bot.session.changed.notify_waiters();
         if release.is_ok() {

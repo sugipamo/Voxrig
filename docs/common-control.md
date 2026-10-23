@@ -161,6 +161,10 @@ world変更時は旧worldの効果を破棄して旧ownerを終了する。元�
 - 受信したものは公式clientと同じように取り込み、続ける。
   - serverからの位置（テレポート・補正）: 位置を置き換える（`corrections`に数える）。
   - 自分への速度（ノックバック等）: 速度を置き換える（`velocity_updates`に数える）。
+  - 1.21.11のGround ownerは[爆発のoptional impulse](common-explosions.md)を受信順に一度だけ加算する。
+    正常な明示停止後の同じモデルも新しいimpulseを取り込み、再開時に古い加算を繰り返さない。
+    Flight／Glide／vehicle、未decode・world変更・不確かなwriteの中断は維持する。
+    補正による既存の接触origin失効はownerを停止するため、その場合は新ownerが必要。
   - 開始時は現在のSDKモデルとローカルのyaw/pitchを使い、移動・ジャンプ・しゃがみ・ダッシュの入力を離す。
     同じworldでの停止・再開でも、すでにモデルへ取り込んだ古いノックバックを再適用しない。
     停止中に届いた新しい位置・速度は受信順に取り込み、古いノックバックで新しいテレポートを上書きしない。
@@ -176,7 +180,7 @@ world変更時は旧worldの効果を破棄して旧ownerを終了する。元�
   元のbytes・SDK revision・binary/JAR hashを[レビュー検証記録](evidence/common-control-restart-review-20261009.json)に保存した。
   `scripts/run_control_restart.py --accept-eula`で再実行できる。
 - 次の場合は`Stopped`になる: `stop_control`、切断、world（死亡からの復帰・次元）の変化、game modeの変化、飛行、乗車、
-  爆発などエンジンの外の動き、死亡、送信の失敗。止まったsessionは再開しない（`start_control`で新しく始める）。
+  未資格の爆発などエンジンの外の動き、死亡、送信の失敗。止まったsessionは再開しない（`start_control`で新しく始める）。
 - 同じworldで接続が使える場合、自動停止でもダッシュ・しゃがみ（1.21.11では全入力）を解除する。
   `stop_control`が対象sessionを取得した後は、待ち手がキャンセルされてもClientのtaskが入力解除と記録保持を完了する。
 - sessionの間は、静止を前提にする操作（移動の予測・有限の移動・照準・採掘・設置・収納を開く）は拒否する。

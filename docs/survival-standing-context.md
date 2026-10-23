@@ -25,14 +25,17 @@ these IDs, so the native registry/default container is the comparison authority.
 Health, velocity and effect updates are cleared on a world reset; reconfiguration
 also clears the entity identity.
 
-Explosion/vehicle-motion packets and a received passenger list containing the
-bot invalidate stationary motion. Their motion consequences are not simulated;
+Explosion packets outside the qualified Ground owner, vehicle-motion packets
+and a received passenger list containing the bot invalidate stationary motion.
+Their motion consequences are not simulated by the stationary query;
 the interruption retains packet ID/sequence and requires a fresh world baseline.
 A later zero velocity alone cannot prove dismount or repair unmodeled position.
 Explosion payloads are strictly decoded into the separate bounded
 [explosion observation history](common-explosions.md). Omitted or explicit zero
-impulses still invalidate stationary motion; undecoded presentation cannot restore
+impulses outside that owner still invalidate stationary motion; undecoded presentation cannot restore
 authority. Malformed known layouts fail reception without publishing an observation.
+The current Ground owner applies decoded impulses once in receive order; its numerical
+velocity is not a stationary received baseline. See the explosion history document.
 Other players' passenger lists do not
 invalidate the bot. This is a refusal boundary, not support for riding or combat.
 

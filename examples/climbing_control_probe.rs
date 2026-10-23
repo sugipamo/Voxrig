@@ -349,6 +349,7 @@ async fn main() -> anyhow::Result<()> {
             }
             "respawn" => serde_json::to_value(client.respawn().await?)?,
             "player" => serde_json::to_value(client.player_state().await?)?,
+            "explosions" => serde_json::to_value(client.explosions_after(request["after"].as_u64().unwrap_or(0)).await?)?,
             "lighting" => {
                 let positions: Vec<[i32; 3]> =
                     serde_json::from_value(request["positions"].clone())?;
