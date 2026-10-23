@@ -323,6 +323,7 @@ pub(crate) struct ControlSession {
     pub velocity_updates: u64,
     last_pose: Option<u64>,
     last_velocity: Option<u64>,
+    last_explosion: Option<u64>,
     sent_sneak: bool,
     sent_sprint: bool,
     sent_input: Option<u8>,
@@ -399,6 +400,7 @@ impl ControlSession {
             velocity_updates: 0,
             last_pose: received.pose.map(|p| p.0),
             last_velocity: received.velocity.map(|v| v.0),
+            last_explosion: None,
             sent_sneak: false,
             sent_sprint: false,
             sent_input: None,
@@ -415,6 +417,7 @@ impl ControlSession {
         let mut next = Self::from_model(self.version, id, self.body.clone(), rotation, received);
         next.last_pose = self.last_pose;
         next.last_velocity = self.last_velocity;
+        next.last_explosion = self.last_explosion;
         next.released_use = self.released_use;
         next.apply_received(received);
         // The start boundary is part of the initial seed, just as it is for a
@@ -628,6 +631,32 @@ impl ControlSession {
             self.apply_pose(pose);
             self.apply_velocity(velocity);
         }
+    }
+
+    /// Private, ordered receive input, independent of the observation history.
+    /// The adapter holds the state lock and fences the world/model lifetime.
+    pub(crate) fn ground_explosion(
+        &mut self,
+        sequence: u64,
+        impulse: Option<[f64; 3]>,
+        received: &Received,
+    ) -> bool {
+        if self.kind != ControlKind::Ground {
+            return false;
+        }
+        if self.last_explosion.is_some_and(|seen| sequence <= seen) {
+            return true;
+        }
+        self.apply_received(received);
+        if let Some(impulse) = impulse {
+            let velocity = std::array::from_fn(|axis| self.body.velocity[axis] + impulse[axis]);
+            if velocity.iter().any(|v| !v.is_finite()) {
+                return false;
+            }
+            self.body.velocity = velocity;
+        }
+        self.last_explosion = Some(sequence);
+        true
     }
 
     fn apply_pose(&mut self, pose: Option<(u64, [f64; 3], Option<[f64; 3]>)>) {

@@ -47,11 +47,13 @@ soundなし・空一覧・既知のsimple particleとは扱わない。impulse�
   現在の受信連番を明示取得して再開する。
 - 既知layoutの切り詰め・末尾余剰・不正bool・非有限float/double・負のlist count/weight・
   weight合計のoverflow・過大payloadはprotocol errorで、そのpacketの観測・通知を記録しない。
-- 既存の徒歩・飛行・vehicleの移動中断は、impulseなし・ゼロvectorでも維持する。
-  このAPIは受信文脈だけを提供し、移動の再開条件を緩和しない。
+- 1.21.11の現在のGround owner（Survival／Adventure／Creative）は、decode済みpacketの
+  optional impulseをreaderの状態ロック内で一度だけ取り込む。省略は加算なし、明示ゼロはゼロの加算。
+  Flight／Glide／vehicle、ownerなし、world変更、不確かなwrite、未decodeの表現では
+  従来のpacket ID・受信連番付き中断を維持する。
 
 粒子やsoundの描画・再生、爆発によるblock破壊予測、爆発源がTNT/creeper/風系のどれかを
-packetから断定する機能は含まない。packet順はserver tick順・移動適用順の保証ではない。
+packetから断定する機能は含まない。受信順でのモデル適用はserver tick時計の再現ではない。
 #44の移動物理残件全体の完了も意味しない。
 
 ## Codecと実接続の検証
@@ -91,3 +93,52 @@ liveで受信したとは主張しない。元packetをunit testで再適用し�
 元bytes・packet順・commands・SDK/binary/JAR hashは
 [検証記録](evidence/explosion-observation-20261023.json)へ保存した。
 serverはport 35099で起動し、exit 0で終了・削除済み。
+
+
+## Ground ownerへの適用
+
+`ClientPacketListener.handleExplosion`はoptional値を`Entity.addDeltaMovement`へ渡す。
+`ENTITY_VELOCITY`の`lerpMotion`は速度を置き換える。この違いをprivateな順序付き入力へ反映し、
+連続爆発、速度置換、補正をreaderの受信順で適用する。相対速度補正の基準には、
+同じworld・同じGroundモデルの現在速度を使う。受信したvelocity sampleを予測値で上書きしない。
+`ControlRecord::velocity_updates`は元の速度受信の計数で、爆発の回数には使わない。
+爆発の元値・受信順・worldは`explosions_after`で読む。getterを繰り返しても排出・再適用しない。
+
+正常な明示停止後に残る同じモデルへ届いた新しいimpulseも一度だけ取り込み、再開はその速度を継ぐ。
+停止待ちfutureの取消で接続所有taskを取り消さず、owner交代後に古い入力を再配送しない。
+別の有限移動・飛行・vehicle ownerの受付済みintentも検査し、最初のwrite前に残る旧Groundモデルへ渡さない。
+未知のモデル、死亡、別の位置送信、部分write、world変更では旧impulseから再開しない。
+地形等でtickを予測できなければ既存のPaused診断を残し、加算を繰り返さない。
+爆発直後のモデル速度を「受信zero velocityの静止証明」に使わない。
+
+独立値は`explosion_ground_oracle.json.gz`の10場面・240 tick。
+公式clientのhandlerと呼出先をfingerprintで結び、未変更の`addDeltaMovement`／`lerpMotion`と
+公式Playerのtravelを実行した。地上／空中の連続二爆発、速度通知の前／間／後、省略と明示ゼロを含む。
+構築packetの試験はその全位置・速度・接地を照合し、補正、読取、取消、死亡、owner／world／writeの
+境界を別に検査する。既存の全1,024ケースの補正oracleと両版の移動fixtureも回帰対象。
+入力解除の部分writeとflush失敗は実際のadapter writerで発生させ、後続の爆発が旧モデルへ
+加算されず、停止理由とpacket ID・受信連番付き中断、元の観測履歴が残ることを検査する。
+
+```bash
+python3 -B scripts/movement_oracle/explosion_scenarios.py /tmp/explosion-scenarios.json
+python3 -B scripts/run_explosion_ground_oracle.py \
+  --downloads /absolute/path/to/downloads \
+  --work /tmp/explosion-ground-oracle --scenarios /tmp/explosion-scenarios.json
+cargo test --locked --lib -j2 explosion -- --test-threads=2
+cargo build --locked --example climbing_control_probe -j2
+python3 -B scripts/run_explosion_ground_live.py --accept-eula \
+  --jars /absolute/path/to/downloads --binary target/debug/examples/climbing_control_probe \
+  --work /tmp/explosion-ground-live
+```
+
+公式1.21.11 serverの使い捨て接続では、歩行中／空中の爆発、停止・再開、実補正とその後の爆発を
+検査する。元packet、モデルframe、RCON座標は別の根拠として記録する。
+これは原版clientのpacket時計やtick単位のserver速度一致を証明するものではない。
+
+
+2026-10-23の実接続は13項目PASS、traceエラー0件。
+歩行中と明示jumpによる空中の爆発、停止・再開の最初の移動、履歴の非排出を確認した。
+実補正では既存の接触origin失効による停止診断を維持し、新ownerで補正後の基準から再開した。
+その後の爆発も一度だけ適用した。port 38107のserverは停止済み。
+元packetとRCON座標、runtime source／binary／JAR hash、検証fixture修正の試行は
+[実接続証跡](evidence/common-explosion-ground-20261023.json)へ保存した。

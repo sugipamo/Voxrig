@@ -293,3 +293,15 @@ python3 -B scripts/run_levitation_live.py --accept-eula \
 2026-10-23の実接続は16項目PASS、補正0・traceエラー0。天井接触後の水平入力変更も
 同じownerで継続した。停止後の記録保持と、開始前から効果を持つ新ownerも確認した。
 [結果とhash](evidence/common-levitation-ground-20261023.json)を参照。
+
+
+## 爆発impulseとGround owner（2026-10-23）
+
+`explosion_ground_oracle.json.gz`は1.21.11の10場面・240 tick。
+公式client handlerの呼出先をfingerprintで確認し、未変更の`Entity.addDeltaMovement`と
+`lerpMotion`へ明示入力を渡してから、元のPlayer travelを実行する。
+連続二爆発、速度通知の前／間／後、省略・明示ゼロを地上／空中で比較する。
+Rustの構築packet試験は全tickの位置・速度・接地をbit単位で照合する。
+既存の両版移動fixtureと全1,024ケースの補正oracleは維持する。
+取消・死亡・world／owner／write寿命は別のpacket試験、実接続は元packetとRCON座標で検査する。
+再生成コマンド・範囲・実接続証跡は[爆発の文書](common-explosions.md#ground-ownerへの適用)を参照。

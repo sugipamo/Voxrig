@@ -1,4 +1,5 @@
 mod entity_at;
+mod explosion;
 use super::*;
 
 #[tokio::test]

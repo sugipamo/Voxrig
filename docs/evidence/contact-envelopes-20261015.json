@@ -2797,7 +2797,7 @@
     "src/client/physics/boat.rs": "86fd1e61e234d16f3f00027092d470cffb2c046ac8732654b8d7666bcdaedefe",
     "src/client/vehicle/collision.rs": "5acb4d11f6680286524ee66e9067744a344412610aa5575416e0e474ed3db7e1",
     "src/client/vehicle/tests.rs": "78ef57c67ff3fe5caca720eff18af431e7e147fc31480f3405c135f4767b9ca0",
-    "src/client/control.rs": "866beb6e0b2874ff292ae7f8914604f2482c2be07028fb5b7f904b5e3d14f772",
+    "src/client/control.rs": "dafd9dd952e1f70cd0e5e6900d02ce720547258d1cbf2c1ccfddfa30739fdc58",
     "docs/common-entity-owners.md": "037f6e48d96f354c7c41027363eb178d0ddfacb5eb80cb6bc8b4ca870ad711d3",
     "docs/common-entity-dispatch.md": "dc1db352dd4fe32453c3f328f1f8ae6da58c9189be39411a8f447882a00adaa8",
     "data/client_api/entity_dimensions_oracle.json.gz": "f250e421e4d27d47e3aab530ef445dcec2fb680c4ee86f565d62cf1b91ec81f4",

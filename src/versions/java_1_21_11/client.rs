@@ -236,6 +236,15 @@ impl State {
             self.loading.generation,
             self.sequence,
         );
+        let correction_velocity = (id == ids::play_clientbound::POSITION)
+            .then(|| {
+                operations::continuous::ground_velocity(self).or_else(|| {
+                    (self.motion.position_basis == motion::PositionBasis::Received)
+                        .then(|| self.operations.local_player.velocity.map(|v| v.value))
+                        .flatten()
+                })
+            })
+            .flatten();
         if let Some(trace) = &mut self.trace {
             trace.record(
                 self.sequence,
@@ -250,11 +259,7 @@ impl State {
                     .then_some(LocalPlayerBasis {
                         position: self.position,
                         rotation: self.rotation,
-                        velocity: if self.motion.position_basis == motion::PositionBasis::Received {
-                            self.operations.local_player.velocity.map(|v| v.value)
-                        } else {
-                            None
-                        },
+                        velocity: correction_velocity,
                     }),
             );
         }
@@ -268,6 +273,7 @@ impl State {
             Ok(responses)
         });
         if result.is_ok() {
+            operations::continuous::ground_motion_received(self, id);
             if self.phase == Phase::Play && id == ids::play_clientbound::RESPAWN {
                 crate::client::respawn::received(
                     &self.respawn_history,
@@ -1213,15 +1219,12 @@ fn apply_play(
             let teleport = r.varint()?;
             let correction = correction::Correction::read(&mut r)?;
             r.end()?;
-            let resolved = correction.resolve(
-                state.position,
-                state.rotation,
-                if state.motion.position_basis == motion::PositionBasis::Received {
-                    state.operations.local_player.velocity.map(|v| v.value)
-                } else {
-                    None
-                },
-            )?;
+            let velocity = operations::continuous::ground_velocity(state).or_else(|| {
+                (state.motion.position_basis == motion::PositionBasis::Received)
+                    .then(|| state.operations.local_player.velocity.map(|v| v.value))
+                    .flatten()
+            });
+            let resolved = correction.resolve(state.position, state.rotation, velocity)?;
             let position = resolved.position;
             let rotation = resolved.rotation;
             if position.iter().any(|v| v.abs() > 30_000_000.0) {
