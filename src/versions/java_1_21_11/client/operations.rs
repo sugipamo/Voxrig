@@ -1226,6 +1226,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             | input::SET_CURSOR_ITEM
             | input::OPEN_WINDOW
             | input::CLOSE_WINDOW
+            | input::CRAFT_PROGRESS_BAR
             | input::SYSTEM_CHAT
             | input::UPDATE_TIME
     ) {
@@ -1337,7 +1338,8 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         | input::SET_PLAYER_INVENTORY
         | input::SET_CURSOR_ITEM
         | input::OPEN_WINDOW
-        | input::CLOSE_WINDOW => {
+        | input::CLOSE_WINDOW
+        | input::CRAFT_PROGRESS_BAR => {
             let player_access_after_close =
                 state.common_container_close.as_ref().is_some_and(|close| {
                     let mut session = close.initial.session;
@@ -1728,6 +1730,32 @@ impl crate::client::adapter::CoreOps for Operations {
             },
             state.sequence,
         ))
+    }
+    async fn screen_properties(
+        &self,
+    ) -> Result<crate::client::container::properties::ScreenPropertyObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let session = crate::client::SessionStamp {
+            version: crate::MinecraftVersion::Java1_21_11,
+            connection_id: self.bot.session.id,
+            world_generation: state.loading.generation,
+        };
+        Ok(
+            crate::client::container::properties::ScreenPropertyObservation {
+                session,
+                receive_sequence: state.sequence,
+                screen: state.operations.inventory.container.as_ref().and_then(|s| {
+                    s.properties.as_ref().map(|properties| {
+                        crate::client::container::properties::ScreenProperties {
+                            id: s.id(session),
+                            values: properties.values.clone(),
+                            evicted: properties.evicted,
+                        }
+                    })
+                }),
+            },
+        )
     }
     async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
         let state = self.bot.session.state.lock().await;

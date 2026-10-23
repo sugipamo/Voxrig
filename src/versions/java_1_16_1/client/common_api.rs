@@ -2597,6 +2597,10 @@ mod tests {
         let (bot, server, release) =
             super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
         let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert_eq!(
+            client.screen_properties().await.unwrap_err().kind(),
+            crate::ErrorKind::Unsupported
+        );
         assert!(client.screen_state().await.unwrap().screen.is_none());
         let mut open = vec![3, 2];
         put_string(&mut open, "{\"text\":\"Storage\"}");

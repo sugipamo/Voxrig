@@ -3,6 +3,7 @@ pub(crate) mod close;
 pub use close::CursorReturnPlanStep;
 pub(crate) mod open;
 pub(crate) mod outline;
+pub mod properties;
 use super::{ObservedValue, SessionStamp, SlotKnowledge, received};
 use crate::MinecraftVersion;
 pub use open::{
@@ -407,6 +408,7 @@ pub(crate) struct ScreenReceipts {
     pub slots: Vec<Option<ObservedValue<SlotKnowledge>>>,
     pub full_contents_sequence: Option<u64>,
     pub revision: Option<ObservedValue<i32>>,
+    pub properties: Option<properties::PropertyReceipts>,
 }
 impl ScreenReceipts {
     pub fn open(
@@ -447,6 +449,7 @@ impl ScreenReceipts {
             layout,
             full_contents_sequence: None,
             revision: None,
+            properties: Some(properties::PropertyReceipts::default()),
         }
     }
     pub fn full_items(
@@ -487,13 +490,16 @@ impl ScreenReceipts {
         }
         Ok(())
     }
+    pub fn id(&self, session: SessionStamp) -> ScreenId {
+        ScreenId {
+            session,
+            window: self.window,
+            opened_sequence: self.opened_sequence,
+        }
+    }
     pub fn capture(&self, session: SessionStamp) -> ContainerScreen {
         ContainerScreen {
-            id: ScreenId {
-                session,
-                window: self.window,
-                opened_sequence: self.opened_sequence,
-            },
+            id: self.id(session),
             native_menu_id: self.native_menu_id,
             menu_name: self.menu_name.clone(),
             title: self.title.clone(),

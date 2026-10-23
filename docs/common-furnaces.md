@@ -50,7 +50,7 @@ QUICK_MOVEの燃料ではなくmain/hotbar間を移る。outputの回収は実sl
 予測外変化はRequiresInspectionへ保持する。sourceと変化した全destinationのfresh受信が揃うまで
 完了しない。自動消費後に値が戻っても記録を成功へ戻さず、クリックを再送しない。
 完了済み記録は後の精錬で書き換えない。1.16.1の炉QUICK_MOVE、SWAP拡張、recipe選択・数量計画・
-燃焼進捗の共通観測、XP予測、独自datapack燃料や広いwindow統合は残る。
+1.16.1の燃焼進捗観測、XP予測、独自datapack燃料や広いwindow統合は残る。
 3種の炉で両modeの一連操作を実サーバー検証した。constructorとslot規則は
 独立した公式JAR試験でも検証し、各種の全レシピを実サーバーで通した証拠とは区別する。
 
@@ -67,3 +67,6 @@ constructorのSimpleContainerにはblock entityのrecipe使用履歴がないた
 RCONの実在庫を別々に保持する。tick freezeで転送と自動精錬を分け、精錬後も完了履歴が
 書き換わらないことを確認した。進行中消費との競合や部分転送は別のpacket/oracle試験で検証する。
 serverは一時ディレクトリのコピーを使用し、検証後に正常停止した。
+
+1.21.11の燃焼・cook propertyは、別の読取専用`Client::screen_properties()`で実受信値とordinalを確認できる。
+slotや精錬完了をこの値から補完しない。詳細は[opening付きproperty観測](common-container-observation.md#opening付きproperty観測)を参照。

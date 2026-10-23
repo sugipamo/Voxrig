@@ -1,0 +1,457 @@
+{
+  "version": "1.21.11",
+  "authority": "Constructed fields encoded, decoded and byte-for-byte re-encoded by unchanged official ClientboundContainerSetDataPacket.STREAM_CODEC; not live captures.",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "packets": [
+    {
+      "window": 1,
+      "property": -32768,
+      "value": -32768,
+      "payload_hex": "0180008000"
+    },
+    {
+      "window": 1,
+      "property": -32768,
+      "value": -1,
+      "payload_hex": "018000ffff"
+    },
+    {
+      "window": 1,
+      "property": -32768,
+      "value": 0,
+      "payload_hex": "0180000000"
+    },
+    {
+      "window": 1,
+      "property": -32768,
+      "value": 200,
+      "payload_hex": "01800000c8"
+    },
+    {
+      "window": 1,
+      "property": -32768,
+      "value": 32767,
+      "payload_hex": "0180007fff"
+    },
+    {
+      "window": 1,
+      "property": -1,
+      "value": -32768,
+      "payload_hex": "01ffff8000"
+    },
+    {
+      "window": 1,
+      "property": -1,
+      "value": -1,
+      "payload_hex": "01ffffffff"
+    },
+    {
+      "window": 1,
+      "property": -1,
+      "value": 0,
+      "payload_hex": "01ffff0000"
+    },
+    {
+      "window": 1,
+      "property": -1,
+      "value": 200,
+      "payload_hex": "01ffff00c8"
+    },
+    {
+      "window": 1,
+      "property": -1,
+      "value": 32767,
+      "payload_hex": "01ffff7fff"
+    },
+    {
+      "window": 1,
+      "property": 0,
+      "value": -32768,
+      "payload_hex": "0100008000"
+    },
+    {
+      "window": 1,
+      "property": 0,
+      "value": -1,
+      "payload_hex": "010000ffff"
+    },
+    {
+      "window": 1,
+      "property": 0,
+      "value": 0,
+      "payload_hex": "0100000000"
+    },
+    {
+      "window": 1,
+      "property": 0,
+      "value": 200,
+      "payload_hex": "01000000c8"
+    },
+    {
+      "window": 1,
+      "property": 0,
+      "value": 32767,
+      "payload_hex": "0100007fff"
+    },
+    {
+      "window": 1,
+      "property": 3,
+      "value": -32768,
+      "payload_hex": "0100038000"
+    },
+    {
+      "window": 1,
+      "property": 3,
+      "value": -1,
+      "payload_hex": "010003ffff"
+    },
+    {
+      "window": 1,
+      "property": 3,
+      "value": 0,
+      "payload_hex": "0100030000"
+    },
+    {
+      "window": 1,
+      "property": 3,
+      "value": 200,
+      "payload_hex": "01000300c8"
+    },
+    {
+      "window": 1,
+      "property": 3,
+      "value": 32767,
+      "payload_hex": "0100037fff"
+    },
+    {
+      "window": 1,
+      "property": 32767,
+      "value": -32768,
+      "payload_hex": "017fff8000"
+    },
+    {
+      "window": 1,
+      "property": 32767,
+      "value": -1,
+      "payload_hex": "017fffffff"
+    },
+    {
+      "window": 1,
+      "property": 32767,
+      "value": 0,
+      "payload_hex": "017fff0000"
+    },
+    {
+      "window": 1,
+      "property": 32767,
+      "value": 200,
+      "payload_hex": "017fff00c8"
+    },
+    {
+      "window": 1,
+      "property": 32767,
+      "value": 32767,
+      "payload_hex": "017fff7fff"
+    },
+    {
+      "window": 127,
+      "property": -32768,
+      "value": -32768,
+      "payload_hex": "7f80008000"
+    },
+    {
+      "window": 127,
+      "property": -32768,
+      "value": -1,
+      "payload_hex": "7f8000ffff"
+    },
+    {
+      "window": 127,
+      "property": -32768,
+      "value": 0,
+      "payload_hex": "7f80000000"
+    },
+    {
+      "window": 127,
+      "property": -32768,
+      "value": 200,
+      "payload_hex": "7f800000c8"
+    },
+    {
+      "window": 127,
+      "property": -32768,
+      "value": 32767,
+      "payload_hex": "7f80007fff"
+    },
+    {
+      "window": 127,
+      "property": -1,
+      "value": -32768,
+      "payload_hex": "7fffff8000"
+    },
+    {
+      "window": 127,
+      "property": -1,
+      "value": -1,
+      "payload_hex": "7fffffffff"
+    },
+    {
+      "window": 127,
+      "property": -1,
+      "value": 0,
+      "payload_hex": "7fffff0000"
+    },
+    {
+      "window": 127,
+      "property": -1,
+      "value": 200,
+      "payload_hex": "7fffff00c8"
+    },
+    {
+      "window": 127,
+      "property": -1,
+      "value": 32767,
+      "payload_hex": "7fffff7fff"
+    },
+    {
+      "window": 127,
+      "property": 0,
+      "value": -32768,
+      "payload_hex": "7f00008000"
+    },
+    {
+      "window": 127,
+      "property": 0,
+      "value": -1,
+      "payload_hex": "7f0000ffff"
+    },
+    {
+      "window": 127,
+      "property": 0,
+      "value": 0,
+      "payload_hex": "7f00000000"
+    },
+    {
+      "window": 127,
+      "property": 0,
+      "value": 200,
+      "payload_hex": "7f000000c8"
+    },
+    {
+      "window": 127,
+      "property": 0,
+      "value": 32767,
+      "payload_hex": "7f00007fff"
+    },
+    {
+      "window": 127,
+      "property": 3,
+      "value": -32768,
+      "payload_hex": "7f00038000"
+    },
+    {
+      "window": 127,
+      "property": 3,
+      "value": -1,
+      "payload_hex": "7f0003ffff"
+    },
+    {
+      "window": 127,
+      "property": 3,
+      "value": 0,
+      "payload_hex": "7f00030000"
+    },
+    {
+      "window": 127,
+      "property": 3,
+      "value": 200,
+      "payload_hex": "7f000300c8"
+    },
+    {
+      "window": 127,
+      "property": 3,
+      "value": 32767,
+      "payload_hex": "7f00037fff"
+    },
+    {
+      "window": 127,
+      "property": 32767,
+      "value": -32768,
+      "payload_hex": "7f7fff8000"
+    },
+    {
+      "window": 127,
+      "property": 32767,
+      "value": -1,
+      "payload_hex": "7f7fffffff"
+    },
+    {
+      "window": 127,
+      "property": 32767,
+      "value": 0,
+      "payload_hex": "7f7fff0000"
+    },
+    {
+      "window": 127,
+      "property": 32767,
+      "value": 200,
+      "payload_hex": "7f7fff00c8"
+    },
+    {
+      "window": 127,
+      "property": 32767,
+      "value": 32767,
+      "payload_hex": "7f7fff7fff"
+    },
+    {
+      "window": 300,
+      "property": -32768,
+      "value": -32768,
+      "payload_hex": "ac0280008000"
+    },
+    {
+      "window": 300,
+      "property": -32768,
+      "value": -1,
+      "payload_hex": "ac028000ffff"
+    },
+    {
+      "window": 300,
+      "property": -32768,
+      "value": 0,
+      "payload_hex": "ac0280000000"
+    },
+    {
+      "window": 300,
+      "property": -32768,
+      "value": 200,
+      "payload_hex": "ac02800000c8"
+    },
+    {
+      "window": 300,
+      "property": -32768,
+      "value": 32767,
+      "payload_hex": "ac0280007fff"
+    },
+    {
+      "window": 300,
+      "property": -1,
+      "value": -32768,
+      "payload_hex": "ac02ffff8000"
+    },
+    {
+      "window": 300,
+      "property": -1,
+      "value": -1,
+      "payload_hex": "ac02ffffffff"
+    },
+    {
+      "window": 300,
+      "property": -1,
+      "value": 0,
+      "payload_hex": "ac02ffff0000"
+    },
+    {
+      "window": 300,
+      "property": -1,
+      "value": 200,
+      "payload_hex": "ac02ffff00c8"
+    },
+    {
+      "window": 300,
+      "property": -1,
+      "value": 32767,
+      "payload_hex": "ac02ffff7fff"
+    },
+    {
+      "window": 300,
+      "property": 0,
+      "value": -32768,
+      "payload_hex": "ac0200008000"
+    },
+    {
+      "window": 300,
+      "property": 0,
+      "value": -1,
+      "payload_hex": "ac020000ffff"
+    },
+    {
+      "window": 300,
+      "property": 0,
+      "value": 0,
+      "payload_hex": "ac0200000000"
+    },
+    {
+      "window": 300,
+      "property": 0,
+      "value": 200,
+      "payload_hex": "ac02000000c8"
+    },
+    {
+      "window": 300,
+      "property": 0,
+      "value": 32767,
+      "payload_hex": "ac0200007fff"
+    },
+    {
+      "window": 300,
+      "property": 3,
+      "value": -32768,
+      "payload_hex": "ac0200038000"
+    },
+    {
+      "window": 300,
+      "property": 3,
+      "value": -1,
+      "payload_hex": "ac020003ffff"
+    },
+    {
+      "window": 300,
+      "property": 3,
+      "value": 0,
+      "payload_hex": "ac0200030000"
+    },
+    {
+      "window": 300,
+      "property": 3,
+      "value": 200,
+      "payload_hex": "ac02000300c8"
+    },
+    {
+      "window": 300,
+      "property": 3,
+      "value": 32767,
+      "payload_hex": "ac0200037fff"
+    },
+    {
+      "window": 300,
+      "property": 32767,
+      "value": -32768,
+      "payload_hex": "ac027fff8000"
+    },
+    {
+      "window": 300,
+      "property": 32767,
+      "value": -1,
+      "payload_hex": "ac027fffffff"
+    },
+    {
+      "window": 300,
+      "property": 32767,
+      "value": 0,
+      "payload_hex": "ac027fff0000"
+    },
+    {
+      "window": 300,
+      "property": 32767,
+      "value": 200,
+      "payload_hex": "ac027fff00c8"
+    },
+    {
+      "window": 300,
+      "property": 32767,
+      "value": 32767,
+      "payload_hex": "ac027fff7fff"
+    }
+  ]
+}

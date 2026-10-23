@@ -556,6 +556,7 @@ async fn main() -> anyhow::Result<()> {
                     "player": client.player_state().await?})
             }
             "screen" => serde_json::to_value(client.screen_state().await?)?,
+            "screen_properties" => serde_json::to_value(client.screen_properties().await?)?,
             "close_screen" => {
                 let screen = client.screen_state().await?.screen.ok_or_else(|| anyhow::anyhow!("no active screen"))?.id;
                 serde_json::to_value(if client.player_state().await?.game_mode == Some(GameMode::Creative) {

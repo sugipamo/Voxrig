@@ -1,0 +1,839 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "version": "1.21.11",
+  "passed": true,
+  "authority_limits": "Official loopback server; common Client getter; unchanged original incoming frames matched by exact receive ordinal after the separate login loop. Furnace burn/cook and brewing progress/fuel also match independent RCON block entity values after complete tick steps. Anvil repair cost=1 uses test-only constructed serverbound PICKUP fixture inputs; no common anvil operation is claimed. Each OPEN is exposed before its first property using a forwarding barrier; fresh properties never inherit old values. Same-numeric-ID reuse, malformed input and retention bounds are separate constructed-packet tests, not claimed as live scenarios. No legacy live coverage is claimed.",
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "consumer_binary_sha256": "d09db6c12e9c94c2fd9c85ed89b906c26f74632ca92734a41ac196e840dfa75d",
+  "source_manifest_sha256": "ee6ca5c546aba74ff0c3de11467b2b367c65a1323c6c45d898f94f3d24c4ff86",
+  "source_sha256": {
+    "src/client/container.rs": "e5629286099a0173d7f2f2f6428cad8fd6af298fb210ca24e75514f5d063f118",
+    "src/client/container/properties.rs": "877cddce035fa4fea379ee20a59ad3b7adc28e9051a861dc38b048bdc08292d9",
+    "src/client/adapter.rs": "b33e94e52e24b3c252d4d9d90c961339ab38e1fb5a0fdd9cabc69d97d961bd41",
+    "src/client/mod.rs": "8dd3538d1dea9e94f4fffc2d26bef837d34152f3f0d96d2fcd499a200a54d3ff",
+    "src/versions/java_1_21_11/client/operations.rs": "6ad92c19bebaf7c3518cc3edf118ab27790b906024e390ad3a894da740f0a70e",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "9cca38992b8ae616d88b05c4ef060bfaa9b69f12f2aa182d0f90a7026e3087b0",
+    "src/versions/java_1_21_11/client/operations/inventory/tests/properties.rs": "7c445a10d4ad0c3644376755d40ab4814ba87a9346ee7e8afd6acf18e58c54e5",
+    "src/versions/java_1_16_1/client/common_api.rs": "729e38495c1876f80ae51a266f3e23e8bd87a88cebce717660e25e3d7e3556f4",
+    "examples/climbing_control_probe.rs": "b24bc358a18f13d94c1a9ba7b75a1c67d787c531580c35d33315367472b0d929",
+    "scripts/run_screen_properties_live.py": "ff3e540a306e02d714df3414f5d3e66002091260b3b7f18e949d0b1e84c891cd",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
+    "scripts/ExportScreenProperties.java": "0f3da4147485ee3a765e9004e67a59a1a06952e5939b0646e484fc6b327b48f8",
+    "data/client_api/screen_properties-1.21.11.json": "dd36f2ac046d878b7204910a0d2b23126685d05724c7702f32cc170ac8867cbd"
+  },
+  "codec_fixture": {
+    "authority": "Constructed fields encoded, decoded and byte-for-byte re-encoded by unchanged official ClientboundContainerSetDataPacket.STREAM_CODEC; not live captures.",
+    "packets": 75,
+    "server_mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
+    "native_codec": "net.minecraft.network.protocol.game.ClientboundContainerSetDataPacket (adw).STREAM_CODEC (a)",
+    "widths": [
+      "VarInt window",
+      "signed short property",
+      "signed short value"
+    ]
+  },
+  "artifacts_sha256": {
+    "inputs.json": "ee6ca5c546aba74ff0c3de11467b2b367c65a1323c6c45d898f94f3d24c4ff86",
+    "packets.jsonl": "9cac98a8fceddfec73e5e9648708a0d550b435878cf9d70756e4d3670986e11a",
+    "probe.log": "514724fb34694d06c59d121d25192884681fbf072cfa1d2ccb2423f08459311d",
+    "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "report.json": "e3edca5632ad0232bf34f050093017d2b2716d5ec138103b9987c73e829f3390",
+    "server.log": "f841262581840236be4f9174d64a442d61c149a7aebb334f6bc8a0aa5b686b6f"
+  },
+  "trace_errors": [],
+  "server_stopped": true,
+  "runtime_removed": true,
+  "checks": [
+    {
+      "name": "furnace_burn_and_cook",
+      "new_open_before_properties": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 121,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 1
+        },
+        "values": {}
+      },
+      "initial": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 121,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 1
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 123
+            },
+            "value": 0
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 124
+            },
+            "value": 0
+          },
+          "2": {
+            "source": {
+              "kind": "received",
+              "sequence": 125
+            },
+            "value": 0
+          },
+          "3": {
+            "source": {
+              "kind": "received",
+              "sequence": 126
+            },
+            "value": 200
+          }
+        }
+      },
+      "progress": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 121,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 1
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 173
+            },
+            "value": 1581
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 134
+            },
+            "value": 1600
+          },
+          "2": {
+            "source": {
+              "kind": "received",
+              "sequence": 174
+            },
+            "value": 20
+          },
+          "3": {
+            "source": {
+              "kind": "received",
+              "sequence": 126
+            },
+            "value": 200
+          }
+        }
+      },
+      "advanced": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 121,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 1
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 215
+            },
+            "value": 1561
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 134
+            },
+            "value": 1600
+          },
+          "2": {
+            "source": {
+              "kind": "received",
+              "sequence": 216
+            },
+            "value": 40
+          },
+          "3": {
+            "source": {
+              "kind": "received",
+              "sequence": 126
+            },
+            "value": 200
+          }
+        }
+      },
+      "native": "0, 65, 2 has the following block data: {lit_total_time: 1600s, components: {}, cooking_time_spent: 40s, x: 0, y: 65, cooking_total_time: 200s, Items: [{count: 1, Slot: 0b, id: \"minecraft:raw_iron\"}, {count: 1, Slot: 1b, id: \"minecraft:coal\"}], z: 2, id: \"minecraft:furnace\", lit_time_remaining: 1561s, RecipesUsed: {}}",
+      "previous_screen_id": null
+    },
+    {
+      "name": "furnace_reopen_clears_progress",
+      "new_open_before_properties": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 219,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 2
+        },
+        "values": {}
+      },
+      "initial": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 219,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 2
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 221
+            },
+            "value": 0
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 222
+            },
+            "value": 0
+          },
+          "2": {
+            "source": {
+              "kind": "received",
+              "sequence": 223
+            },
+            "value": 0
+          },
+          "3": {
+            "source": {
+              "kind": "received",
+              "sequence": 224
+            },
+            "value": 0
+          }
+        }
+      },
+      "previous_screen_id": {
+        "opened_sequence": 121,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "window": 1
+      }
+    },
+    {
+      "name": "anvil_repair_cost",
+      "new_open_before_properties": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 260,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 3
+        },
+        "values": {}
+      },
+      "initial": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 260,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 3
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 262
+            },
+            "value": 0
+          }
+        }
+      },
+      "repair_cost": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 260,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 3
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 276
+            },
+            "value": 1
+          }
+        }
+      },
+      "fixture_inputs": [
+        {
+          "packet_id": 17,
+          "payload_hex": "030100030000000101010000",
+          "wire_sha256": "409163f493b0b41769ebf0ce5bc97295ce5c2d94336f8c76c356bf70625c3819"
+        },
+        {
+          "packet_id": 17,
+          "payload_hex": "030200000000000101010000",
+          "wire_sha256": "e191b9e87c276c2a3619421b6ff3975201de92e2f7a4e19d3bbcc7a1aa61966e"
+        },
+        {
+          "packet_id": 17,
+          "payload_hex": "030300040000000101010000",
+          "wire_sha256": "18cb6996a2f3b30814efea81ff0880a4970c698db98cd78007b2e908a9037915"
+        },
+        {
+          "packet_id": 17,
+          "payload_hex": "030400010000000101010000",
+          "wire_sha256": "44972d1d5d2094d8f68035d8f6ad7b46651f78c88103c6d09f5b82b2efcc966d"
+        }
+      ],
+      "previous_screen_id": {
+        "opened_sequence": 219,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "window": 2
+      }
+    },
+    {
+      "name": "brewing_ticks_and_fuel",
+      "new_open_before_properties": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 282,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 4
+        },
+        "values": {}
+      },
+      "initial": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 282,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 4
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 284
+            },
+            "value": 0
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 285
+            },
+            "value": 0
+          }
+        }
+      },
+      "progress": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 282,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 4
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 315
+            },
+            "value": 381
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 295
+            },
+            "value": 19
+          }
+        }
+      },
+      "advanced": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 282,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 4
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 337
+            },
+            "value": 361
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 295
+            },
+            "value": 19
+          }
+        }
+      },
+      "native": "0, 65, 2 has the following block data: {components: {}, Fuel: 19b, x: 0, y: 65, Items: [{components: {\"minecraft:potion_contents\": {potion: \"minecraft:water\"}}, count: 1, Slot: 0b, id: \"minecraft:potion\"}, {count: 1, Slot: 3b, id: \"minecraft:nether_wart\"}], z: 2, id: \"minecraft:brewing_stand\", BrewTime: 361s}",
+      "previous_screen_id": {
+        "opened_sequence": 260,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "window": 3
+      }
+    },
+    {
+      "name": "brewing_reopen_clears_progress",
+      "new_open_before_properties": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 339,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 5
+        },
+        "values": {}
+      },
+      "initial": {
+        "evicted": false,
+        "id": {
+          "opened_sequence": 339,
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "window": 5
+        },
+        "values": {
+          "0": {
+            "source": {
+              "kind": "received",
+              "sequence": 341
+            },
+            "value": 0
+          },
+          "1": {
+            "source": {
+              "kind": "received",
+              "sequence": 342
+            },
+            "value": 0
+          }
+        }
+      },
+      "previous_screen_id": {
+        "opened_sequence": 282,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_21_11",
+          "world_generation": 29
+        },
+        "window": 4
+      }
+    }
+  ],
+  "original_frames": [
+    {
+      "receive_sequence": 121,
+      "ordinal": 142,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 57,
+      "body_length": 35,
+      "wire_sha256": "b3479f8d8e76df6232de20a2898c2e98015b61bfaee3dfaa5a7f17fde02a1c4e",
+      "body_sha256": "b428dbdc88de84029a16592cd67bd2bdc2e28a8507b50b23cb76b95df295c741",
+      "body_hex": "010e0a0800097472616e736c6174650011636f6e7461696e65722e6675726e61636500"
+    },
+    {
+      "receive_sequence": 123,
+      "ordinal": 144,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "6da1e5f1afe258b858b52eeb59a2792fbeaca696f11181c2b2811fdc7bd80050",
+      "body_sha256": "957b88b12730e646e0f33d3618b77dfa579e8231e3c59c7104be7165611c8027",
+      "body_hex": "0100000000"
+    },
+    {
+      "receive_sequence": 124,
+      "ordinal": 145,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "738747d19ea3dac3b6ffe4f6238a80ec3b00afb340d0a45dfad2c0734da1c8ec",
+      "body_sha256": "9c9d8c6a5bdfdf8321bca643b0c2a42269fdbe5f181376f42fd7856841f0333f",
+      "body_hex": "0100010000"
+    },
+    {
+      "receive_sequence": 125,
+      "ordinal": 146,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "0c19b7cf8b9e55bbf16b8743dc093a5922b53a533a182a06128094e73da8beab",
+      "body_sha256": "3009a30aee2613a6a89f90a52e6ef4c18c498c0a82a73bc8ef2f359f50b3ce12",
+      "body_hex": "0100020000"
+    },
+    {
+      "receive_sequence": 126,
+      "ordinal": 147,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "4e6e6b43765f17e3fa0ecf7458f6f4d26a2bff0dee8d9ed154a1c4336e2d7e22",
+      "body_sha256": "18b7b01f5e717fc51cd82c36662c753fcab7701aa252825f953c681a0560ce5a",
+      "body_hex": "01000300c8"
+    },
+    {
+      "receive_sequence": 134,
+      "ordinal": 155,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "d734a9119a3898274a6dce7240f55a5d7c66a001e5217a79df4f64d40142683d",
+      "body_sha256": "510f6ace2a4f79b0acdc310825d1adffd41118caf57fce2d2e8a65d256ee7708",
+      "body_hex": "0100010640"
+    },
+    {
+      "receive_sequence": 173,
+      "ordinal": 194,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "b443b2f77bc7caa6a39338347091033510cfc16cd6dc30ca48571fc77608e428",
+      "body_sha256": "ef006693885e4921f09943e384f6d9e7217ac70797187e8c94f73be1f216d4ab",
+      "body_hex": "010000062d"
+    },
+    {
+      "receive_sequence": 174,
+      "ordinal": 195,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "902aba70b9c48088482a6a734703f03e97be07ab7d97aaa84cb6037cea202b5d",
+      "body_sha256": "9b2bcf7f3b21d5fff6f831ac16b040f0d860abe81fadb2ff84ac9b6bc1409390",
+      "body_hex": "0100020014"
+    },
+    {
+      "receive_sequence": 215,
+      "ordinal": 236,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "914d3a25765bf5d00ac575da6996bffe51b14de8015d54439e71f951f1df65b9",
+      "body_sha256": "c61e22d3699d277247c5d7a60c0546e78c75b9ec156674a9173f26a6fcdfbb07",
+      "body_hex": "0100000619"
+    },
+    {
+      "receive_sequence": 216,
+      "ordinal": 237,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "8e52740620a5cc18208c1fa5b081c08628717a26ac201c0618b375830222b60b",
+      "body_sha256": "348247e0f509382fb8093965d2c66e94724234d2e8cdf7d0e60368d8e31d5279",
+      "body_hex": "0100020028"
+    },
+    {
+      "receive_sequence": 219,
+      "ordinal": 242,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 57,
+      "body_length": 35,
+      "wire_sha256": "660c8b90f1bf1e968ae4669d947d636d10b5f992b6876635f461f906ec2bf0b5",
+      "body_sha256": "7afbcaeb7423c9d57998840a0c24cf0d89009cb6f2995bbc1230e18d5aab876f",
+      "body_hex": "020e0a0800097472616e736c6174650011636f6e7461696e65722e6675726e61636500"
+    },
+    {
+      "receive_sequence": 221,
+      "ordinal": 244,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "4cfd13cc918fbbb11fff89162c4843f2e67a6bd391fadb1793a870036450acc9",
+      "body_sha256": "395c2f5598a1643a205154c6f4c46ce36895b28e6c35660a95e5c6fd5ef9aeab",
+      "body_hex": "0200000000"
+    },
+    {
+      "receive_sequence": 222,
+      "ordinal": 245,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "52736be14bc9d278a31872a59d627c38e12c180e9cb5c187f7288b4f8b7b58e4",
+      "body_sha256": "d6b7d386f8696f4d8f3f076bf8c0c7903df6f6a588e53b320a0d18ba7f9ec45b",
+      "body_hex": "0200010000"
+    },
+    {
+      "receive_sequence": 223,
+      "ordinal": 246,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "af99c4529a836120b1cfae0901ba42c348c802e61662206c66f74f8e6abc6ae2",
+      "body_sha256": "9bdc27190841cdc735804b5c34d3ebc8976ddbfafa940125d5d699b843bc53cc",
+      "body_hex": "0200020000"
+    },
+    {
+      "receive_sequence": 224,
+      "ordinal": 247,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "6d2f07d75b307b360ec8b279a3aced26eff8dfd967befaa42358190c57190946",
+      "body_sha256": "18d77577dcf3a0b4533d489f3d480d7e8d601ce33166fef2a3ce508109cc4865",
+      "body_hex": "0200030000"
+    },
+    {
+      "receive_sequence": 260,
+      "ordinal": 285,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 57,
+      "body_length": 34,
+      "wire_sha256": "d3879d72d21587c4668673489ba269d685addbbea1e7f3058416f95bdeab8101",
+      "body_sha256": "62f11e2cbabd2a741360295c3028318acccb6268e643f6ce4a61f9ff1f6727b2",
+      "body_hex": "03080a0800097472616e736c6174650010636f6e7461696e65722e72657061697200"
+    },
+    {
+      "receive_sequence": 262,
+      "ordinal": 287,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "9ce5d62294fa0e82cebe9a7c0fb2ad9fd25b2b27d65438270cadc7cb13ef9ea6",
+      "body_sha256": "a665e6b115dd56fd3e0c89be631e6eda8e9666b822e0bd7026bf0822c4bbc68f",
+      "body_hex": "0300000000"
+    },
+    {
+      "receive_sequence": 276,
+      "ordinal": 301,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "d7d4a14a0e7d3bb31950505f241ec38d49e9b893fffd7d9004e8830c9b68993a",
+      "body_sha256": "87c0fe227f796531fddbe6c401b492cb492b1af080b51317edaa080991b0a186",
+      "body_hex": "0300000001"
+    },
+    {
+      "receive_sequence": 282,
+      "ordinal": 309,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 57,
+      "body_length": 35,
+      "wire_sha256": "1726bcce6cf440068fbc9df23dfe2f2b1eb37753752a42fcc408151681e17b8b",
+      "body_sha256": "8b2d150cabf49a84715101863e20fbdefcf40fe413307d7e29fcdbbe29339100",
+      "body_hex": "040b0a0800097472616e736c6174650011636f6e7461696e65722e62726577696e6700"
+    },
+    {
+      "receive_sequence": 284,
+      "ordinal": 311,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "58af4f57cbd71cedef5a5f2ca67ba54022388d136d884de7096097cc903c074a",
+      "body_sha256": "88420266dfd64d604627234a8a6c75cf6477c6fd5505df0d17c59959ae9ce234",
+      "body_hex": "0400000000"
+    },
+    {
+      "receive_sequence": 285,
+      "ordinal": 312,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "1b26633d8d41db8f53af8cce582c34e12a5eb234911388808d984d3970a39459",
+      "body_sha256": "560ca77c5d57370de82fedb6e1bf8666dd92873dc5076a77c360e05f003eeb69",
+      "body_hex": "0400010000"
+    },
+    {
+      "receive_sequence": 295,
+      "ordinal": 322,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "3d770488320fb01247f588d50d6f2fddc3652801ee2a6e0255ecc8c44ed4d754",
+      "body_sha256": "e8f5e17fffa7e0a739418c8c23df33538072abe5f29e5ad042a360852405f315",
+      "body_hex": "0400010013"
+    },
+    {
+      "receive_sequence": 315,
+      "ordinal": 342,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "1f290ae00eca26fc4b3dc57e3ed68f5108c7c36c6cb4aa4b2793df89c6153ec5",
+      "body_sha256": "2e97c1ff449930e0d93604d83af0faa47803f79cdf9b6fb8d6f32c351fc76fc5",
+      "body_hex": "040000017d"
+    },
+    {
+      "receive_sequence": 337,
+      "ordinal": 364,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "790f056d6196b8d9904faba53ae632940bcf4d70ddce9c83d878990c98b9a9df",
+      "body_sha256": "7ba6a399f9a213ac97abd8df8490eb1d4b1350a1f3664048cf9814a2aad5f537",
+      "body_hex": "0400000169"
+    },
+    {
+      "receive_sequence": 339,
+      "ordinal": 368,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 57,
+      "body_length": 35,
+      "wire_sha256": "fb09aeca88a2b403a5c05b0c7ac9f0c063b1a6e5fff6e30811c97f4e920905e2",
+      "body_sha256": "2517210c53ae6be2a10e5ae2e5db6a6effe0917dbcd09e0e39180a0459866161",
+      "body_hex": "050b0a0800097472616e736c6174650011636f6e7461696e65722e62726577696e6700"
+    },
+    {
+      "receive_sequence": 341,
+      "ordinal": 370,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "6c92acfce89fdc73da193493ba54512b0f25d2eae6183a27fd3e145f4eb4c3f9",
+      "body_sha256": "49e8e3297545c15ab6a79471a7a34d43e24a8f1cb25ea3d8417c61f699267a3f",
+      "body_hex": "0500000000"
+    },
+    {
+      "receive_sequence": 342,
+      "ordinal": 371,
+      "connection": 1,
+      "direction": "clientbound",
+      "phase": "play",
+      "packet_id": 19,
+      "body_length": 5,
+      "wire_sha256": "3baad7201e3080caed2bfcec4662548623d1b67ddaf167886d715216bea1b6ee",
+      "body_sha256": "131c449fb2b7010b82c61862edd86926bfbd466a0e61644366998328cbf15b77",
+      "body_hex": "0500010000"
+    }
+  ]
+}

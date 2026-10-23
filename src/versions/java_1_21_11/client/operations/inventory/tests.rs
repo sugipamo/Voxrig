@@ -1,5 +1,6 @@
 mod crafting_swap;
 mod furnace_transfer;
+mod properties;
 use super::*;
 #[tokio::test]
 async fn exact_equipment_pickup_both_modes_requires_fresh_slot_and_cursor() {

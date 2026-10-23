@@ -200,6 +200,9 @@ pub mod prelude {
         BiomeVolume, BlockEntityKind, ChunkContextObservation, ChunkIdentity, HeightmapKind,
         ReceivedBlockEntity, ReceivedHeightmap,
     };
+    pub use super::container::properties::{
+        MAX_SCREEN_PROPERTIES, ScreenProperties, ScreenPropertyObservation,
+    };
     pub use super::container::{
         ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerOpenId,
         ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend, ContainerOpenStage,
