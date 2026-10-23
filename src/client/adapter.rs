@@ -145,6 +145,15 @@ pub(crate) trait ChunkOps {
 
 /// Change notifications.
 pub(crate) trait EventOps {
+    async fn explosions_after(
+        &self,
+        _after_sequence: u64,
+    ) -> Result<super::explosions::ExplosionLog> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("explosion observation requires Java 1.21.11"),
+        ))
+    }
     async fn effects_after(&self, _after_sequence: u64) -> Result<super::effects::EffectLog> {
         Err(crate::Error::new(
             crate::ErrorKind::Unsupported,

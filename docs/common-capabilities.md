@@ -54,3 +54,7 @@
 | `RecordingAndReconstruction` | raw recording, read-only replay and dry-terrain scenes | [common-recording-scenes.md](common-recording-scenes.md) | bounded raw receive recording and selected read-only decoder replay; live known dry-terrain scene capture/prediction; broader reconstruction/piston/history contracts remain version-specific |
 
 `EntityHistory`: 両版で8192件の受信履歴を保持し、1〜1024件ずつ読む。欠落とlifetimeを明示する。[詳細](common-entity-history.md)。
+
+`explosions_after`: Java 1.21.11限定の受信観測。optional impulseと表現文脈を分け、
+1024件の履歴に元ordinal・worldを保持する。1.16.1は`Unsupported`。
+既存の移動中断は維持する。[詳細](common-explosions.md)。

@@ -19,6 +19,7 @@ include = [
     "/scripts/run_common_native.py",
     "/scripts/run_hand_swap_live.py",
     "/scripts/ExportHandSwap.java",
+    "/scripts/ExportExplosionPackets.java",
     "/scripts/ExportContextualTargeting.java",
     "/scripts/ExportEntityTargetRays.java",
     "/scripts/run_entity_target_live.py",

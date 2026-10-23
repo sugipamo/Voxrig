@@ -743,7 +743,22 @@ fn unsupported_impulses_and_own_vehicle_cannot_leave_stale_stationary_authority(
         receive_sequence: 13,
     });
     assert!(context(&mut s, 1, 0).is_err()); // Zero velocity alone cannot prove dismount.
-    for id in [p::EXPLOSION, p::VEHICLE_MOVE] {
+    let explosions: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../data/client_api/explosion_packets-1.21.11.json"
+    ))
+    .unwrap();
+    let packets = explosions["packets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| {
+            (
+                p::EXPLOSION,
+                hex::decode(row["payload_hex"].as_str().unwrap()).unwrap(),
+            )
+        })
+        .chain(std::iter::once((p::VEHICLE_MOVE, Vec::new())));
+    for (id, payload) in packets {
         s.operations.reset_world(0).unwrap();
         s.operations.local_player.velocity = Some(VelocitySample {
             value: [0.0; 3],
@@ -757,7 +772,9 @@ fn unsupported_impulses_and_own_vehicle_cannot_leave_stale_stationary_authority(
             velocity: Some([0.0; 3]),
         });
         assert!(context(&mut s, 1, 0).unwrap().on_ground);
-        apply(&mut s, id, &[]); // Even undecoded/malformed unsupported payload cannot grant permission.
+        // Valid explosions, including omitted/zero impulses, still revoke the
+        // standing baseline. VEHICLE_MOVE keeps its existing undecoded policy.
+        apply(&mut s, id, &payload);
         let issue = s
             .operations
             .local_player

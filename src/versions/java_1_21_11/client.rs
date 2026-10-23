@@ -8,6 +8,7 @@ mod edge_native_trials;
 mod effects;
 mod entity;
 mod event_kinds;
+mod explosions;
 mod loading;
 mod motion;
 mod observations;
@@ -119,6 +120,7 @@ struct State {
     chat: crate::client::chat::ChatLedger,
     events: crate::client::events::EventLedger,
     effects: crate::client::effects::EffectLedger,
+    explosions: crate::client::explosions::ExplosionLedger,
     display: crate::client::ui::display::DisplayLedger,
     teams: crate::client::ui::teams::TeamLedger,
     player_list: crate::client::ui::player_list::PlayerListLedger,
@@ -191,6 +193,7 @@ impl Default for State {
             chat: Default::default(),
             events: Default::default(),
             effects: Default::default(),
+            explosions: Default::default(),
             display: Default::default(),
             teams: Default::default(),
             player_list: Default::default(),
@@ -1476,6 +1479,14 @@ impl crate::client::adapter::EventOps for operations::Operations {
             cursor,
             maximum,
         )
+    }
+
+    async fn explosions_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::explosions::ExplosionLog> {
+        let state = self.bot.session.state.lock().await;
+        state.explosions.after(after_sequence, state.sequence)
     }
 
     async fn effects_after(

@@ -47,6 +47,7 @@ loop {
 | `UiChanged` | `UiStateUpdated`、`PlayerListUpdated` | scoreboard・boss bar・teams・player info・title・tab list・world borderの各パケット |
 | `ResourcePackRequested { uuid }` | この共通通知は未対応 | configuration・playの`ADD_RESOURCE_PACK`。最新の要求は[`resource_pack_request`](common-resource-packs.md)で読む |
 | `CodeOfConductReceived` | このpacketは存在しない | configurationの`CODE_OF_CONDUCT`。最新の本文は[`code_of_conduct`](common-code-of-conduct.md)で読む。自動acceptの受理通知ではない |
+| `ExplosionReceived` | この共通通知は未対応 | `EXPLOSION`。payloadは[`explosions_after`](common-explosions.md) |
 | `SoundReceived` / `SoundStopped` | この共通通知は未対応 | `SOUND` / `SOUND_ENTITY` / `STOP_SOUND` |
 | `ParticlesReceived` | この共通通知は未対応 | `LEVEL_PARTICLES` |
 | `LevelEventReceived` | この共通通知は未対応 | `LEVEL_EVENT`（world event） |
