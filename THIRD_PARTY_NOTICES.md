@@ -530,6 +530,13 @@ not a graphical packet clock. Game binaries, mappings, method bodies and raw
 captures remain local and are not distributed or relicensed.
 
 
+`data/client_api/honey_oracle.json.gz` contains factual honey-wall trajectories
+measured by unchanged official Java 1.21.11 Player/LivingEntity and block methods.
+The owned `run_honey_oracle.py` wrapper adds initial conditions and observations
+to a generated copy of the existing movement harness. Official JAR/mappings and
+owned-source hashes are recorded in the fixture and the honey evidence document;
+no game binaries, mappings or decompiled method bodies are included.
+
 `data/client_api/glide_oracle.json.gz` records numerical glide movement and
 geometry from unchanged official Player/LivingEntity methods. The original
 wrapper selects the original Level client-side branch for each numerical tick

@@ -160,6 +160,103 @@ async fn long_raycast_rejects_world_switch_between_height_and_capture() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn honey_wall_packets_allow_held_ground_sliding_and_detachment() {
+    use crate::client::{GameMode, control::Controls};
+    async fn wait(session: &Session, handle: &crate::client::PlayerControl, tick: u64) {
+        timeout(Duration::from_secs(2), async {
+            loop {
+                let changed = session.changed.notified();
+                tokio::pin!(changed);
+                changed.as_mut().enable();
+                let record = handle.control_record().await.unwrap().unwrap();
+                assert!(record.dispatched_ticks <= tick);
+                if record.dispatched_ticks == tick {
+                    break;
+                }
+                changed.await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+
+    for mode in [GameMode::Survival, GameMode::Adventure, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        {
+            let mut state = session.state.lock().await;
+            let mut pose = state.motion.received_pose.clone().unwrap();
+            pose.position = [8.7625, 68.0, 8.5];
+            state.position = Some(pose.position);
+            state.motion.receive(pose);
+            state.motion.on_ground = Some(false);
+            let honey = crate::versions::java_1_21_11::state_id(&crate::NativeBlockState {
+                name: "minecraft:honey_block".into(),
+                properties: Default::default(),
+            })
+            .unwrap();
+            for y in 65..72 {
+                let mut packet = ((9i64 << 38) | (8i64 << 12) | y).to_be_bytes().to_vec();
+                put_varint(&mut packet, honey);
+                state
+                    .receive(ids::play_clientbound::BLOCK_CHANGE, &packet, 256)
+                    .unwrap();
+            }
+        }
+        let start = handle.start_control().await.unwrap();
+        for tick in 1..=6 {
+            if tick > 1 {
+                tokio::time::advance(Duration::from_millis(50)).await;
+            }
+            wait(&session, &handle, tick).await;
+        }
+        let sliding = handle.control_record().await.unwrap().unwrap();
+        let frame = sliding.frame.unwrap();
+        assert!(!frame.on_ground);
+        assert_eq!(frame.velocity[1], (-0.05 - 0.08) * f64::from(0.98f32));
+        assert_eq!(sliding.corrections, 0);
+        // Every actual position packet belongs to the held controller.
+        let mut moves = 0;
+        while moves < 6 {
+            let (id, bytes) = read_packet(&mut peer, None).await.unwrap();
+            if id == ids::play_serverbound::POSITION_LOOK {
+                moves += 1;
+                if moves == 6 {
+                    for axis in 0..3 {
+                        assert_eq!(
+                            f64::from_be_bytes(bytes[axis * 8..axis * 8 + 8].try_into().unwrap()),
+                            frame.position[axis],
+                        );
+                    }
+                }
+            }
+        }
+        handle
+            .set_controls_for(
+                start.session_id,
+                Controls {
+                    strafe: -1, // yaw zero: away from the honey wall
+                    sneak: true,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        for tick in 7..=12 {
+            tokio::time::advance(Duration::from_millis(50)).await;
+            wait(&session, &handle, tick).await;
+        }
+        let departed = handle.stop_control_for(start.session_id).await.unwrap();
+        let end = departed.frame.unwrap();
+        assert!(end.position[0] < frame.position[0] - 0.1);
+        assert!(end.velocity[1] < frame.velocity[1]);
+        assert_eq!(departed.corrections, 0);
+        session.stop();
+    }
+}
+
+#[tokio::test(start_paused = true)]
 async fn control_restart_keeps_model_momentum_and_aim_after_decoded_velocity() {
     let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let client = crate::Client::from_java_1_21_11(api.bot.clone());

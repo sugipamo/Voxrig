@@ -218,3 +218,39 @@ python3 -B scripts/movement_oracle/run.py --downloads .local/climbing/downloads 
   --output data/client_api/ground_mode_oracle.json.gz \
   --blocks-output .local/ground-modes/block-audit
 ```
+
+## ハチミツ壁の滑降（2026-10-23）
+
+1.21.11の37場面・1,392 tickを`honey_oracle.json.gz`へ保存した。
+未変更の公式`Player`／`LivingEntity`のtravel・`HoneyBlock.entityInside`を実行し、
+位置・速度・衝突箱・姿勢・目の高さ・落下距離・移動状態を全tickでbit単位に照合する。
+開始速度と落下距離、属性適用後の`refreshDimensions`、観測だけを自作harnessへ追加する。
+
+速度の`-0.08`／`-0.13`の前後と等値、水平減速、角、複数のハチミツ、
+scale 0.125／0.25／0.5／1／2／4、進入・離脱、しゃがみ・着地、上面のjump、
+泡の柱との訪問順、重力属性と低速落下効果を含む。
+ハチミツの速度換算は、原版どおり固定の重力・減衰を使う。
+低速落下効果中は原版`aiStep`のtravel前の落下距離リセットも照合する。
+既存の移動・登り・液体・ボート・scale等の両版oracleは回帰試験として維持する。
+1.16.1の壁滑降は今回資格化せず、既存のUnsupportedを維持する。
+
+```bash
+mkdir -p .local/honey
+python3 -B scripts/movement_oracle/honey_scenarios.py .local/honey/scenarios.json
+python3 -B scripts/run_honey_oracle.py \
+  --downloads /absolute/path/to/downloads --work "$PWD/.local/honey/oracle" \
+  --scenarios "$PWD/.local/honey/scenarios.json"
+cargo test --locked --lib -j2 honey -- --test-threads=2
+cargo build --locked --example climbing_control_probe -j2
+python3 -B scripts/run_honey_live.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --work "$PWD/.local/honey/live"
+```
+
+構築したblock更新packetを実受信経路へ渡す単体試験では、Survival／Adventure／Creativeの
+地上held controlから滑降と離脱を確認する。legacyの拒否と地形取得失敗はbodyを変更しない。
+別の公式1.21.11実接続では7項目を通過した。落下中の壁への接触・離脱、しゃがみ滑降、
+壁沿い／離脱後の着地、停止後の記録保持を、送信packetとモデルframeおよび独立RCON座標で確認した。
+予期しない補正・traceエラーは0件。数値の一致はoracleの根拠であり、
+実接続は原版clientのpacket時計やtickごとの速度一致の証明ではない。
+[結果とhash](evidence/common-honey-sliding-20261023.json)を参照。

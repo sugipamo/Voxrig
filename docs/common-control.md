@@ -118,6 +118,16 @@ worldが変わった場合には旧worldの入力解除を送らない。
 実接続の再現には`run_flight_control.py`とビルド済み`climbing_control_probe`を使う。
 原packet/NBTは`.local`に保持し、公開証跡は結果とハッシュだけにする。
 
+## ハチミツの壁（1.21.11）
+
+Survival／Adventure／Creativeの地上held controlは、落下中にハチミツの側面へ
+触れると原版の水平減速・鉛直速度制御・落下距離リセットを行う。
+接触には姿勢と受信scaleによる幅を使い、移動軸ごとのcallback順と重複除去を保つ。
+しゃがみ中も滑降し、壁を離れると通常の落下へ戻る。上面の速度／jump係数と
+ボートの非Living処理は従来の別処理を使う。有限pathの地形制限は変わらない。
+1.16.1の壁滑降、未ロード地形、既存の不確かな接触の拒否条件は維持する。
+数値の根拠と実接続の再現手順は[movement oracle](movement-oracle.md#ハチミツ壁の滑降2026-10-23)を参照。
+
 ## 動き
 
 - sessionを記録する呼び手は、`set_controls_for(id, controls)`と`stop_control_for(id)`で対象を指定する。

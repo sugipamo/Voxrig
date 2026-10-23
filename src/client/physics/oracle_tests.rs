@@ -155,8 +155,11 @@ pub(super) fn compare(
     body.on_ground = scenario["on_ground"].as_bool().unwrap_or(true);
     if env.gliding {
         body.admit_glide_pose();
+    }
+    if scenario["velocity"].is_array() {
         body.velocity = std::array::from_fn(|i| scenario["velocity"][i].as_f64().unwrap());
     }
+    body.fall_distance = scenario["fall_distance"].as_f64().unwrap_or(0.0);
     // The oracle's player is a freshly created entity.
     body.first_tick = true;
     let mut block_at = |p: [i32; 3]| {
@@ -337,6 +340,27 @@ fn engine_reproduces_official_trajectories() {
     }
     println!("{}", report.join("\n"));
     assert!(!failed, "{}", report.join("\n"));
+}
+
+#[test]
+fn honey_reproduces_every_modern_official_tick_without_refusals() {
+    let data: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/honey_oracle.json.gz")[..],
+    ))
+    .unwrap();
+    let scenarios = data["scenarios"].as_array().unwrap();
+    let results = data["results"]["1.21.11"].as_array().unwrap();
+    assert_eq!(scenarios.len(), 37);
+    assert_eq!(scenarios.len(), results.len());
+    let mut failures = Vec::new();
+    for (scenario, result) in scenarios.iter().zip(results) {
+        assert_eq!(scenario["name"], result["name"]);
+        match compare(MinecraftVersion::Java1_21_11, scenario, result) {
+            Ok(None) => (),
+            other => failures.push(format!("{}: {other:?}", scenario["name"])),
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
@@ -699,4 +723,42 @@ fn fast_glide_reset_sweep_refuses_uncertain_inputs_atomically() {
     })
     .unwrap();
     assert!(body.position[1] < 66.0);
+}
+
+#[test]
+fn honey_legacy_refusal_and_missing_terrain_leave_body_unchanged() {
+    let honey = state("minecraft:honey_block");
+    let air = state("minecraft:air");
+    for (version, missing) in [
+        (MinecraftVersion::Java1_16_1, false),
+        (MinecraftVersion::Java1_21_11, true),
+    ] {
+        let mut body = Body::new([-0.2375, 4.0, 0.5]);
+        body.on_ground = false;
+        body.velocity = [0.0, -0.3, 0.04];
+        body.fall_distance = 7.0;
+        let before = body.clone();
+        let env = Environment::defaults(version);
+        let error = tick(version, &mut body, &env, Controls::default(), &mut |p| {
+            if missing {
+                Err(super::unsupported("missing honey test terrain".into()))
+            } else if p[0] == 0 && (0..10).contains(&p[1]) {
+                Ok(honey.clone())
+            } else {
+                Ok(air.clone())
+            }
+        })
+        .unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+        assert!(error.to_string().contains(if missing {
+            "missing honey test terrain"
+        } else {
+            "honey wall sliding"
+        }));
+        assert_eq!(body.position, before.position);
+        assert_eq!(body.velocity, before.velocity);
+        assert_eq!(body.bounds, before.bounds);
+        assert_eq!(body.fall_distance, before.fall_distance);
+        assert_eq!(body.first_tick, before.first_tick);
+    }
 }
