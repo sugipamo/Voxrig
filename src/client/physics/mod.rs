@@ -10,7 +10,7 @@
 //! Creative flight and Spectator movement with original received abilities.
 //! Outside it the tick returns `ErrorKind::Unsupported` before changing state:
 //! riding, levitation,
-//! honey wall sliding and anything not reviewed in `blocks`.
+//! legacy honey wall sliding and anything not reviewed in `blocks`.
 pub(crate) mod blocks;
 pub(crate) mod boat;
 mod bubbles;
@@ -818,6 +818,11 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         if self.legacy() {
             xxa *= 0.98;
             zza *= 0.98;
+        }
+        // Modern LivingEntity.aiStep resets this before travel, including
+        // ticks whose honey callback does not reach the sliding threshold.
+        if !self.legacy() && self.env.slow_falling {
+            self.body.fall_distance = 0.0;
         }
         self.travel([f64::from(xxa), 0.0, f64::from(zza)])?;
         if !self.legacy() && !self.env.spectator {
@@ -2122,7 +2127,24 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                     && ((f64::from(cell[0]) + 0.5 - p[0]).abs() + 1.0e-7 > half
                         || (f64::from(cell[2]) + 0.5 - p[2]).abs() + 1.0e-7 > half);
                 if sliding {
-                    Err(unsupported("honey wall sliding".into()))
+                    let Some(slide) = self.rules.honey_slide else {
+                        return Err(unsupported("honey wall sliding".into()));
+                    };
+                    // Modern HoneyBlock runs after travel's gravity and drag.
+                    // Its getOldDeltaY/getNewDeltaY use these fixed constants,
+                    // even with a different gravity attribute or slow falling.
+                    let old_y = self.body.velocity[1] / f64::from(slide.drag) + slide.gravity;
+                    if old_y < slide.starts_below {
+                        if old_y < slide.throttle_below {
+                            let factor = slide.speed / old_y;
+                            self.body.velocity[0] *= factor;
+                            self.body.velocity[2] *= factor;
+                        }
+                        self.body.velocity[1] =
+                            (slide.speed - slide.gravity) * f64::from(slide.drag);
+                        self.body.fall_distance = 0.0;
+                    }
+                    Ok(())
                 } else {
                     Ok(())
                 }
@@ -2216,10 +2238,10 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             maybe.extend(cells(b).filter(|c| !sure.contains(c)));
         }
         let mut stuck_kinds = std::collections::BTreeSet::new();
-        let mut has_bubbles = false;
+        let mut has_immediate_effects = false;
         for cell in sure.iter().chain(maybe.iter()) {
             let block = self.level.block(*cell)?;
-            has_bubbles |= block.inside == Effect::BubbleColumn;
+            has_immediate_effects |= matches!(block.inside, Effect::BubbleColumn | Effect::Honey);
             if !self.env.flying && block.inside == Effect::Stuck {
                 stuck_kinds.insert(self.level.block(*cell)?.name.as_str());
             }
@@ -2227,24 +2249,30 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         if stuck_kinds.len() > 1 {
             return Err(unsupported("mixed cobweb and berry bush".into()));
         }
-        if has_bubbles {
-            self.bubble_effects_modern(old_position)?;
+        if has_immediate_effects {
+            self.immediate_effects_modern(old_position)?;
         }
         for cell in sure {
-            if self.level.block(cell)?.inside != Effect::BubbleColumn {
+            if !matches!(
+                self.level.block(cell)?.inside,
+                Effect::BubbleColumn | Effect::Honey
+            ) {
                 self.inside_effect(cell, true)?;
             }
         }
         for cell in maybe {
-            if self.level.block(cell)?.inside != Effect::BubbleColumn {
+            if !matches!(
+                self.level.block(cell)?.inside,
+                Effect::BubbleColumn | Effect::Honey
+            ) {
                 self.inside_effect(cell, false)?;
             }
         }
         Ok(())
     }
 
-    /// Modern immediate bubble callbacks retain axis visitation and certainty.
-    fn bubble_effects_modern(&mut self, from: [f64; 3]) -> Result<()> {
+    /// Modern immediate callbacks retain axis visitation and certainty.
+    fn immediate_effects_modern(&mut self, from: [f64; 3]) -> Result<()> {
         for (cell, certain) in
             bubbles::visits(from, self.body.position, self.movement_order, |p| {
                 deflate(
@@ -2253,7 +2281,10 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 )
             })?
         {
-            if self.level.block(cell)?.inside == Effect::BubbleColumn {
+            if matches!(
+                self.level.block(cell)?.inside,
+                Effect::BubbleColumn | Effect::Honey
+            ) {
                 self.inside_effect(cell, certain)?;
             }
         }

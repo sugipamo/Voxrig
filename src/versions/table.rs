@@ -167,6 +167,17 @@ pub(crate) struct PhysicsRules {
     /// Moving shifts the persisted bounding box and the position is read back
     /// from its center (legacy); otherwise the position moves and the box follows.
     pub position_from_bounds: bool,
+    /// Qualified living honey callback, after travel's gravity and drag.
+    pub honey_slide: Option<HoneySlide>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct HoneySlide {
+    pub gravity: f64,
+    pub drag: f32,
+    pub starts_below: f64,
+    pub throttle_below: f64,
+    pub speed: f64,
 }
 
 /// Everything that differs between versions as values.
@@ -343,6 +354,7 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
         move_when_nearly_stopped: false,
         horizontal_collision_tolerance: None,
         position_from_bounds: true,
+        honey_slide: None,
     },
     data: data_files!("1.16.1"),
 };
@@ -378,6 +390,13 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
         move_when_nearly_stopped: true,
         horizontal_collision_tolerance: Some(1e-5),
         position_from_bounds: false,
+        honey_slide: Some(HoneySlide {
+            gravity: 0.08,
+            drag: 0.98,
+            starts_below: -0.08,
+            throttle_below: -0.13,
+            speed: -0.05,
+        }),
     },
     data: data_files!("1.21.11"),
 };

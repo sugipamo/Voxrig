@@ -2793,7 +2793,7 @@
     "src/client/entity/packet_model.rs": "e7a20e77971f4b62f5e4cf01f9182acf8727c23f03c4b09de088c7161bbdb2e9",
     "src/client/entity/contact_tick.rs": "08762328a8f4e763952e6f4d6e1cfc389fe8535d8fd88dc9e4ae47fcaef87038",
     "src/client/entity/contact.rs": "916af07d2057fab781085dc451ee770d9deff81e1f81737e0ffbe6c666f7134e",
-    "src/client/physics/mod.rs": "5bc9fbe0f0288706c019eb8522974895d74b8a70d38c38f842a389c7e451107e",
+    "src/client/physics/mod.rs": "9e8ac5e6ee6534f685fecf13b0efb4b38a6249fe23364993ae07887ee20ebe6b",
     "src/client/physics/boat.rs": "86fd1e61e234d16f3f00027092d470cffb2c046ac8732654b8d7666bcdaedefe",
     "src/client/vehicle/collision.rs": "5acb4d11f6680286524ee66e9067744a344412610aa5575416e0e474ed3db7e1",
     "src/client/vehicle/tests.rs": "78ef57c67ff3fe5caca720eff18af431e7e147fc31480f3405c135f4767b9ca0",
@@ -2803,7 +2803,7 @@
     "data/client_api/entity_dimensions_oracle.json.gz": "f250e421e4d27d47e3aab530ef445dcec2fb680c4ee86f565d62cf1b91ec81f4",
     "data/entities.json": "5d50e5f819001980262faebd3984dff05cfb1c2e6101ec02d3a6ae4f34687cf7",
     "data/java_1_21_11/entity_dimensions.json": "556e7e28aabd7383ae5ebe87fe7226c211a8afd28ab9d7de54e69f14e4e54250",
-    "src/versions/table.rs": "c433c8a367283f5c9a254d4c14f8bac72bcba249a6b06096cc9f772f65b95e36",
+    "src/versions/table.rs": "6cff06f156c46f0d3bccc284c5defd5795d634363d4a0f53e4adb4417626f5d6",
     "scripts/generate_version_tables.py": "6787d466633ea2cb5029991826bed2734204c76b9f5dc4bb194aa55c751af575"
   }
 }

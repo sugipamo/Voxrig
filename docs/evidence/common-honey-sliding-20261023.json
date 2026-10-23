@@ -1,0 +1,529 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "timezone": "Etc/UTC",
+  "issues": [
+    44
+  ],
+  "public_api": "none",
+  "scope": "Java 1.21.11 living honey callbacks. Java 1.16.1 wall sliding retains the existing Unsupported refusal.",
+  "source_sha256": {
+    "src/client/physics/mod.rs": "9e8ac5e6ee6534f685fecf13b0efb4b38a6249fe23364993ae07887ee20ebe6b",
+    "src/client/physics/bubbles.rs": "bdaf644b2238f3753ab9afdccbf2c3d49bfdf3de30ec2a6a21e8aa60cb000e95",
+    "src/versions/table.rs": "6cff06f156c46f0d3bccc284c5defd5795d634363d4a0f53e4adb4417626f5d6",
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "examples/climbing_control_probe.rs": "19f60163dca901b1580ff3fb980c0373042126c1dbbb44c8251399c25248f3e7",
+    "scripts/run_honey_live.py": "80ec6a923f6e79f7fe0c9130dc92d3a4b450076fe5ed413ca26597a1689cc4d9",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
+    "data/client_api/honey_oracle.json.gz": "4a4940730f2491e76ceeb0597d5c62eba81cf19f03126b92cfab77d0a6fe7c55",
+    "Cargo.toml": "f46ef56782a3d28ab2c2bcf798c60c8175aa2820dc37704fc8188fe9dcb24a3b",
+    "scripts/run_honey_oracle.py": "5f6477381ea75e57472a2fe3b7de9eb9fe82c16d4b0a8b339b8eec00f4bec990",
+    "scripts/movement_oracle/honey_scenarios.py": "2929af43a92007cb84b09424f646c0a5aa6dd58465b30bccb1657c449bc5eb2f",
+    "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "src/client/physics/oracle_tests.rs": "053608021396af2315dcd4a55f809d910667dcdf9d7acfa18ff1e552657e4273"
+  },
+  "oracle": {
+    "authority": "Official LivingEntity/Player and Boat movement run unchanged inside each official server JAR; only LocalPlayer's client-side input handling is ported in the harness.",
+    "cases": 53,
+    "ticks": 1440,
+    "fixture_sha256": "4a4940730f2491e76ceeb0597d5c62eba81cf19f03126b92cfab77d0a6fe7c55",
+    "runs": [
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "175c19e3ac5e278f6ac972193256f09aa75fcf4d0a5f7f37497e916051d070da"
+      }
+    ],
+    "owned_sources": {
+      "base_harness_sha256": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+      "generated_harness_sha256": "175c19e3ac5e278f6ac972193256f09aa75fcf4d0a5f7f37497e916051d070da",
+      "wrapper_sha256": "5f6477381ea75e57472a2fe3b7de9eb9fe82c16d4b0a8b339b8eec00f4bec990"
+    },
+    "runner_sha256": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "scenarios_sha256": "a2e78d5fa981bc67e88144af92177a395f6cea3475b22cb50ce198ba52a8d425",
+    "original_output_sha256": "187c63f04b31dc9bb138e98401aabb9a58a62248a2a03dea43f4d2acd31c42ef",
+    "original_run_log_sha256": "fb1ab5efc195ad07d8b732bbd02d0e675b1b009c6ad69891c4f7fb430d99bf29"
+  },
+  "live": {
+    "version": "1.21.11",
+    "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+    "binary_sha256": "81d2687ce6809ac4643a8b3fa49a75757037aa04bd0cfd05a1734a5a7d7e6da5",
+    "passed": true,
+    "server_port": 55385,
+    "disposable_directory": true,
+    "checks": [
+      {
+        "name": "fall_contact",
+        "ticks": 10,
+        "corrections": 0,
+        "position": [
+          0.762499988079071,
+          67.59452378518928,
+          0.5
+        ],
+        "velocity": [
+          0.0,
+          -0.12740000247955321,
+          0.0
+        ],
+        "native_position": [
+          0.762499988079071,
+          67.72192378766883,
+          0.5
+        ]
+      },
+      {
+        "name": "leave_wall",
+        "ticks": 16,
+        "corrections": 0,
+        "position": [
+          0.4073745445444084,
+          66.60408479722459,
+          0.5
+        ],
+        "velocity": [
+          -0.08563871905566922,
+          -0.3504352390479069,
+          0.0
+        ],
+        "native_position": [
+          0.5014830243109756,
+          66.88167176888528,
+          0.5
+        ]
+      },
+      {
+        "name": "detached_landing",
+        "ticks": 28,
+        "corrections": 0,
+        "position": [
+          -1.8045325969053803,
+          65.0,
+          0.5
+        ],
+        "velocity": [
+          -0.11788390649981233,
+          -0.0784000015258789,
+          0.0
+        ],
+        "native_position": [
+          -1.5886280313242689,
+          65.0,
+          0.5
+        ]
+      },
+      {
+        "name": "detached_stop",
+        "ticks": 28,
+        "corrections": 0,
+        "position": [
+          -1.8045325969053803,
+          65.0,
+          0.5
+        ],
+        "velocity": [
+          -0.11788390649981233,
+          -0.0784000015258789,
+          0.0
+        ],
+        "native_position": null
+      },
+      {
+        "name": "crouch_slide",
+        "ticks": 10,
+        "corrections": 0,
+        "position": [
+          0.7625,
+          67.87456797660069,
+          0.5
+        ],
+        "velocity": [
+          0.0,
+          -0.12740000247955321,
+          0.0
+        ],
+        "native_position": [
+          0.7625,
+          68.00196797908023,
+          0.5
+        ]
+      },
+      {
+        "name": "wall_landing",
+        "ticks": 50,
+        "corrections": 0,
+        "position": [
+          0.7625,
+          65.0,
+          0.5
+        ],
+        "velocity": [
+          0.0,
+          -0.0784000015258789,
+          0.0
+        ],
+        "native_position": [
+          0.7625,
+          65.0,
+          0.5
+        ]
+      },
+      {
+        "name": "crouch_stop",
+        "ticks": 50,
+        "corrections": 0,
+        "position": [
+          0.7625,
+          65.0,
+          0.5
+        ],
+        "velocity": [
+          0.0,
+          -0.0784000015258789,
+          0.0
+        ],
+        "native_position": null
+      }
+    ],
+    "trace_errors": [],
+    "artifacts": {
+      "report.json": "eac2b55c141c62ee56e3b945146c965e31dafb7aaf47cfcc5fe0f575a9ea8a20",
+      "packets.jsonl": "2d085b44e203b924ab8a28c6da58883776321a3b0d731a069656800d2893a6c9",
+      "server.log": "90d5f9e705ccf5bf945c38a140a3178bd3039b65c69bd00b2064f70413bf7ec6",
+      "probe.log": "cf903107f85c7f756bda80215a15ba9e81d9c0ddcd6598edc014996226872f4f"
+    },
+    "server_stopped": true
+  },
+  "limits": [
+    "The oracle uses the existing owned LocalPlayer input port and unchanged official travel/hooks; it does not reproduce native packet clocks.",
+    "Live packet/frame equality and independent RCON positions are connection evidence, not per-tick numerical velocity evidence.",
+    "Honey top speed/jump coefficients and non-living boat callbacks are unchanged. Finite path limits and existing terrain/contact refusals remain."
+  ],
+  "development_failures": [
+    "Initial comparison exposed the pre-existing modern slow-falling fall-distance reset omission; corrected at aiStep before travel.",
+    "The packet test driver initially used the opposite strafe direction, then observed after landing; corrected to assert actual airborne departure.",
+    "The first full CI run passed 1460 unit tests and failed only the contact-envelope source binding; refreshed the two changed source hashes after reviewing the guarded query/hull contract, then reran all checks."
+  ],
+  "contact_envelope_source_rebind": {
+    "evidence": "docs/evidence/contact-envelopes-20261015.json",
+    "sources": [
+      "src/client/physics/mod.rs",
+      "src/versions/table.rs"
+    ],
+    "review": "Honey changes velocity and fall distance after travel. Immediate callbacks still read every cell through Level.block and its guarded terrain provider/cache. Existing attempted-sweep geometry and own before/after hull guards, body scale/shape, remote slots, query inflation and eligibility are unchanged. New const rules contain no contact/entity policy. Original native method fingerprints are retained; this is a source-binding refresh, not a new native-owner audit."
+  },
+  "ci": [
+    {
+      "name": "focused",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--lib",
+        "-j2",
+        "honey",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 14.55
+    },
+    {
+      "name": "live-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--example",
+        "climbing_control_probe",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "seconds": 8.39
+    },
+    {
+      "name": "msrv-default",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "check",
+        "--locked",
+        "--all-targets",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "seconds": 8.6
+    },
+    {
+      "name": "msrv-native",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "check",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "seconds": 8.51
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 1.94
+    },
+    {
+      "name": "test_native_trace.py",
+      "command": [
+        "python3",
+        "-B",
+        "scripts/test_native_trace.py"
+      ],
+      "exit_code": 0,
+      "seconds": 2.71
+    },
+    {
+      "name": "test_native_trials.py",
+      "command": [
+        "python3",
+        "-B",
+        "scripts/test_native_trials.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.19
+    },
+    {
+      "name": "contact_policy_export.py",
+      "command": [
+        "python3",
+        "-B",
+        "scripts/contact_policy_export.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.25
+    },
+    {
+      "name": "audit_contact_capabilities.py",
+      "command": [
+        "python3",
+        "-B",
+        "scripts/audit_contact_capabilities.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.23
+    },
+    {
+      "name": "audit_contact_packets.py",
+      "command": [
+        "python3",
+        "-B",
+        "scripts/audit_contact_packets.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.22
+    },
+    {
+      "name": "audit_contact_envelopes.py",
+      "command": [
+        "python3",
+        "-B",
+        "scripts/audit_contact_envelopes.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.22
+    },
+    {
+      "name": "check_contact_policy_consumers.py",
+      "command": [
+        "python3",
+        "-B",
+        "scripts/check_contact_policy_consumers.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 2.01
+    },
+    {
+      "name": "default-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--all-targets",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 179.82
+    },
+    {
+      "name": "default-doctests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--doc",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 2.96
+    },
+    {
+      "name": "default-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "-j2",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 10.95
+    },
+    {
+      "name": "default-rustdoc",
+      "command": [
+        "cargo",
+        "doc",
+        "--locked",
+        "--no-deps",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "seconds": 3.76
+    },
+    {
+      "name": "native-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 210.52
+    },
+    {
+      "name": "native-doctests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--doc",
+        "--features",
+        "native",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 2.86
+    },
+    {
+      "name": "native-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "-j2",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 10.58
+    },
+    {
+      "name": "native-rustdoc",
+      "command": [
+        "cargo",
+        "doc",
+        "--locked",
+        "--no-deps",
+        "--features",
+        "native",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "seconds": 4.35
+    },
+    {
+      "name": "package-list",
+      "command": [
+        "cargo",
+        "package",
+        "--locked",
+        "--allow-dirty",
+        "--list",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "seconds": 0.05
+    },
+    {
+      "name": "package",
+      "command": [
+        "cargo",
+        "package",
+        "--locked",
+        "--allow-dirty",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "seconds": 7.69
+    },
+    {
+      "name": "audit",
+      "command": [
+        "cargo",
+        "audit"
+      ],
+      "exit_code": 0,
+      "seconds": 1.11
+    }
+  ],
+  "review": {
+    "base": "b6730cf88749489731d5be9fd2530c4c5fe876f6",
+    "finding": "The initial honey oracle did not explicitly cover collision reversing the relative X/Z displacement magnitudes while honey and bubble callbacks compete.",
+    "fix": "Add 16 official scenarios covering both honey axes, all four horizontal sign pairs and either attempted dominant axis. Assert that eight cases actually reverse the displacement axis and that honey-first/bubble-first produce opposite vertical velocity signs. Compare every native frame; runtime physics and public API are unchanged.",
+    "baseline_fixture_reproduced_sha256": "0936f91f0181282d7b8194b9b8dd7e80ec6e9e0f237f1f91f9109b61808ccefc",
+    "baseline_results_preserved": 37,
+    "new_scenarios": 16,
+    "live_report": "/tmp/voxrig-honey-review-final-live-lykdcl6e/1.21.11-20261023-025154/report.json",
+    "axis_order_mutation": {
+      "expected_failure": true,
+      "failing_new_cases": 8,
+      "original_cases_unchanged": true,
+      "log_sha256": "707e44e1121c77fb88affc75b7f88cd8b49dd278d3579f904e5f1791823b1988"
+    }
+  }
+}

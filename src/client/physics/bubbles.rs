@@ -1,4 +1,4 @@
-//! Native modern axis traversal, shared by player and boat bubble callbacks.
+//! Native modern axis traversal for player honey/bubbles and boat bubbles.
 use super::{Result, floor, intersects, shifted, unsupported};
 
 pub(super) fn visits(
