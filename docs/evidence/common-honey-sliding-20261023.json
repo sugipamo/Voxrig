@@ -16,17 +16,18 @@
     "scripts/run_honey_live.py": "80ec6a923f6e79f7fe0c9130dc92d3a4b450076fe5ed413ca26597a1689cc4d9",
     "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
     "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
-    "data/client_api/honey_oracle.json.gz": "0936f91f0181282d7b8194b9b8dd7e80ec6e9e0f237f1f91f9109b61808ccefc",
+    "data/client_api/honey_oracle.json.gz": "4a4940730f2491e76ceeb0597d5c62eba81cf19f03126b92cfab77d0a6fe7c55",
     "Cargo.toml": "f46ef56782a3d28ab2c2bcf798c60c8175aa2820dc37704fc8188fe9dcb24a3b",
     "scripts/run_honey_oracle.py": "5f6477381ea75e57472a2fe3b7de9eb9fe82c16d4b0a8b339b8eec00f4bec990",
-    "scripts/movement_oracle/honey_scenarios.py": "d64f44786ea10b295e39a27abdef3851245c916e272f4e37a2bc9ac67a551acd",
-    "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998"
+    "scripts/movement_oracle/honey_scenarios.py": "2929af43a92007cb84b09424f646c0a5aa6dd58465b30bccb1657c449bc5eb2f",
+    "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "src/client/physics/oracle_tests.rs": "053608021396af2315dcd4a55f809d910667dcdf9d7acfa18ff1e552657e4273"
   },
   "oracle": {
     "authority": "Official LivingEntity/Player and Boat movement run unchanged inside each official server JAR; only LocalPlayer's client-side input handling is ported in the harness.",
-    "cases": 37,
-    "ticks": 1392,
-    "fixture_sha256": "0936f91f0181282d7b8194b9b8dd7e80ec6e9e0f237f1f91f9109b61808ccefc",
+    "cases": 53,
+    "ticks": 1440,
+    "fixture_sha256": "4a4940730f2491e76ceeb0597d5c62eba81cf19f03126b92cfab77d0a6fe7c55",
     "runs": [
       {
         "version": "1.21.11",
@@ -41,15 +42,17 @@
       "wrapper_sha256": "5f6477381ea75e57472a2fe3b7de9eb9fe82c16d4b0a8b339b8eec00f4bec990"
     },
     "runner_sha256": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
-    "scenarios_sha256": "e089062ec5d68afb261af39a54a465c43958978c3e59c1e60c86dc04547d5a7b",
-    "original_output_sha256": "83e640ac6152b8cba1fe2f7c29db07ce925c3f530419cdd3f1e638dbcaacb865",
-    "original_run_log_sha256": "96f44bce8299229d25c2549d611626f03d17caadd7c391c112e95e586ec76f12"
+    "scenarios_sha256": "a2e78d5fa981bc67e88144af92177a395f6cea3475b22cb50ce198ba52a8d425",
+    "original_output_sha256": "187c63f04b31dc9bb138e98401aabb9a58a62248a2a03dea43f4d2acd31c42ef",
+    "original_run_log_sha256": "fb1ab5efc195ad07d8b732bbd02d0e675b1b009c6ad69891c4f7fb430d99bf29"
   },
   "live": {
     "version": "1.21.11",
     "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
     "binary_sha256": "81d2687ce6809ac4643a8b3fa49a75757037aa04bd0cfd05a1734a5a7d7e6da5",
     "passed": true,
+    "server_port": 55385,
+    "disposable_directory": true,
     "checks": [
       {
         "name": "fall_contact",
@@ -186,10 +189,10 @@
     ],
     "trace_errors": [],
     "artifacts": {
-      "report.json": "f4e3052f29bcacee997114afa8e6b2640f6cedc3ca02fe524dcf903a1b39f267",
-      "packets.jsonl": "fd44789ca89f432369824617a00b358898680779b8416bda12be9cf86addaf6b",
-      "server.log": "e774da3d13b73414a64458f110532b2ba4aec2a7f82bfce339e94c34793eb311",
-      "probe.log": "6b2ba6ad727ad0638259565c99db4a72edc8f3e028c15b00ede0e74a9cf47ecb"
+      "report.json": "eac2b55c141c62ee56e3b945146c965e31dafb7aaf47cfcc5fe0f575a9ea8a20",
+      "packets.jsonl": "2d085b44e203b924ab8a28c6da58883776321a3b0d731a069656800d2893a6c9",
+      "server.log": "90d5f9e705ccf5bf945c38a140a3178bd3039b65c69bd00b2064f70413bf7ec6",
+      "probe.log": "cf903107f85c7f756bda80215a15ba9e81d9c0ddcd6598edc014996226872f4f"
     },
     "server_stopped": true
   },
@@ -225,7 +228,7 @@
         "--test-threads=2"
       ],
       "exit_code": 0,
-      "seconds": 11.89
+      "seconds": 14.55
     },
     {
       "name": "live-build",
@@ -238,7 +241,7 @@
         "-j2"
       ],
       "exit_code": 0,
-      "seconds": 0.05
+      "seconds": 8.39
     },
     {
       "name": "msrv-default",
@@ -251,7 +254,7 @@
         "-j2"
       ],
       "exit_code": 0,
-      "seconds": 6.89
+      "seconds": 8.6
     },
     {
       "name": "msrv-native",
@@ -266,7 +269,7 @@
         "-j2"
       ],
       "exit_code": 0,
-      "seconds": 6.63
+      "seconds": 8.51
     },
     {
       "name": "fmt",
@@ -278,7 +281,7 @@
         "--check"
       ],
       "exit_code": 0,
-      "seconds": 1.87
+      "seconds": 1.94
     },
     {
       "name": "test_native_trace.py",
@@ -298,7 +301,7 @@
         "scripts/test_native_trials.py"
       ],
       "exit_code": 0,
-      "seconds": 0.18
+      "seconds": 0.19
     },
     {
       "name": "contact_policy_export.py",
@@ -309,7 +312,7 @@
         "--check"
       ],
       "exit_code": 0,
-      "seconds": 0.26
+      "seconds": 0.25
     },
     {
       "name": "audit_contact_capabilities.py",
@@ -320,7 +323,7 @@
         "--check"
       ],
       "exit_code": 0,
-      "seconds": 0.22
+      "seconds": 0.23
     },
     {
       "name": "audit_contact_packets.py",
@@ -353,7 +356,7 @@
         "--check"
       ],
       "exit_code": 0,
-      "seconds": 2.0
+      "seconds": 2.01
     },
     {
       "name": "default-tests",
@@ -367,7 +370,7 @@
         "--test-threads=2"
       ],
       "exit_code": 0,
-      "seconds": 178.88
+      "seconds": 179.82
     },
     {
       "name": "default-doctests",
@@ -381,7 +384,7 @@
         "--test-threads=2"
       ],
       "exit_code": 0,
-      "seconds": 2.75
+      "seconds": 2.96
     },
     {
       "name": "default-clippy",
@@ -396,7 +399,7 @@
         "warnings"
       ],
       "exit_code": 0,
-      "seconds": 38.83
+      "seconds": 10.95
     },
     {
       "name": "default-rustdoc",
@@ -408,7 +411,7 @@
         "-j2"
       ],
       "exit_code": 0,
-      "seconds": 5.37
+      "seconds": 3.76
     },
     {
       "name": "native-tests",
@@ -424,7 +427,7 @@
         "--test-threads=2"
       ],
       "exit_code": 0,
-      "seconds": 270.15
+      "seconds": 210.52
     },
     {
       "name": "native-doctests",
@@ -440,7 +443,7 @@
         "--test-threads=2"
       ],
       "exit_code": 0,
-      "seconds": 2.77
+      "seconds": 2.86
     },
     {
       "name": "native-clippy",
@@ -457,7 +460,7 @@
         "warnings"
       ],
       "exit_code": 0,
-      "seconds": 35.58
+      "seconds": 10.58
     },
     {
       "name": "native-rustdoc",
@@ -471,7 +474,7 @@
         "-j2"
       ],
       "exit_code": 0,
-      "seconds": 4.13
+      "seconds": 4.35
     },
     {
       "name": "package-list",
@@ -496,7 +499,7 @@
         "-j2"
       ],
       "exit_code": 0,
-      "seconds": 34.15
+      "seconds": 7.69
     },
     {
       "name": "audit",
@@ -505,7 +508,22 @@
         "audit"
       ],
       "exit_code": 0,
-      "seconds": 1.02
+      "seconds": 1.11
     }
-  ]
+  ],
+  "review": {
+    "base": "b6730cf88749489731d5be9fd2530c4c5fe876f6",
+    "finding": "The initial honey oracle did not explicitly cover collision reversing the relative X/Z displacement magnitudes while honey and bubble callbacks compete.",
+    "fix": "Add 16 official scenarios covering both honey axes, all four horizontal sign pairs and either attempted dominant axis. Assert that eight cases actually reverse the displacement axis and that honey-first/bubble-first produce opposite vertical velocity signs. Compare every native frame; runtime physics and public API are unchanged.",
+    "baseline_fixture_reproduced_sha256": "0936f91f0181282d7b8194b9b8dd7e80ec6e9e0f237f1f91f9109b61808ccefc",
+    "baseline_results_preserved": 37,
+    "new_scenarios": 16,
+    "live_report": "/tmp/voxrig-honey-review-final-live-lykdcl6e/1.21.11-20261023-025154/report.json",
+    "axis_order_mutation": {
+      "expected_failure": true,
+      "failing_new_cases": 8,
+      "original_cases_unchanged": true,
+      "log_sha256": "707e44e1121c77fb88affc75b7f88cd8b49dd278d3579f904e5f1791823b1988"
+    }
+  }
 }

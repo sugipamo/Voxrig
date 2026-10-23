@@ -221,7 +221,7 @@ python3 -B scripts/movement_oracle/run.py --downloads .local/climbing/downloads 
 
 ## ハチミツ壁の滑降（2026-10-23）
 
-1.21.11の37場面・1,392 tickを`honey_oracle.json.gz`へ保存した。
+1.21.11の53場面・1,440 tickを`honey_oracle.json.gz`へ保存した。
 未変更の公式`Player`／`LivingEntity`のtravel・`HoneyBlock.entityInside`を実行し、
 位置・速度・衝突箱・姿勢・目の高さ・落下距離・移動状態を全tickでbit単位に照合する。
 開始速度と落下距離、属性適用後の`refreshDimensions`、観測だけを自作harnessへ追加する。
@@ -229,6 +229,9 @@ python3 -B scripts/movement_oracle/run.py --downloads .local/climbing/downloads 
 速度の`-0.08`／`-0.13`の前後と等値、水平減速、角、複数のハチミツ、
 scale 0.125／0.25／0.5／1／2／4、進入・離脱、しゃがみ・着地、上面のjump、
 泡の柱との訪問順、重力属性と低速落下効果を含む。
+蜂蜜と泡の柱への斜め進入は、X/Zの両配置・正負の全方向・両方の主軸を比較する。
+蜂蜜側の移動が壁で制限されて実移動量の主軸が逆転しても、
+callbackが衝突前に選ばれた軸順を保つことを16場面で確認する。
 ハチミツの速度換算は、原版どおり固定の重力・減衰を使う。
 低速落下効果中は原版`aiStep`のtravel前の落下距離リセットも照合する。
 既存の移動・登り・液体・ボート・scale等の両版oracleは回帰試験として維持する。

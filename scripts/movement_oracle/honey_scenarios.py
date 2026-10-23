@@ -27,6 +27,29 @@ def scenarios():
     for yaw in (0., 90., 180., -90.):
         yield scenario(f'honey_enter_{yaw}', floor + wall, ticks(40, forward=1, yaw=yaw),
                        start=(-.5, 4., .5), velocity=[.08, -.3, .04])
+    # The honey wall clips one horizontal component. When that component
+    # started faster, the final displacement has the opposite axis ordering.
+    # Immediate honey/bubble callbacks must retain the attempted movement order.
+    for honey_axis in (0, 2):
+        bubble_axis = 2 - honey_axis
+        for x_sign, z_sign in ((1, 1), (1, -1), (-1, 1), (-1, -1)):
+            signs = [x_sign, 1, z_sign]
+            honey_cell = [0, 0, 0]
+            bubble_cell = [0, 0, 0]
+            honey_cell[honey_axis] = signs[honey_axis]
+            bubble_cell[bubble_axis] = signs[bubble_axis]
+            blocks = floor + [
+                [honey_cell[0], 0, honey_cell[2], honey_cell[0], 9, honey_cell[2],
+                 'minecraft:honey_block'],
+                [bubble_cell[0], 0, bubble_cell[2], bubble_cell[0], 9, bubble_cell[2],
+                 'minecraft:bubble_column[drag=false]'],
+            ]
+            for faster in ('honey', 'bubble'):
+                velocity = [signs[0] * .35, -.3, signs[2] * .35]
+                axis = honey_axis if faster == 'honey' else bubble_axis
+                velocity[axis] = signs[axis] * .45
+                yield scenario(f'honey_axis_order_{honey_axis}_{x_sign}_{z_sign}_{faster}',
+                               blocks, ticks(3), start=(.5, 4., .5), velocity=velocity)
     for label, blocks, start, velocity in [
         ('corner', wall, (-.2375, 4., -3.2375), [.04, -.3, .04]),
         ('multiple', [[0, 0, 0, 0, 9, 0, 'minecraft:honey_block'],

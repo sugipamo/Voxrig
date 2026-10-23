@@ -350,16 +350,41 @@ fn honey_reproduces_every_modern_official_tick_without_refusals() {
     .unwrap();
     let scenarios = data["scenarios"].as_array().unwrap();
     let results = data["results"]["1.21.11"].as_array().unwrap();
-    assert_eq!(scenarios.len(), 37);
+    assert_eq!(scenarios.len(), 53);
     assert_eq!(scenarios.len(), results.len());
     let mut failures = Vec::new();
+    let mut axis_order_cases = 0;
     for (scenario, result) in scenarios.iter().zip(results) {
         assert_eq!(scenario["name"], result["name"]);
+        let name = scenario["name"].as_str().unwrap();
+        if name.starts_with("honey_axis_order_") {
+            axis_order_cases += 1;
+            let attempted_x_first = scenario["velocity"][0].as_f64().unwrap().abs()
+                >= scenario["velocity"][2].as_f64().unwrap().abs();
+            let frame = &result["frames"][0];
+            let moved = |axis| {
+                (exact(&frame["position"][axis]) - scenario["start"][axis].as_f64().unwrap()).abs()
+            };
+            // These cases must actually reverse the displacement's dominant
+            // axis when honey is encountered first. Recomputing the callback
+            // order from that displacement would swap honey and bubbles.
+            assert_eq!(
+                attempted_x_first != (moved(0) >= moved(2)),
+                name.ends_with("_honey"),
+                "{name} must exercise its declared axis order"
+            );
+            assert_eq!(
+                exact(&frame["velocity"][1]) > 0.0,
+                name.ends_with("_honey"),
+                "{name}: immediate honey and bubble callbacks must not commute"
+            );
+        }
         match compare(MinecraftVersion::Java1_21_11, scenario, result) {
             Ok(None) => (),
             other => failures.push(format!("{}: {other:?}", scenario["name"])),
         }
     }
+    assert_eq!(axis_order_cases, 16);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
