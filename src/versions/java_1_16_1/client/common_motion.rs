@@ -1383,6 +1383,37 @@ pub(super) mod tests {
             .unwrap();
     }
     #[tokio::test]
+    async fn contextual_target_is_explicitly_unsupported_without_legacy_dispatch() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for result in [
+            client.survival().target_block_with_context().await,
+            client.creative().target_block_with_context().await,
+        ] {
+            let error = result.unwrap_err();
+            assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+            assert_eq!(
+                error.to_string(),
+                "contextual block targeting is unavailable for this version"
+            );
+        }
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
     async fn common_target_never_treats_unsupported_or_unloaded_geometry_as_air() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

@@ -48,6 +48,29 @@ pub enum TargetGeometry {
     BlockOutline,
 }
 
+/// Contextual own-player query retaining the exact native point and face.
+pub(super) fn contextual_outline_hit(
+    state: &State,
+    eye: [f64; 3],
+    distance: f64,
+) -> Result<Option<crate::client::BlockTargetHit>> {
+    let direction = outline::direction(state.rotation);
+    let end = std::array::from_fn(|i| eye[i] + direction[i] * distance);
+    outline::contextual_cast(eye, end, |p| {
+        let (_, height) = state.world.dimension.as_ref().expect("ready dimension");
+        if p[1] < height.min_y || p[1] >= height.min_y + height.height {
+            anyhow::bail!("contextual outline crosses observed dimension bounds");
+        }
+        let cell = state.reconstruction.cell(&state.world, p);
+        if cell.moving.is_some() {
+            anyhow::bail!("moving contextual outline geometry at {p:?}");
+        }
+        cell.state
+            .ok_or_else(|| anyhow::anyhow!("contextual outline geometry unavailable at {p:?}"))
+    })
+    .map_err(|error| Error::new(ErrorKind::State, error))
+}
+
 /// Same pinned native outline traversal, for a prevalidated stationary own player.
 pub(super) fn stationary_outline_hit(
     state: &State,

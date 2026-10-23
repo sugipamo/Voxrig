@@ -114,3 +114,67 @@ Rustの期待値を生成する方法は用いない。
 mode違反とactive flight拒否、queryでpacketやpose変更がないことを検証する。
 native runnerはcreativeとsurvivalで同じsingle chestを読み、North面のinset交点と
 RCONのPos/Rotation不変を照合する。これは共通openの結果確認とは別のread-only検証である。
+
+## 姿勢・scale・reach付きの読取（1.21.11）
+
+`Survival::target_block_with_context()`と`Creative::target_block_with_context()`は、
+`ContextualBlockTargetObservation`を返す追加のread-only query。
+既存の`target_block(maximum_distance)`と固定寸法の`placement_check`の契約は維持する。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn inspect(client: &Client) -> Result<()> {
+let observation = client.survival().target_block_with_context().await?;
+if let Some(hit) = observation.visibility.value {
+    println!("{:?} {:?} distance={}", hit.position, hit.face, hit.distance);
+}
+# Ok(())
+# }
+```
+
+同じadapter lockでown pose・scale・block interaction range・位置・回転・支持と
+first outlineを捕捉する。Standing/Crouching、scale 0.125〜4の静止・地上に限定する。
+位置はこのworldの実受信位置と実受信zero velocityが一致する場合だけ使う。
+実行中のcontrolや未解決dispatch、予測pathの位置、乗車、飛行、死亡、motion interruption、
+未ロード・移動geometry、再構築不足を拒否する。支持とbody周辺には既存の資格化済みdry形状を使い、
+bodyの固体への侵入や支持欠測を拒否する。`support`はcell単位で一意とし、
+階段の複数のcollision boxが同じcellを支持しても重複させない。一般的な液体・entity選択やworld依存shapeには拡張しない。
+1.16.1では専用のUnsupportedを返す。
+
+| field | 根拠・意味 |
+| --- | --- |
+| `initial`, `world_revision` | 同一境界のplayer/inventory、位置・回転のsource、受信属性全体とworld cache revision |
+| `pose`, `pose_source` | own pose。実際のnative world-entry初期化とmetadata受信ordinalを区別する。欠測pose/sourceは拒否 |
+| `scale`, `model_scale` | 実受信base/modifierの計算値へ原版の属性clampを適用したscaleと、寸法に使うfloat変換値 |
+| `eye`, `bounds`, `support` | native pose寸法にfloat scaleを掛けて求めるmodel eye・boxと、実際に支持するdry cell |
+| `reach` | 実受信block_interaction_rangeの計算値へ原版の0〜64 clampを適用した選択距離。引数による4.5制限は使わない |
+| `visibility` | OUTLINE/NONEの実際のfirst hit、または利用可能範囲の完全なmiss。交点・面・完全state・eyeからの距離を保持 |
+| `replaceable` | 未評価の`None`。可視性だけでは、材料や設置文脈に依存する置換可否を判断しない |
+| `operation_permitted` | 未評価の`None`。read-only queryは採掘・設置・画面openの操作許可を与えない |
+
+scaleとreachには元属性packetの`ValueSource::Received`を残し、未受信のunit scaleや4.5へ
+補完しない。元base/modifierとclamp前の値は`initial.attributes`に残る。
+eyeとvisibilityは`ValueSource::Predicted`で、受信交点やserverの判定とは区別する。
+reach=0も有効で、visibilityはmissになる。既知の非衝突outlineを含むnative traversalを使い、
+unknown shapeは手前にある場合に拒否する。手前のhitより後の未知領域を先読みしない。
+queryはpacket送信、位置代入、在庫変更を行わず、保存結果を実行許可として再利用しない。
+
+[追加fixture](../data/client_api/contextual_targeting_source.json)は、SHA-1照合した公式1.21.11 JARの
+`Avatar.POSES`、`EntityDimensions.scale/makeBoundingBox`、`Entity.calculateViewVector`と
+`BlockGetter.clip OUTLINE/NONE`を未改変で呼ぶ。2姿勢・7 scale・4 reach・6回転・4 sceneの
+1,344ケースで、寸法とeyeはnative bits、first hitは交点・面で照合する。
+角・inside・chest inset・遮蔽・zero reachを含む。inside sceneはclipそのもののfixtureで、
+bodyが固体へ侵入した状態をqueryへ許可する証拠ではない。元の25,394 clip fixtureと
+両版storage/legacy fixtureも回帰する。
+
+再生成には`scripts/export_contextual_targeting.py`へ`--jar`、`--mappings`、
+`--modern-classpath-file`、`--work`を指定する。classpathは公式bundleの元JAR/librariesと照合する。
+`--check`は再生成結果とsource hashを比較する。serverは起動しない。
+実接続は`scripts/run_contextual_targeting_live.py --binary <probe> --jar <official-jar>
+--work <temporary-output> --accept-eula`で再現する。元packet・RCON・native clipの根拠は別々に保持する。
+
+2026-10-23の公式1.21.11実接続は27項目を通過した。
+6 scale×4 reachの立位24件、欠測属性拒否、scale=2で低い天井により維持される静止Crouching、
+Creative地上の実受信reachを含む。queryの操作packetは0、元属性/pose packetのordinalと
+RCONのPos不変、native clip fixtureの面・交点・距離を照合した。
+[実行source・binary・元packet/RCONのhashと結果](evidence/contextual-block-targeting-20261023.json)を保持する。

@@ -178,7 +178,10 @@ pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
 pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
-pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
+pub use survival::{
+    BlockTargetHit, BlockTargetObservation, BlockTargetPose, BlockTargetPoseSource,
+    ContextualBlockTargetObservation, MiningEstimate,
+};
 pub use vehicle::{
     BoatCollisionBody, BoatCollisionGeometry, BoatCollisionSample, BoatFrame, BoatMotion,
     BoatVelocityUpdate, DismountGrounding, DismountId, DismountRecord, DismountStage,

@@ -34,6 +34,22 @@ pub(super) fn cast(
     end: [f64; 3],
     read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
 ) -> anyhow::Result<Option<BlockHit>> {
+    contextual_cast(start, end, read).map(|hit| {
+        hit.map(|hit| BlockHit {
+            position: hit.position,
+            state: hit.state,
+            distance: hit.distance,
+            face: Some(Direction::from_id(hit.face as u8).expect("native face mapping")),
+        })
+    })
+}
+
+/// Same traversal with the exact native intersection point retained.
+pub(super) fn contextual_cast(
+    start: [f64; 3],
+    end: [f64; 3],
+    read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
+) -> anyhow::Result<Option<crate::client::BlockTargetHit>> {
     crate::client::survival::target::cast(start, end, read, |state| {
         if let Some(shapes) =
             crate::client::container::outline::lookup(crate::MinecraftVersion::Java1_21_11, state)
@@ -44,14 +60,6 @@ pub(super) fn cast(
         let pair = data.state_shapes[state_id(state)? as usize]
             .ok_or_else(|| anyhow::anyhow!("outline geometry unsupported: {}", state.name))?;
         Ok((&data.shapes[pair[0]], &data.shapes[pair[1]]))
-    })
-    .map(|hit| {
-        hit.map(|hit| BlockHit {
-            position: hit.position,
-            state: hit.state,
-            distance: hit.distance,
-            face: Some(Direction::from_id(hit.face as u8).expect("native face mapping")),
-        })
     })
 }
 
@@ -146,6 +154,52 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn contextual_clip_matches_original_pose_scale_reach_corner_inside_and_occlusion() {
+        let mut json = String::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../../data/client_api/contextual_targeting.json.gz")[..],
+        )
+        .read_to_string(&mut json)
+        .unwrap();
+        #[derive(Deserialize)]
+        struct ContextualCase {
+            eye: [f64; 3],
+            rotation: [f32; 2],
+            reach: f64,
+            cells: Vec<Cell>,
+            hit: Option<Hit>,
+        }
+        let cases: Vec<ContextualCase> = serde_json::from_str(&json).unwrap();
+        assert_eq!(cases.len(), 1344);
+        for (index, c) in cases.into_iter().enumerate() {
+            let vector = direction(c.rotation);
+            let end = std::array::from_fn(|i| c.eye[i] + vector[i] * c.reach);
+            let actual = contextual_cast(c.eye, end, |p| {
+                native_state(
+                    c.cells
+                        .iter()
+                        .find(|v| v.position == p)
+                        .map_or(0, |v| v.state),
+                )
+                .map_err(Into::into)
+            })
+            .unwrap();
+            assert_eq!(actual.is_some(), c.hit.is_some(), "case {index}");
+            if let (Some(actual), Some(expected)) = (actual, c.hit) {
+                assert_eq!(actual.position, expected.position, "case {index}");
+                assert_eq!(
+                    format!("{:?}", actual.face).to_lowercase(),
+                    expected.face,
+                    "case {index}"
+                );
+                for (a, b) in actual.point.into_iter().zip(expected.point) {
+                    assert!((a - b).abs() < 1e-10, "case {index}: {a} != {b}");
+                }
+            }
+        }
+    }
+
     #[test]
     fn native_shape_registry_matches_every_state_and_property() {
         let mut hash = 0xcbf29ce484222325u64;

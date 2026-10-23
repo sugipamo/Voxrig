@@ -5684,3 +5684,376 @@ async fn levitation_packets_pause_held_flight_without_advancing_or_sending_the_m
         session.stop();
     }
 }
+
+// Original packet encodings, not direct edits of the contextual query's inputs.
+async fn contextual_attributes(session: &Arc<Session>, values: &[(i32, f64)]) {
+    let mut payload = vec![42];
+    put_varint(&mut payload, values.len() as i32);
+    for (id, value) in values {
+        put_varint(&mut payload, *id);
+        payload.extend(value.to_be_bytes());
+        payload.push(0); // No modifiers.
+    }
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &payload,
+            256,
+        )
+        .unwrap();
+}
+
+async fn contextual_pose(session: &Arc<Session>, pose: u8) {
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::ENTITY_METADATA,
+            &[42, ids::PLAYER_POSE_METADATA, 20, pose, 255],
+            256,
+        )
+        .unwrap();
+}
+
+#[tokio::test]
+async fn contextual_target_packets_capture_pose_scale_reach_and_never_send() {
+    use crate::client::{BlockFace, BlockTargetPose, BlockTargetPoseSource, GameMode, ValueSource};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, ops, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+        client.look([0., 90.]).await.unwrap();
+        read_packet(&mut peer, None).await.unwrap();
+        let query = || async {
+            if mode == GameMode::Survival {
+                client.survival().target_block_with_context().await
+            } else {
+                client.creative().target_block_with_context().await
+            }
+        };
+        // Both actual attributes are required, including when native reset is unit.
+        assert!(query().await.is_err());
+        contextual_attributes(&session, &[(25, 1.)]).await;
+        assert!(query().await.is_err());
+        contextual_attributes(&session, &[(6, 4.5)]).await;
+        let standing = query().await.unwrap();
+        assert_eq!(standing.pose, BlockTargetPose::Standing);
+        assert_eq!(standing.pose_source, BlockTargetPoseSource::NativeReset);
+        assert_eq!(standing.visibility.source, ValueSource::Predicted);
+        assert_eq!(
+            standing.visibility.value.as_ref().unwrap().face,
+            BlockFace::Up
+        );
+        for scale in [0.125, 0.5, 1., 2., 4.] {
+            contextual_attributes(&session, &[(25, scale), (6, 8.)]).await;
+            contextual_pose(&session, 5).await;
+            let before = client.player_state().await.unwrap();
+            let crouch = query().await.unwrap();
+            assert_eq!(crouch.pose, BlockTargetPose::Crouching);
+            assert_eq!(
+                crouch.pose_source,
+                BlockTargetPoseSource::Received {
+                    sequence: before.receive_sequence
+                }
+            );
+            assert_eq!(
+                crouch.scale.source,
+                before.attributes["minecraft:scale"].source
+            );
+            assert_eq!(
+                crouch.reach.source,
+                before.attributes["minecraft:block_interaction_range"].source
+            );
+            assert_eq!(
+                crouch.eye.value,
+                [8.5, 65. + f64::from(1.27f32 * scale as f32), 8.5]
+            );
+            let hit = crouch.visibility.value.unwrap();
+            assert_eq!(hit.position, [8, 64, 8]);
+            assert_eq!(hit.face, BlockFace::Up);
+            assert!((hit.distance - f64::from(1.27f32 * scale as f32)).abs() < 1e-10);
+            assert_eq!(crouch.replaceable, None);
+            assert_eq!(crouch.operation_permitted, None);
+            let after = client.player_state().await.unwrap();
+            assert_eq!(before.position, after.position);
+            assert_eq!(before.received_pose, after.received_pose);
+            assert_eq!(before.receive_sequence, after.receive_sequence);
+        }
+        contextual_attributes(&session, &[(6, 0.)]).await;
+        assert!(query().await.unwrap().visibility.value.is_none());
+        contextual_attributes(&session, &[(6, 1.)]).await;
+        assert!(query().await.unwrap().visibility.value.is_none());
+        contextual_attributes(&session, &[(6, -2.)]).await;
+        assert_eq!(query().await.unwrap().reach.value, 0.);
+        contextual_attributes(&session, &[(6, 100.)]).await;
+        assert_eq!(query().await.unwrap().reach.value, 64.);
+        // Old method still has the same admission and error contract.
+        assert!(
+            if mode == GameMode::Survival {
+                client.survival().target_block(4.5).await
+            } else {
+                client.creative().target_block(4.5).await
+            }
+            .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn contextual_target_rejects_missing_or_unsettled_context_without_packets() {
+    use crate::client::GameMode;
+    let (session, ops, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    client.look([0., 0.]).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    contextual_attributes(&session, &[(25, 1.), (6, 4.5)]).await;
+    assert!(client.survival().target_block_with_context().await.is_ok());
+    assert!(client.creative().target_block_with_context().await.is_err());
+    for pose in [1, 2, 3, 4, 6, 99] {
+        contextual_pose(&session, pose).await;
+        assert!(client.survival().target_block_with_context().await.is_err());
+    }
+    contextual_pose(&session, 0).await;
+    for scale in [0.0625, 8., 16.] {
+        contextual_attributes(&session, &[(25, scale)]).await;
+        assert!(client.survival().target_block_with_context().await.is_err());
+    }
+    contextual_attributes(&session, &[(25, 1.)]).await;
+    let saved = session
+        .state
+        .lock()
+        .await
+        .operations
+        .local_player
+        .pose_basis
+        .take();
+    assert!(client.survival().target_block_with_context().await.is_err());
+    session
+        .state
+        .lock()
+        .await
+        .operations
+        .local_player
+        .pose_basis = saved;
+    // A nonzero actual velocity is not treated as stationary merely because the
+    // last position happened to be on a floor.
+    session
+        .state
+        .lock()
+        .await
+        .operations
+        .local_player
+        .velocity
+        .as_mut()
+        .unwrap()
+        .value = [0.1, 0., 0.];
+    assert!(client.survival().target_block_with_context().await.is_err());
+    session
+        .state
+        .lock()
+        .await
+        .operations
+        .local_player
+        .velocity
+        .as_mut()
+        .unwrap()
+        .value = [0.; 3];
+    session.state.lock().await.operations.local_player.pose = None;
+    assert!(client.survival().target_block_with_context().await.is_err());
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn contextual_target_preserves_first_outline_and_rejects_unknown_geometry() {
+    use crate::client::{BlockFace, GameMode};
+    let (session, ops, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    client.look([0., 0.]).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    contextual_attributes(&session, &[(25, 1.), (6, 8.)]).await;
+    {
+        let mut state = session.state.lock().await;
+        state.world.seed_replay_cell([8, 66, 10], 1);
+        state.world.seed_replay_cell([8, 66, 13], 1);
+    }
+    let near = client
+        .survival()
+        .target_block_with_context()
+        .await
+        .unwrap()
+        .visibility
+        .value
+        .unwrap();
+    assert_eq!(near.position, [8, 66, 10]);
+    assert_eq!(near.face, BlockFace::North);
+    assert!((near.distance - 1.5).abs() < 1e-12);
+    // An unsupported state beyond the first hit must not hide that hit.
+    let unknown = crate::versions::java_1_21_11::state_id(&crate::NativeBlockState {
+        name: "minecraft:shulker_box".into(),
+        properties: [("facing".into(), "up".into())].into(),
+    })
+    .unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .world
+        .seed_replay_cell([8, 66, 13], unknown);
+    assert_eq!(
+        client
+            .survival()
+            .target_block_with_context()
+            .await
+            .unwrap()
+            .visibility
+            .value
+            .unwrap()
+            .position,
+        near.position
+    );
+    session
+        .state
+        .lock()
+        .await
+        .world
+        .seed_replay_cell([8, 66, 10], unknown);
+    assert!(client.survival().target_block_with_context().await.is_err());
+    // Restore a loaded ray without a hit, then remove a ray cell entirely.
+    {
+        let mut state = session.state.lock().await;
+        state.world.seed_replay_cell([8, 66, 10], 0);
+        state.world.seed_replay_cell([8, 66, 13], 0);
+    }
+    // Eight blocks extends out of the loaded fixture column: missing never means air.
+    assert!(client.survival().target_block_with_context().await.is_err());
+    contextual_attributes(&session, &[(6, 4.5)]).await;
+    assert!(
+        client
+            .survival()
+            .target_block_with_context()
+            .await
+            .unwrap()
+            .visibility
+            .value
+            .is_none()
+    );
+    // Actual attribute modifiers are evaluated by the existing receiver. The
+    // contextual query keeps their source rather than using the packet's base.
+    let mut packet = vec![42, 1, 25];
+    packet.extend(0.5f64.to_be_bytes());
+    packet.push(1);
+    crate::protocol::put_string(&mut packet, "voxrig:target_scale");
+    packet.extend(0.5f64.to_be_bytes());
+    packet.push(0); // ADD_VALUE: .5 + .5 = 1.
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+            256,
+        )
+        .unwrap();
+    let observation = client.survival().target_block_with_context().await.unwrap();
+    assert_eq!(observation.scale.value, 1.);
+    assert_eq!(
+        observation.initial.attributes["minecraft:scale"].value.base,
+        0.5
+    );
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn contextual_target_uses_scaled_pose_clearance_and_unique_support_cells() {
+    use crate::client::GameMode;
+    let (session, ops, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    client.look([0., 90.]).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    contextual_attributes(&session, &[(25, 1.), (6, 4.5)]).await;
+    let stairs = crate::versions::java_1_21_11::state_id(&crate::NativeBlockState {
+        name: "minecraft:acacia_stairs".into(),
+        properties: [
+            ("facing".into(), "north".into()),
+            ("half".into(), "top".into()),
+            ("shape".into(), "straight".into()),
+            ("waterlogged".into(), "false".into()),
+        ]
+        .into(),
+    })
+    .unwrap();
+    let block_update = |position: [i32; 3], state_id: i32| {
+        let packed = ((i64::from(position[0]) & 0x3ffffff) << 38)
+            | ((i64::from(position[2]) & 0x3ffffff) << 12)
+            | (i64::from(position[1]) & 0xfff);
+        let mut packet = packed.to_be_bytes().to_vec();
+        put_varint(&mut packet, state_id);
+        packet
+    };
+    // A top stair has two adjacent native boxes reaching the same top face.
+    // They support the player through one cell, not two independent cells.
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::BLOCK_CHANGE,
+            &block_update([8, 64, 8], stairs),
+            256,
+        )
+        .unwrap();
+    let observation = client.survival().target_block_with_context().await.unwrap();
+    assert_eq!(observation.support, vec![[8, 64, 8]]);
+    assert_eq!(observation.visibility.value.unwrap().position, [8, 64, 8]);
+
+    // A top slab ceiling starts at 66.5: crouching fits, standing intersects it.
+    let slab = crate::versions::java_1_21_11::state_id(&crate::NativeBlockState {
+        name: "minecraft:stone_slab".into(),
+        properties: [
+            ("type".into(), "top".into()),
+            ("waterlogged".into(), "false".into()),
+        ]
+        .into(),
+    })
+    .unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::BLOCK_CHANGE,
+            &block_update([8, 66, 8], slab),
+            256,
+        )
+        .unwrap();
+    assert!(client.survival().target_block_with_context().await.is_err());
+    contextual_pose(&session, 5).await;
+    assert!(client.survival().target_block_with_context().await.is_ok());
+    contextual_attributes(&session, &[(25, 2.)]).await;
+    assert!(client.survival().target_block_with_context().await.is_err());
+    contextual_attributes(&session, &[(25, 0.5)]).await;
+    contextual_pose(&session, 0).await;
+    assert!(client.survival().target_block_with_context().await.is_ok());
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+}
