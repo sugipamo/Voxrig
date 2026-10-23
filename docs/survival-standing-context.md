@@ -29,8 +29,11 @@ Explosion/vehicle-motion packets and a received passenger list containing the
 bot invalidate stationary motion. Their motion consequences are not simulated;
 the interruption retains packet ID/sequence and requires a fresh world baseline.
 A later zero velocity alone cannot prove dismount or repair unmodeled position.
-Unsupported explosion particle/sound payloads are not decoded here, and cannot
-restore authority even if malformed. Other players' passenger lists do not
+Explosion payloads are strictly decoded into the separate bounded
+[explosion observation history](common-explosions.md). Omitted or explicit zero
+impulses still invalidate stationary motion; undecoded presentation cannot restore
+authority. Malformed known layouts fail reception without publishing an observation.
+Other players' passenger lists do not
 invalidate the bot. This is a refusal boundary, not support for riding or combat.
 
 The new packed native velocity format is decoded, including extended scale.

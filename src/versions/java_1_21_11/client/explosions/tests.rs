@@ -339,3 +339,84 @@ fn captured_tnt_creeper_and_wind_packets_match_live_receipts() {
         );
     }
 }
+
+#[test]
+fn respawn_keeps_original_receipts_and_new_explosions_use_the_new_world() {
+    let mut s = state();
+    s.dimensions
+        .push(crate::versions::java_1_21_11::world::Dimension::new(-64, 384).unwrap());
+    let packet = bytes(&fixtures()[0]);
+    s.receive(input::EXPLOSION, &packet, 16).unwrap();
+    let before = s.explosions.after(0, s.sequence).unwrap();
+    let first = before.explosions[0].clone();
+    // A real respawn packet, including CommonPlayerSpawnInfo and keep-data flags.
+    let mut respawn = vec![0];
+    crate::protocol::put_string(&mut respawn, "minecraft:overworld");
+    respawn.extend(0i64.to_be_bytes());
+    respawn.extend([0, 255, 0, 0, 0, 0, 63, 3]);
+    s.receive(input::RESPAWN, &respawn, 16).unwrap();
+    let new_session = s.snapshot_session();
+    assert_ne!(new_session.world_generation, first.session.world_generation);
+    assert_eq!(new_session.connection_id, first.session.connection_id);
+    assert!(s.operations.local_player.motion_interruption.is_none());
+    s.receive(input::EXPLOSION, &packet, 16).unwrap();
+    let all = s.explosions.after(0, s.sequence).unwrap();
+    assert_eq!(all.explosions.len(), 2);
+    assert_eq!(all.explosions[0], first);
+    assert_eq!(before.explosions, vec![first]);
+    let next = s
+        .explosions
+        .after(before.receive_sequence, s.sequence)
+        .unwrap();
+    assert_eq!(next.explosions.len(), 1);
+    assert_eq!(next.explosions[0].session, new_session);
+    assert_eq!(next.explosions[0].receive_sequence, s.sequence);
+    let events = s.events.after(0, s.sequence).unwrap().events;
+    assert_eq!(
+        events.iter().map(|e| e.kind).collect::<Vec<_>>(),
+        vec![
+            EventKind::ExplosionReceived,
+            EventKind::WorldChanged,
+            EventKind::ContextChanged,
+            EventKind::ExplosionReceived
+        ]
+    );
+    assert_eq!(
+        events[3].receive_sequence,
+        next.explosions[0].receive_sequence
+    );
+}
+
+#[test]
+fn undecoded_presentation_is_observed_and_still_interrupts_motion() {
+    let tail = vec![22, 1, 1, 0x8f, 0x4e, 9]; // Unknown weighted particle options.
+    let mut packet = bytes(&fixtures()[0])[..33].to_vec();
+    packet.extend(&tail);
+    let mut s = state();
+    s.receive(input::EXPLOSION, &packet, 16).unwrap();
+    let log = s.explosions.after(0, s.sequence).unwrap();
+    let [record] = log.explosions.as_slice() else {
+        panic!()
+    };
+    assert_eq!(record.explosion.player_knockback, None);
+    assert_eq!(
+        record.explosion.presentation,
+        ExplosionPresentation::Undecoded { bytes: tail }
+    );
+    assert_eq!(record.session, s.snapshot_session());
+    assert_eq!(record.receive_sequence, s.sequence);
+    assert_eq!(
+        s.operations
+            .local_player
+            .motion_interruption
+            .as_ref()
+            .unwrap()
+            .receive_sequence,
+        s.sequence
+    );
+    let events = s.events.after(0, s.sequence).unwrap().events;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].kind, EventKind::ExplosionReceived);
+    assert_eq!(events[0].receive_sequence, record.receive_sequence);
+    assert!(s.effects.after(0, s.sequence).unwrap().effects.is_empty());
+}
