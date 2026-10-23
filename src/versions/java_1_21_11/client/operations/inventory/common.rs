@@ -295,6 +295,98 @@ impl crate::client::adapter::InventorySwapOps for Operations {
             })
             .await
     }
+    async fn swap_crafting_input_hotbar(
+        &self,
+        mode: api::GameMode,
+        source: contract::InventorySource,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord> {
+        self.bot
+            .session
+            .ledger
+            .try_work()?
+            .run_scoped(async {
+                let mut state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                if let contract::InventorySource::Container { screen } = source {
+                    if state
+                        .common_container_close
+                        .as_ref()
+                        .is_some_and(|r| r.id.screen() == screen)
+                    {
+                        return Err(contract::unavailable(
+                            "container has a retained close intent; old opening cannot be clicked",
+                        ));
+                    }
+                }
+                let initial = self.common_player_unlocked(&state)?;
+                if state.operations.inventory.unsupported_components
+                    || state.operations.inventory.pending_swap.is_some()
+                    || !state.operations.inventory.pending_creative.is_empty()
+                {
+                    return Err(contract::unavailable(
+                        "native inventory data/mutation unresolved",
+                    ));
+                }
+                let captured = state
+                    .operations
+                    .inventory
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(initial.session));
+                let attempt = state
+                    .common_inventory_swap
+                    .as_ref()
+                    .map_or(Some(1), |s| s.record.id.attempt().checked_add(1))
+                    .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
+                let registries = state
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let record = contract::prepare_received_source(
+                    (initial, registries),
+                    mode,
+                    contract::InventorySwapSource::CraftingInput { source },
+                    slot,
+                    hotbar,
+                    attempt,
+                    if matches!(source, contract::InventorySource::Player) {
+                        None
+                    } else {
+                        captured
+                    },
+                )?;
+                let revision = record
+                    .send
+                    .screen_revision
+                    .ok_or_else(|| contract::unavailable("native screen revision unavailable"))?;
+                let mut payload = Vec::new();
+                put_varint(&mut payload, record.window_id());
+                put_varint(&mut payload, revision);
+                payload.extend((slot as i16).to_be_bytes());
+                payload.extend([hotbar, 2, 0]);
+                put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
+                let work = state.finite_work.begin(
+                    &self.bot.session.ledger,
+                    crate::client::ledger::finite::Family::Swap,
+                    record.id.attempt(),
+                );
+                state.common_inventory_swap = Some(CommonSwap {
+                    record,
+                    submission: None,
+                });
+                work.run(
+                    self.bot
+                        .session
+                        .send(ids::play_serverbound::WINDOW_CLICK, &payload),
+                )
+                .await?;
+                let common = state.common_inventory_swap.as_mut().expect("retained");
+                common.record.send.dispatched = true;
+                Ok(common.record.clone())
+            })
+            .await
+    }
     async fn inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>> {
         let mut state = self.bot.session.state.lock().await;
         context_received(&mut state);

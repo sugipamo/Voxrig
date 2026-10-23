@@ -151,6 +151,45 @@ pub(crate) fn input_transfer(
         }))
     .then_some(route)
 }
+/// Original SWAP has a distinct hotbar return destination and never routes
+/// through armor, result onTake, or item PICKUP overrides.
+struct InputSwapRoute {
+    menu: &'static str,
+    inputs: std::ops::Range<usize>,
+    hotbar_start: usize,
+}
+const INPUT_SWAPS: [InputSwapRoute; 2] = [
+    InputSwapRoute {
+        menu: "minecraft:player",
+        inputs: 1..5,
+        hotbar_start: 36,
+    },
+    InputSwapRoute {
+        menu: "minecraft:crafting",
+        inputs: 1..10,
+        hotbar_start: 37,
+    },
+];
+pub(crate) fn input_swap(
+    version: crate::MinecraftVersion,
+    menu: &str,
+    input: usize,
+    hotbar: u8,
+) -> Option<usize> {
+    let route = INPUT_SWAPS
+        .iter()
+        .find(|r| r.menu == menu && r.inputs.contains(&input))?;
+    let native = super::native_menu(version, menu)?;
+    let destination = route.hotbar_start + usize::from(hotbar);
+    (hotbar < 9
+        && input != native.result_slot
+        && native.input_slots.iter().any(|s| s.screen_slot == input)
+        && native
+            .player_slots
+            .iter()
+            .any(|s| s.screen_slot == destination && s.raw_player_slot == usize::from(hotbar)))
+    .then_some(destination)
+}
 // Original center rule only centers when the recipe is smaller than half the
 // grid. In particular 1x1 is at (0,0) in 2x2, but (1,1) in 3x3.
 fn positions(grid: [usize; 2], recipe: [usize; 2], entries: usize) -> Vec<[usize; 2]> {

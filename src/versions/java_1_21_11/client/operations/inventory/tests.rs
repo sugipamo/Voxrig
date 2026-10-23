@@ -1,3 +1,4 @@
+mod crafting_swap;
 use super::*;
 #[tokio::test]
 async fn exact_equipment_pickup_both_modes_requires_fresh_slot_and_cursor() {

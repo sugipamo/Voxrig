@@ -2,6 +2,8 @@
 #[cfg(test)]
 pub(crate) mod armor_tests;
 pub(crate) mod click;
+#[cfg(test)]
+mod crafting_swap_tests;
 mod data;
 pub(crate) mod drop;
 pub use drop::{
@@ -38,6 +40,11 @@ pub use transfer::{
 pub enum InventorySwapSource {
     /// Canonical player screen, with source slot 9..35.
     PlayerMain,
+    /// Player 2x2 or an opening-bound table input; result slots are excluded.
+    CraftingInput {
+        /// Original source UI.
+        source: InventorySource,
+    },
     /// Constructor-verified storage screen; the clicked slot is not a player slot.
     Container {
         /// Original live opening identity.
@@ -115,13 +122,13 @@ pub struct InventorySwapRecord {
     pub initial: PlayerObservation,
     /// Matching received mode required by the operations handle.
     pub mode: GameMode,
-    /// Source screen: player main inventory or a received container opening.
+    /// Source screen: player main, crafting input, or a received storage opening.
     pub source: InventorySwapSource,
     /// Native screen slot clicked by SWAP, 9..35 for PlayerMain.
     pub source_slot: u16,
     /// Native screen slot referring to the selected hotbar destination.
     pub hotbar_screen_slot: u16,
-    /// Actual container baseline at the same capture boundary; absent on PlayerMain.
+    /// Actual container baseline at the same capture boundary; absent on player sources.
     pub initial_screen: Option<ContainerScreen>,
     /// Hotbar index, 0..8; canonical player-screen index is 36..44.
     pub hotbar: u8,
@@ -159,7 +166,13 @@ impl InventorySwapRecord {
     /// Native click window ID. It does not confer live operation authority.
     pub fn window_id(&self) -> i32 {
         match self.source {
-            InventorySwapSource::PlayerMain => 0,
+            InventorySwapSource::PlayerMain
+            | InventorySwapSource::CraftingInput {
+                source: InventorySource::Player,
+            } => 0,
+            InventorySwapSource::CraftingInput {
+                source: InventorySource::Container { screen },
+            } => screen.window_id(),
             InventorySwapSource::Container { screen } => screen.window_id(),
         }
     }
@@ -236,7 +249,10 @@ fn prepare_source_inner(
         ));
     }
     let (slots, hotbar_screen_slot, revision) = match source {
-        InventorySwapSource::PlayerMain => {
+        InventorySwapSource::PlayerMain
+        | InventorySwapSource::CraftingInput {
+            source: InventorySource::Player,
+        } => {
             use super::container::PlayerScreenAccess;
             let player_screen = match initial.inventory.player_screen {
                 Some(PlayerScreenAccess::Received) => initial.inventory.window_id == Some(0),
@@ -245,7 +261,23 @@ fn prepare_source_inner(
                 }
                 None => false,
             };
-            if !(9..=35).contains(&source_slot) || !player_screen {
+            let valid_slot = if matches!(source, InventorySwapSource::PlayerMain) {
+                (9..=35).contains(&source_slot)
+            } else {
+                super::crafting::layout::input_swap(
+                    initial.session.version,
+                    "minecraft:player",
+                    usize::from(source_slot),
+                    hotbar,
+                )
+                .is_some()
+            };
+            if !valid_slot && matches!(source, InventorySwapSource::CraftingInput { .. }) {
+                return Err(super::registry::invalid(
+                    "SWAP requires a native crafting input slot",
+                ));
+            }
+            if !valid_slot || !player_screen {
                 return Err(unavailable(
                     "player swap requires received player screen or explicit completed local close, and main slot 9..35",
                 ));
@@ -271,7 +303,10 @@ fn prepare_source_inner(
             };
             (&initial.inventory.slots, 36 + u16::from(hotbar), revision)
         }
-        InventorySwapSource::Container { screen: id } => {
+        InventorySwapSource::Container { screen: id }
+        | InventorySwapSource::CraftingInput {
+            source: InventorySource::Container { screen: id },
+        } => {
             let screen = screen
                 .as_ref()
                 .filter(|s| {
@@ -281,7 +316,27 @@ fn prepare_source_inner(
                         && s.full_contents_sequence.is_some()
                 })
                 .ok_or_else(|| unavailable("same live container opening/full contents required"))?;
-            if !screen.menu_name.as_deref().is_some_and(storage_menu) {
+            let crafting = matches!(source, InventorySwapSource::CraftingInput { .. });
+            if crafting {
+                let native =
+                    super::crafting::native_menu(initial.session.version, "minecraft:crafting")
+                        .ok_or_else(|| unavailable("native crafting table layout unavailable"))?;
+                if screen.menu_name.as_deref() != Some("minecraft:crafting")
+                    || screen.native_menu_id != native.native_id
+                    || screen.layout.as_ref().map(|l| l.total_slots) != Some(native.total_slots)
+                    || super::crafting::layout::input_swap(
+                        initial.session.version,
+                        "minecraft:crafting",
+                        usize::from(source_slot),
+                        hotbar,
+                    )
+                    .is_none()
+                {
+                    return Err(super::registry::invalid(
+                        "SWAP requires a native crafting input slot",
+                    ));
+                }
+            } else if !screen.menu_name.as_deref().is_some_and(storage_menu) {
                 return Err(unavailable(
                     "constructor-verified ordinary storage menu required",
                 ));
@@ -348,7 +403,53 @@ fn prepare_source_inner(
     };
     let source_before = get(usize::from(source_slot))?;
     let hotbar_before = get(usize::from(hotbar_screen_slot))?;
-    slot_policy::validate_swap(
+    if let InventorySwapSource::CraftingInput { source: ui } = source {
+        let opening = match ui {
+            InventorySource::Player => 0,
+            InventorySource::Container { screen } => screen.opened_sequence(),
+        };
+        for value in [
+            &source_before,
+            &hotbar_before,
+            initial.inventory.cursor.as_ref().expect("validated cursor"),
+        ] {
+            if !matches!(value.source, ValueSource::Received { sequence } if sequence >= opening && sequence <= initial.receive_sequence)
+            {
+                return Err(unavailable(
+                    "crafting SWAP predecessor outside original capture/opening",
+                ));
+            }
+        }
+        let menu = screen
+            .as_ref()
+            .and_then(|s| s.menu_name.as_deref())
+            .unwrap_or("minecraft:player");
+        if super::crafting::layout::input_swap(
+            initial.session.version,
+            menu,
+            usize::from(source_slot),
+            hotbar,
+        ) != Some(usize::from(hotbar_screen_slot))
+        {
+            return Err(unavailable(
+                "crafting SWAP hotbar layout disagrees with native constructor",
+            ));
+        }
+        if let Some(screen) = &screen {
+            if !matches!(screen.revision.as_ref().map(|r| &r.source), Some(ValueSource::Received { sequence }) if *sequence >= opening && *sequence <= initial.receive_sequence)
+            {
+                return Err(unavailable(
+                    "crafting SWAP received screen revision unavailable",
+                ));
+            }
+        }
+    }
+    let validate_swap = if matches!(source, InventorySwapSource::CraftingInput { .. }) {
+        slot_policy::validate_crafting_input_swap
+    } else {
+        slot_policy::validate_swap
+    };
+    validate_swap(
         initial.session.version,
         screen
             .as_ref()
@@ -379,8 +480,13 @@ fn prepare_source_inner(
             "identical slot contents do not require a swap",
         ));
     }
-    if matches!(source, InventorySwapSource::Container { .. })
-        && initial.inventory.slots[36 + usize::from(hotbar)].as_ref() != Some(&hotbar_before)
+    if matches!(
+        source,
+        InventorySwapSource::Container { .. }
+            | InventorySwapSource::CraftingInput {
+                source: InventorySource::Container { .. }
+            }
+    ) && initial.inventory.slots[36 + usize::from(hotbar)].as_ref() != Some(&hotbar_before)
     {
         return Err(unavailable("container/player hotbar receipts disagree"));
     }
@@ -446,7 +552,10 @@ pub(crate) fn source_slots<'a>(
         ));
     }
     match record.source {
-        InventorySwapSource::PlayerMain => {
+        InventorySwapSource::PlayerMain
+        | InventorySwapSource::CraftingInput {
+            source: InventorySource::Player,
+        } => {
             use super::container::PlayerScreenAccess;
             let received = current.inventory.player_screen == Some(PlayerScreenAccess::Received)
                 && current.inventory.window_id == Some(0);
@@ -457,7 +566,10 @@ pub(crate) fn source_slots<'a>(
             }
             Ok(&current.inventory.slots)
         }
-        InventorySwapSource::Container { screen: id } => {
+        InventorySwapSource::Container { screen: id }
+        | InventorySwapSource::CraftingInput {
+            source: InventorySource::Container { screen: id },
+        } => {
             if current.inventory.window_id != Some(id.window_id()) {
                 return Err(unavailable("container active window changed"));
             }

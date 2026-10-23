@@ -367,6 +367,42 @@ pub(super) fn validate_swap(
     Ok(())
 }
 
+/// Crafting inputs are generic native slots. Reject partial SWAP branches;
+/// result onTake and PICKUP item overrides do not participate in this rule.
+pub(super) fn validate_crafting_input_swap(
+    version: MinecraftVersion,
+    menu: &str,
+    input: usize,
+    source: &SlotKnowledge,
+    hotbar: &SlotKnowledge,
+) -> Result<()> {
+    let destination = crate::client::crafting::layout::input_swap(version, menu, input, 0)
+        .ok_or_else(|| {
+            crate::client::registry::invalid("SWAP requires a native crafting input slot")
+        })?;
+    for (index, outgoing, incoming) in [(input, source, hotbar), (destination, hotbar, source)] {
+        let slot = regular_slot(version, menu, index)?;
+        if matches!(outgoing, SlotKnowledge::Item { .. }) && !slot.may_pickup {
+            return Err(crate::client::registry::invalid(
+                "native crafting slot disallows taking its contents",
+            ));
+        }
+        if let SlotKnowledge::Item { item } = incoming {
+            let capacity = u32::try_from(item.properties()?.max_stack_size).map_err(|_| {
+                crate::client::registry::invalid("invalid effective crafting SWAP capacity")
+            })?;
+            if item.count > slot.base_capacity.min(capacity)
+                || slot.rejected_default_items.contains(&item.name)
+            {
+                return Err(crate::client::registry::invalid(
+                    "native crafting slot disallows this whole incoming stack",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
