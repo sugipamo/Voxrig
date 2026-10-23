@@ -988,6 +988,50 @@ async fn replacement_rejects_wrong_predecessor_destination_nonplants_and_preserv
 }
 
 #[tokio::test]
+async fn replacement_rejects_exact_nonplant_predecessors_without_dispatch() {
+    use crate::client::adapter::PlacementOps;
+    for name in ["stone", "water", "snow", "vine", "air"] {
+        let mut f = Fixture::new().await;
+        let predecessor = replacement_fixture_state(name);
+        replacement_block(&mut f, TARGET, &predecessor).await;
+        // Use the actual received state: a mismatched predecessor would reject
+        // even if the audited destination restriction were accidentally removed.
+        for clicked in [SUPPORT, TARGET] {
+            assert!(
+                f.api
+                    .place_cube_replacing(
+                        clicked,
+                        crate::BlockFace::West,
+                        TARGET,
+                        predecessor.clone(),
+                    )
+                    .await
+                    .is_err(),
+                "{name} at {clicked:?}"
+            );
+        }
+        let state = f.api.bot.session.state.lock().await;
+        assert!(state.placement.is_none(), "{name}");
+        assert!(state.common_placement.is_none(), "{name}");
+        drop(state);
+        assert!(
+            f.api
+                .replaceable_cube_placement_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let mut byte = [0];
+        assert_eq!(
+            f.peer.try_read(&mut byte).unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock,
+            "unexpected dispatch for {name}"
+        );
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
 async fn replacement_latches_intermediate_conflicts_and_missing_receipts_never_complete() {
     use crate::client::{adapter::PlacementOps, survival::PlacementStage};
     for conflict in [
@@ -1076,9 +1120,18 @@ fn original_replacement_context_fixture_qualifies_only_the_passive_cube_lane() {
     .unwrap();
     let rows: serde_json::Value = serde_json::from_str(&bytes).unwrap();
     let mut checked = 0;
+    let mut nonreplaceable = 0;
     for row in rows.as_array().unwrap() {
         let name = row["before"].as_str().unwrap();
         let material = format!("minecraft:{}", row["material"].as_str().unwrap());
+        if name == "stone" && survival::DRY_CUBES.contains(&material.as_str()) {
+            assert_eq!(row["can_replace"], false);
+            assert_eq!(row["replace_clicked"], false);
+            let direction = offset(row["face"].as_u64().unwrap() as u8);
+            let destination: [i32; 3] = std::array::from_fn(|i| SUPPORT[i] + direction[i]);
+            assert_eq!(row["destination"], serde_json::json!(destination));
+            nonreplaceable += 1;
+        }
         if replaceable_plant(&native(name)) && row["material"] == name {
             assert_eq!(row["can_replace"], false); // Same plant item is context-dependent and excluded.
             assert_eq!(row["replace_clicked"], false);
@@ -1112,6 +1165,7 @@ fn original_replacement_context_fixture_qualifies_only_the_passive_cube_lane() {
         checked += 1;
     }
     assert_eq!(checked, 2376); // 3 plants × 11 cubes × 6 faces × 2 secondary × 2 cells × 3 hit heights.
+    assert_eq!(nonreplaceable, 864); // 12 entries (stone repeated) × 6 faces × 2 secondary × 2 cells × 3 heights.
 }
 
 #[tokio::test]
