@@ -118,7 +118,11 @@ pub(super) fn capacity(
     context: Option<&super::data::ItemContext>,
 ) -> Result<u32> {
     let max = maximum(version, item, context)?;
-    let base = if menu == "minecraft:player" && matches!(index, 5..=8 | 45) {
+    let base = if let Some(capacity) =
+        crate::client::furnace::capacity(version, menu, index, &item.name)
+    {
+        capacity
+    } else if menu == "minecraft:player" && matches!(index, 5..=8 | 45) {
         profiles(version)
             .equipment_slots
             .iter()
@@ -229,7 +233,7 @@ pub(super) fn calculate(
         source,
         before,
         crate::client::GameMode::Survival,
-        None,
+        (None, None),
     )
 }
 pub(super) fn calculate_with_data(
@@ -240,7 +244,18 @@ pub(super) fn calculate_with_data(
     mode: crate::client::GameMode,
     context: &super::data::ItemContext,
 ) -> Result<Prediction> {
-    calculate_inner(version, menu, source, before, mode, Some(context))
+    calculate_inner(version, menu, source, before, mode, (Some(context), None))
+}
+pub(super) fn calculate_furnace(
+    version: MinecraftVersion,
+    menu: &str,
+    source: usize,
+    before: &[SlotKnowledge],
+    mode: crate::client::GameMode,
+    context: Option<&super::data::ItemContext>,
+    route: &crate::client::furnace::TransferRoute,
+) -> Result<Prediction> {
+    calculate_inner(version, menu, source, before, mode, (context, Some(route)))
 }
 fn calculate_inner(
     version: MinecraftVersion,
@@ -248,13 +263,24 @@ fn calculate_inner(
     source: usize,
     before: &[SlotKnowledge],
     mode: crate::client::GameMode,
-    context: Option<&super::data::ItemContext>,
+    policy: (
+        Option<&super::data::ItemContext>,
+        Option<&crate::client::furnace::TransferRoute>,
+    ),
 ) -> Result<Prediction> {
+    let (context, furnace) = policy;
     let input = crate::client::crafting::layout::input_transfer(version, menu, source);
     let storage = if let Some(route) = input {
         if before.len() != route.total_slots {
             return Err(crate::client::registry::invalid(
                 "transfer outside native crafting input layout",
+            ));
+        }
+        None
+    } else if furnace.is_some() {
+        if version != MinecraftVersion::Java1_21_11 || before.len() != 39 || source >= 39 {
+            return Err(crate::client::registry::invalid(
+                "transfer outside native furnace layout",
             ));
         }
         None
@@ -308,7 +334,13 @@ fn calculate_inner(
     let mut remaining = original.count;
     // Every successful round reduces this valid original count; never an I/O retry.
     while remaining > 0 {
-        let destinations: Vec<usize> = if let Some(route) = input {
+        let destinations: Vec<usize> = if let Some(route) = furnace {
+            if route.reverse {
+                route.destinations.clone().rev().collect()
+            } else {
+                route.destinations.clone().collect()
+            }
+        } else if let Some(route) = input {
             route.destinations.clone().collect()
         } else {
             match storage {
@@ -440,6 +472,88 @@ mod tests {
                     ItemData::ModernComponents { patch }
                 },
             },
+        }
+    }
+    #[test]
+    fn furnace_transfer_predictions_match_original_clicked_all_slots_and_data() {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/furnace_transfer_cases-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let cases = facts["cases"].as_array().unwrap();
+        assert_eq!(cases.len(), 5880);
+        let version = MinecraftVersion::Java1_21_11;
+        let context = super::super::armor_tests::context(version, None);
+        for (index, case) in cases.iter().enumerate() {
+            let values = |field: &str| {
+                case[field]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| modern_wire(v.as_str().unwrap()))
+                    .collect::<Vec<_>>()
+            };
+            let before = values("before");
+            let after = values("after");
+            let source = case["request"]["slot"].as_u64().unwrap() as usize;
+            let menu = format!("minecraft:{}", case["request"]["menu"].as_str().unwrap());
+            let destinations = match source {
+                0..=2 => 3..39,
+                _ if case["can_smelt"] == true => 0..1,
+                _ if case["is_fuel"] == true => 1..2,
+                3..=29 => 30..39,
+                _ => 3..30,
+            };
+            let route = crate::client::furnace::TransferRoute {
+                destinations,
+                reverse: source == 2,
+            };
+            let prediction = calculate_furnace(
+                version,
+                &menu,
+                source,
+                &before,
+                crate::client::GameMode::Survival,
+                Some(&context),
+                &route,
+            )
+            .unwrap();
+            for (slot, (predicted, actual)) in prediction.slots.iter().zip(&after).enumerate() {
+                assert!(
+                    context.equivalent_values(predicted, actual, false).unwrap(),
+                    "case {index}, slot {slot}, request {}, predicted {predicted:?}, actual {actual:?}",
+                    case["request"]
+                );
+            }
+            assert_eq!(case["cursor_before_hex"], case["cursor_after_hex"]);
+        }
+    }
+
+    #[test]
+    fn furnace_transfer_evidence_binds_original_inputs_and_generators() {
+        use sha2::{Digest, Sha256};
+        let source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../data/client_api/furnace_transfer_source.json"
+        ))
+        .unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for object in [
+            &source["generators_sha256"],
+            &source["runs"][0]["files_sha256"],
+        ] {
+            for (path, hash) in object.as_object().unwrap() {
+                assert_eq!(
+                    format!(
+                        "{:x}",
+                        Sha256::digest(std::fs::read(root.join(path)).unwrap())
+                    ),
+                    hash.as_str().unwrap(),
+                    "{path}"
+                );
+            }
         }
     }
     #[test]

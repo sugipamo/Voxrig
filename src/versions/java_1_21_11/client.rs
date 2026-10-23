@@ -129,6 +129,7 @@ struct State {
     dimensions: Vec<Dimension>,
     registries: crate::client::registry::received::ReceivedRegistries,
     recipes: crate::client::crafting::recipes::RecipeReceipts,
+    furnace_inputs: crate::client::furnace::TransferInputs,
     recipe_ghost: Option<crate::client::crafting::ghost::GhostReceipts>,
     position: Option<[f64; 3]>,
     rotation: [f32; 2],
@@ -200,6 +201,7 @@ impl Default for State {
             dimensions: Vec::new(),
             registries: Default::default(),
             recipes: Default::default(),
+            furnace_inputs: Default::default(),
             recipe_ghost: None,
             position: None,
             rotation: [0.0; 2],
@@ -1377,6 +1379,7 @@ fn apply_play(
             state.dimensions.clear();
             state.registries.reset(state.sequence);
             state.recipes = Default::default();
+            state.furnace_inputs = Default::default();
             state.world.reset();
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);

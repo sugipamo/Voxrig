@@ -17,6 +17,8 @@ crafting入力1..4、armor 5..8、main 9..35、hotbar 36..44、offhand 45であ�
 作業台はconstructor確認済みの同じopeningの入力1..9も受け付ける。result slot 0は
 `take_crafting_result` / `transfer_crafting_result`を使う。作業台の付属player slotから入力への転送は対象外。
 `Container { screen }`は元の受信済みstorage openingで、storageと付属player slotsを指定する。
+1.21.11ではconstructor確認済みのかまど・溶鉱炉・燻製器の全39slotも指定できる。
+材料と燃料の受信根拠・転送順・自動精錬との競合は[炉の操作](common-furnaces.md)を参照する。
 数字が同じwindowでも新しいopeningの`ScreenId`は元の操作を引き継がない。
 従来の`InventoryClickSource`は同じ型の互換aliasで、通常PICKUPにも`InventorySource`を使える。
 

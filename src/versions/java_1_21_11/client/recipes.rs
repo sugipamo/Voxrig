@@ -240,7 +240,8 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     use ids::play_clientbound as input;
     if !matches!(
         id,
-        input::RECIPE_BOOK_ADD
+        input::DECLARE_RECIPES
+            | input::RECIPE_BOOK_ADD
             | input::RECIPE_BOOK_REMOVE
             | input::RECIPE_BOOK_SETTINGS
             | input::CRAFT_RECIPE_RESPONSE
@@ -249,6 +250,34 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     }
     let mut r = Reader::new(payload);
     match id {
+        input::DECLARE_RECIPES => {
+            let mut sets = std::collections::BTreeMap::new();
+            let mut budget = MAX_DISPLAY_NODES;
+            for _ in 0..r.count(MAX_ENTRIES)? {
+                let name = identifier(&mut r)?;
+                let count = r.count(budget.min(MAX_ENTRIES))?;
+                budget -= count;
+                let mut members = BTreeSet::new();
+                for _ in 0..count {
+                    let item = registry().item_by_native_id(r.varint()?)?;
+                    members.insert(item.id.value());
+                }
+                if sets.insert(name, members).is_some() {
+                    bail!("duplicate recipe property set");
+                }
+            }
+            // Decode the complete unrelated stonecutter suffix before committing
+            // properties; a truncated packet never grants transfer authority.
+            for _ in 0..r.count(MAX_ENTRIES)? {
+                ingredient(&mut r)?;
+                slot(&mut r, 0, &mut budget)?;
+            }
+            r.end()?;
+            state.furnace_inputs = crate::client::furnace::TransferInputs {
+                sequence: Some(state.sequence),
+                sets,
+            };
+        }
         input::CRAFT_RECIPE_RESPONSE => {
             let window = r.varint()?;
             let mut budget = MAX_DISPLAY_NODES;

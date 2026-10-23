@@ -38,7 +38,32 @@ clientが進めず、経過時間だけで完成と判断しない。入力が�
 slot受信前に消費されることがある。共通PICKUPの予測どおりの実source/cursorを確認できなければ
 RequiresInspectionとなり、自動再送しない。代表workflowではfuelを先に置き、その後に材料を置く。
 
-この段階の対象は基本slot操作。recipe選択・数量計画・燃焼進捗の共通観測、特殊QUICK_MOVE／
-SWAP、XP予測、独自datapack燃料や広いwindow統合は残る。
+1.21.11の同じconstructor確認済みopeningでは、`transfer_inventory(source, slot)`で
+input/fuel/outputと付属player slotのQUICK_MOVEも1回送れる。input/fuelからはplayerへ正順、
+outputからは逆順に移す。付属playerからは実受信recipe property setによる材料判定を先に行い、
+次に既存の実受信tag照合を共用した燃料判定、それ以外はmain/hotbar間の正順転送になる。
+材料兼燃料はinputが満杯でもfuelへ迂回しない。空bucketはfuel slotへのPICKUPでは容量1だが、
+QUICK_MOVEの燃料ではなくmain/hotbar間を移る。outputの回収は実slot変化だけを予測し、XPを証拠にしない。
+
+全39slotの実受信baselineとrevisionを要求する。付属playerからの転送ではrecipe property set未受信・
+宣言欠測を拒否し、燃料判定に必要なtag未受信・不一致でも送信しない。転送中のproperty/tag所有変更、精錬によるinput/fuel/outputの
+予測外変化はRequiresInspectionへ保持する。sourceと変化した全destinationのfresh受信が揃うまで
+完了しない。自動消費後に値が戻っても記録を成功へ戻さず、クリックを再送しない。
+完了済み記録は後の精錬で書き換えない。1.16.1の炉QUICK_MOVE、SWAP拡張、recipe選択・数量計画・
+燃焼進捗の共通観測、XP予測、独自datapack燃料や広いwindow統合は残る。
 通常のかまどで両modeの一連操作を実サーバー検証し、溶鉱炉／燻製器のconstructorとslot規則は
 独立した公式JAR試験で検証する。各特殊レシピを実サーバーで通した証拠とは区別する。
+
+QUICK_MOVEの原版fixtureは`export_furnace_transfers.py`で生成する。既存transfer exporterと同じ
+`--downloads`、`--modern-classpath-file`、`--runtime-output`を指定し、`--check`で再照合できる。
+未変更の公式1.21.11 JAR、vanilla recipe/tag loader、実FuelValues、実menuとUPDATE_RECIPES codecを使う。
+両mode・3種・7source境界・data/held cursor・満杯/部分mergeなど5,880件の全39slot結果を保存する。
+constructorのSimpleContainerにはblock entityのrecipe使用履歴がないため、このoracleはXP生成や
+自動精錬を証明しない。packet試験と使い捨て公式serverの実接続検証を別に行う。
+
+実接続検証は[2026-10-23の記録](evidence/common-furnace-transfer-20261023.json)に保存した。
+両mode・3種の炉で28回のQUICK_MOVEを行い、燃料・材料投入、実精錬後のoutput回収、fuel回収、
+通常炉の材料兼燃料のinput優先とinput回収に成功した。全changed slotのfresh受信、元packet、
+RCONの実在庫を別々に保持する。tick freezeで転送と自動精錬を分け、精錬後も完了履歴が
+書き換わらないことを確認した。進行中消費との競合や部分転送は別のpacket/oracle試験で検証する。
+serverは一時ディレクトリのコピーを使用し、検証後に正常停止した。
