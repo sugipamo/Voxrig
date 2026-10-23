@@ -349,6 +349,26 @@ pub(crate) trait MiningOps {
 
 /// One-shot passive cube placement.
 pub(crate) trait PlacementOps {
+    async fn place_stair(
+        &self,
+        _clicked: [i32; 3],
+        _face: BlockFace,
+        _target: [i32; 3],
+        _before: crate::NativeBlockState,
+    ) -> Result<super::survival::StairPlacementRecord> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("checked stair placement is unavailable for this version"),
+        ))
+    }
+    async fn stair_placement_record(
+        &self,
+    ) -> Result<Option<super::survival::StairPlacementRecord>> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("checked stair placement is unavailable for this version"),
+        ))
+    }
     async fn place_slab(
         &self,
         _clicked: [i32; 3],

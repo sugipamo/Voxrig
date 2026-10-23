@@ -1,0 +1,3937 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "authority": "Unmodified official Java 1.21.11 server in a disposable directory. Original forwarded packets and independent RCON checks; no server-side fixture patches.",
+  "scope": "Dry oak stairs: all four facings and both halves, upper/lower placement faces, inner/outer left/right, side corner blocker and neighboring stair inner/outer shape changes, including two simultaneous neighbors. Exactly one material including last-item Empty. Native context/shape/clip fixtures supply numerical rules; received outcomes are not causal actor attribution.",
+  "base_commit": "97b5990e7033569208573d293546b9fa2a9c0720",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "binary_sha256": "654b946a846c63d6d7b99c6cf90437bec5ea19bb0f0b5077eb05935754fe44a6",
+  "source_sha256": {
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "examples/climbing_control_probe.rs": "1e91e9136e3c215ceacf565cceefeced5a2466dd178b0c845cb5525d9f640ddb",
+    "src/client/adapter.rs": "669496b9111065dfb8b009e228d4f5f063a40bc8e81b9bf8d4ead89642637e25",
+    "src/client/operations.rs": "1b02381e14fbdfc4bd915f932e2dd20b700d112253baf35f721e90b60e498533",
+    "src/client/survival/placement.rs": "c8cdb3cb75a2eae1b5f40647e12308f93a4148eb2e8c486a10fd4acb48552f22",
+    "src/client/placement_check.rs": "ef27801b4c9cf692f7bccd2c44992aca301781dff8369cbdd6aaffcb3bf9810e",
+    "src/client/entity/geometry.rs": "9b9a21abce1c465097ac4c0e9e4f255312611fffd7296679f6e97df3599bf5d2",
+    "src/versions/java_1_21_11/client.rs": "1369bd675a77e4198c235885891856e9f6f3412a3c3dcab148e13aa82250eb57",
+    "src/versions/java_1_21_11/client/operations/placement.rs": "e4bec4aa99b886e4960de65110c93f9f6e9cbe064a9880cf45ddbbb7d3fca87b",
+    "src/versions/java_1_21_11/client/operations/placement/slab.rs": "b3c35a1c3030bf807b6be1e67423b53b2c21e8da4d558ab88894cc153c8f8d0f",
+    "src/versions/java_1_21_11/client/operations/placement/stair.rs": "44d603bdb13153d808c7492cf76889dc6802b0296299ee22601614ce22165a54",
+    "src/versions/java_1_21_11/client/operations/survival.rs": "045cdf51ecdd1a7c3fd0d2afbf2a4572aad1d472349ec51f39ba527e6d32d511",
+    "src/versions/java_1_21_11/client/raycast.rs": "2c53ffe2de8b5c29de6de331ba50e2463dcc531a169b7a8ba531506452f981a5",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "b0dff18a75ed5c0b4e1db3fc964d55081e457f23d964e310f7d1d29e2c6a7a99",
+    "data/client_api/stair_placement.json.gz": "53434d15385d6fe601027e59b775b173127ff7f781125e4a4ed780712fe485ad",
+    "data/client_api/stair_placement_context.json.gz": "75be5369f2e0de96a383d05cba1418763fa79214bd20ab970a887b194e6127c3",
+    "data/client_api/stair_placement_geometry.json.gz": "f21a9632e3833f7778ce0de14c38e17a7c21487d7cfc7b37fa23eb09806c190c",
+    "data/client_api/stair_placement_source.json": "3c0b91d0f432f83e851b5a6d46d3c659707a4e85e5e040636a2da7bd013b17d5",
+    "scripts/run_stair_placement_live.py": "1fd20d4cb73296e9a74addf7a9be3150d85f3348f595504f686f7dde6d3e882e",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
+  },
+  "artifacts": {
+    "inputs.json": {
+      "sha256": "f4ea68b0ef27d287170a71cd495bac04ec0c74118a801c4eecd422ebda723c9d",
+      "bytes": 90
+    },
+    "packets.jsonl": {
+      "sha256": "969ca772951905fe042f5906584902479b5aadfbc741870f194ccaecb68937d4",
+      "bytes": 121145
+    },
+    "probe.log": {
+      "sha256": "545df40ab3ec59a41af8ea5b187ebe4f233a0ca6a81a7e179a24fda93f2dd210",
+      "bytes": 692807
+    },
+    "probe.stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "report.json": {
+      "sha256": "b981495fe6ab54e76381f70fb0f6f31f6d05cf437e100e52561ed7f225ea6c16",
+      "bytes": 735555
+    },
+    "server.log": {
+      "sha256": "6a8dc31dcc45b25823deec357ab43d88dd5028f7013f2174516b96cf4b33cc9d",
+      "bytes": 11286
+    }
+  },
+  "checks": [
+    {
+      "name": "east_bottom",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 148,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "95e2ccf8d24fd8fb3dccf5e67c2de56730b183959bd23731142d7323375d8cf1",
+          "body_sha256": "2dbd84a175d6c1ee436694f7f5d1ade0677f6f95a8fd5cd30145b143c33d79a6",
+          "body_hex": "0000008000000042c11d"
+        },
+        "material_receipt": {
+          "ordinal": 149,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "0f681d7ecd2efb5d91af3d1605711a7ae40b387ca3d7a66589bb581a0977ae1f",
+          "body_sha256": "4f44f95a34502d59629b1460a426f3b07d367e803986b6fc86b8f6c422fbf1e0",
+          "body_hex": "0003002400"
+        },
+        "processing": {
+          "ordinal": 150,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "7ab253baa431f391818b34fee7e927dbb19897c7a409be05d1be8521c74c956c",
+          "body_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+          "body_hex": "01"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "bottom",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.538547457819575,
+        "face": "West",
+        "point": [
+          3.0,
+          66.17929239693498,
+          0.7500000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            3,
+            66,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 121,
+        "dispatched": true,
+        "interaction_sequence": 1
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 124
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "bottom",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 125
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 126,
+        "sequence": 1
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 145,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "1842ec34c1aa94e1e90a11db300353333152cb6e77d895a49c7e2900ddd55f90",
+        "body_sha256": "b54d032cd74288564e529a7a2fe8d467ee58eadacd486c0d703b32b454db90f2",
+        "body_hex": "00000000c00000004204000000003e37986d3f400000000001"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "east_top",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 161,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "9ac4ab45b79b209c3d2a6c07f1a4a9430a6ebc4d8e12121331cee962f9ffe502",
+          "body_sha256": "130c2b19cdf4c2f14ecabaa2badcb0f1fa4ae53673210b367478388e6863c366",
+          "body_hex": "0000008000000042b71d"
+        },
+        "material_receipt": {
+          "ordinal": 162,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "7eec22e80fd1d6e5d26c5ca89dc064da9ffdea457480d436a26a3db0afd24532",
+          "body_sha256": "ef6be3b04a54d0f16966d7055dd14abf816b15290d6bb8a5a3135aa2ba29fb99",
+          "body_hex": "0005002400"
+        },
+        "processing": {
+          "ordinal": 163,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "968d7dd2a50a991f8e4b38691c90ae51f0308014b9bdf9cb5de8b790a194c93f",
+          "body_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+          "body_hex": "02"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.513764221764139,
+        "face": "West",
+        "point": [
+          2.9999999999999996,
+          66.88269862033661,
+          0.7500000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            3,
+            66,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 130,
+        "dispatched": true,
+        "interaction_sequence": 2
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 133
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 134
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 135,
+        "sequence": 2
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 158,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "58b7c7613f50c947e65f650785697139c992cd479b4aa0b207b864f67a9e166d",
+        "body_sha256": "a8dc215cc5b0328a9ced0ff6ccf8dca7a53f73ca5316348803857f51f45f2e28",
+        "body_hex": "00000000c00000004204000000003f61f8893f400000000002"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "south_bottom",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 173,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "d3696af1517f98bf07df3cfcbfcf76966ea3d3c0cbc0d217e8f868d6e283ecc7",
+          "body_sha256": "e9ed3ce1e4e1b00aec698d4390ad509c961d56821f86e1625293f4604be69bf8",
+          "body_hex": "0000000000002042991d"
+        },
+        "material_receipt": {
+          "ordinal": 174,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "70d5df70afeebc81312fe424296657bbb0c5b6cf3fb80e377a3b90079bca341e",
+          "body_sha256": "b676334c713d9ac9d7933f57ab4e174263f1df97982a37f009ddba45e826c783",
+          "body_hex": "0007002400"
+        },
+        "processing": {
+          "ordinal": 175,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "cb8e5bb7b086a77015fc2a6c6f4e1c432aca8b00172d0f7cb257711dc72f4570",
+          "body_sha256": "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+          "body_hex": "03"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        0,
+        66,
+        3
+      ],
+      "target": [
+        0,
+        66,
+        2
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "south",
+          "half": "bottom",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.284692712037618,
+        "face": "North",
+        "point": [
+          0.5,
+          66.22336315771832,
+          3.0000000000000004
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -1,
+            66,
+            2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            3
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            2
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 138,
+        "dispatched": true,
+        "interaction_sequence": 3
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 141
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "south",
+            "half": "bottom",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 142
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 143,
+        "sequence": 3
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 170,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "18a6cd6809cc22fa1ba16aeb7f83fcf63bc255efde7335c4cc8baa8862b0f8bd",
+        "body_sha256": "88e5a1de0792a480cbf3f0cb908b3e039e89e51dade3289919944d71ed4b7ddc",
+        "body_hex": "000000000000003042023f0000003e64b95026000000000003"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "south_top",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 185,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "cbbe7507ac5fd87c123974888245dca021aaa70b3b53c09b436ed5b8cf6f6976",
+          "body_sha256": "2d762cb777e2eafcbd853df2f057939972cd392b38f7441b998a9912a6fbf50d",
+          "body_hex": "00000000000020428f1d"
+        },
+        "material_receipt": {
+          "ordinal": 186,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "043b421d130c0ba9eab0485763f4f44ac5c0a6fba8a5b44c0b5be66bd34bd31f",
+          "body_sha256": "d076c4fe4fbeaa1257fd252e7bddf416f43768d7d97cb0177054561eea73d70c",
+          "body_hex": "0009002400"
+        },
+        "processing": {
+          "ordinal": 187,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "ed1b385533761b94d9751e453dbf9324d7af580eabc89cb55354b8565eb52796",
+          "body_sha256": "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+          "body_hex": "04"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        0,
+        66,
+        3
+      ],
+      "target": [
+        0,
+        66,
+        2
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "south",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.2623877995877253,
+        "face": "North",
+        "point": [
+          0.5,
+          66.85642875877978,
+          2.9999999999999996
+        ],
+        "position": [
+          0,
+          66,
+          3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -1,
+            66,
+            2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            3
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            2
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 146,
+        "dispatched": true,
+        "interaction_sequence": 4
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 149
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "south",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 150
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 151,
+        "sequence": 4
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 182,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "c5d8a93be16007455b0a110986c001fa833589ee88646cf98c31e16bcd8dd0cb",
+        "body_sha256": "cec90d3628cc5d74af75489baea63eab651b430a70ca66eb854bfa054f7d3cae",
+        "body_hex": "000000000000003042023f0000003f5b3eea00000000000004"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "west_bottom",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 199,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "cc0b393b5274661435f85a3aad30071d7f1753fc290387b08d5eaab8bd188eac",
+          "body_sha256": "6d2d56c4321eee85aa2f9a3525d9d3e475f493f4d6e042225421d58925eeeb02",
+          "body_hex": "ffffff8000000042ad1d"
+        },
+        "material_receipt": {
+          "ordinal": 200,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "c07c3126897f2a56793438027c5f0a341499d9314bd6ad649beb1dc55f23cedb",
+          "body_sha256": "338f9564f7e5fc7cc3784399703d0af9f9d54701c9c2d66b7aa26d4f33154590",
+          "body_hex": "000b002400"
+        },
+        "processing": {
+          "ordinal": 201,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "f2e18fea99713c5b16af0ee90765aa27851f1ce33e5673c9db381cf2ef5b049c",
+          "body_sha256": "e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db",
+          "body_hex": "05"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        -3,
+        66,
+        0
+      ],
+      "target": [
+        -2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "west",
+          "half": "bottom",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.538547457819575,
+        "face": "East",
+        "point": [
+          -2.0,
+          66.17929239693498,
+          0.75
+        ],
+        "position": [
+          -3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            -3,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -2,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -2,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -2,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -1,
+            66,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 156,
+        "dispatched": true,
+        "interaction_sequence": 5
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 159
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "west",
+            "half": "bottom",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 160
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 161,
+        "sequence": 5
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 196,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "7d3da1948b6b2047214eece87734850809631e49e98c91af11f028fec50f4447",
+        "body_sha256": "7e6aead74dc76f1e454b6bb6ac9230c99a883f2758bb7ca26ff5892c8c0493e5",
+        "body_hex": "00ffffff4000000042053f8000003e37986d3f400000000005"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "west_top",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 211,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "ed47fb75575377ce9f67d0fd07b47f0b50e6ea5c9945428559c4097e9d165344",
+          "body_sha256": "00832eee30d15189d7e8a8bd3a069f344ea7ea22339f71d82d09ccdfdd29f193",
+          "body_hex": "ffffff8000000042a31d"
+        },
+        "material_receipt": {
+          "ordinal": 212,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "83ab099a29376ec3250e8d2ef3a9ad0601229ed29bc03e9e7cec1734f87d166b",
+          "body_sha256": "0a78f352d6891659a7c896201ec58ba147f6eb81578ae47e47d7dccbab0a633b",
+          "body_hex": "000d002400"
+        },
+        "processing": {
+          "ordinal": 213,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "c07fc27f6840b6189171cc2b238580a2424a74b8b04a0c4f3b2ccf1a76a30ee6",
+          "body_sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6",
+          "body_hex": "06"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        -3,
+        66,
+        0
+      ],
+      "target": [
+        -2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "west",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.513764221764139,
+        "face": "East",
+        "point": [
+          -1.9999999999999996,
+          66.88269862033661,
+          0.75
+        ],
+        "position": [
+          -3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            -3,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -2,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -2,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -2,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -1,
+            66,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 164,
+        "dispatched": true,
+        "interaction_sequence": 6
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 167
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "west",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 168
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 169,
+        "sequence": 6
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 208,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "36d9e3d3b53b079eebdd1e7a55cf85b3442f2799852fcde442dd259a5dacc27a",
+        "body_sha256": "a9790c373c378c0875680f77d65ec009703912ac27e5006c5432c9a1790bccd7",
+        "body_hex": "00ffffff4000000042053f8000003f61f8893f400000000006"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "north_bottom",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 225,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "d976d7aba1dfbeec8dc3601229a609f594130be207d742c7bdfbeb96a3d63115",
+          "body_sha256": "a903f14e8134447a8fd97d980170a5f1015dd59ce059f336df4d71f471a9b956",
+          "body_hex": "0000003fffffe042851d"
+        },
+        "material_receipt": {
+          "ordinal": 226,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "22c37d536d5bf24d8e77603c1f9acb50a9b80d2393fe57f2b053e1ef54768e4e",
+          "body_sha256": "ab35f9d2234d0640eb33eea7ea1c890ba1ce2b09f0290ce9ca92da88882ceb74",
+          "body_hex": "000f002400"
+        },
+        "processing": {
+          "ordinal": 227,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "bf558f9e81236a98ec7a3a6b456b5cce56e09dd919f1676473c0f2c40cd6eb23",
+          "body_sha256": "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879",
+          "body_hex": "07"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        0,
+        66,
+        -3
+      ],
+      "target": [
+        0,
+        66,
+        -2
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "north",
+          "half": "bottom",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.7924022036015326,
+        "face": "South",
+        "point": [
+          0.5000000000000003,
+          66.13522163615164,
+          -2.0000000000000004
+        ],
+        "position": [
+          0,
+          66,
+          -3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -1,
+            66,
+            -2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            -3
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            -2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            -2
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 174,
+        "dispatched": true,
+        "interaction_sequence": 7
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 177
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "north",
+            "half": "bottom",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 178
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 179,
+        "sequence": 7
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 222,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "ad66fdf050a9bcef5c1eaa5ef3a6ca327bcdad93f48180a478e7329b0aecc371",
+        "body_sha256": "3c832dd39be831aa1b9e1d68f5a2432e59e9695a9811a1d85c72673f9a083875",
+        "body_hex": "000000003fffffd042033f0000003e0a778a3f800000000007"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "north_top",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 237,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "5e92eb57af06168c2e9ac1c62c834dc2a23edd4958b6b83c555141642247f83e",
+          "body_sha256": "87b57e83ce893c2f04d2ad491bb992db4122da513de1d05e611ba63f21e161c6",
+          "body_hex": "0000003fffffe042fb1c"
+        },
+        "material_receipt": {
+          "ordinal": 238,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "89c1a1796d1aa3b836c60544420b62f75f0a8eebdd56d747163cf284794aab67",
+          "body_sha256": "1665ee8b5d7812e9c85064fa2a90806715b9fb53ca398e4b63b611f798063a5a",
+          "body_hex": "0011002400"
+        },
+        "processing": {
+          "ordinal": 239,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "83f3d8b959de3b53b248bc203c08fb5aa09cb729f41e0a5fb428b05bc3841a7b",
+          "body_sha256": "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a",
+          "body_hex": "08"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        0,
+        66,
+        -3
+      ],
+      "target": [
+        0,
+        66,
+        -2
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "north",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.765140643940553,
+        "face": "South",
+        "point": [
+          0.5000000000000003,
+          66.90896848189344,
+          -1.9999999999999996
+        ],
+        "position": [
+          0,
+          66,
+          -3
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            -1,
+            66,
+            -2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            -3
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            -2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            0,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            -2
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 182,
+        "dispatched": true,
+        "interaction_sequence": 8
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 185
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "north",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 186
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 187,
+        "sequence": 8
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 234,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "49553d421ad5d737503a6fa9c878898c0d39101bdbb559c6df0f4d6442f2e431",
+        "body_sha256": "856b7a8d91570e3709ad418278af629f69ce50e34753c5988bb36bc2139b1238",
+        "body_hex": "000000003fffffd042033f0000003f68b2293f800000000008"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "up_bottom_outer_left",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 250,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "0e37f6dc754ecbbf639c0b4c8450b30213532aee9ad8e777896b3222bd328b08",
+          "body_sha256": "4023f95f3811d4f39b33355865b4b52cbefd83926c34d0cc940866c88a134a19",
+          "body_hex": "0000008000000041c71d"
+        },
+        "material_receipt": {
+          "ordinal": 251,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "64f8bf0d6bf167d5ceba6b1f8c42212c3cc575f4f9c3b6cbbedbf52479fe7409",
+          "body_sha256": "867fd2f5cf03c9d94afd8f1092600c5858774270cdf152bb3b1d7ae0cda3db30",
+          "body_hex": "0013002400"
+        },
+        "processing": {
+          "ordinal": 252,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "2b0779c5435e3a96adfd93646adf4703a93fb8f6f013fc9fb60999261c880fee",
+          "body_sha256": "2b4c342f5433ebe591a1da77e013d1b72475562d48578dca8b84bac6651c3cb9",
+          "body_hex": "09"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        2,
+        64,
+        0
+      ],
+      "target": [
+        2,
+        65,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "bottom",
+          "shape": "outer_left",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5204966036261243,
+        "face": "Up",
+        "point": [
+          2.430933223454738,
+          65.0,
+          0.7500000000000002
+        ],
+        "position": [
+          2,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "north",
+              "half": "bottom",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            3,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            1
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 191,
+        "dispatched": true,
+        "interaction_sequence": 9
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 194
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "bottom",
+            "shape": "outer_left",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 195
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 196,
+        "sequence": 9
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 247,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "98caebcc2b361923f5af0addcb497f9578acf4ffd85fcea85ef2518fabd92dea",
+        "body_sha256": "0841f8ed9c863074ddda7a9a3fd90cd905ffc4a3d4da98dde485883fd30d24ee",
+        "body_hex": "000000008000000040013edca3483f8000003f400000000009"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "up_bottom_outer_right",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 263,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "470dc171d7c587b3557f0151b75895360277d889ca75497c25d34d8dcf3648dc",
+          "body_sha256": "e2d744238d590639f5f06b964027d64e4a4edcd8f3c297410a4786d4e58761a5",
+          "body_hex": "0000008000000041c91d"
+        },
+        "material_receipt": {
+          "ordinal": 264,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "3bc2b5fe24433ddfeff6aa947d033d3f5b0ca76533bbfec5831754d853cf67a4",
+          "body_sha256": "ebc1b5091feee6ae319dcdc27e0f966191b0ba4b8ef7731f553a8ade0b45d7e3",
+          "body_hex": "0015002400"
+        },
+        "processing": {
+          "ordinal": 265,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "5a02b516996608e85db1f06ec3fa7d32d4d118e6e9ac44ce15aced65194dc350",
+          "body_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "body_hex": "0a"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        2,
+        64,
+        0
+      ],
+      "target": [
+        2,
+        65,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "bottom",
+          "shape": "outer_right",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5204966036261243,
+        "face": "Up",
+        "point": [
+          2.430933223454738,
+          65.0,
+          0.7500000000000002
+        ],
+        "position": [
+          2,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "bottom",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            3,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            1
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 200,
+        "dispatched": true,
+        "interaction_sequence": 10
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 203
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "bottom",
+            "shape": "outer_right",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 204
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 205,
+        "sequence": 10
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 260,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "984f3f28447bb9846509fec6a4ae8537b74a07d2753c7d5fbc4c664e993fc689",
+        "body_sha256": "a2eddbcdbde26a5765eb5a3e378a1f89e44570028d42f615cb605232cb486162",
+        "body_hex": "000000008000000040013edca3483f8000003f40000000000a"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "up_bottom_inner_left",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 275,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "bdde6d0aee303b2685bb5212dc971a6ae833d606e98c268bdef0b752990e6213",
+          "body_sha256": "42d8c23810edd12e4655dd3082a1acbb782a0a1dfb499eac3d26d0fde21a3f5a",
+          "body_hex": "0000008000000041c31d"
+        },
+        "material_receipt": {
+          "ordinal": 276,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "f0fb5eab0365495b26ff83753ccd4fa4411cf66890e42fd4db63bfd271e17fe8",
+          "body_sha256": "4106d7ccc148f1912a19b02ef4b0fb9333b63034b9ccd71adf795e39851a2019",
+          "body_hex": "0017002400"
+        },
+        "processing": {
+          "ordinal": 277,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "10dbecf9ba0d1cabc4cb2b408bd670f7d658c2b21c6367ecae81eca67fd478d1",
+          "body_sha256": "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6",
+          "body_hex": "0b"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        2,
+        64,
+        0
+      ],
+      "target": [
+        2,
+        65,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "bottom",
+          "shape": "inner_left",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.8245985891822247,
+        "face": "Up",
+        "point": [
+          2.8138619609995517,
+          65.0,
+          0.7500000000000003
+        ],
+        "position": [
+          2,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "north",
+              "half": "bottom",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            1,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 208,
+        "dispatched": true,
+        "interaction_sequence": 11
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 211
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "bottom",
+            "shape": "inner_left",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 212
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 213,
+        "sequence": 11
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 272,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "31fca06c9422332e230cb1b815fa1619c18a15f7c16d6c5daa3f05262fb072a0",
+        "body_sha256": "44aa40fccf554226b62a1e52344f063bd74e6025a7d5249f11ad17d851dd773c",
+        "body_hex": "000000008000000040013f5059423f8000003f40000000000b"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "up_bottom_inner_right",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 288,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "5c50b58b79304c529ed0c72fdd51d16b10798bb07fb374478abb6bbe8efb4bdb",
+          "body_sha256": "c77db1540e1ef11325da79a3f71f6d6c955a5fde3180c85fc4c3d4112b470849",
+          "body_hex": "0000008000000041c51d"
+        },
+        "material_receipt": {
+          "ordinal": 289,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "84607e3378461e8cfab6d8fbc8fc1e66f6f0a103b2c51fe6076977258f664abb",
+          "body_sha256": "21545abc006faa03536b50fde6f9bc1191a83e0a88f5ee58dde2d898ffa2ec5a",
+          "body_hex": "0019002400"
+        },
+        "processing": {
+          "ordinal": 290,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "6237a06c3c7f1ea0dbcea15a447e1cc9a96643409f2bad6932e06bdb5c652da4",
+          "body_sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977",
+          "body_hex": "0c"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        2,
+        64,
+        0
+      ],
+      "target": [
+        2,
+        65,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "bottom",
+          "shape": "inner_right",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.8245985891822247,
+        "face": "Up",
+        "point": [
+          2.8138619609995517,
+          65.0,
+          0.2500000000000003
+        ],
+        "position": [
+          2,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "bottom",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            1,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 217,
+        "dispatched": true,
+        "interaction_sequence": 12
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 220
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "bottom",
+            "shape": "inner_right",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 221
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 222,
+        "sequence": 12
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 285,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "ff6ced863987ca34bcf453d1c29d0e01fa2b4f90f6cd8953c46cf9bf23550a8e",
+        "body_sha256": "69cd2b1129d20d032a6a8a5a576dbdf391c14e4dd62733418d5bcbaf38ca069e",
+        "body_hex": "000000008000000040013f5059423f8000003e80000000000c"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "outer_blocked",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 300,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "3aadd514993696df51a99223fd69a093f1a6e251173288f26d877ac022cd78f1",
+          "body_sha256": "56d9cbd97e46205f5ab421c4c41acbed88d72138cf0f665ae9dd5e192d37c2f6",
+          "body_hex": "0000008000000041c11d"
+        },
+        "material_receipt": {
+          "ordinal": 301,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "49b3f88e42a6bbf5c93dbe2ef390f2bbeebb2b449fe20a9672995fd22e879e2f",
+          "body_sha256": "4fc2779a61356a41c9293f4c570b5d085c1ce5683ed448d5e2680fd003061940",
+          "body_hex": "001b002400"
+        },
+        "processing": {
+          "ordinal": 302,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "c9986b941190bfabf633d6f49bb8e65a5041c58b40bcf9fcef61367f1fc9244b",
+          "body_sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4",
+          "body_hex": "0d"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        2,
+        64,
+        0
+      ],
+      "target": [
+        2,
+        65,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "bottom",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5204966036261243,
+        "face": "Up",
+        "point": [
+          2.430933223454738,
+          65.0,
+          0.7500000000000002
+        ],
+        "position": [
+          2,
+          64,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "east",
+              "half": "bottom",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            65,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "north",
+              "half": "bottom",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            3,
+            65,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            65,
+            1
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 225,
+        "dispatched": true,
+        "interaction_sequence": 13
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 228
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "bottom",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 229
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 230,
+        "sequence": 13
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 297,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "01539cbeec0e37b01f94dd6a458537e93ad20603422d6c7bbc14b5f719afe87c",
+        "body_sha256": "2adfaf34b960ed8be506a6df069ca4f0006ec16aa0463ade955e3b9ea62e46d4",
+        "body_hex": "000000008000000040013edca3483f8000003f40000000000d"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "down_top_outer_left",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 313,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "e4d941488a61362b396ca0f8980deff17dbaf55e118916354a8a877acb77e4ea",
+          "body_sha256": "70051cf2cfbd80d09f43a5675ffe4f655fbf28dc95b816e764fa51bfa02b9253",
+          "body_hex": "0000008000000043bd1d"
+        },
+        "material_receipt": {
+          "ordinal": 314,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "d4967e04ae0e726df8743b2347f789d441354d85cfef014459e759725932f04e",
+          "body_sha256": "5e3119e92cec86ecfe3c2e3aaa162da71123f79e9d5e7ed9368c1138c0bacc4e",
+          "body_hex": "001d002400"
+        },
+        "processing": {
+          "ordinal": 315,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "5678f76bd8e8e56ad00a6b351995ea07713ffa23ca525cad53032d424cc55fc4",
+          "body_sha256": "4d7b3ef7300acf70c892d8327db8272f54434adbc61a4e130a563cb59a0d0f47",
+          "body_hex": "0e"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        2,
+        68,
+        0
+      ],
+      "target": [
+        2,
+        67,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "top",
+          "shape": "outer_left",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.4060312037610427,
+        "face": "Down",
+        "point": [
+          2.470935353235239,
+          68.0,
+          0.7500000000000002
+        ],
+        "position": [
+          2,
+          68,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            67,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            67,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            67,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            67,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            67,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "north",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            3,
+            67,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            67,
+            1
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 233,
+        "dispatched": true,
+        "interaction_sequence": 14
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 237
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "top",
+            "shape": "outer_left",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 238
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 239,
+        "sequence": 14
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 309,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "b7e2ac23f35811ee65384a906b85d21c293ba6d39ec189110d6c0780708e1ab7",
+        "body_sha256": "1a5381d357d6cd07e29af0a929a8d1963d92e729c8749c7cf57c6682e4b80b1c",
+        "body_hex": "000000008000000044003ef11e70000000003f40000000000e"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "neighbor_outer_change",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 325,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 82,
+          "body_length": 17,
+          "wire_sha256": "6ff46d18c78c3e8f7c074429f8a4af6e30a9c0bb5c8392e0b3d7a6695449a247",
+          "body_sha256": "78f48f792ba7a6c2d9ee81a44dde5aab085730812a5a89113e166b4300453e98",
+          "body_hex": "00000000000000040292e4a00782e4ad07"
+        },
+        "material_receipt": {
+          "ordinal": 326,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "ca415491c11c5c0f44377a974a34ae0aa9390e76d9b659e85e945f500e8e653c",
+          "body_sha256": "d67559f5a0e9244f0b72d3c0c3c18054d88cddbf9433de44d0337fcd61c5f174",
+          "body_hex": "001f002400"
+        },
+        "processing": {
+          "ordinal": 327,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "960d1b29630e33da582131bc05c5f53a36169a4bac86cfc532ea968e3db983b3",
+          "body_sha256": "dc0e9c3658a1a3ed1ec94274d8b19925c93e1abb7ddba294923ad9bde30f8cb8",
+          "body_hex": "0f"
+        }
+      },
+      "original_neighbor_frames": [
+        {
+          "position": [
+            2,
+            66,
+            1
+          ],
+          "frame": {
+            "ordinal": 325,
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "packet_id": 82,
+            "body_length": 17,
+            "wire_sha256": "6ff46d18c78c3e8f7c074429f8a4af6e30a9c0bb5c8392e0b3d7a6695449a247",
+            "body_sha256": "78f48f792ba7a6c2d9ee81a44dde5aab085730812a5a89113e166b4300453e98",
+            "body_hex": "00000000000000040292e4a00782e4ad07"
+          }
+        }
+      ],
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5245574949603284,
+        "face": "West",
+        "point": [
+          3.0,
+          66.97126990863201,
+          0.7500000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "north",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            3,
+            66,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "north",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "expected": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "north",
+              "half": "top",
+              "shape": "outer_right",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            1
+          ],
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 245
+            },
+            "value": {
+              "name": "minecraft:oak_stairs",
+              "properties": {
+                "facing": "north",
+                "half": "top",
+                "shape": "outer_right",
+                "waterlogged": "false"
+              }
+            }
+          }
+        }
+      ],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 242,
+        "dispatched": true,
+        "interaction_sequence": 15
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 245
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 246
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 247,
+        "sequence": 15
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [
+        "Test passed"
+      ],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 322,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "f2548da50ee022a0e1726600f7c8cb88eff30d6d56f33ffb94ee1fc3e3502947",
+        "body_sha256": "d3f6509ca33e2ab04ac5821f7b56226a7c7d9ac9bff6ea61c3f936de178bee38",
+        "body_hex": "00000000c00000004204000000003f78a5253f40000000000f"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "neighbor_inner_change",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 337,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 82,
+          "body_length": 17,
+          "wire_sha256": "f93217080f96f38c4b605d39db3b8be278282b9aa18ab6de97e70406f16a4c6f",
+          "body_sha256": "77bc22806cf57e6aeef95dffa6dfe03d3e824f5f78a3e3d2849a0600e1ce29e7",
+          "body_hex": "00000000000000040292a4a40782e4ad07"
+        },
+        "material_receipt": {
+          "ordinal": 338,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "8a7d441c31a4f107fb8b9cb970fc8e5f7ab35a95d835b11b85a2f573d2c4d852",
+          "body_sha256": "96ac25d4d780328e228622892b6f2bef1991b9cde2bdffc3012ef4753f8780a9",
+          "body_hex": "0021002400"
+        },
+        "processing": {
+          "ordinal": 339,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "cc17b9b4a7339f85e6b15d808dfefdb6994fdd6aa1e221a07a81abb3682ff2b9",
+          "body_sha256": "c555eab45d08845ae9f10d452a99bfcb06f74a50b988fe7e48dd323789b88ee3",
+          "body_hex": "10"
+        }
+      },
+      "original_neighbor_frames": [
+        {
+          "position": [
+            2,
+            66,
+            1
+          ],
+          "frame": {
+            "ordinal": 337,
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "packet_id": 82,
+            "body_length": 17,
+            "wire_sha256": "f93217080f96f38c4b605d39db3b8be278282b9aa18ab6de97e70406f16a4c6f",
+            "body_sha256": "77bc22806cf57e6aeef95dffa6dfe03d3e824f5f78a3e3d2849a0600e1ce29e7",
+            "body_hex": "00000000000000040292a4a40782e4ad07"
+          }
+        }
+      ],
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5245574949603284,
+        "face": "West",
+        "point": [
+          3.0,
+          66.97126990863201,
+          0.7500000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            3,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            66,
+            1
+          ]
+        }
+      ],
+      "neighbor_updates": [
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "expected": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "inner_left",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            1
+          ],
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 253
+            },
+            "value": {
+              "name": "minecraft:oak_stairs",
+              "properties": {
+                "facing": "south",
+                "half": "top",
+                "shape": "inner_left",
+                "waterlogged": "false"
+              }
+            }
+          }
+        }
+      ],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 250,
+        "dispatched": true,
+        "interaction_sequence": 16
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 253
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 254
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 255,
+        "sequence": 16
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [
+        "Test passed"
+      ],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 334,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "f2db872214f9942cacd54dca6b6bd27410fc1cf5333ce3839bad147b4428e047",
+        "body_sha256": "0182c5f3aac3836bca689e9149c166a854d95575f90455872abeab8895365935",
+        "body_hex": "00000000c00000004204000000003f78a5253f400000000010"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "two_neighbor_changes",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 351,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 82,
+          "body_length": 17,
+          "wire_sha256": "f93217080f96f38c4b605d39db3b8be278282b9aa18ab6de97e70406f16a4c6f",
+          "body_sha256": "77bc22806cf57e6aeef95dffa6dfe03d3e824f5f78a3e3d2849a0600e1ce29e7",
+          "body_hex": "00000000000000040292a4a40782e4ad07"
+        },
+        "material_receipt": {
+          "ordinal": 353,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "51a84bccee9aa1914e8159742afadcbacfda4482168893586051a5f6bbf3032d",
+          "body_sha256": "dfa5e9db9ff462c8fdd94a79dde37b91b1c5bfda7f92b70b25beba93d0b429fd",
+          "body_hex": "0023002400"
+        },
+        "processing": {
+          "ordinal": 354,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "f841f526df69c971ec4d81ede89b4b342c57d8fbc404a1b0e27675d9e9a92c7d",
+          "body_sha256": "4a64a107f0cb32536e5bce6c98c393db21cca7f4ea187ba8c4dca8b51d4ea80a",
+          "body_hex": "11"
+        }
+      },
+      "original_neighbor_frames": [
+        {
+          "position": [
+            2,
+            66,
+            1
+          ],
+          "frame": {
+            "ordinal": 351,
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "packet_id": 82,
+            "body_length": 17,
+            "wire_sha256": "f93217080f96f38c4b605d39db3b8be278282b9aa18ab6de97e70406f16a4c6f",
+            "body_sha256": "77bc22806cf57e6aeef95dffa6dfe03d3e824f5f78a3e3d2849a0600e1ce29e7",
+            "body_hex": "00000000000000040292a4a40782e4ad07"
+          }
+        },
+        {
+          "position": [
+            2,
+            66,
+            -1
+          ],
+          "frame": {
+            "ordinal": 352,
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "packet_id": 8,
+            "body_length": 10,
+            "wire_sha256": "643a094f6b2409248510df565ef444d04a5c97a2cc9f4517491ccd4a986fca72",
+            "body_sha256": "8d87c81e84d09654309165a4c1f73817455ba9043236e0e59386b019ba9cc1a1",
+            "body_hex": "000000bffffff042951d"
+          }
+        }
+      ],
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.5245574949603284,
+        "face": "West",
+        "point": [
+          3.0,
+          66.97126990863201,
+          0.7500000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            66,
+            2
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "position": [
+            3,
+            66,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            66,
+            1
+          ]
+        }
+      ],
+      "neighbor_updates": [
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "expected": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "inner_left",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            1
+          ],
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 263
+            },
+            "value": {
+              "name": "minecraft:oak_stairs",
+              "properties": {
+                "facing": "south",
+                "half": "top",
+                "shape": "inner_left",
+                "waterlogged": "false"
+              }
+            }
+          }
+        },
+        {
+          "before": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "straight",
+              "waterlogged": "false"
+            }
+          },
+          "expected": {
+            "name": "minecraft:oak_stairs",
+            "properties": {
+              "facing": "south",
+              "half": "top",
+              "shape": "outer_left",
+              "waterlogged": "false"
+            }
+          },
+          "position": [
+            2,
+            66,
+            -1
+          ],
+          "receipt": {
+            "source": {
+              "kind": "received",
+              "sequence": 264
+            },
+            "value": {
+              "name": "minecraft:oak_stairs",
+              "properties": {
+                "facing": "south",
+                "half": "top",
+                "shape": "outer_left",
+                "waterlogged": "false"
+              }
+            }
+          }
+        }
+      ],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 260,
+        "dispatched": true,
+        "interaction_sequence": 17
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 263
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 265
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 266,
+        "sequence": 17
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [
+        "Test passed",
+        "Test passed"
+      ],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 348,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "18331a681d1993034a055a30580bbcc89e2e0319b6a3dded368e27826d1f013b",
+        "body_sha256": "b075ee1751777074fbea471ad6fe7a085710d10a0c87f86d2771365dad63c2f1",
+        "body_hex": "00000000c00000004204000000003f78a5253f400000000011"
+      },
+      "stage": "observed_placed"
+    },
+    {
+      "name": "down_top",
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 365,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "7398acfd491758633554148cd5badd629aa2d604c5f660659dc8a29a3ffaeda9",
+          "body_sha256": "d1d86e9fa3604b9b33d40460f7b80cfe7f6aeafd5d438f98c76c1c4d99ccbf4e",
+          "body_hex": "0000008000000043b71d"
+        },
+        "material_receipt": {
+          "ordinal": 366,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "699cbf773aa538e52981b399b2627c949927d115e5d77017dadc08d984f5b902",
+          "body_sha256": "ad5ea9ce3fbd72797895c51dc691aa16938e55d845a672f0aeebcafa85871402",
+          "body_hex": "0025002400"
+        },
+        "processing": {
+          "ordinal": 367,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "2a2170816945571ff90ec30f38cac8e0d547d4459b0e87b7a0d543b3d1bac346",
+          "body_sha256": "f299791cddd3d6664f6670842812ef6053eb6501bd6282a476bbbf3ee91e750c",
+          "body_hex": "12"
+        }
+      },
+      "original_neighbor_frames": [],
+      "clicked": [
+        2,
+        68,
+        0
+      ],
+      "target": [
+        2,
+        67,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_stairs",
+        "properties": {
+          "facing": "east",
+          "half": "top",
+          "shape": "straight",
+          "waterlogged": "false"
+        }
+      },
+      "first_outline": {
+        "distance": 2.4060312037610427,
+        "face": "Down",
+        "point": [
+          2.470935353235239,
+          68.0,
+          0.7500000000000002
+        ],
+        "position": [
+          2,
+          68,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "shape_inputs": [
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            1,
+            67,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            67,
+            -1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            67,
+            0
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            2,
+            67,
+            1
+          ]
+        },
+        {
+          "before": {
+            "name": "minecraft:air",
+            "properties": {}
+          },
+          "position": [
+            3,
+            67,
+            0
+          ]
+        }
+      ],
+      "neighbor_updates": [],
+      "held_before_count": 1,
+      "send": {
+        "after_sequence": 270,
+        "dispatched": true,
+        "interaction_sequence": 18
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 273
+        },
+        "value": {
+          "name": "minecraft:oak_stairs",
+          "properties": {
+            "facing": "east",
+            "half": "top",
+            "shape": "straight",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 274
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 275,
+        "sequence": 18
+      },
+      "native_block": "Test passed",
+      "native_neighbors": [],
+      "native_inventory": "Found no elements matching SelectedItem",
+      "original_use_frame": {
+        "ordinal": 362,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "3b5b79cbb21d0f7d8466cbca1040df46c21ad60c206238effd2c05cc43a06496",
+        "body_sha256": "865f30436ab65f7284c1f68082559e67112f061e9f1ea31b3790e149a3d60c10",
+        "body_hex": "000000008000000044003ef11e70000000003f400000000012"
+      },
+      "stage": "observed_placed"
+    }
+  ],
+  "passed": true,
+  "process_cleanup": "Shared harness stopped the probe, proxy and server; server log confirms all dimensions saved. EULA and world existed only in the disposable directory."
+}
