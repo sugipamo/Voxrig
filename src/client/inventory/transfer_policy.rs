@@ -487,6 +487,19 @@ mod tests {
         assert_eq!(cases.len(), 5880);
         let version = MinecraftVersion::Java1_21_11;
         let context = super::super::armor_tests::context(version, None);
+        let session = crate::client::SessionStamp {
+            version,
+            connection_id: 42,
+            world_generation: 1,
+        };
+        let mut received = crate::client::registry::received::ReceivedRegistries::default();
+        received.reset(1);
+        super::super::armor_tests::install(&mut received, version, None);
+        let owner = received.capture(session, 10);
+        let inputs = crate::client::furnace::TransferInputs {
+            sequence: Some(5),
+            sets: serde_json::from_value(facts["properties"].clone()).unwrap(),
+        };
         for (index, case) in cases.iter().enumerate() {
             let values = |field: &str| {
                 case[field]
@@ -507,16 +520,28 @@ mod tests {
                 3..=29 => 30..39,
                 _ => 3..30,
             };
-            let route = crate::client::furnace::TransferRoute {
-                destinations,
-                reverse: source == 2,
-            };
+            // Exercise production routing against the native material/fuel facts,
+            // including blocked routes where the unchanged slots hide a wrong route.
+            let route = crate::client::furnace::transfer_route(
+                &menu,
+                source,
+                &before[source],
+                Some(&inputs),
+                Some(&owner),
+            )
+            .unwrap();
+            assert_eq!(route.destinations, destinations, "case {index}");
+            assert_eq!(route.reverse, source == 2, "case {index}");
             let prediction = calculate_furnace(
                 version,
                 &menu,
                 source,
                 &before,
-                crate::client::GameMode::Survival,
+                if case["request"]["mode"] == "creative" {
+                    crate::client::GameMode::Creative
+                } else {
+                    crate::client::GameMode::Survival
+                },
                 Some(&context),
                 &route,
             )

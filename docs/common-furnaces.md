@@ -51,8 +51,8 @@ QUICK_MOVEの燃料ではなくmain/hotbar間を移る。outputの回収は実sl
 完了しない。自動消費後に値が戻っても記録を成功へ戻さず、クリックを再送しない。
 完了済み記録は後の精錬で書き換えない。1.16.1の炉QUICK_MOVE、SWAP拡張、recipe選択・数量計画・
 燃焼進捗の共通観測、XP予測、独自datapack燃料や広いwindow統合は残る。
-通常のかまどで両modeの一連操作を実サーバー検証し、溶鉱炉／燻製器のconstructorとslot規則は
-独立した公式JAR試験で検証する。各特殊レシピを実サーバーで通した証拠とは区別する。
+3種の炉で両modeの一連操作を実サーバー検証した。constructorとslot規則は
+独立した公式JAR試験でも検証し、各種の全レシピを実サーバーで通した証拠とは区別する。
 
 QUICK_MOVEの原版fixtureは`export_furnace_transfers.py`で生成する。既存transfer exporterと同じ
 `--downloads`、`--modern-classpath-file`、`--runtime-output`を指定し、`--check`で再照合できる。

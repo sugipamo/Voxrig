@@ -255,7 +255,7 @@ async fn furnace_transfer_missing_properties_tags_and_changed_ownership_are_not_
         );
         f.stop().await;
     }
-    for replaced in [false, true] {
+    for changed in 0..3 {
         let (mut f, source) = fixture(
             "minecraft:furnace",
             GameMode::Survival,
@@ -267,15 +267,33 @@ async fn furnace_transfer_missing_properties_tags_and_changed_ownership_are_not_
         .await;
         let sent = start(&f, GameMode::Survival, source, 3).await.unwrap();
         read_packet(&mut f.peer, None).await.unwrap();
-        if replaced {
-            f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 14, 10, 0])
-                .await;
-        } else {
-            f.receive(
-                ids::play_clientbound::DECLARE_RECIPES,
-                &hex::decode(oracle()["properties_packet_hex"].as_str().unwrap()).unwrap(),
-            )
-            .await;
+        match changed {
+            0 => {
+                f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 14, 10, 0])
+                    .await
+            }
+            1 => {
+                f.receive(
+                    ids::play_clientbound::DECLARE_RECIPES,
+                    &hex::decode(oracle()["properties_packet_hex"].as_str().unwrap()).unwrap(),
+                )
+                .await
+            }
+            _ => {
+                let packet = {
+                    let state = f.api.bot.session.state.lock().await;
+                    state
+                        .registries
+                        .capture(sent.initial.session, state.sequence)
+                        .tag_packet()
+                        .unwrap()
+                        .value
+                        .as_ref()
+                        .clone()
+                };
+                // Even identical memberships have a new received owner.
+                f.receive(ids::play_clientbound::TAGS, &packet).await;
+            }
         }
         assert_eq!(record(&f).await.stage, Stage::RequiresInspection);
         for change in &sent.changed_slots {
@@ -284,6 +302,61 @@ async fn furnace_transfer_missing_properties_tags_and_changed_ownership_are_not_
         }
         assert_eq!(record(&f).await.stage, Stage::RequiresInspection);
         f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn furnace_transfer_requires_every_destination_then_retains_completed_history() {
+    for (menu, _) in crate::client::furnace::TRANSFER_MENUS {
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            let (mut f, source) = fixture(menu, mode, 2, "iron_ingot", false, false).await;
+            f.container_slot(38, plain("iron_ingot", 63)).await;
+            f.container_slot(37, plain("iron_ingot", 62)).await;
+            let sent = start(&f, mode, source, 2).await.unwrap();
+            read_packet(&mut f.peer, None).await.unwrap();
+            assert_eq!(sent.changed_slots.len(), 4);
+            // Fresh source and two merges do not prove the remaining destination.
+            for slot in [2, 38, 37] {
+                let change = sent.changed_slots.iter().find(|c| c.slot == slot).unwrap();
+                f.container_slot(slot, native(&change.prediction.value))
+                    .await;
+                assert_eq!(record(&f).await.stage, Stage::Pending);
+            }
+            let pending = record(&f).await;
+            assert!(
+                pending
+                    .changed_slots
+                    .iter()
+                    .find(|c| c.slot == 36)
+                    .unwrap()
+                    .receipt
+                    .is_none()
+            );
+            f.container_slot(36, plain("iron_ingot", 4)).await;
+            let done = record(&f).await;
+            assert_eq!(done.stage, Stage::ObservedTransferred);
+            assert!(done.changed_slots.iter().all(|c| matches!(c.receipt.as_ref().unwrap().source,
+                crate::client::ValueSource::Received { sequence } if sequence > sent.send.after_sequence)));
+            let historical = serde_json::to_value(&done).unwrap();
+            // Later autonomous input/fuel/output changes and recipe updates
+            // cannot rewrite the completed operation's original receipts.
+            for (slot, value) in [
+                (0, plain("raw_iron", 1)),
+                (1, plain("coal", 6)),
+                (2, plain("iron_ingot", 1)),
+            ] {
+                f.container_slot(slot, value).await;
+            }
+            f.receive(ids::play_clientbound::DECLARE_RECIPES, &[0, 0])
+                .await;
+            assert_eq!(serde_json::to_value(record(&f).await).unwrap(), historical);
+            assert!(
+                timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.stop().await;
+        }
     }
 }
 
