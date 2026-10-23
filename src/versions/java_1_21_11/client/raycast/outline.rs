@@ -50,7 +50,27 @@ pub(super) fn contextual_cast(
     end: [f64; 3],
     read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
 ) -> anyhow::Result<Option<crate::client::BlockTargetHit>> {
+    cast_in(start, end, read, false)
+}
+pub(super) fn replacement_cast(
+    start: [f64; 3],
+    end: [f64; 3],
+    read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
+) -> anyhow::Result<Option<crate::client::BlockTargetHit>> {
+    cast_in(start, end, read, true)
+}
+fn cast_in(
+    start: [f64; 3],
+    end: [f64; 3],
+    read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
+    plants: bool,
+) -> anyhow::Result<Option<crate::client::BlockTargetHit>> {
     crate::client::survival::target::cast(start, end, read, |state| {
+        if plants {
+            if let Some(outline) = super::super::operations::placement::plant_outline(state) {
+                return Ok((outline, &[][..]));
+            }
+        }
         if let Some(shapes) =
             crate::client::container::outline::lookup(crate::MinecraftVersion::Java1_21_11, state)
         {

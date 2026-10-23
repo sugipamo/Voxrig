@@ -349,6 +349,27 @@ pub(crate) trait MiningOps {
 
 /// One-shot passive cube placement.
 pub(crate) trait PlacementOps {
+    async fn place_cube_replacing(
+        &self,
+        _clicked: [i32; 3],
+        _face: BlockFace,
+        _target: [i32; 3],
+        _before: crate::NativeBlockState,
+    ) -> Result<super::survival::ReplaceableCubePlacementRecord> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("replaceable cube placement is unavailable for this version"),
+        ))
+    }
+    async fn replaceable_cube_placement_record(
+        &self,
+    ) -> Result<Option<super::survival::ReplaceableCubePlacementRecord>> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("replaceable cube placement is unavailable for this version"),
+        ))
+    }
+
     async fn place_cube(&self, support: [i32; 3], face: BlockFace) -> Result<PlacementRecord>;
     async fn placement_record(&self) -> Result<Option<PlacementRecord>>;
 }

@@ -97,6 +97,15 @@ pub(super) fn outline_hit_in(
     outline::cast(eye, end, read).map_err(|error| Error::new(ErrorKind::State, error))
 }
 
+/// Additional audited plant outlines for explicit replacement only.
+pub(super) fn replacement_cast_in(
+    start: [f64; 3],
+    end: [f64; 3],
+    read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
+) -> Result<Option<crate::client::BlockTargetHit>> {
+    outline::replacement_cast(start, end, read).map_err(|error| Error::new(ErrorKind::State, error))
+}
+
 /// Continuous origin-error check for an already selected, admitted full cube.
 pub(super) fn uncertain_cube_hit_in(
     eye: [f64; 3],

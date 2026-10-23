@@ -783,3 +783,507 @@ async fn common_placement_requires_fresh_ack_and_preserves_completed_common_hist
     );
     f.stop().await;
 }
+
+fn replacement_fixture_state(name: &str) -> crate::NativeBlockState {
+    let blocks: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../data/java_1_21_11/blocks.json"
+    ))
+    .unwrap();
+    let id = blocks
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["name"] == name)
+        .unwrap()["minStateId"]
+        .as_i64()
+        .unwrap();
+    crate::versions::java_1_21_11::native_state(id as i32).unwrap()
+}
+async fn replacement_block(f: &mut Fixture, target: [i32; 3], block: &crate::NativeBlockState) {
+    let mut payload = pack_position(target).to_be_bytes().to_vec();
+    put_varint(&mut payload, state_id(block).unwrap());
+    f.receive(ids::play_clientbound::BLOCK_CHANGE, &payload)
+        .await;
+}
+async fn replacement_start(
+    f: &mut Fixture,
+    clicked: bool,
+    count: i32,
+) -> crate::client::survival::ReplaceableCubePlacementRecord {
+    use crate::client::adapter::PlacementOps;
+    f.stack(count).await;
+    let destination = if clicked { SUPPORT } else { TARGET };
+    f.block(destination, "short_grass").await;
+    {
+        let mut state = f.api.bot.session.state.lock().await;
+        // Adjacent case looks past the plant's inset outline to the cube face.
+        state.rotation = [-90.0, if clicked { 10.0 } else { 3.0 }];
+        state.position = Some([0.5, 1.0, if clicked { 0.5 } else { 0.05 }]);
+        let pose = ReceivedPose {
+            generation: state.loading.generation,
+            receive_sequence: state.sequence,
+            position: state.position.unwrap(),
+            rotation: state.rotation,
+            velocity: Some([0.0; 3]),
+        };
+        state.motion.receive(pose);
+    }
+    let record = f
+        .api
+        .place_cube_replacing(
+            SUPPORT,
+            crate::BlockFace::West,
+            destination,
+            native("short_grass"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(record.target, destination);
+    assert_eq!(record.replaces_clicked, clicked);
+    assert_eq!(record.first_outline.position, SUPPORT);
+    assert_eq!(record.first_outline.state, record.support_state);
+    assert_eq!(
+        record.stage,
+        crate::client::survival::PlacementStage::Pending
+    );
+    let (id, bytes) = f.expected_packet("replacement BLOCK_PLACE").await;
+    assert_eq!(id, ids::play_serverbound::BLOCK_PLACE);
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(reader.varint().unwrap(), 0);
+    assert_eq!(
+        reader.take(8).unwrap(),
+        pack_position(SUPPORT).to_be_bytes()
+    );
+    assert_eq!(reader.varint().unwrap(), crate::BlockFace::West as i32);
+    for coordinate in record.cursor {
+        assert_eq!(reader.f32().unwrap(), coordinate);
+    }
+    assert!(!reader.bool().unwrap());
+    assert!(!reader.bool().unwrap());
+    assert_eq!(
+        reader.varint().unwrap(),
+        record.send.interaction_sequence.unwrap()
+    );
+    reader.end().unwrap();
+    record
+}
+
+#[tokio::test]
+async fn replacement_has_separate_block_material_ack_receipts_and_frozen_history() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    for clicked in [false, true] {
+        for count in [1, 5] {
+            let mut f = Fixture::new().await;
+            let sent = replacement_start(&mut f, clicked, count).await;
+            assert!(
+                f.api
+                    .place_cube(SUPPORT, crate::BlockFace::West)
+                    .await
+                    .is_err()
+            );
+            assert!(f.api.select_hotbar(1).await.is_err());
+            assert!(f.api.placement_record().await.unwrap().is_none());
+            f.ack(sent.send.interaction_sequence.unwrap()).await;
+            f.stack(count - 1).await;
+            let partial = f
+                .api
+                .replaceable_cube_placement_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(partial.stage, PlacementStage::Pending);
+            assert!(partial.material_receipt.is_some() && partial.processing.is_some());
+            assert!(partial.target_receipt.is_none());
+            f.block(sent.target, "dirt").await;
+            let complete = f
+                .api
+                .replaceable_cube_placement_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                complete.stage,
+                PlacementStage::ObservedPlaced,
+                "{:?}",
+                complete.requires_inspection
+            );
+            let frozen = serde_json::to_value(&complete).unwrap();
+            // Later unrelated receipts cannot rewrite the completed attempt.
+            f.block(sent.target, "stone").await;
+            f.stack(12).await;
+            f.ack(sent.send.interaction_sequence.unwrap() + 1).await;
+            assert_eq!(
+                serde_json::to_value(
+                    f.api
+                        .replaceable_cube_placement_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                )
+                .unwrap(),
+                frozen
+            );
+            assert!(f.api.placement_record().await.unwrap().is_none());
+            f.stop().await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn replacement_rejects_wrong_predecessor_destination_nonplants_and_preserves_air_api() {
+    use crate::client::adapter::PlacementOps;
+    for before in [
+        "stone",
+        "water",
+        "snow",
+        "vine",
+        "air",
+        "short_grass",
+        "fern",
+        "dead_bush",
+    ] {
+        let mut f = Fixture::new().await;
+        let predecessor = replacement_fixture_state(before);
+        replacement_block(&mut f, TARGET, &predecessor).await;
+        assert!(
+            f.api
+                .place_cube_replacing(SUPPORT, crate::BlockFace::West, TARGET, native("dead_bush"))
+                .await
+                .is_err()
+                || before == "dead_bush"
+        );
+        if before != "dead_bush" {
+            assert!(
+                f.api
+                    .place_cube_replacing(
+                        SUPPORT,
+                        crate::BlockFace::West,
+                        [1, 3, 0],
+                        predecessor.clone()
+                    )
+                    .await
+                    .is_err()
+            );
+            let mut properties = predecessor;
+            properties
+                .properties
+                .insert("unsupported".into(), "true".into());
+            assert!(
+                f.api
+                    .place_cube_replacing(SUPPORT, crate::BlockFace::West, TARGET, properties)
+                    .await
+                    .is_err()
+            );
+            if before != "air" {
+                assert!(
+                    f.api
+                        .place_cube(SUPPORT, crate::BlockFace::West)
+                        .await
+                        .is_err()
+                );
+            }
+        }
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn replacement_latches_intermediate_conflicts_and_missing_receipts_never_complete() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    for conflict in [
+        "target",
+        "material",
+        "clicked_support",
+        "chunk",
+        "selection",
+    ] {
+        let mut f = Fixture::new().await;
+        let sent = replacement_start(&mut f, false, 1).await;
+        match conflict {
+            "target" => {
+                f.block(TARGET, "air").await;
+                f.block(TARGET, "short_grass").await;
+            }
+            "material" => {
+                f.stack(2).await;
+                f.stack(1).await;
+            }
+            "clicked_support" => {
+                f.block(SUPPORT, "dirt").await;
+                f.block(SUPPORT, "stone").await;
+            }
+            "chunk" => placement_chunk_changed(&mut *f.api.bot.session.state.lock().await, [0, 0]),
+            _ => {
+                f.api
+                    .bot
+                    .session
+                    .state
+                    .lock()
+                    .await
+                    .operations
+                    .selected_hotbar
+                    .as_mut()
+                    .unwrap()
+                    .slot = 1;
+            }
+        }
+        f.block(TARGET, "dirt").await;
+        f.stack(0).await;
+        f.ack(sent.send.interaction_sequence.unwrap()).await;
+        let r = f
+            .api
+            .replaceable_cube_placement_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(r.stage, PlacementStage::RequiresInspection, "{conflict}");
+        f.stop().await;
+    }
+    for missing in ["block", "material", "ack"] {
+        let mut f = Fixture::new().await;
+        let sent = replacement_start(&mut f, true, 1).await;
+        if missing != "block" {
+            f.block(sent.target, "dirt").await;
+        }
+        if missing != "material" {
+            f.stack(0).await;
+        }
+        if missing != "ack" {
+            f.ack(sent.send.interaction_sequence.unwrap()).await;
+        }
+        assert_eq!(
+            f.api
+                .replaceable_cube_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            PlacementStage::Pending
+        );
+        f.stop().await;
+    }
+}
+
+#[test]
+fn original_replacement_context_fixture_qualifies_only_the_passive_cube_lane() {
+    use std::io::Read;
+    let mut bytes = String::new();
+    flate2::read::GzDecoder::new(
+        include_bytes!("../../../../../../data/client_api/replaceable_placement.json.gz")
+            .as_slice(),
+    )
+    .read_to_string(&mut bytes)
+    .unwrap();
+    let rows: serde_json::Value = serde_json::from_str(&bytes).unwrap();
+    let mut checked = 0;
+    for row in rows.as_array().unwrap() {
+        let name = row["before"].as_str().unwrap();
+        let material = format!("minecraft:{}", row["material"].as_str().unwrap());
+        if replaceable_plant(&native(name)) && row["material"] == name {
+            assert_eq!(row["can_replace"], false); // Same plant item is context-dependent and excluded.
+            assert_eq!(row["replace_clicked"], false);
+        }
+        if !replaceable_plant(&native(name)) || !survival::DRY_CUBES.contains(&material.as_str()) {
+            continue;
+        }
+        assert_eq!(row["replace_owner"], "eog");
+        assert_eq!(
+            row["outline"],
+            serde_json::to_value(plant_outline(&native(name)).unwrap()).unwrap()
+        );
+        assert_eq!(row["auxiliary"], serde_json::json!([]));
+        assert_eq!(row["collision_empty"], true);
+        assert_eq!(row["liquid"], false);
+        assert_eq!(row["can_replace"], true);
+        assert_eq!(row["can_place"], true);
+        let adjacent = row["adjacent"].as_bool().unwrap();
+        assert_eq!(row["replace_clicked"], !adjacent);
+        let direction = offset(row["face"].as_u64().unwrap() as u8);
+        let destination = if adjacent {
+            std::array::from_fn(|i| SUPPORT[i] + direction[i])
+        } else {
+            SUPPORT
+        };
+        assert_eq!(row["destination"], serde_json::json!(destination));
+        assert_eq!(
+            row["placed_state"].as_i64().unwrap(),
+            i64::from(state_id(&native(row["material"].as_str().unwrap())).unwrap())
+        );
+        checked += 1;
+    }
+    assert_eq!(checked, 2376); // 3 plants × 11 cubes × 6 faces × 2 secondary × 2 cells × 3 hit heights.
+}
+
+#[tokio::test]
+async fn replacement_cancelled_before_writer_retains_unsent_intent_without_replay() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    let mut f = Fixture::new().await;
+    f.block(SUPPORT, "short_grass").await;
+    f.api.bot.session.state.lock().await.rotation = [-90.0, 10.0];
+    let writer = f.api.bot.session.writer.lock().await;
+    let mut future = Box::pin(f.api.place_cube_replacing(
+        SUPPORT,
+        crate::BlockFace::West,
+        SUPPORT,
+        native("short_grass"),
+    ));
+    std::future::poll_fn(|cx| {
+        assert!(future.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(future);
+    drop(writer);
+    let sent = f
+        .api
+        .replaceable_cube_placement_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!sent.send.dispatched);
+    assert_eq!(sent.stage, PlacementStage::Pending);
+    f.block(SUPPORT, "dirt").await;
+    f.stack(4).await;
+    f.ack(sent.send.interaction_sequence.unwrap()).await;
+    assert_ne!(
+        f.api
+            .replaceable_cube_placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        PlacementStage::ObservedPlaced
+    );
+    assert!(
+        f.api
+            .place_cube_replacing(
+                SUPPORT,
+                crate::BlockFace::West,
+                TARGET,
+                native("short_grass")
+            )
+            .await
+            .is_err()
+    );
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    f.stop().await;
+    assert_eq!(
+        client
+            .survival()
+            .replaceable_cube_placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        PlacementStage::RequiresInspection
+    );
+}
+
+#[test]
+fn replacement_first_outlines_match_original_native_clip_at_edges_inside_and_far_coordinates() {
+    use std::io::Read;
+    let mut text = String::new();
+    flate2::read::GzDecoder::new(
+        include_bytes!("../../../../../../data/client_api/replaceable_placement_geometry.json.gz")
+            .as_slice(),
+    )
+    .read_to_string(&mut text)
+    .unwrap();
+    let rows: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(rows.as_array().unwrap().len(), 384);
+    for row in rows.as_array().unwrap() {
+        let start = serde_json::from_value::<[f64; 3]>(row["start"].clone()).unwrap();
+        let end = serde_json::from_value::<[f64; 3]>(row["end"].clone()).unwrap();
+        let cell = serde_json::from_value::<[i32; 3]>(row["cell"].clone()).unwrap();
+        let block = crate::versions::java_1_21_11::native_state(
+            row["state_index"].as_i64().unwrap() as i32,
+        )
+        .unwrap();
+        let actual = super::super::super::raycast::replacement_cast_in(start, end, |p| {
+            Ok(if p == cell {
+                block.clone()
+            } else {
+                native("air")
+            })
+        })
+        .unwrap();
+        assert_eq!(actual.is_none(), row["hit"].is_null(), "{row}");
+        if let Some(actual) = actual {
+            assert_eq!(actual.position, cell);
+            assert_eq!(
+                format!("{:?}", actual.face).to_lowercase(),
+                row["hit"]["face"].as_str().unwrap()
+            );
+            let point = serde_json::from_value::<[f64; 3]>(row["hit"]["point"].clone()).unwrap();
+            for (a, b) in actual.point.into_iter().zip(point) {
+                assert!((a - b).abs() < 1e-10, "{row}");
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn replacement_stale_ack_and_old_new_history_remain_separate() {
+    use crate::client::{adapter::PlacementOps, survival::PlacementStage};
+    let mut f = Fixture::new().await;
+    let old = f
+        .api
+        .place_cube(SUPPORT, crate::BlockFace::West)
+        .await
+        .unwrap();
+    f.expected_packet("air placement").await;
+    f.block(TARGET, "dirt").await;
+    f.stack(4).await;
+    f.ack(old.send.interaction_sequence.unwrap()).await;
+    let old = f.api.placement_record().await.unwrap().unwrap();
+    assert_eq!(old.stage, PlacementStage::ObservedPlaced);
+    let old_json = serde_json::to_value(&old).unwrap();
+    // The ACK sequence is high enough numerically, but predates the new boundary.
+    f.ack(99).await;
+    let sent = replacement_start(&mut f, false, 1).await;
+    f.block(sent.target, "dirt").await;
+    f.stack(0).await;
+    let partial = f
+        .api
+        .replaceable_cube_placement_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(partial.stage, PlacementStage::Pending);
+    assert!(partial.processing.is_none());
+    assert_eq!(
+        serde_json::to_value(f.api.placement_record().await.unwrap().unwrap()).unwrap(),
+        old_json
+    );
+    f.ack(100).await;
+    let complete = f
+        .api
+        .replaceable_cube_placement_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(complete.stage, PlacementStage::ObservedPlaced);
+    let replacement_json = serde_json::to_value(&complete).unwrap();
+    // Re-establish air at a resolved site, then start another ordinary placement.
+    f.block(TARGET, "air").await;
+    f.stack(3).await;
+    let next = f
+        .api
+        .place_cube(SUPPORT, crate::BlockFace::West)
+        .await
+        .unwrap();
+    f.expected_packet("next air placement").await;
+    assert_ne!(next.id, old.id);
+    assert_eq!(
+        serde_json::to_value(
+            f.api
+                .replaceable_cube_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+        )
+        .unwrap(),
+        replacement_json
+    );
+    f.stop().await;
+}

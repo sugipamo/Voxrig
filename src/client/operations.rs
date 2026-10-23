@@ -355,6 +355,26 @@ impl Survival {
     ) -> Result<Option<super::inventory::InventorySwapRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::inventory_swap_record(a).await)
     }
+    /// Place one passive cube into an explicitly specified audited plant state (1.21.11).
+    /// `clicked`/`face` must match the current first outline; native rules choose
+    /// either that cell or its face neighbor, which must equal `target`/`before`.
+    /// Pending, cancelled or uncertain attempts must never be retried blindly.
+    pub async fn place_cube_replacing(
+        &self,
+        clicked: [i32; 3],
+        face: BlockFace,
+        target: [i32; 3],
+        before: crate::NativeBlockState,
+    ) -> Result<super::survival::ReplaceableCubePlacementRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::place_cube_replacing(a, clicked, face, target, before).await)
+    }
+    /// Read the retained replacement attempt, including after connection closure.
+    pub async fn replaceable_cube_placement_record(
+        &self,
+    ) -> Result<Option<super::survival::ReplaceableCubePlacementRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::replaceable_cube_placement_record(a).await)
+    }
+
     /// Submit one stationary default passive-cube placement into received air.
     /// Derives the native first-outline cursor and retains the attempt before I/O.
     /// No prediction, retry, mode change or edit permission is supplied.

@@ -418,6 +418,24 @@ async fn main() -> anyhow::Result<()> {
                     Err(error) => serde_json::json!({"error": error.to_string(), "kind": format!("{:?}", error.kind())}),
                 }
             }
+            "place_cube_replacing" => {
+                let clicked = serde_json::from_value(request["clicked"].clone())?;
+                let target = serde_json::from_value(request["target"].clone())?;
+                let before = serde_json::from_value(request["before"].clone())?;
+                let result = survival.place_cube_replacing(clicked, face(&request)?, target, before).await;
+                match result {
+                    Ok(record) => serde_json::json!({"record": record}),
+                    Err(error) => serde_json::json!({"error": error.to_string(), "kind": format!("{:?}", error.kind())}),
+                }
+            }
+            "replaceable_cube_placement_record" => serde_json::to_value(survival.replaceable_cube_placement_record().await?)?,
+            "place_cube" => {
+                let result = survival.place_cube(serde_json::from_value(request["clicked"].clone())?, face(&request)?).await;
+                match result {
+                    Ok(record) => serde_json::json!({"record": record}),
+                    Err(error) => serde_json::json!({"error": error.to_string(), "kind": format!("{:?}", error.kind())}),
+                }
+            }
             "placement_check" => serde_json::to_value(
                 survival
                     .placement_check(
