@@ -85,3 +85,65 @@ legacyは完全なitem NBTを保持する。modernの非default componentも[共
 numeric ID再利用、別windowへの遅延slot/close、legacy cache予測との分離を検証する。
 modernではfull packetの全切断箇所・余分な末尾・件数不一致・範囲外slotが原子的に拒否されることも検査する。
 実ゲームの手順と独立RCONの確認は[共通native検証](common-client-native-validation.md)を参照。
+
+## opening付きproperty観測
+
+1.21.11の`Client::screen_properties()`はslot観測とは別の`ScreenPropertyObservation`を返す。
+1.16.1は明示`Unsupported`。既存`ScreenObservation`への必須field追加はない。
+`screen.id`は`screen_state()`と同じ`ScreenId`だが、別々のcaptureは同一受信境界とは限らない。
+値の組み合わせにはsession・opening・各受信ordinalを確認する。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+async fn properties(client: &Client) -> Result<()> {
+    if let Some(screen) = client.screen_properties().await?.screen {
+        // menu固有の意味付けはconsumer側でnative menuと照合する。
+        if let Some(cook) = screen.values.get(&2) {
+            println!("{:?}: cook={:?}", screen.id, cook);
+        }
+    }
+    Ok(())
+}
+```
+
+CRAFT_PROGRESS_BAR（native `ClientboundContainerSetDataPacket`）のwindowはVarInt、
+propertyとvalueはsigned shortのまま保持する。たとえばnative炉では0=燃焼残量、1=燃焼総量、
+2=cook進捗、3=cook総量、金床では0=cost、醸造台では0=brew残tick、1=fuel。
+このAPIはmenu固有の単位変換・操作許可・完成判定を提供しない。
+炉の燃焼や醸造進捗をローカル時計で生成せず、最後の実受信値だけを返す。
+
+`values.get(&property) == None`と受信済みの0を区別し、各値に`ValueSource::Received`の
+packet ordinalを保持する。同値再受信でもそのpropertyのordinalを更新し、別propertyは進めない。
+未知・負数のproperty/valueもnative値を保持する。最大`MAX_SCREEN_PROPERTIES`（256）件とし、
+新しいdistinct keyで超過した場合は最も古い受信ordinalのkeyを退避する。
+`evicted`はそのopening中の退避を示し、trueのとき欠測には退避済みも含まれる。
+これは最新値の有界captureであり、全変更の履歴ではない。
+
+OPEN未受信のpropertyや別windowのpacketで画面を推測しない。受信close・login/respawn・
+reconfigurationで破棄し、同じnumeric IDの再OPENも空から始める。close送信だけでは
+`screen_state()`と同様に最後の受信openingを消さず、操作権限も与えない。
+その後player window=0の内容受信で画面履歴が残る場合も、元opening宛ての受信closeでproperty観測は失効する。
+numeric IDにgeneration fieldはないため、新OPEN以降の同IDへのpacketは新openingへの受信として扱う。
+既存の`event_kinds`による画面変更通知だけにはpropertyの値・受信済みkey・opening全体が含まれない。
+通知後にgetterを読み、各値のordinalを確認する。通知から全propertyの受信完了を推定しない。
+
+全fieldと末尾を検証してから適用する。packet試験では全切断位置・余分な末尾、同値再受信、
+未知値と上限、別window、close、再OPEN、respawnとreconfigurationを検査する。
+[ExportScreenProperties.java](../scripts/ExportScreenProperties.java)は公式1.21.11 JARのcodecで
+[75件の構築fixture](../data/client_api/screen_properties-1.21.11.json)をencode/decode/re-encodeする。
+公式serverとlibrariesをclasspathへ指定し、`javac -cp "$CP" -d "$OUT" scripts/ExportScreenProperties.java`、
+`java -cp "$OUT:$CP" voxrig.properties.ExportScreenProperties "$JSON"`で再生成できる。
+構築fixtureは実接続の証拠とは区別する。
+
+実接続は[2026-10-23の記録](evidence/common-screen-properties-20261023.json)に保持する。
+炉のburn/cookと醸造台のbrew/fuelは同じ受信ordinalの元packetと照合し、tick step完了後の
+RCONの実block entity値とも一致した。金床の修理cost=1を受信し、再OPEN時は初回propertyを
+proxyで一時保留して新openingの空captureを確認した。金床の材料配置は試験専用のnative
+PICKUP入力で準備しており、共通金床操作APIの対応を主張しない。
+同じnumeric IDの再利用、malformed packet、保持上限は別の構築packet試験の範囲である。
+使い捨て公式serverを使用し、終了時にserverとprobeを停止した。
+
+```bash
+cargo build --locked --example climbing_control_probe -j2
+python3 -B scripts/run_screen_properties_live.py --accept-eula --server-jar "$MC_JAR" --output "$OUT"
+```

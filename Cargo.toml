@@ -20,6 +20,8 @@ include = [
     "/scripts/run_hand_swap_live.py",
     "/scripts/ExportHandSwap.java",
     "/scripts/ExportExplosionPackets.java",
+    "/scripts/ExportScreenProperties.java",
+    "/scripts/run_screen_properties_live.py",
     "/scripts/ExportContextualTargeting.java",
     "/scripts/ExportReplaceablePlacement.java",
     "/scripts/ExportSlabPlacement.java",

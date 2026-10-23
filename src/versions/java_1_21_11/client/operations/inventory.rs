@@ -424,9 +424,29 @@ pub(super) fn receive(
                 sequence,
             ));
         }
+        input::CRAFT_PROGRESS_BAR => {
+            // Original ClientboundContainerSetDataPacket: VAR_INT, SHORT, SHORT.
+            let window = r.varint()?;
+            let property = r.u16()? as i16;
+            let value = r.u16()? as i16;
+            r.end()?;
+            if let Some(properties) = inventory
+                .container
+                .as_mut()
+                .filter(|s| s.window == window)
+                .and_then(|s| s.properties.as_mut())
+            {
+                properties.receive(property, value, sequence);
+            }
+        }
         input::CLOSE_WINDOW => {
             let window = r.varint()?;
             r.end()?;
+            // Received player contents after a submitted close can leave a
+            // historical ContainerScreen. Retire its properties independently.
+            if let Some(screen) = inventory.container.as_mut().filter(|s| s.window == window) {
+                screen.properties = None;
+            }
             if inventory.window_id == Some(window) {
                 invalidate_screen(inventory, None);
                 inventory.container = None;

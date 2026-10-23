@@ -92,6 +92,14 @@ pub(crate) trait CoreOps {
     async fn entities(&self) -> Result<super::EntitiesObservation>;
     async fn vehicle_state(&self) -> Result<VehicleObservation>;
     async fn screen_state(&self) -> Result<ScreenObservation>;
+    async fn screen_properties(
+        &self,
+    ) -> Result<super::container::properties::ScreenPropertyObservation> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("screen property observation is only supported for Java 1.21.11"),
+        ))
+    }
     async fn capture(&self, region: Region) -> Result<Capture>;
     async fn received_recipes(&self) -> Result<ReceivedRecipes>;
     async fn received_recipe_ghost(&self) -> Result<Option<ReceivedRecipeGhost>>;
