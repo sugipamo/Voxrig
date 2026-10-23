@@ -1,0 +1,516 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "timezone": "Etc/UTC",
+  "issues": [
+    44
+  ],
+  "public_api": "none",
+  "scope": "Java 1.21.11 Ground levitation with original received amplifier. Legacy, held flight/Glide levitation and finite dry preview keep their existing refusals.",
+  "source_sha256": {
+    "src/client/physics/mod.rs": "fe2377956ddadd8adad3646aa9c380614ddb527645c1fc820b0ce1565ff05be6",
+    "src/client/control.rs": "866beb6e0b2874ff292ae7f8914604f2482c2be07028fb5b7f904b5e3d14f772",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "79183aa6487da922765fc13a002b8422dc3051e4592c50fd0263fc18635e1fb5",
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "examples/climbing_control_probe.rs": "19f60163dca901b1580ff3fb980c0373042126c1dbbb44c8251399c25248f3e7",
+    "scripts/run_levitation_live.py": "4ed0a33a68cab74a31e7787121d395337b3e9f6d722d9c0eb9252bbf54df2f0b",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
+    "data/client_api/levitation_oracle.json.gz": "be73409b1d045f2b3c07957eebd543000e5d346e7ee1cb0d80894a7f79396a4e",
+    "Cargo.toml": "a61c740eabdf0adf301ce5ccec00c444ad9e107ae8870fd2d8ed73611b1ce448",
+    "docs/evidence/contact-envelopes-20261015.json": "566dff88316fe65c6d7ea422cab8b5a393bc0bed978e3d17c718be9d05e218ab",
+    "src/client/physics/oracle_tests.rs": "0bc497f07c71e22ae7109012a0ce05a8d175640b1d6c25a657e469f3a9ba0c11",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "6a183ce2cfaeb329075432b1399b1cfecd47b97bebae7484ab570f47e52c31d6",
+    "scripts/run_levitation_oracle.py": "9f1777e7b98e61d133f79fd17e5a75f74f481bbc86160bb458eb9bc62123e6b2",
+    "scripts/movement_oracle/levitation_scenarios.py": "3db750c47e46705f9753078d1695108393a43c3990b5ea6c5ab5e58ed9886a33",
+    "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+    "docs/physics-engine.md": "a6061b4f68deb7087a63dbde490a9a362f5e5a1dbaeef20aab72c48065d9a617",
+    "docs/common-control.md": "166efc441424d0ea8da8464c56058f0bb913e2e3fd263abad7678ddc44b033d2",
+    "docs/movement-oracle.md": "23063198c69a9492c3cf7a7f487b03a5b9b3e0dc251a1025a9e704bffe9db80c"
+  },
+  "oracle": {
+    "authority": "Official LivingEntity/Player and Boat movement run unchanged inside each official server JAR; only LocalPlayer's client-side input handling is ported in the harness.",
+    "cases": 36,
+    "ticks": 868,
+    "fixture_sha256": "be73409b1d045f2b3c07957eebd543000e5d346e7ee1cb0d80894a7f79396a4e",
+    "runs": [
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "acd9e834206f0dfea214d64fa97756e18a0ca4762efd3500bad955721fe8f8a4"
+      }
+    ],
+    "owned_sources": {
+      "base_harness_sha256": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+      "generated_harness_sha256": "acd9e834206f0dfea214d64fa97756e18a0ca4762efd3500bad955721fe8f8a4",
+      "wrapper_sha256": "9f1777e7b98e61d133f79fd17e5a75f74f481bbc86160bb458eb9bc62123e6b2"
+    },
+    "runner_sha256": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "scenarios_sha256": "bcac4f40eb913366a9ce0fa81abfa443d2bdc7d75309ebe8d37caeda71a769c5",
+    "original_output_sha256": "5e9458c5d4962d767dc8592051232e828a3ef20267367cd8fdefd7b0e4cacda5",
+    "original_run_log_sha256": "7bf11f03746b84ebda15935dcadd08289b80b761ec978740522276e9d01816fd"
+  },
+  "live": {
+    "version": "1.21.11",
+    "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+    "binary_sha256": "be69b550a2d41b7a61a5c79759c05a21719b83e87d73a768a5536e62a8574235",
+    "passed": true,
+    "server_port": 53317,
+    "disposable_directory": true,
+    "checks": [
+      {
+        "name": "initial_ground",
+        "ticks": 3,
+        "corrections": 0,
+        "position": [
+          0.5,
+          65.0,
+          0.5
+        ],
+        "velocity": [
+          0.0,
+          -0.0784000015258789,
+          0.0
+        ],
+        "session_id": 1,
+        "native_position": [
+          0.5,
+          65.0,
+          0.5
+        ]
+      },
+      {
+        "name": "effect_levitation_0",
+        "received_effects": {
+          "minecraft:levitation": {
+            "source": {
+              "kind": "received",
+              "sequence": 131
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 0,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "added_during_control",
+        "ticks": 15,
+        "corrections": 0,
+        "position": [
+          0.5,
+          65.34572335999117,
+          2.144012665200609
+        ],
+        "velocity": [
+          0.0,
+          0.042923761806048795,
+          0.15321800131374413
+        ],
+        "session_id": 1,
+        "native_position": [
+          0.5,
+          65.34572335999117,
+          2.144012665200609
+        ]
+      },
+      {
+        "name": "effect_slow_falling_0",
+        "received_effects": {
+          "minecraft:levitation": {
+            "source": {
+              "kind": "received",
+              "sequence": 131
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 0,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:slow_falling": {
+            "source": {
+              "kind": "received",
+              "sequence": 132
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 0,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "effect_levitation_4",
+        "received_effects": {
+          "minecraft:levitation": {
+            "source": {
+              "kind": "received",
+              "sequence": 134
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:slow_falling": {
+            "source": {
+              "kind": "received",
+              "sequence": 132
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 0,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "higher_amplifier_ceiling",
+        "ticks": 42,
+        "corrections": 0,
+        "position": [
+          0.5,
+          68.20000004768372,
+          4.112762178866159
+        ],
+        "velocity": [
+          0.0,
+          0.04900000095367432,
+          0.015230596603106522
+        ],
+        "session_id": 1,
+        "native_position": [
+          0.5,
+          68.20000004768372,
+          4.096025260004441
+        ]
+      },
+      {
+        "name": "effect_levitation_None",
+        "received_effects": {
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:slow_falling": {
+            "source": {
+              "kind": "received",
+              "sequence": 132
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 0,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "effect_levitation_1",
+        "received_effects": {
+          "minecraft:levitation": {
+            "source": {
+              "kind": "received",
+              "sequence": 137
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 1,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:slow_falling": {
+            "source": {
+              "kind": "received",
+              "sequence": 132
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 0,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "lower_amplifier_at_ceiling",
+        "ticks": 47,
+        "corrections": 0,
+        "position": [
+          0.7610169637680955,
+          68.20000004768372,
+          4.176386790341334
+        ],
+        "velocity": [
+          0.07450847982319159,
+          0.01960000038146973,
+          0.009504383238962681
+        ],
+        "session_id": 1,
+        "native_position": [
+          0.6791395157726339,
+          68.20000004768372,
+          4.165942413456666
+        ]
+      },
+      {
+        "name": "effect_levitation_None",
+        "received_effects": {
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:slow_falling": {
+            "source": {
+              "kind": "received",
+              "sequence": 132
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 0,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "removed_with_slow_falling",
+        "ticks": 59,
+        "corrections": 0,
+        "position": [
+          1.3219206068407663,
+          67.59444026680158,
+          4.2479362729847
+        ],
+        "velocity": [
+          0.024027166656934676,
+          -0.10548881822131231,
+          0.0030649316775196423
+        ],
+        "session_id": 1,
+        "native_position": [
+          1.3219206068407663,
+          67.59444026680158,
+          4.2479362729847
+        ]
+      },
+      {
+        "name": "effect_slow_falling_None",
+        "received_effects": {
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "normal_gravity_landing",
+        "ticks": 84,
+        "corrections": 0,
+        "position": [
+          1.484182887220473,
+          65.0,
+          4.268634627072938
+        ],
+        "velocity": [
+          0.0,
+          -0.0784000015258789,
+          0.0
+        ],
+        "session_id": 1,
+        "native_position": [
+          1.484182887220473,
+          65.0,
+          4.268634627072938
+        ]
+      },
+      {
+        "name": "stopped_record_retained",
+        "ticks": 84,
+        "corrections": 0,
+        "position": [
+          1.484182887220473,
+          65.0,
+          4.268634627072938
+        ],
+        "velocity": [
+          0.0,
+          -0.0784000015258789,
+          0.0
+        ],
+        "session_id": 1
+      },
+      {
+        "name": "effect_levitation_1",
+        "received_effects": {
+          "minecraft:levitation": {
+            "source": {
+              "kind": "received",
+              "sequence": 142
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 1,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          },
+          "minecraft:resistance": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": {
+              "ambient": false,
+              "amplifier": 4,
+              "duration_at_receipt": 12000,
+              "show_icon": false,
+              "visible": false
+            }
+          }
+        }
+      },
+      {
+        "name": "admission_with_effect",
+        "ticks": 8,
+        "corrections": 0,
+        "position": [
+          1.484182887220473,
+          65.36579205344123,
+          4.268634627072938
+        ],
+        "velocity": [
+          0.0,
+          0.07778892509000072,
+          0.0
+        ],
+        "session_id": 2,
+        "native_position": [
+          1.484182887220473,
+          65.29157148765549,
+          4.268634627072938
+        ]
+      }
+    ],
+    "trace_errors": [],
+    "private_artifact_sha256": {
+      "report.json": "7102bff54e079a5062fe9e03f5762c563c781e154cebf9d890f148d3fe9ed616",
+      "packets.jsonl": "09766dc339d046e0ff1b824ace71c8f77e26b5bf6711069dd009dc2e69161cdd",
+      "server.log": "bbe949cc8141940dc534bb488583911707eefff84615043869f76ef9199320e8",
+      "probe.log": "594dfbdd2fd248ae14516e4b5a56935c051228f561218f994ab061608e8aeeea",
+      "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "limitations": [
+    "Numerical ticks use unchanged native travel with the owned LocalPlayer input harness; they do not reproduce the original packet clock.",
+    "Live receipts, sent frames and independent RCON positions are separate evidence, not tick-by-tick native client numerical agreement.",
+    "Effect durations are retained as received; no wall-clock expiration or default amplifier is inferred.",
+    "Flight/Glide levitation, Java 1.16.1 levitation and finite dry preview remain outside this change."
+  ]
+}

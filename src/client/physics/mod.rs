@@ -9,7 +9,7 @@
 //! jumping out onto ledges), bubble columns, ladders, vines and scaffolding,
 //! Creative flight and Spectator movement with original received abilities.
 //! Outside it the tick returns `ErrorKind::Unsupported` before changing state:
-//! riding, levitation,
+//! riding, legacy levitation, unqualified levitation flight/glide,
 //! legacy honey wall sliding and anything not reviewed in `blocks`.
 pub(crate) mod blocks;
 pub(crate) mod boat;
@@ -88,6 +88,9 @@ pub struct Environment {
     pub jump_boost: Option<u8>,
     pub slow_falling: bool,
     pub levitation: bool,
+    /// Original amplifier; presence alone never supplies a default level.
+    #[serde(default)]
+    pub levitation_amplifier: Option<i32>,
     pub blindness: bool,
     /// Weaving (1.21.11): weaker cobweb slowdown.
     pub weaving: bool,
@@ -173,6 +176,7 @@ impl Environment {
             jump_boost: None,
             slow_falling: false,
             levitation: false,
+            levitation_amplifier: None,
             blindness: false,
             weaving: false,
             dolphins_grace: false,
@@ -659,7 +663,15 @@ pub(crate) fn tick_with_ground_jump(
             "Elytra requires separate unit-scale glide controls".into(),
         ));
     }
-    if env.levitation {
+    if env.levitation != env.levitation_amplifier.is_some()
+        || env.levitation
+            && (version != MinecraftVersion::Java1_21_11
+                || env.flying
+                || env.gliding
+                || !env
+                    .levitation_amplifier
+                    .is_some_and(|a| (0..=255).contains(&a)))
+    {
         return Err(unsupported("levitation".into()));
     }
     if env.flying
@@ -819,9 +831,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             xxa *= 0.98;
             zza *= 0.98;
         }
-        // Modern LivingEntity.aiStep resets this before travel, including
-        // ticks whose honey callback does not reach the sliding threshold.
-        if !self.legacy() && self.env.slow_falling {
+        // Modern LivingEntity.aiStep resets fall distance for either effect
+        // before travel; falling movement may add distance again this tick.
+        if !self.legacy() && (self.env.slow_falling || self.env.levitation) {
             self.body.fall_distance = 0.0;
         }
         self.travel([f64::from(xxa), 0.0, f64::from(zza)])?;
@@ -1775,7 +1787,14 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         if !legacy && v[1] <= 0.0 && self.env.slow_falling {
             gravity = gravity.min(0.01);
         }
-        y -= gravity;
+        if let Some(amplifier) = self.env.levitation_amplifier {
+            // Modern LivingEntity.travelInAir: collision/climbing first, then
+            // levitation replaces gravity, before vertical drag. Fluids select
+            // their own travel branch and do not apply this acceleration.
+            y += (0.05 * f64::from(amplifier + 1) - v[1]) * 0.2;
+        } else {
+            y -= gravity;
+        }
         self.body.velocity = [
             v[0] * f64::from(drag),
             y * f64::from(0.98f32),

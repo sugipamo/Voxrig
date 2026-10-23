@@ -2793,7 +2793,7 @@
     "src/client/entity/packet_model.rs": "e7a20e77971f4b62f5e4cf01f9182acf8727c23f03c4b09de088c7161bbdb2e9",
     "src/client/entity/contact_tick.rs": "08762328a8f4e763952e6f4d6e1cfc389fe8535d8fd88dc9e4ae47fcaef87038",
     "src/client/entity/contact.rs": "916af07d2057fab781085dc451ee770d9deff81e1f81737e0ffbe6c666f7134e",
-    "src/client/physics/mod.rs": "9e8ac5e6ee6534f685fecf13b0efb4b38a6249fe23364993ae07887ee20ebe6b",
+    "src/client/physics/mod.rs": "fe2377956ddadd8adad3646aa9c380614ddb527645c1fc820b0ce1565ff05be6",
     "src/client/physics/boat.rs": "86fd1e61e234d16f3f00027092d470cffb2c046ac8732654b8d7666bcdaedefe",
     "src/client/vehicle/collision.rs": "5acb4d11f6680286524ee66e9067744a344412610aa5575416e0e474ed3db7e1",
     "src/client/vehicle/tests.rs": "78ef57c67ff3fe5caca720eff18af431e7e147fc31480f3405c135f4767b9ca0",

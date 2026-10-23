@@ -139,7 +139,8 @@ fn received(state: &State) -> Received {
     }
     environment.jump_boost = effect(state, "minecraft:jump_boost").map(|a| a as u8);
     environment.slow_falling = effect(state, "minecraft:slow_falling").is_some();
-    environment.levitation = effect(state, "minecraft:levitation").is_some();
+    environment.levitation_amplifier = effect(state, "minecraft:levitation");
+    environment.levitation = environment.levitation_amplifier.is_some();
     environment.blindness = effect(state, "minecraft:blindness").is_some();
     environment.weaving = effect(state, "minecraft:weaving").is_some();
     environment.dolphins_grace = effect(state, "minecraft:dolphins_grace").is_some();
@@ -1259,5 +1260,81 @@ mod equipment_tests {
             );
             assert_eq!(state.operations.local_player.received_attributes, receipt);
         }
+    }
+}
+
+#[cfg(test)]
+mod levitation_tests {
+    use super::*;
+
+    #[test]
+    fn levitation_receipts_keep_original_levels_order_and_world_lifetime() {
+        let mut state = State {
+            phase: super::super::Phase::Play,
+            ..Default::default()
+        };
+        state.operations.local_player = LocalPlayerState::spawned(7);
+        let id = crate::client::physics::blocks::table(crate::MinecraftVersion::Java1_21_11)
+            .effect_ids["minecraft:levitation"];
+        let initial = received(&state);
+        assert!(!initial.environment.levitation);
+        assert_eq!(initial.environment.levitation_amplifier, None);
+        // add, replace, remove, re-add; a duration of zero is still a received
+        // effect, not permission to expire it on the SDK wall clock.
+        for amplifier in [Some(0), Some(255), None, Some(2)] {
+            let mut packet = vec![7];
+            put_varint(&mut packet, id);
+            let packet_id = if let Some(amplifier) = amplifier {
+                put_varint(&mut packet, amplifier);
+                packet.extend([0, 0]);
+                ids::play_clientbound::ENTITY_EFFECT
+            } else {
+                ids::play_clientbound::REMOVE_ENTITY_EFFECT
+            };
+            state.receive(packet_id, &packet, 64).unwrap();
+            let input = received(&state);
+            assert_eq!(input.environment.levitation, amplifier.is_some());
+            assert_eq!(input.environment.levitation_amplifier, amplifier);
+            if let Some(amplifier) = amplifier {
+                let receipt = &state.operations.local_player.effect_updates[&id];
+                assert_eq!(receipt.amplifier, amplifier);
+                assert_eq!(receipt.receive_sequence, state.sequence);
+            }
+        }
+        let before = state.operations.local_player.effect_updates.clone();
+        for amplifier in [-1, 256] {
+            let mut invalid = vec![7];
+            put_varint(&mut invalid, id);
+            put_varint(&mut invalid, amplifier);
+            invalid.extend([0, 0]);
+            assert!(
+                state
+                    .receive(ids::play_clientbound::ENTITY_EFFECT, &invalid, 64)
+                    .is_err()
+            );
+            assert_eq!(state.operations.local_player.effect_updates, before);
+        }
+        let detached = received(&state);
+        state.operations.reset_world(0).unwrap();
+        let fresh = received(&state);
+        assert!(!fresh.environment.levitation);
+        assert_eq!(fresh.environment.levitation_amplifier, None);
+        assert_eq!(detached.environment.levitation_amplifier, Some(2));
+        // The old presence bit without its level never becomes level zero.
+        let mut missing = detached.environment;
+        missing.levitation_amplifier = None;
+        let mut body = crate::client::physics::Body::new([0.5, 65., 0.5]);
+        let before = body.clone();
+        assert!(
+            crate::client::physics::tick(
+                crate::MinecraftVersion::Java1_21_11,
+                &mut body,
+                &missing,
+                Controls::default(),
+                &mut |_| panic!("missing effect level must refuse before world access")
+            )
+            .is_err()
+        );
+        assert_eq!(body, before);
     }
 }
