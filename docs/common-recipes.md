@@ -251,8 +251,9 @@ fences the owned request and leaves its uncertainty available for inspection.
 Once placement is observed, use a fresh `received_crafting()` capture for each
 explicit `take_crafting_result`, then ordinary cursor deposit and actual inventory
 inspection. Maximum placement does not perform automatic shift crafting.
-Compatible held-result cursor merging is supported below. Table input SWAP
-and the remaining B4 equipment/entity/data work still require implementation.
+Compatible held-result cursor merging is supported below. Java 1.21.11 player/table
+input SWAP uses [the inventory exchange owner](common-inventory-swaps.md); the
+remaining B4 equipment/entity/data work is separate.
 
 The version-independent native consumer covers both modes, both 2x2/player and
 3x3/table UIs, and Next/Maximum: 10 planks become either 8 planks + 4 sticks or
@@ -344,7 +345,9 @@ remaining4. The final grid/cursor is empty, the original table closes and the
 same Client selects and disconnects. Independent native inventory and captured
 frames verify 64+4 sticks and exactly five clicks.
 See [native validation](common-client-native-validation.md) and its evidence.
-Native result QUICK_MOVE is described below. Table input SWAP remains required B4 work; input QUICK_MOVE uses [the ordinary transfer owner](common-inventory-transfers.md).
+Native result QUICK_MOVE is described below. Input QUICK_MOVE uses
+[the ordinary transfer owner](common-inventory-transfers.md); Java 1.21.11 input SWAP
+uses [the exchange owner](common-inventory-swaps.md).
 
 
 ## Native result QUICK_MOVE through the common Client
@@ -387,7 +390,8 @@ shift and explicitly deposits it afterward; Maximum starts with an empty cursor
 and produces an observed stock increase across three native internal crafts.
 Both finish with empty inputs/result/cursor, exact independent server inventory,
 original table close, a subsequent selection and disconnect. Wider B4 remains
-open; table input QUICK_MOVE uses the ordinary transfer owner; input SWAP remains separate work.
+open; player/table input QUICK_MOVE and Java 1.21.11 input SWAP use the separate
+ordinary transfer and exchange owners described above.
 
 [Native inputs and results](evidence/common-recipe-result-transfer-20261006.json)
 retain all 16 cases and unchanged original method hashes.

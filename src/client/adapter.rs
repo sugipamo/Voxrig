@@ -274,6 +274,18 @@ pub(crate) trait InventorySwapOps {
         slot: u16,
         hotbar: u8,
     ) -> Result<InventorySwapRecord>;
+    async fn swap_crafting_input_hotbar(
+        &self,
+        _mode: GameMode,
+        _source: InventorySource,
+        _input: u16,
+        _hotbar: u8,
+    ) -> Result<InventorySwapRecord> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("crafting input SWAP is only supported for Java 1.21.11"),
+        ))
+    }
     async fn inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>>;
 }
 

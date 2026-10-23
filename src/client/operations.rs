@@ -307,6 +307,17 @@ impl Survival {
         super::inventory::validate_slots(main_slot, hotbar)?;
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hotbar(a, GameMode::Survival, main_slot, hotbar).await)
     }
+    /// Exchange one received player 2x2/table input with hotbar index 0..8 once.
+    /// Java 1.21.11 only; requires an empty received cursor and whole-stack capacity.
+    /// Read `inventory_swap_record` for both fresh destinations; never retry Pending.
+    pub async fn swap_crafting_input_hotbar(
+        &self,
+        source: super::inventory::InventorySource,
+        input: u16,
+        hotbar: u8,
+    ) -> Result<super::inventory::InventorySwapRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_crafting_input_hotbar(a, GameMode::Survival, source, input, hotbar).await)
+    }
     /// Reconcile/read the latest common swap without sending another click.
     /// Partial results, conflicts and closure retain the original attempt.
     pub async fn inventory_swap_record(
@@ -718,6 +729,17 @@ impl Creative {
     ) -> Result<super::inventory::InventorySwapRecord> {
         super::inventory::validate_slots(main_slot, hotbar)?;
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hotbar(a, GameMode::Creative, main_slot, hotbar).await)
+    }
+    /// Exchange one received player 2x2/table input with hotbar index 0..8 once.
+    /// Java 1.21.11 only; requires an empty received cursor and whole-stack capacity.
+    /// Read `inventory_swap_record` for both fresh destinations; never retry Pending.
+    pub async fn swap_crafting_input_hotbar(
+        &self,
+        source: super::inventory::InventorySource,
+        input: u16,
+        hotbar: u8,
+    ) -> Result<super::inventory::InventorySwapRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_crafting_input_hotbar(a, GameMode::Creative, source, input, hotbar).await)
     }
     /// Reconcile/read the retained common inventory exchange, including closure.
     pub async fn inventory_swap_record(

@@ -464,6 +464,18 @@ async fn main() -> anyhow::Result<()> {
                     client.creative().close_container(screen).await?
                 } else { survival.close_container(screen).await? })?
             }
+            "crafting_input_swap" => {
+                use voxrig::client::inventory::InventorySource;
+                let source = if request["container"] == true {
+                    InventorySource::Container { screen: client.screen_state().await?.screen.ok_or_else(|| anyhow::anyhow!("no active screen"))?.id }
+                } else { InventorySource::Player };
+                let slot = request["slot"].as_u64().unwrap().try_into()?;
+                let hotbar = request["hotbar"].as_u64().unwrap().try_into()?;
+                serde_json::to_value(if client.player_state().await?.game_mode == Some(GameMode::Creative) {
+                    client.creative().swap_crafting_input_hotbar(source, slot, hotbar).await?
+                } else { survival.swap_crafting_input_hotbar(source, slot, hotbar).await? })?
+            }
+            "inventory_swap_record" => serde_json::to_value(survival.inventory_swap_record().await?)?,
             "inventory_transfer" => {
                 use voxrig::client::inventory::InventorySource;
                 let source = if request["container"] == true {

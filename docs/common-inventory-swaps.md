@@ -83,7 +83,7 @@ let latest = survival.inventory_swap_record().await?;
 ```
 
 これは在庫・container統合段階の最初の操作である。一般containerのクリック列、split/shift click、
-crafting、一般装備、data付きPICKUP/QUICK_MOVE/cursorの操作は後続作業に残る。
+一般装備SWAPや広範なcraftingの操作は後続作業に残る。製作入力のSWAPは以下の別入口を使う。
 `Feature::InventorySwap`はplayer交換、`Feature::Containers`は既に開いたstorage/hotbar交換とopening-bound closeのRestricted。一般open/クリック列は残る。
 既存のmodern専用`swap_player_hotbar` / `wait_inventory_swap`とlegacy Bot APIも維持する。
 
@@ -228,3 +228,59 @@ packetシナリオは両mode/両版の同じconsumerを使い、modernの容量9
 live harnessのlegacy registry照合は、modern registry packetではなく元JOINのdimension listを
 独立に解析し、名前・順序・compoundの原bytesを照合する。データ交換後の`/clear`から届かなかった
 hotbar receiptは推測せず、明示的な戻し交換と実際のnative resyncで次の検査前提を確立する。
+
+## 製作入力とhotbarの交換（1.21.11）
+
+`survival.swap_crafting_input_hotbar(source, input, hotbar)`とCreativeの同名methodは、
+`InventorySource::Player`の入力1..4、または`Container { screen }`の元の作業台openingの
+入力1..9を、hotbar index 0..8と一度だけwhole SWAPする。既存の`swap_hotbar(main_slot, hotbar)`と
+storage用入口の引数・対象は維持する。1.16.1の新入口は送信前に明示`Unsupported`を返す。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn swap_input(client: &Client) -> Result<()> {
+let intent = client.survival().swap_crafting_input_hotbar(InventorySource::Player, 1, 8).await?;
+let latest = client.survival().inventory_swap_record().await?;
+# let _ = (intent, latest);
+# Ok(())
+# }
+```
+
+結果slot 0、装備slot、作業台の付属player slotは新入口の対象外である。
+元constructorのlayoutとgeneric slotのmayPickup・mayPlace・容量を使い、inputとhotbarの
+両destinationが全量を受け入れられる場合だけ送る。nativeの部分挿入・別slotへの戻し・dropへ
+進む条件を通常のwhole SWAPとして認めない。SWAPはitemのPICKUP overrideを呼ばないため、
+bundleもstackそのものの交換として扱い、中身の出入れやresult onTakeと混同しない。
+空入力・空hotbar・data付き材料を扱い、両側同値の交換は従来と同じく送信前に拒否する。
+実受信の空cursorを要求し、cursorの変化は復元後もinspectionに残す。
+
+`InventorySwapSource::CraftingInput { source }`と既存`InventorySwapRecord`を使う。
+元opening、同じ境界の両predecessor・cursor・registry、実受信revisionを送信前に保持する。
+playerのhotbarは36..44、作業台は原版layoutの37..45へ対応する。
+既存owner・ledgerと同じgateを使い、両destinationの送信境界より新しい受信で完了する。
+結果slotの再計算だけでは交換を完了しない。結果の表示は別の実受信として観測する。
+close・再OPEN・取消・partial write・切断で再送せず、完了済みの受信履歴は後の在庫変更から独立する。
+
+原版fixtureは全入力・両mode・hotbar両端、空／占有／同値、容量64/16/1と変更容量16/99、
+data付き材料・装備可能item・bundleの2,600ケースを含む。未変更の公式JARの`clicked(SWAP)`と
+全slot・cursorを照合する。空のrecipe managerと未接続connectionによるprimitive試験であり、
+実recipe再計算・接続・取消の証明は別に行う。原版JAR・全40classpath入力と自作生成器のhashを保持する。
+
+```bash
+python3 -B scripts/export_crafting_input_swaps.py \
+  --downloads "$DOWNLOADS" --modern-classpath-file "$MODERN_CLASSPATH" \
+  --runtime-output .local/crafting-input-swap-oracle --check
+cargo build --locked --example climbing_control_probe -j2
+python3 -B scripts/run_crafting_input_swap_live.py --accept-eula \
+  --server-jar "$SERVER_JAR" --output .local/crafting-input-swap-live
+```
+
+ライブは供給元JARを一時directoryにcopyし、専用portで起動する。両mode・両grid・hotbar両端で
+空入力への搬入、占有入力の交換、空hotbarへの回収を行う。各交換のfreshな両receipt、data、
+1回のSWAP packet、cursor不変とbutton結果の再計算を照合し、hotbarの数量・dataをRCONでも確認する。
+終了時は全processを停止し、一時server/world/EULAを削除する。
+
+2026-10-23の24交換はすべて成功し、[実接続の根拠](evidence/common-crafting-input-swap-20261023.json)に
+元packet・両destination・result/cursor受信・RCON・公式JARとconsumer/source/artifactのhashを保持した。
+最初のrunは12交換後にclose後player入力の欠測を送信前拒否した。再実行ではdata付きPICKUPの
+実full resyncでbaselineを確立した。closeを入力受信に読み替えず、送信・照合条件は変更していない。

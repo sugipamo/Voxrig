@@ -262,3 +262,9 @@ coherent contextの実recipe IDからsealed Next／Maximum planを作り、送�
 `ObservedTransferred`に実grid／主在庫と変わらない実cursor、在庫の実増加を保持する。
 server内部の反復回数・製作総数・後続の部分移動やdropは予測しない。
 [共通レシピ](common-recipes.md)に公開契約と制限を記載する。
+
+1.21.11では`swap_crafting_input_hotbar(InventorySource, input, hotbar)`を両modeに追加し、
+player 2×2・作業台の入力だけを既存の`InventorySwapRecord`で交換します。
+旧版の新入口は明示Unsupportedです。結果slot・装備・付属player slotは対象外で、
+実受信empty cursorとwhole-stack容量、両destinationのfresh受信を要求します。
+[製作入力の交換](common-inventory-swaps.md)を参照してください。

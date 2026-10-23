@@ -423,6 +423,43 @@ impl crate::client::adapter::InventorySwapOps for Bot {
 mod tests {
     use super::*;
     #[tokio::test]
+    async fn crafting_input_swap_legacy_is_explicitly_unsupported_without_native_send() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for error in [
+            client
+                .survival()
+                .swap_crafting_input_hotbar(api::inventory::InventorySource::Player, 1, 0)
+                .await
+                .unwrap_err(),
+            client
+                .creative()
+                .swap_crafting_input_hotbar(api::inventory::InventorySource::Player, 4, 8)
+                .await
+                .unwrap_err(),
+        ] {
+            assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+            assert_eq!(
+                error.to_string(),
+                "crafting input SWAP is only supported for Java 1.21.11"
+            );
+        }
+        assert!(
+            client
+                .survival()
+                .inventory_swap_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(packets.try_recv().is_err());
+        bot.disconnect().await.unwrap();
+        drop(release);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn hand_swap_common_legacy_is_explicitly_unsupported_without_native_send() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
