@@ -20,7 +20,7 @@ diagnostic_record! {
         pub dimension: String,
         /// Stationary feet position.
         pub position: [f64; 3],
-        /// Nonreplaceable cube whose face is clicked.
+        /// Original clicked block; air-only methods require a passive cube.
         pub support: [i32; 3],
         /// Exact received predecessor at the clicked support.
         pub support_state: crate::NativeBlockState,
@@ -28,7 +28,7 @@ diagnostic_record! {
         pub face_id: u8,
         /// Derived native face-hit cursor, local to support.
         pub cursor: [f32; 3],
-        /// Adjacent air cell to receive the block.
+        /// Destination; air-only methods require the adjacent air cell.
         pub target: [i32; 3],
         /// Received target predecessor; never inferred air.
         pub before: crate::NativeBlockState,
@@ -120,6 +120,7 @@ fn remaining(intent: &PlacementIntent) -> InventorySlot {
         InventorySlot::Item { item }
     }
 }
+#[cfg(test)]
 fn offset(face: u8) -> [i32; 3] {
     [
         [0, -1, 0],
@@ -128,8 +129,39 @@ fn offset(face: u8) -> [i32; 3] {
         [0, 0, 1],
         [-1, 0, 0],
         [1, 0, 0],
-    ][usize::from(face)]
+    ][face as usize]
 }
+// Qualified through original canBeReplaced/getStateForPlacement fixtures.
+// Complete property-free states only; no generic name/tag replaceability fallback.
+const REPLACEABLE_PLANTS: &[(&str, [f64; 6])] = &[
+    (
+        "minecraft:short_grass",
+        [0.125, 0., 0.125, 0.875, 0.8125, 0.875],
+    ),
+    ("minecraft:fern", [0.125, 0., 0.125, 0.875, 0.8125, 0.875]),
+    (
+        "minecraft:dead_bush",
+        [0.125, 0., 0.125, 0.875, 0.8125, 0.875],
+    ),
+];
+pub(in crate::versions::java_1_21_11::client) fn plant_outline(
+    block: &crate::NativeBlockState,
+) -> Option<&'static [[f64; 6]]> {
+    block.properties.is_empty().then_some(())?;
+    REPLACEABLE_PLANTS
+        .iter()
+        .find(|(name, _)| *name == block.name)
+        .map(|(_, bounds)| std::slice::from_ref(bounds))
+}
+pub(super) fn replaceable_plant(block: &crate::NativeBlockState) -> bool {
+    plant_outline(block).is_some()
+}
+#[derive(Clone)]
+struct ReplacementCapture {
+    first_outline: crate::client::survival::BlockTargetHit,
+    replaces_clicked: bool,
+}
+#[cfg(test)]
 fn prepare(
     state: &mut State,
     connection_id: u64,
@@ -138,10 +170,34 @@ fn prepare(
     face: u8,
     common_player_screen: bool,
 ) -> Result<PlacementIntent> {
+    prepare_in(
+        state,
+        connection_id,
+        tick,
+        support,
+        face,
+        common_player_screen,
+        None,
+    )
+    .map(|(intent, _)| intent)
+}
+fn prepare_in(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    support: [i32; 3],
+    face: u8,
+    common_player_screen: bool,
+    replacement: Option<([i32; 3], &crate::NativeBlockState)>,
+) -> Result<(PlacementIntent, Option<ReplacementCapture>)> {
     if state.operations.game_mode != Some(GameMode::Survival) {
         return Err(unavailable("placement requires received survival mode"));
     }
-    let standing = survival::context(state, connection_id, tick)?;
+    let standing = if replacement.is_some() {
+        survival::replacement_context(state, connection_id, tick)?
+    } else {
+        survival::context(state, connection_id, tick)?
+    };
     if !standing.on_ground
         || standing.submerged
         || !standing
@@ -194,7 +250,7 @@ fn prepare(
     let held_before = item.clone();
     let held_receive_sequence = inventory.slot_sequences[slot]
         .ok_or_else(|| unavailable("held material receipt unavailable"))?;
-    let geometry = placement_geometry(
+    let geometry = placement_geometry_in(
         state,
         standing.position,
         standing.bounds,
@@ -202,6 +258,7 @@ fn prepare(
         state.rotation,
         support,
         face,
+        replacement,
     )?;
     let PlacementGeometry {
         target,
@@ -214,24 +271,54 @@ fn prepare(
         properties: Default::default(),
     };
     super::super::super::state_id(&expected)?;
-    Ok(PlacementIntent {
-        connection_id,
-        generation: state.loading.generation,
-        after_sequence: state.sequence,
-        sequence: 0,
-        dimension: standing.dimension,
-        position: standing.position,
-        support,
-        support_state: hit.state,
-        face_id: face,
-        cursor,
-        target,
-        before,
-        expected,
-        selection,
-        held_before,
-        held_receive_sequence,
-    })
+    let eye = [
+        standing.position[0],
+        standing.position[1] + f64::from(1.62f32),
+        standing.position[2],
+    ];
+    let vector = crate::client::survival::target::direction(
+        crate::MinecraftVersion::Java1_21_11,
+        state.rotation,
+    );
+    let length = vector.iter().map(|v| v * v).sum::<f64>().sqrt();
+    let replacement_capture = replacement.map(|_| ReplacementCapture {
+        first_outline: crate::client::survival::BlockTargetHit {
+            position: hit.position,
+            state: hit.state.clone(),
+            face: [
+                crate::BlockFace::Down,
+                crate::BlockFace::Up,
+                crate::BlockFace::North,
+                crate::BlockFace::South,
+                crate::BlockFace::West,
+                crate::BlockFace::East,
+            ][face as usize],
+            point: std::array::from_fn(|i| eye[i] + vector[i] * (hit.distance / length)),
+            distance: hit.distance,
+        },
+        replaces_clicked: target == support,
+    });
+    Ok((
+        PlacementIntent {
+            connection_id,
+            generation: state.loading.generation,
+            after_sequence: state.sequence,
+            sequence: 0,
+            dimension: standing.dimension,
+            position: standing.position,
+            support,
+            support_state: hit.state,
+            face_id: face,
+            cursor,
+            target,
+            before,
+            expected,
+            selection,
+            held_before,
+            held_receive_sequence,
+        },
+        replacement_capture,
+    ))
 }
 pub(super) struct PlacementGeometry {
     pub target: [i32; 3],
@@ -249,28 +336,82 @@ pub(super) fn placement_geometry(
     support: [i32; 3],
     face: u8,
 ) -> Result<PlacementGeometry> {
+    placement_geometry_in(view, position, bounds, error, rotation, support, face, None)
+}
+#[allow(clippy::too_many_arguments)]
+fn placement_geometry_in(
+    view: &impl GeometryView,
+    position: [f64; 3],
+    bounds: [f64; 6],
+    error: [f64; 3],
+    rotation: [f32; 2],
+    support: [i32; 3],
+    face: u8,
+    replacement: Option<([i32; 3], &crate::NativeBlockState)>,
+) -> Result<PlacementGeometry> {
     validate_pose(position, rotation)?;
     if face > 5 {
         return Err(invalid("invalid placement face"));
     }
     let eye = [position[0], position[1] + f64::from(1.62f32), position[2]];
-    let hit = super::super::raycast::outline_hit_in(eye, rotation, 4.5, |p| {
-        view.block(p).map_err(anyhow::Error::from)
-    })?
+    let hit = if replacement.is_some() {
+        let direction = crate::client::survival::target::direction(
+            crate::MinecraftVersion::Java1_21_11,
+            rotation,
+        );
+        let end = std::array::from_fn(|i| eye[i] + direction[i] * 4.5);
+        super::super::raycast::replacement_cast_in(eye, end, |p| {
+            view.block(p).map_err(anyhow::Error::from)
+        })?
+        .map(|hit| super::super::raycast::BlockHit {
+            position: hit.position,
+            state: hit.state,
+            distance: hit.distance,
+            face: Some(
+                super::super::super::reconstruction::Direction::from_id(hit.face as u8)
+                    .expect("native face"),
+            ),
+        })
+    } else {
+        super::super::raycast::outline_hit_in(eye, rotation, 4.5, |p| {
+            view.block(p).map_err(anyhow::Error::from)
+        })?
+    }
     .ok_or_else(|| unavailable("no first native outline hit for placement"))?;
     survival::uncertain_target_in(view, eye, error, rotation, &hit)?;
     if hit.position != support
         || hit.face.map(|f| f as u8) != Some(face)
-        || !survival::DRY_CUBES.contains(&hit.state.name.as_str())
+        || !(survival::DRY_CUBES.contains(&hit.state.name.as_str())
+            || (replacement.is_some() && replaceable_plant(&hit.state)))
     {
         return Err(unavailable(
             "placement support must be the first hit on an admitted passive cube face",
         ));
     }
-    let d = offset(face);
-    let target = std::array::from_fn(|i| support[i] + d[i]);
+    let target = if replacement.is_some() && replaceable_plant(&hit.state) {
+        support
+    } else {
+        crate::client::survival::placement::adjacent(
+            support,
+            [
+                crate::BlockFace::Down,
+                crate::BlockFace::Up,
+                crate::BlockFace::North,
+                crate::BlockFace::South,
+                crate::BlockFace::West,
+                crate::BlockFace::East,
+            ][face as usize],
+        )?
+    };
     let before = view.block(target)?;
-    if !air(&before)
+    if let Some((requested, predecessor)) = replacement {
+        if requested != target || predecessor != &before || !replaceable_plant(&before) {
+            return Err(unavailable(
+                "replacement requires the exact audited plant destination state",
+            ));
+        }
+    }
+    if (replacement.is_none() && !air(&before))
         || (0..3)
             .all(|i| bounds[i] < f64::from(target[i] + 1) && bounds[i + 3] > f64::from(target[i]))
     {
@@ -314,13 +455,14 @@ impl Operations {
         support: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<PlacementIntent> {
-        self.place_cube_in(support, face, false).await
+        self.place_cube_in(support, face, false, None).await
     }
     async fn place_cube_in(
         &self,
         support: [i32; 3],
         face: crate::BlockFace,
         capture_common: bool,
+        replacement: Option<([i32; 3], crate::NativeBlockState)>,
     ) -> Result<PlacementIntent> {
         self.bot
             .session
@@ -335,7 +477,7 @@ impl Operations {
                 if let Some(p) = &initial {
                     crate::client::survival::placement::selected_material(p)?;
                 }
-                let mut intent = prepare(
+                let (mut intent, replacement_capture) = prepare_in(
                     &mut state,
                     self.bot.session.id,
                     self.bot.session.started.elapsed().as_millis() as u64 / 50,
@@ -344,14 +486,21 @@ impl Operations {
                     initial
                         .as_ref()
                         .is_some_and(|p| p.inventory.player_screen.is_some()),
+                    replacement.as_ref().map(|(p, s)| (*p, s)),
                 )?;
                 intent.sequence = self.next_sequence()?;
-                if !capture_common && state.common_placement.is_some() {
-                    state.retired_common_placement = common_record_in(&state)?;
+                if let Some(previous) = state.common_placement.as_ref() {
+                    if previous.replacement.is_some() {
+                        state.retired_replaceable_placement = replacement_record_in(&state)?;
+                    } else if !capture_common || replacement_capture.is_some() {
+                        state.retired_common_placement = common_record_in(&state)?;
+                    }
                 }
                 state.common_placement = initial.map(|initial| CommonPlacementCapture {
                     initial,
                     sequence: intent.sequence,
+                    replacement: replacement_capture,
+                    processing: None,
                 });
                 let work = state.finite_work.begin(
                     &self.bot.session.ledger,
@@ -438,7 +587,16 @@ fn observe_in(
         });
     }
     placement_context_received(state);
-    if let Err(e) = survival::context(state, connection_id, tick) {
+    let context = if state
+        .common_placement
+        .as_ref()
+        .is_some_and(|c| c.replacement.is_some())
+    {
+        survival::replacement_context(state, connection_id, tick)
+    } else {
+        survival::context(state, connection_id, tick)
+    };
+    if let Err(e) = context {
         state
             .placement
             .as_mut()
@@ -487,6 +645,14 @@ fn observe_in(
             acknowledged_sequence: operations.ack.unwrap(),
         };
         record.observation = Some(observation.clone());
+        if let Some(c) = &mut state.common_placement {
+            c.processing = operations.ack.zip(operations.ack_receive_sequence).map(
+                |(sequence, receive_sequence)| crate::client::survival::PlacementProcessing {
+                    sequence,
+                    receive_sequence,
+                },
+            );
+        }
         return Ok(PlacementStatus::ObservedPlaced { observation });
     }
     Ok(PlacementStatus::Pending {
@@ -571,7 +737,7 @@ pub(in crate::versions::java_1_21_11::client) fn placement_received(
         }
         let block = super::super::super::native_state(*id)?;
         if state.world.block(*p) != Some(*id)
-            || (*p == r.intent.support && block != r.intent.support_state)
+            || (*p == r.intent.support && *p != r.intent.target && block != r.intent.support_state)
             || (*p == r.intent.target && block != r.intent.before && block != r.intent.expected)
         {
             r.requires_inspection.get_or_insert_with(|| {
@@ -600,6 +766,8 @@ mod tests;
 pub(in crate::versions::java_1_21_11::client) struct CommonPlacementCapture {
     initial: crate::client::PlayerObservation,
     sequence: i32,
+    replacement: Option<ReplacementCapture>,
+    processing: Option<crate::client::survival::PlacementProcessing>,
 }
 fn common_player_screen_access(
     state: &State,
@@ -626,15 +794,17 @@ fn common_record_in(state: &State) -> Result<Option<crate::client::survival::Pla
         .ok_or_else(|| unavailable("common placement no longer owns native intent"))?;
     let i = &native.intent;
     let (held_before, held_receive_sequence) = api::placement::selected_material(&capture.initial)?;
-    let processing = state
-        .operations
-        .ack
-        .zip(state.operations.ack_receive_sequence)
-        .filter(|(sequence, receive)| *sequence >= i.sequence && *receive > i.after_sequence)
-        .map(|(sequence, receive_sequence)| api::PlacementProcessing {
-            sequence,
-            receive_sequence,
-        });
+    let processing = capture.processing.clone().or_else(|| {
+        state
+            .operations
+            .ack
+            .zip(state.operations.ack_receive_sequence)
+            .filter(|(sequence, receive)| *sequence >= i.sequence && *receive > i.after_sequence)
+            .map(|(sequence, receive_sequence)| api::PlacementProcessing {
+                sequence,
+                receive_sequence,
+            })
+    });
     // Completed receipts are frozen in observation, independent of current inventory.
     let material_receipt = if let Some(o) = &native.observation {
         Some(common::received(
@@ -718,8 +888,15 @@ pub(in crate::versions::java_1_21_11::client) fn common_placement_context_receiv
                 "common placement pose/selection/cursor context changed",
             ));
         }
-        let standing =
-            survival::context(state, p.session.connection_id, state.reconstruction.tick)?;
+        let standing = if capture.replacement.is_some() {
+            survival::replacement_context(
+                state,
+                p.session.connection_id,
+                state.reconstruction.tick,
+            )?
+        } else {
+            survival::context(state, p.session.connection_id, state.reconstruction.tick)?
+        };
         if !standing.on_ground
             || !standing
                 .player
@@ -749,12 +926,46 @@ impl crate::client::adapter::PlacementOps for Operations {
         support: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<crate::client::survival::PlacementRecord> {
-        self.place_cube_in(support, face, true).await?;
+        self.place_cube_in(support, face, true, None).await?;
         self.placement_record()
             .await?
             .ok_or_else(|| unavailable("common placement capture missing"))
     }
     async fn placement_record(&self) -> Result<Option<crate::client::survival::PlacementRecord>> {
+        self.refresh_placement().await?;
+        let state = self.bot.session.state.lock().await;
+        if state
+            .common_placement
+            .as_ref()
+            .is_some_and(|c| c.replacement.is_some())
+        {
+            Ok(state.retired_common_placement.clone())
+        } else {
+            common_record_in(&state)
+        }
+    }
+    async fn place_cube_replacing(
+        &self,
+        clicked: [i32; 3],
+        face: crate::BlockFace,
+        target: [i32; 3],
+        before: crate::NativeBlockState,
+    ) -> Result<crate::client::survival::ReplaceableCubePlacementRecord> {
+        self.place_cube_in(clicked, face, true, Some((target, before)))
+            .await?;
+        self.replaceable_cube_placement_record()
+            .await?
+            .ok_or_else(|| unavailable("replacement placement capture missing"))
+    }
+    async fn replaceable_cube_placement_record(
+        &self,
+    ) -> Result<Option<crate::client::survival::ReplaceableCubePlacementRecord>> {
+        self.refresh_placement().await?;
+        replacement_record_in(&*self.bot.session.state.lock().await)
+    }
+}
+impl Operations {
+    async fn refresh_placement(&self) -> Result<Option<crate::client::survival::PlacementRecord>> {
         let mut state = self.bot.session.state.lock().await;
         let Some(intent) = state
             .common_placement
@@ -804,4 +1015,41 @@ pub(in crate::versions::java_1_21_11::client) fn reconcile_ledger(state: &mut St
             &intent,
         );
     }
+}
+
+fn replacement_record_in(
+    state: &State,
+) -> Result<Option<crate::client::survival::ReplaceableCubePlacementRecord>> {
+    let Some(capture) = state
+        .common_placement
+        .as_ref()
+        .and_then(|c| c.replacement.as_ref())
+    else {
+        return Ok(state.retired_replaceable_placement.clone());
+    };
+    let r = common_record_in(state)?
+        .ok_or_else(|| unavailable("replacement placement capture missing"))?;
+    Ok(Some(
+        crate::client::survival::ReplaceableCubePlacementRecord {
+            first_outline: capture.first_outline.clone(),
+            replaces_clicked: capture.replaces_clicked,
+            id: r.id,
+            initial: r.initial,
+            support: r.support,
+            support_state: r.support_state,
+            face: r.face,
+            cursor: r.cursor,
+            target: r.target,
+            before: r.before,
+            expected: r.expected,
+            held_before: r.held_before,
+            held_receive_sequence: r.held_receive_sequence,
+            send: r.send,
+            target_receipt: r.target_receipt,
+            material_receipt: r.material_receipt,
+            processing: r.processing,
+            requires_inspection: r.requires_inspection,
+            stage: r.stage,
+        },
+    ))
 }

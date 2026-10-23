@@ -82,3 +82,79 @@ raw inventory番号から共通player screen番号への変換を修正した。
 別経路のRCONによる対象dirt・材料3→2・位置不変を照合する。両JVMは順番に実行し正常終了を要求する。
 再実行方法・証拠は[共通native検証](common-client-native-validation.md)を参照。
 任意形状の設置・container操作・共通fresh recoveryは後続作業に残る。
+
+## 明示した草stateへの追加設置（1.21.11）
+
+`Survival::place_cube_replacing(clicked, face, target, before)`は、監査済みの非液体の草stateを
+1個のpassive cubeで置換する。`place_cube`のair限定契約は維持する。
+1.16.1では追加操作と専用record読取の両方が明示Unsupportedになる。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn replace(client: &Client) -> Result<()> {
+let before = voxrig::NativeBlockState {
+    name: "minecraft:short_grass".into(),
+    properties: Default::default(),
+};
+// 実際のfirst outlineと、その時点の完全な対象stateを利用側が指定する。
+let attempt = client.survival().place_cube_replacing(
+    [3, 66, 0], BlockFace::West, [2, 66, 0], before,
+).await?;
+let progress = client.survival().replaceable_cube_placement_record().await?;
+# let _ = (attempt, progress);
+# Ok(())
+# }
+```
+
+対象はpropertiesが空の`short_grass`・`fern`・`dead_bush`だけ。
+材料は既存と同じdefault passive cube stackで、草そのもの・components付き材料・液体・雪・蔓・
+二段の植物を名前やreplaceable tagだけで一般化しない。通常立位・通常scale・既定reachの既存条件を使う。
+新操作の立位周辺走査だけは、この3stateの原版で確認した空のcollisionを許可する。
+支持floorを草から作らず、既存の移動や旧設置のdry modelは広げない。
+
+原版`BlockPlaceContext`は、クリックcellの`canBeReplaced(context)`がtrueならそこを選び、
+falseなら面の隣を選ぶ。この選択後のcellが明示した`target`・完全な`before`と一致しなければ送信しない。
+従って、草をfirst outlineとしてクリックした場合は`target == clicked`であり、
+支持cubeの面をクリックして隣の草を置換する場合は`target != clicked`となる。
+この限定範囲では、材料の11種の通常BlockItemは対象植物と異なるitemで、
+原版baseの置換・設置state処理を継承する。特殊item・hit位置・secondary useに依存する別blockの規則へ
+推測で拡張しない。first outline、実cursor、対象predecessor、材料、player captureを同じlock境界で固定する。
+位置の不確かさが草のfirst outlineを保証できない場合も拒否する。
+
+`ReplaceableCubePlacementRecord`には`first_outline`と`replaces_clicked`、元の完全な支持・対象state、
+材料、送信前intent、独立したblock/material/processing受信を保持する。
+`PlacementStage`の意味は既存と同じ。blockだけ、消費だけ、ACKだけ、cache一致では完了しない。
+最後の1個はfreshなEmptyを要求する。クリックcellを置換する場合は、同じcellのexpected cubeへの
+更新を支持喪失とは扱わないが、別stateへの変更やexpected受信後の復帰は競合を保持する。
+取消・部分write・screen/selection/world/pose変更・chunk置換で再送しない。
+専用recordは完了後のblock・在庫・ACKで書き換えず、接続終了後も読める。
+旧`placement_record()`と新しい専用getterは、それぞれ最後の対応する操作を保持する。
+
+原版fixtureは[生成driver](../scripts/ExportReplaceablePlacement.java)と
+[source record](../data/client_api/replaceable_placement_source.json)に基づく6,048ケース。
+3植物と拒否範囲のstate、11材料と同じ植物item、全6面、secondary use両値、hit高さ3種、
+クリックcell／隣接cellを照合する。原版のcontext・`canBeReplaced`・`getStateForPlacement`を未改変で呼び、
+3植物の空collision・非液体・outline・auxiliaryも確認する。
+新操作専用のconst shape tableは、原版clipの別384ケースで、境界・内部・対角線・遠方座標の
+first outline／面／交点を照合する。既存queryの未対応shapeを一般化しない。cellだけを返すLevelとsecondary useの入力carrierを使い、
+collisionの世界全体の判定やserverの設置許可をfixtureから主張しない。
+
+```bash
+python3 -B scripts/export_replaceable_placement.py \
+  --jar /path/to/1.21.11/server.jar --mappings /path/to/server-mappings.txt \
+  --modern-classpath-file /path/to/classpath.txt --work /tmp/replacement-oracle --check
+python3 -B scripts/run_replaceable_placement_live.py --accept-eula \
+  --server-jar /path/to/1.21.11/server.jar \
+  --binary target/debug/examples/climbing_control_probe --output /tmp/replacement-live
+```
+
+構成packet試験は独立した受信順、欠測、最後の1個、途中の対象・支持・材料変更、chunk変更、
+取消した未送信intent、一度性、完了後の履歴を検査する。
+
+2026-10-23の公式1.21.11実接続は3植物×2経路の6件を通過した。
+各回1個だけのdirtを消費し、freshな対象dirt・選択slotのEmpty・processing ACKを独立に照合した。
+RCONでも対象dirtとSelectedItem消失を確認し、旧air限定APIと誤ったpredecessorでは設置packetは0、
+正しい追加APIでは1回だけだった。vanillaはslot同期よりsection更新が後になる場合があるため、
+runnerは両方の実受信predecessorが揃うまで待つ。
+[source・binary・元packet/RCONのhashと受信結果](evidence/replaceable-cube-placement-20261023.json)を保持する。
+起動したprobe・proxy・serverは終了し、元のserver directoryは変更していない。

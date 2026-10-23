@@ -8,6 +8,7 @@ pub(crate) mod placement;
 pub(crate) mod terrain;
 pub use placement::{
     PlacementId, PlacementProcessing, PlacementRecord, PlacementSend, PlacementStage,
+    ReplaceableCubePlacementRecord,
 };
 mod motion;
 mod recovery;

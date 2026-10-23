@@ -90,6 +90,48 @@ pub struct PlacementRecord {
     /// Retained outcome, separate from current world/slot contents.
     pub stage: PlacementStage,
 }
+/// Connection-owned diagnostic snapshot, also readable after closure.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ReplaceableCubePlacementRecord {
+    /// First native outline selected in the same boundary as all predecessors.
+    pub first_outline: super::BlockTargetHit,
+    /// True when the clicked cell itself is replaced; otherwise the face neighbor.
+    pub replaces_clicked: bool,
+    /// Immutable attempt identity.
+    pub id: PlacementId,
+    /// Coherent player/inventory capture before possible submission I/O.
+    pub initial: PlayerObservation,
+    /// Original clicked cube or audited plant.
+    pub support: [i32; 3],
+    /// Complete support predecessor.
+    pub support_state: NativeBlockState,
+    /// First-outline face actually admitted.
+    pub face: BlockFace,
+    /// Native first hit, local to support, sent without an invented center.
+    pub cursor: [f32; 3],
+    /// Explicit destination selected by native replace-clicked rules.
+    pub target: [i32; 3],
+    /// Complete explicitly requested plant predecessor, captured before I/O.
+    pub before: NativeBlockState,
+    /// Expected property-free passive cube.
+    pub expected: NativeBlockState,
+    /// Exact supported received selected stack before submission.
+    pub held_before: ItemStack,
+    /// Ordinal establishing that predecessor stack.
+    pub held_receive_sequence: u64,
+    /// Retained before I/O; no resend API exists.
+    pub send: PlacementSend,
+    /// Fresh target-specific received expected block, not a cache revision.
+    pub target_receipt: Option<ObservedValue<NativeBlockState>>,
+    /// Fresh selected-slot receipt showing exactly one material consumed.
+    pub material_receipt: Option<ObservedValue<SlotKnowledge>>,
+    /// Actual modern processing receipt; always absent on legacy.
+    pub processing: Option<PlacementProcessing>,
+    /// First latched conflict; restoration cannot erase it.
+    pub requires_inspection: Option<String>,
+    /// Retained outcome, separate from current world/slot contents.
+    pub stage: PlacementStage,
+}
 pub(crate) fn unavailable(message: impl std::fmt::Display) -> crate::Error {
     crate::error::state_error(message)
 }

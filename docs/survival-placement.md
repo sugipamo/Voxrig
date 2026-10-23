@@ -40,6 +40,11 @@ other rejection can leave an unresolved attempt; they never become assumed
 success. No general entity simulation, walking, stairs/slabs, replaceable plants,
 fluids, automatic recovery/replay or autonomous Blueprint construction is added.
 
+The common additive `Survival::place_cube_replacing` has a separate explicit
+plant-predecessor contract on 1.21.11; see
+[common replacement placement](common-survival-placement.md#明示した草stateへの追加設置12111).
+It retains a dedicated record and leaves the air-only methods above unchanged.
+
 ## Native source basis
 
 The unchanged-body oracle provenance is in

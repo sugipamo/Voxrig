@@ -450,7 +450,15 @@ pub(super) fn context_with_basis(
     tick: u64,
     position_basis: StandingPositionBasis,
 ) -> Result<StandingContext> {
-    context_core(state, connection_id, tick, position_basis, false, false)
+    context_core(
+        state,
+        connection_id,
+        tick,
+        position_basis,
+        false,
+        false,
+        false,
+    )
 }
 pub(super) fn landing_context(
     state: &mut State,
@@ -466,7 +474,15 @@ pub(super) fn landing_context(
             "landing requires its declared private controller basis",
         ));
     }
-    context_core(state, connection_id, tick, position_basis, true, false)
+    context_core(
+        state,
+        connection_id,
+        tick,
+        position_basis,
+        true,
+        false,
+        false,
+    )
 }
 pub(super) fn dismount_context(
     state: &mut State,
@@ -479,8 +495,17 @@ pub(super) fn dismount_context(
             "dismount requires its private declared controller basis",
         ));
     }
-    context_core(state, connection_id, tick, basis, false, true)
+    context_core(state, connection_id, tick, basis, false, true, false)
 }
+pub(super) fn replacement_context(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+) -> Result<StandingContext> {
+    let basis = super::movement::standing_basis(state)?;
+    context_core(state, connection_id, tick, basis, false, false, true)
+}
+#[allow(clippy::too_many_arguments)]
 fn context_core(
     state: &mut State,
     connection_id: u64,
@@ -488,6 +513,7 @@ fn context_core(
     position_basis: StandingPositionBasis,
     landing: bool,
     dismount: bool,
+    replacement: bool,
 ) -> Result<StandingContext> {
     let player = &state.operations.local_player;
     if state.motion.position_basis == super::super::motion::PositionBasis::Received {
@@ -541,7 +567,12 @@ fn context_core(
     if state.reconstruction.issue.is_some() || !state.reconstruction.recovery_chunks.is_empty() {
         return Err(unavailable("client reconstruction incomplete"));
     }
-    let geometry = standing_geometry(state, position, position_basis.geometry_reserve())?;
+    let geometry = standing_geometry_in(
+        state,
+        position,
+        position_basis.geometry_reserve(),
+        replacement,
+    )?;
     if matches!(
         position_basis,
         StandingPositionBasis::Predicted { .. }
@@ -579,6 +610,14 @@ pub(super) fn standing_geometry(
     position: [f64; 3],
     error: [f64; 3],
 ) -> Result<StandingGeometry> {
+    standing_geometry_in(state, position, error, false)
+}
+fn standing_geometry_in(
+    state: &impl GeometryView,
+    position: [f64; 3],
+    error: [f64; 3],
+    replacement: bool,
+) -> Result<StandingGeometry> {
     validate_pose(position, [0.0; 2])?;
     let StandingRegion {
         mut bounds,
@@ -595,10 +634,15 @@ pub(super) fn standing_geometry(
             for z in min[2]..=max[2] {
                 let p = [x, y, z];
                 let block = state.block(p)?;
-                for local in crate::client::survival::model::collision_shape(
-                    crate::MinecraftVersion::Java1_21_11,
-                    &block,
-                )? {
+                let collision = if replacement && super::placement::replaceable_plant(&block) {
+                    &[][..] // Original state fixture proves empty collision; no motion model expansion.
+                } else {
+                    crate::client::survival::model::collision_shape(
+                        crate::MinecraftVersion::Java1_21_11,
+                        &block,
+                    )?
+                };
+                for local in collision {
                     let cube: [f64; 6] =
                         std::array::from_fn(|axis| local[axis] + f64::from(p[axis % 3]));
                     let horizontal = bounds[0] < cube[3]
