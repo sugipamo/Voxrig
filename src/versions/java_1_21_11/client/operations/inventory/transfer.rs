@@ -71,6 +71,7 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
         let registries = state
             .registries
             .capture(current.session, current.receive_sequence);
+        record.inspect_furnace_context(&state.furnace_inputs, &registries);
         transfer::receive_with_registries(&mut record, &current, screen.as_ref(), &registries);
         if inventory.pending_swap.is_some()
             || inventory.unsupported_components
@@ -163,7 +164,7 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
             .registries
             .capture(initial.session, initial.receive_sequence);
         let mut record =
-            transfer::prepare_received((initial, registries), mode, source, slot, attempt, screen)?;
+            transfer::prepare_received((initial, registries, Some(&state.furnace_inputs)), mode, source, slot, attempt, screen)?;
         if matches!(&record.cursor_before.value, api::SlotKnowledge::Item { item } if item.data != api::ItemData::Default)
         {
             record.send.request_full_resync = true;

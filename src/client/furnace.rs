@@ -147,7 +147,7 @@ impl NativeMenu {
             .find(|p| p.container_index == Some(index))
             .map(|p| p.slot)
     }
-    fn player_mappings(&self) -> Vec<super::container::PlayerSlotMapping> {
+    pub(crate) fn player_mappings(&self) -> Vec<super::container::PlayerSlotMapping> {
         self.player_slots
             .iter()
             .map(|m| super::container::PlayerSlotMapping {
@@ -262,3 +262,92 @@ fn validate_memberships(
 
 #[cfg(test)]
 mod tests;
+
+/// Native synchronized property-set names, shared by receipt decoding and routes.
+pub(crate) const TRANSFER_MENUS: [(&str, &str); 3] = [
+    ("minecraft:furnace", "minecraft:furnace_input"),
+    ("minecraft:blast_furnace", "minecraft:blast_furnace_input"),
+    ("minecraft:smoker", "minecraft:smoker_input"),
+];
+
+/// Complete received UPDATE_RECIPES property sets, never inferred from the book.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct TransferInputs {
+    pub(crate) sequence: Option<u64>,
+    pub(crate) sets: BTreeMap<String, std::collections::BTreeSet<i32>>,
+}
+#[derive(Clone, Debug)]
+pub(crate) struct TransferRoute {
+    pub(crate) destinations: std::ops::Range<usize>,
+    pub(crate) reverse: bool,
+}
+pub(crate) fn transfer_route(
+    menu: &str,
+    source: usize,
+    value: &SlotKnowledge,
+    inputs: Option<&TransferInputs>,
+    registries: Option<&ServerRegistryObservation>,
+) -> Result<TransferRoute> {
+    let mut reverse = false;
+    let destinations = match source {
+        0 | 1 => 3..39,
+        2 => {
+            reverse = true;
+            3..39
+        }
+        3..=38 => {
+            let property = TRANSFER_MENUS
+                .iter()
+                .find(|(name, _)| *name == menu)
+                .ok_or_else(|| unavailable("native furnace transfer menu unavailable"))?
+                .1;
+            let owner = registries
+                .ok_or_else(|| unavailable("received furnace transfer registries unavailable"))?;
+            let inputs = inputs
+                .filter(|i| {
+                    i.sequence.is_some_and(|s| {
+                        s >= owner.stamp().configuration_generation && s <= owner.receive_sequence()
+                    })
+                })
+                .ok_or_else(|| unavailable("received furnace input properties unavailable"))?;
+            let members = inputs.sets.get(property).ok_or_else(|| {
+                unavailable("received furnace input property declaration unavailable")
+            })?;
+            let SlotKnowledge::Item { item } = value else {
+                return Err(unavailable(
+                    "received furnace transfer source item required",
+                ));
+            };
+            if members.contains(&item.id.value()) {
+                0..1 // Native material branch wins even if the input is blocked.
+            } else {
+                validate_memberships(
+                    MinecraftVersion::Java1_21_11,
+                    &item.name,
+                    item.id.value(),
+                    owner.tags().map(|t| t.value.as_ref()),
+                )?;
+                let fuel = regular_slot(MinecraftVersion::Java1_21_11, menu, 1)
+                    .ok_or_else(|| unavailable("native furnace fuel policy unavailable"))?;
+                if item.name != "minecraft:bucket"
+                    && !fuel.rejected_default_items.contains(&item.name)
+                {
+                    1..2 // Empty bucket is accepted by the slot, but is not fuel.
+                } else if source < 30 {
+                    30..39
+                } else {
+                    3..30
+                }
+            }
+        }
+        _ => {
+            return Err(super::registry::invalid(
+                "transfer outside native furnace layout",
+            ));
+        }
+    };
+    Ok(TransferRoute {
+        destinations,
+        reverse,
+    })
+}

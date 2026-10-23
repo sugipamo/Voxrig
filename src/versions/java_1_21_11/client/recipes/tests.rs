@@ -452,3 +452,47 @@ fn original_ghost_display_only_windows_and_atomic_packet_boundaries() {
         );
     }
 }
+
+#[test]
+fn furnace_transfer_recipe_properties_decode_original_packet_and_commit_atomically() {
+    let facts: Value =
+        serde_json::from_reader(GzDecoder::new(
+            &include_bytes!(
+                "../../../../../data/client_api/furnace_transfer_cases-1.21.11.json.gz"
+            )[..],
+        ))
+        .unwrap();
+    let packet = bytes(facts["properties_packet_hex"].as_str().unwrap());
+    let mut state = state();
+    assert!(receive(&mut state, ids::play_clientbound::DECLARE_RECIPES, &packet).unwrap());
+    assert_eq!(state.furnace_inputs.sequence, Some(12));
+    for (name, ids) in facts["properties"].as_object().unwrap() {
+        assert_eq!(
+            state.furnace_inputs.sets[name],
+            ids.as_array()
+                .unwrap()
+                .iter()
+                .map(|id| id.as_i64().unwrap() as i32)
+                .collect()
+        );
+    }
+    let baseline = state.furnace_inputs.clone();
+    state.sequence = 13;
+    for truncated in [0, 1, packet.len() / 2, packet.len() - 1] {
+        assert!(
+            receive(
+                &mut state,
+                ids::play_clientbound::DECLARE_RECIPES,
+                &packet[..truncated]
+            )
+            .is_err()
+        );
+        assert_eq!(state.furnace_inputs.sets, baseline.sets);
+        assert_eq!(state.furnace_inputs.sequence, baseline.sequence);
+    }
+    // An actual complete empty declaration replaces old properties; absence is
+    // never filled from a recipe-book display or the bundled vanilla fixture.
+    receive(&mut state, ids::play_clientbound::DECLARE_RECIPES, &[0, 0]).unwrap();
+    assert_eq!(state.furnace_inputs.sequence, Some(13));
+    assert!(state.furnace_inputs.sets.is_empty());
+}

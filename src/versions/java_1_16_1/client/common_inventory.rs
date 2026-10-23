@@ -4621,4 +4621,59 @@ mod tests {
             }
         }
     }
+    #[tokio::test]
+    async fn furnace_transfer_legacy_keeps_existing_unsupported_error_without_dispatch() {
+        for (menu, _) in api::furnace::TRANSFER_MENUS {
+            for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+                let (bot, mut packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                seed(&bot).await;
+                if mode == api::GameMode::Creative {
+                    let mut p = vec![3];
+                    p.extend(1f32.to_be_bytes());
+                    bot.apply_packet(0x1e, p).await.unwrap();
+                }
+                let native =
+                    api::furnace::native_menu(crate::MinecraftVersion::Java1_16_1, menu).unwrap();
+                let mut open = vec![3];
+                put_varint(&mut open, native.native_id);
+                put_string(&mut open, "{}");
+                bot.apply_packet(0x2e, open).await.unwrap();
+                let mut full = vec![3, 0, 39];
+                for _ in 0..39 {
+                    write_slot(&mut full, None);
+                }
+                bot.apply_packet(0x14, full).await.unwrap();
+                let client = crate::Client::from_java_1_16_1(bot.clone());
+                let source = contract::InventorySource::Container {
+                    screen: client.screen_state().await.unwrap().screen.unwrap().id,
+                };
+                let error = if mode == api::GameMode::Creative {
+                    client.creative().transfer_inventory(source, 0).await
+                } else {
+                    client.survival().transfer_inventory(source, 0).await
+                }
+                .unwrap_err();
+                assert_eq!(error.kind(), crate::ErrorKind::State);
+                assert_eq!(error.to_string(), "audited storage transfer menu required");
+                assert!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .is_none()
+                );
+                assert!(
+                    timeout(Duration::from_millis(15), packets.recv())
+                        .await
+                        .is_err()
+                );
+                drop(client);
+                let _ = release.send(());
+                drop(bot);
+                server.await.unwrap();
+            }
+        }
+    }
 }

@@ -270,7 +270,7 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
                     .registries
                     .capture(initial.session, initial.receive_sequence);
                 let record = transfer::prepare_received(
-                    (initial, registries),
+                    (initial, registries, None),
                     mode,
                     source,
                     slot,

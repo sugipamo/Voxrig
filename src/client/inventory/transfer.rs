@@ -55,6 +55,12 @@ pub enum InventoryTransferStage {
 pub struct InventoryTransferRecord {
     #[serde(skip)]
     item_context: Option<std::sync::Arc<super::data::ItemContext>>,
+    #[serde(skip)]
+    furnace_context: Option<(
+        crate::client::registry::ServerRegistryStamp,
+        Option<crate::client::ValueSource>,
+        Option<u64>,
+    )>,
     /// Original opaque identity.
     pub id: InventoryTransferId,
     /// Coherent received player baseline before I/O.
@@ -95,6 +101,20 @@ impl InventoryTransferRecord {
             InventorySource::Container { screen } => screen.window_id(),
         }
     }
+    pub(crate) fn inspect_furnace_context(
+        &mut self,
+        inputs: &crate::client::furnace::TransferInputs,
+        owner: &crate::client::registry::ServerRegistryObservation,
+    ) {
+        if let Some((stamp, tags, properties)) = &self.furnace_context {
+            if owner.stamp() != *stamp
+                || owner.tags().map(|t| t.source) != *tags
+                || inputs.sequence != *properties
+            {
+                self.inspection("furnace transfer recipe/tag ownership changed");
+            }
+        }
+    }
     pub(crate) fn unresolved(&self) -> bool {
         self.stage != InventoryTransferStage::ObservedTransferred
     }
@@ -132,12 +152,13 @@ pub(crate) fn prepare(
     attempt: u64,
     screen: Option<ContainerScreen>,
 ) -> Result<InventoryTransferRecord> {
-    prepare_inner((initial, None), mode, source, slot, attempt, screen)
+    prepare_inner((initial, None, None), mode, source, slot, attempt, screen)
 }
 pub(crate) fn prepare_received(
     state: (
         PlayerObservation,
         crate::client::registry::ServerRegistryObservation,
+        Option<&crate::client::furnace::TransferInputs>,
     ),
     mode: GameMode,
     source: InventorySource,
@@ -146,7 +167,7 @@ pub(crate) fn prepare_received(
     screen: Option<ContainerScreen>,
 ) -> Result<InventoryTransferRecord> {
     prepare_inner(
-        (state.0, Some(state.1)),
+        (state.0, Some(state.1), state.2),
         mode,
         source,
         slot,
@@ -158,6 +179,7 @@ fn prepare_inner(
     state: (
         PlayerObservation,
         Option<crate::client::registry::ServerRegistryObservation>,
+        Option<&crate::client::furnace::TransferInputs>,
     ),
     mode: GameMode,
     source: InventorySource,
@@ -165,7 +187,7 @@ fn prepare_inner(
     attempt: u64,
     screen: Option<ContainerScreen>,
 ) -> Result<InventoryTransferRecord> {
-    let (initial, registries) = state;
+    let (initial, registries, furnace_inputs) = state;
     if attempt == 0
         || initial.pending_dispatch
         || initial.game_mode != Some(mode)
@@ -239,6 +261,13 @@ fn prepare_inner(
                 .as_deref()
                 .filter(|n| {
                     super::storage_menu(n)
+                        || (initial.session.version == MinecraftVersion::Java1_21_11
+                            && crate::client::furnace::native_menu(initial.session.version, n)
+                                .is_some_and(|m| {
+                                    Some(m.native_id) == s.native_menu_id
+                                        && m.total_slots == layout.total_slots
+                                        && m.player_mappings() == layout.player_slots
+                                }))
                         || crate::client::crafting::layout::input_transfer(
                             initial.session.version,
                             n,
@@ -294,8 +323,51 @@ fn prepare_inner(
             known(before.get(index).and_then(Option::as_ref))?;
         }
     }
+    let furnace_route = if initial.session.version == MinecraftVersion::Java1_21_11
+        && crate::client::furnace::native_menu(initial.session.version, menu).is_some()
+    {
+        let owner = registries
+            .as_ref()
+            .filter(|r| {
+                r.complete()
+                    && r.session() == initial.session
+                    && r.receive_sequence() == initial.receive_sequence
+            })
+            .ok_or_else(|| {
+                unavailable("coherent received furnace transfer registries unavailable")
+            })?;
+        // Smelting may mutate any of the three machine slots independently.
+        // Require actual predecessors for all slots, then retain every conflict.
+        let opened = screen
+            .as_ref()
+            .expect("furnace opening")
+            .id
+            .opened_sequence();
+        for value in before.iter().chain(std::iter::once(&Some(cursor.clone()))) {
+            let value = known(value.as_ref())?;
+            if !matches!(value.source, ValueSource::Received { sequence } if sequence >= opened && sequence <= initial.receive_sequence)
+            {
+                return Err(unavailable(
+                    "furnace transfer predecessor outside original capture/opening",
+                ));
+            }
+        }
+        let revision = screen.as_ref().and_then(|s| s.revision.as_ref());
+        if !revision.is_some_and(|v| matches!(v.source, ValueSource::Received { sequence } if sequence >= opened && sequence <= initial.receive_sequence)) {
+            return Err(unavailable("furnace transfer revision outside original capture/opening"));
+        }
+        Some(crate::client::furnace::transfer_route(
+            menu,
+            usize::from(slot),
+            &values[usize::from(slot)],
+            furnace_inputs,
+            Some(owner),
+        )?)
+    } else {
+        None
+    };
     let has_data = values.iter().chain(std::iter::once(&cursor.value)).any(|v| matches!(v, SlotKnowledge::Item {item} if item.data != crate::client::ItemData::Default));
-    let item_context = if let (true, Some(registries)) = (has_data, registries) {
+    let item_context = if let (true, Some(registries)) = (has_data, registries.clone()) {
         let context = super::data::ItemContext::new(registries, &initial)?;
         for value in before
             .iter()
@@ -314,7 +386,17 @@ fn prepare_inner(
         &cursor.value,
         item_context.as_deref(),
     )?;
-    let calculated = if let Some(context) = &item_context {
+    let calculated = if let Some(route) = &furnace_route {
+        transfer_policy::calculate_furnace(
+            initial.session.version,
+            menu,
+            usize::from(slot),
+            &values,
+            mode,
+            item_context.as_deref(),
+            route,
+        )?
+    } else if let Some(context) = &item_context {
         transfer_policy::calculate_with_data(
             initial.session.version,
             menu,
@@ -355,7 +437,18 @@ fn prepare_inner(
             "shift transfer has no effect; no packet submitted",
         ));
     }
+    let furnace_context = furnace_route.map(|_| {
+        let owner = registries
+            .as_ref()
+            .expect("furnace received registry capture");
+        (
+            owner.stamp(),
+            owner.tags().map(|t| t.source),
+            furnace_inputs.and_then(|i| i.sequence),
+        )
+    });
     Ok(InventoryTransferRecord {
+        furnace_context,
         item_context,
         id: InventoryTransferId {
             session: initial.session,
@@ -783,9 +876,15 @@ mod tests {
                 registry.reset(1);
                 super::super::armor_tests::install(&mut registry, version, None);
                 let owner = registry.capture(initial.session, initial.receive_sequence);
-                let mut record =
-                    prepare_received((initial, owner), mode, InventorySource::Player, 9, 1, None)
-                        .unwrap();
+                let mut record = prepare_received(
+                    (initial, owner, None),
+                    mode,
+                    InventorySource::Player,
+                    9,
+                    1,
+                    None,
+                )
+                .unwrap();
                 let mut current = record.initial.clone();
                 current.receive_sequence = 11;
                 current.inventory.cursor = Some(received(
@@ -1039,7 +1138,8 @@ mod tests {
                         InventorySource::Container { screen: s.id }
                     });
                     let mut record =
-                        prepare_received((initial, owner), mode, source, 1, 1, screen).unwrap();
+                        prepare_received((initial, owner, None), mode, source, 1, 1, screen)
+                            .unwrap();
                     // The plain stone stack cannot absorb data-bearing stone.
                     assert_eq!(record.changed_slots.len(), 2);
                     let mut current = record.initial.clone();

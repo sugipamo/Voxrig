@@ -244,7 +244,7 @@ impl Survival {
         crate::client::dispatch!(&self.client.adapter, a => InventoryClickOps::inventory_click_record(a).await)
     }
     /// Shift-transfer one received source using native destination order, once.
-    /// Player slots 1..45 include crafting inputs and armor/offhand; table inputs and storage require the same original opening.
+    /// Player slots 1..45 include crafting inputs and armor/offhand; table inputs, storage and modern furnaces require the same original opening.
     /// Resolved native data and a known cursor are required; QUICK_MOVE preserves the cursor; changed-slot receipts remain separate from predictions.
     pub async fn transfer_inventory(
         &self,
@@ -683,7 +683,7 @@ impl Creative {
         crate::client::dispatch!(&self.client.adapter, a => InventoryClickOps::inventory_click_record(a).await)
     }
     /// Shift-transfer one received source using native destination order, once.
-    /// Player slots 1..45 include crafting inputs and armor/offhand; table inputs and storage require the same original opening.
+    /// Player slots 1..45 include crafting inputs and armor/offhand; table inputs, storage and modern furnaces require the same original opening.
     /// Resolved native data and a known cursor are required; QUICK_MOVE preserves the cursor; changed-slot receipts remain separate from predictions.
     pub async fn transfer_inventory(
         &self,
