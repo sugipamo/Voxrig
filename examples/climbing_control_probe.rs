@@ -134,6 +134,7 @@ async fn main() -> anyhow::Result<()> {
     println!("{}", serde_json::json!({"ready":true}));
     std::io::stdout().flush()?;
     let survival = client.survival();
+    let mut saved_interaction_target = None;
     let mut mounted = None;
     let mut saved_chunk = None;
     let mut saved_map = None;
@@ -371,6 +372,29 @@ async fn main() -> anyhow::Result<()> {
                 &saved_lighting,
                 &serde_json::from_value::<Vec<[i32; 3]>>(request["positions"].clone())?,
             ),
+            "entity_interact_at" => {
+                use voxrig::client::Hand;
+                let target = if request["saved"] == true {
+                    saved_interaction_target.ok_or_else(|| anyhow::anyhow!("no saved interaction target"))?
+                } else {
+                    let entities = client.entity_spawns().await?;
+                    let target = entities.entities.iter().find(|e| e.type_name.as_deref() == request["type"].as_str())
+                        .ok_or_else(|| anyhow::anyhow!("interaction fixture missing"))?.id;
+                    saved_interaction_target = Some(target);
+                    target
+                };
+                let hit = serde_json::from_value(request["hit"].clone())?;
+                let hand = if request["offhand"] == true { Hand::Off } else { Hand::Main };
+                let result = if request["mode"] == "creative" {
+                    client.creative().interact_entity_at(target, hit, hand, false).await
+                } else {
+                    survival.interact_entity_at(target, hit, hand, false).await
+                };
+                match result {
+                    Ok(receipt) => serde_json::json!({"target": target, "dispatch": receipt}),
+                    Err(error) => serde_json::json!({"target": target, "error": error.to_string(), "kind": format!("{:?}", error.kind())}),
+                }
+            }
             "entity_target" => {
                 let result = if request["mode"] == "creative" {
                     client.creative().target_entities().await

@@ -74,7 +74,7 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | 製作 | `Crafting` | received recipe／grid、結果取得・転送、owned recipe配置。材料計画は利用側 |
 | 別player・mobの現在状態 | `EntityObservation`, `EntityMotion`, `EntityState` | `entity_spawns`、`entity_motion`、`entities`。元spawn寿命、field別sample、health／equipment／named data。boxは型の既定寸法。独立した`derived_geometry()`はplayer/cow/pig/zombieの姿勢・子供・modern scaleを原版と照合 |
 | entity受信履歴 | `EntityHistory` | `entity_history_after`。spawn／motion／metadata／equipment／modern scale／status／animation／remove／world変更／自身補正。差分順序・部分解読・byte予算の欠落を区別 |
-| entityの指定操作 | `EntityInteraction` | `interact_entity`／`attack_entity`。旧版Dragon部位は明示的な派生モデル。命中・reach証明や自動戦術なし |
+| entityの指定操作 | `EntityInteraction` | `interact_entity`／`attack_entity`、1.21.11の`interact_entity_at`。旧版Dragon部位は明示的な派生モデル。命中・reach証明や自動戦術なし |
 | 乗車・操縦・下車 | `VehicleObservation`, `VehicleInput`, `VehicleDismount`, `VehicleGrounding` | `vehicle_state`、有限`start_vehicle_control`、owned下車、限定した地上継続。ボートの水面／水没／流水／泡、元の速度受信の一度だけの反映、server駆動トロッコ |
 | chat・command | `Chat` | unsigned `send_chat`／`send_command`、`chat_after`。署名必須serverは対象外 |
 | change通知と待機 | `Events`, `Waits` | cursor通知、receive／block／loaded／chat／event待機。entity payload履歴とは別 |

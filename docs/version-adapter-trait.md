@@ -131,7 +131,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | metadata・装備・hitbox・体力 | ◎ | `entities()`（体力・装備・既定の箱。[entity現在状態](common-entities.md)）。その他のmetadataは未共通化 | `entities` `entity` (`EntityState`) | |
 | 他playerの観測 | ○ | — | `entities` | `visible_players` |
 | interact・attack | ◎ | `Survival::interact_entity` `attack_entity` | | |
-| 位置指定interact | ▲ | — | `interact_entity_at` | なし |
+| 位置指定interact | ◎（1.21.11） | `Survival::interact_entity_at`／`Creative::interact_entity_at` | 1.16.1共通はUnsupported | dispatchのみ |
 
 ### UI
 
