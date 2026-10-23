@@ -542,6 +542,98 @@ async fn malformed_explosion_never_applies_or_publishes_and_death_cannot_be_rest
     }
 }
 
+#[tokio::test]
+async fn explosion_after_partial_or_unflushed_release_keeps_the_failed_owner_stopped() {
+    use crate::client::{adapter::ControlOps, control::Output};
+    for (after, flush) in [(Some(1), false), (Some(4), false), (None, true)] {
+        let (session, api, _peer) = common_ground_fixture(GameMode::Survival).await;
+        {
+            let mut state = session.state.lock().await;
+            let mut owner = ControlSession::new(
+                crate::MinecraftVersion::Java1_21_11,
+                1,
+                state.position.unwrap(),
+                &received(&state),
+            );
+            owner.dispatched(&Output {
+                sneak: None,
+                sprint: Some(true),
+                input: Some(1),
+                position: state.position.unwrap(),
+                rotation: [0.; 2],
+                on_ground: true,
+                horizontal_collision: false,
+            });
+            let generation = state.loading.generation;
+            state.control.seed_session(owner, generation);
+            state
+                .receive(
+                    ids::play_clientbound::EXPLOSION,
+                    &explosion(Some([0.125, 0.5, 0.])),
+                    256,
+                )
+                .unwrap();
+        }
+        // Exercise the real release writer: either only part of its header is
+        // written, or its complete bytes fail to flush. Neither is a clean stop.
+        let writer = crate::client::ledger::testing::Control::default();
+        writer.release(usize::MAX, true);
+        writer.fail(after, flush);
+        session
+            .writer
+            .lock()
+            .await
+            .stream
+            .test_replace(writer.writer());
+        assert_eq!(
+            api.stop_control_for(1).await.unwrap_err().kind(),
+            ErrorKind::UncertainDispatch
+        );
+        assert_eq!(writer.bytes().len(), after.unwrap_or(3));
+        let stopped = api.control_record().await.unwrap().unwrap();
+        assert!(matches!(
+            &stopped.status,
+            ControlStatus::Stopped { reason } if reason.contains("release write failed")
+        ));
+        {
+            let mut state = session.state.lock().await;
+            state
+                .receive(
+                    ids::play_clientbound::EXPLOSION,
+                    &explosion(Some([0.25, 0.25, 0.])),
+                    256,
+                )
+                .unwrap();
+            assert_eq!(
+                state.control.session.as_ref().unwrap().body.velocity,
+                [0.125, 0.5, 0.]
+            );
+            let interruption = state
+                .operations
+                .local_player
+                .motion_interruption
+                .as_ref()
+                .unwrap();
+            assert_eq!(interruption.packet_id, ids::play_clientbound::EXPLOSION);
+            assert_eq!(interruption.receive_sequence, state.sequence);
+            assert_eq!(
+                state
+                    .explosions
+                    .after(0, state.sequence)
+                    .unwrap()
+                    .explosions
+                    .len(),
+                2
+            );
+        }
+        let bytes = writer.bytes();
+        assert!(api.start_control(GameMode::Survival).await.is_err());
+        assert_eq!(api.control_record().await.unwrap().unwrap(), stopped);
+        assert_eq!(writer.bytes(), bytes);
+        session.stop();
+    }
+}
+
 #[tokio::test(start_paused = true)]
 async fn explosion_before_first_tick_keeps_model_and_stationary_receipts_separate() {
     let (session, api, _peer) = common_ground_fixture(GameMode::Survival).await;

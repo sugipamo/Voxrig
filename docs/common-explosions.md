@@ -116,6 +116,8 @@ serverはport 35099で起動し、exit 0で終了・削除済み。
 公式Playerのtravelを実行した。地上／空中の連続二爆発、速度通知の前／間／後、省略と明示ゼロを含む。
 構築packetの試験はその全位置・速度・接地を照合し、補正、読取、取消、死亡、owner／world／writeの
 境界を別に検査する。既存の全1,024ケースの補正oracleと両版の移動fixtureも回帰対象。
+入力解除の部分writeとflush失敗は実際のadapter writerで発生させ、後続の爆発が旧モデルへ
+加算されず、停止理由とpacket ID・受信連番付き中断、元の観測履歴が残ることを検査する。
 
 ```bash
 python3 -B scripts/movement_oracle/explosion_scenarios.py /tmp/explosion-scenarios.json
