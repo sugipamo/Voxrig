@@ -107,7 +107,8 @@ B5の新版再configurationではUI／player一覧のcache寿命・再登録と�
   結果のnative QUICK_MOVEも接続し、両版・両mode・player／table・Next／Maximumの16ケースで、
   一回の送信→実grid／主在庫の増加と変わらない実cursor→close→選択→切断を確認した。
   製作総数や後続の部分移動・dropは予測しない。
-  table入力SWAP・QUICK_MOVEと広い製作・一般装備・entity・dataはB4へ残す。
+  player／table入力のQUICK_MOVEは[通常転送](common-inventory-transfers.md)へ接続した。
+  table入力SWAPと広い製作・一般装備・entity・dataはB4へ残す。
   隣接する製作台がdry collision範囲に入るとlookを拒否する制限はB3へ残す。
   詳細は[共通レシピ](common-recipes.md)。A6と全体goalは継続する。
 
@@ -318,7 +319,7 @@ close送信と実受信screen履歴を混同せず、サーバー側でも位置
 | 段階 | 後続の対応範囲 |
 | --- | --- |
 | 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、別姿勢／effectを含むCreative飛行後の立位操作への継続 |
-| 4 | レシピブック配置とshift転送の残る条件、製作台入力SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
+| 4 | レシピブック配置とshift転送の残る条件、製作台入力SWAP、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
 | 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、共通遮断後の各履歴取得と不確実性保持、再設定・chunk欠測・再接続の範囲拡大 |
 | 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |
 
@@ -613,7 +614,8 @@ Owned ghostは、元playerの`SubmittedClose`から実player zeroの`Received`�
 B4の非空cursor結果結合は、同じitem/data・結合先の実効容量内の結果全体だけを扱う。
 実cursor60→結果4→実cursor64→次結果の送信前拒否→格納→空cursorで残り取得を、
 両版・両mode・player/tableで同じconsumerから通す。freshな結合cursorとfull盤面を完了条件とし、
-消費や次resultを予測で書き換えない。shift製作、table SWAP・QUICK_MOVE、一般装備・entity・data、
+消費や次resultを予測で書き換えない。結果QUICK_MOVEと入力QUICK_MOVEはそれぞれ専用結果ownerと通常転送ownerへ接続済み。
+残るshift製作の条件、table入力SWAP、一般装備・entity・data、
 広いB3/B5/B6とA6の非公開利用側結果は継続する。
 
 

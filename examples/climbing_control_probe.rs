@@ -380,14 +380,12 @@ async fn main() -> anyhow::Result<()> {
                     .await?,
             )?,
             "use_on_block" => {
-                let result = survival
-                    .use_on_block(
-                        serde_json::from_value(request["support"].clone())?,
-                        face(&request)?,
-                        serde_json::from_value(request["cursor"].clone())?,
-                        voxrig::client::Hand::Main,
-                    )
-                    .await;
+                let target = serde_json::from_value(request["support"].clone())?;
+                let face = face(&request)?;
+                let cursor = serde_json::from_value(request["cursor"].clone())?;
+                let result = if client.player_state().await?.game_mode == Some(GameMode::Creative) {
+                    client.creative().use_on_block(target, face, cursor, Hand::Main).await
+                } else { survival.use_on_block(target, face, cursor, Hand::Main).await };
                 if request["expect_rejected"] == true {
                     let error = result.expect_err("out-of-range hit unexpectedly admitted");
                     serde_json::json!({"rejected":true,"kind":format!("{:?}",error.kind()),"message":error.to_string()})
@@ -459,6 +457,24 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::json!({"record": parent, "error": result.err().map(|e| e.to_string()),
                     "player": client.player_state().await?})
             }
+            "screen" => serde_json::to_value(client.screen_state().await?)?,
+            "close_screen" => {
+                let screen = client.screen_state().await?.screen.ok_or_else(|| anyhow::anyhow!("no active screen"))?.id;
+                serde_json::to_value(if client.player_state().await?.game_mode == Some(GameMode::Creative) {
+                    client.creative().close_container(screen).await?
+                } else { survival.close_container(screen).await? })?
+            }
+            "inventory_transfer" => {
+                use voxrig::client::inventory::InventorySource;
+                let source = if request["container"] == true {
+                    InventorySource::Container { screen: client.screen_state().await?.screen.ok_or_else(|| anyhow::anyhow!("no active screen"))?.id }
+                } else { InventorySource::Player };
+                let slot = request["slot"].as_u64().unwrap().try_into()?;
+                serde_json::to_value(if client.player_state().await?.game_mode == Some(GameMode::Creative) {
+                    client.creative().transfer_inventory(source, slot).await?
+                } else { survival.transfer_inventory(source, slot).await? })?
+            }
+            "inventory_transfer_record" => serde_json::to_value(survival.inventory_transfer_record().await?)?,
             "inventory_record" => serde_json::to_value(survival.inventory_click_record().await?)?,
             "inventory_click" => {
                 use voxrig::client::inventory::{
@@ -470,15 +486,18 @@ async fn main() -> anyhow::Result<()> {
                 } else {
                     Button::Left
                 };
+                let source = if request["container"] == true {
+                    InventorySource::Container { screen: client.screen_state().await?.screen.ok_or_else(|| anyhow::anyhow!("no active screen"))?.id }
+                } else { InventorySource::Player };
                 let mode = client.player_state().await?.game_mode;
                 let result = if mode == Some(GameMode::Creative) {
                     client
                         .creative()
-                        .click_inventory(InventorySource::Player, slot, button)
+                        .click_inventory(source, slot, button)
                         .await
                 } else {
                     survival
-                        .click_inventory(InventorySource::Player, slot, button)
+                        .click_inventory(source, slot, button)
                         .await
                 };
                 if request["expect_rejected"] == true {

@@ -260,7 +260,7 @@ impl Capabilities {
                 "docs/common-inventory-clicks.md",
             ),
             Feature::InventoryTransfer => restricted(
-                "one ordinary QUICK_MOVE on player or audited storage slots",
+                "one ordinary QUICK_MOVE on player, crafting input or audited storage slots",
                 "docs/common-inventory-transfers.md",
             ),
             Feature::ContainerObservation => restricted(

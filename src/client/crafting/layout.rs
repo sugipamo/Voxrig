@@ -106,6 +106,51 @@ pub(super) fn capture(
         cells,
     })
 }
+/// Audited input QUICK_MOVE branches. Results have their own take owner.
+/// Ranges exclude armor/offhand even when the input item is equippable.
+pub(crate) struct InputTransferRoute {
+    menu: &'static str,
+    pub(crate) inputs: std::ops::Range<usize>,
+    pub(crate) destinations: std::ops::Range<usize>,
+    pub(crate) result_slot: usize,
+    pub(crate) total_slots: usize,
+}
+const INPUT_TRANSFERS: [InputTransferRoute; 2] = [
+    InputTransferRoute {
+        menu: "minecraft:player",
+        inputs: 1..5,
+        destinations: 9..45,
+        result_slot: 0,
+        total_slots: 46,
+    },
+    InputTransferRoute {
+        menu: "minecraft:crafting",
+        inputs: 1..10,
+        destinations: 10..46,
+        result_slot: 0,
+        total_slots: 46,
+    },
+];
+pub(crate) fn input_transfer(
+    version: crate::MinecraftVersion,
+    menu: &str,
+    source: usize,
+) -> Option<&'static InputTransferRoute> {
+    let route = INPUT_TRANSFERS
+        .iter()
+        .find(|r| r.menu == menu && r.inputs.contains(&source))?;
+    let native = super::native_menu(version, menu)?;
+    (native.total_slots == route.total_slots
+        && native.result_slot == route.result_slot
+        && native.input_slots.iter().any(|s| s.screen_slot == source)
+        && route.destinations.clone().all(|slot| {
+            native
+                .player_slots
+                .iter()
+                .any(|s| s.screen_slot == slot && s.raw_player_slot < 36)
+        }))
+    .then_some(route)
+}
 // Original center rule only centers when the recipe is smaller than half the
 // grid. In particular 1x1 is at (0,0) in 2x2, but (1,1) in 3x3.
 fn positions(grid: [usize; 2], recipe: [usize; 2], entries: usize) -> Vec<[usize; 2]> {

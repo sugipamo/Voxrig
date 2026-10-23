@@ -4475,4 +4475,113 @@ mod tests {
             server.await.unwrap();
         }
     }
+    #[tokio::test]
+    async fn crafting_input_transfer_legacy_packets_both_menus_modes_wait_for_source_destination_and_reply()
+     {
+        use contract::{InventorySource as Source, InventoryTransferStage as Stage};
+        for table in [false, true] {
+            for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+                let (bot, mut packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                seed(&bot).await;
+                if mode == api::GameMode::Creative {
+                    let mut p = vec![3];
+                    p.extend(1f32.to_be_bytes());
+                    bot.apply_packet(0x1e, p).await.unwrap();
+                }
+                if table {
+                    let mut open = vec![3, 11];
+                    put_string(&mut open, "{}");
+                    bot.apply_packet(0x2e, open).await.unwrap();
+                    let mut full = vec![3, 0, 46];
+                    for _ in 0..46 {
+                        write_slot(&mut full, None);
+                    }
+                    bot.apply_packet(0x14, full).await.unwrap();
+                } else {
+                    transfer_value(&bot, 0, 9, &api::SlotKnowledge::Empty).await;
+                }
+                let version = crate::MinecraftVersion::Java1_16_1;
+                let input = api::inventory::held_cursor_tests::data_cursor(version, false);
+                let held = api::inventory::held_cursor_tests::data_cursor(version, true);
+                let window = if table { 3 } else { 0 };
+                transfer_value(&bot, window, 1, &input).await;
+                transfer_value(&bot, 255, -1, &held).await;
+                let client = crate::Client::from_java_1_16_1(bot.clone());
+                let source = if table {
+                    Source::Container {
+                        screen: client.screen_state().await.unwrap().screen.unwrap().id,
+                    }
+                } else {
+                    Source::Player
+                };
+                let record = if mode == api::GameMode::Creative {
+                    client.creative().transfer_inventory(source, 1).await
+                } else {
+                    client.survival().transfer_inventory(source, 1).await
+                }
+                .unwrap();
+                let packet = packets.recv().await.unwrap();
+                assert_eq!(packet.0, 0x09);
+                assert_eq!(packet.1[0], window);
+                assert_eq!(&packet.1[1..3], &1i16.to_be_bytes());
+                assert_eq!(packet.1[3], 0);
+                assert_eq!(packet.1[6], 1); // one QUICK_MOVE
+                assert_eq!(record.changed_slots.len(), 2);
+                // Independent output recomputation cannot count as input evidence.
+                transfer_value(&bot, window, 0, &input).await;
+                let current = client
+                    .survival()
+                    .inventory_transfer_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(current.stage, Stage::Pending);
+                assert!(current.changed_slots.iter().all(|s| s.receipt.is_none()));
+                transfer_value(&bot, window, if table { 10 } else { 9 }, &input).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+                transfer_value(&bot, window, 1, &api::SlotKnowledge::Empty).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+                let mut reply = vec![window];
+                reply.extend(record.send.legacy_action.unwrap().to_be_bytes());
+                reply.push(0);
+                bot.apply_packet(0x12, reply).await.unwrap();
+                assert_eq!(packets.recv().await.unwrap().0, 0x07);
+                let complete = client
+                    .survival()
+                    .inventory_transfer_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(complete.stage, Stage::ObservedTransferred);
+                assert_eq!(
+                    complete.cursor_inspected.as_ref().unwrap().value,
+                    record.cursor_before.value
+                );
+                assert!(complete.changed_slots.iter().all(|s| s.receipt.is_some()));
+                drop(client);
+                let _ = release.send(());
+                drop(bot);
+                server.await.unwrap();
+            }
+        }
+    }
 }

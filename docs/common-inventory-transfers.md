@@ -12,8 +12,10 @@ let intent = client.survival().transfer_inventory(
 let record = client.survival().inventory_transfer_record().await?;
 ```
 
-`InventorySource::Player`はnative player screen slot 5..45を受け付ける。
-armor 5..8、main 9..35、hotbar 36..44、offhand 45である。crafting/resultは別途対応する。
+`InventorySource::Player`はnative player screen slot 1..45を受け付ける。
+crafting入力1..4、armor 5..8、main 9..35、hotbar 36..44、offhand 45である。
+作業台はconstructor確認済みの同じopeningの入力1..9も受け付ける。result slot 0は
+`take_crafting_result` / `transfer_crafting_result`を使う。作業台の付属player slotから入力への転送は対象外。
 `Container { screen }`は元の受信済みstorage openingで、storageと付属player slotsを指定する。
 数字が同じwindowでも新しいopeningの`ScreenId`は元の操作を引き継がない。
 従来の`InventoryClickSource`は同じ型の互換aliasで、通常PICKUPにも`InventorySource`を使える。
@@ -34,7 +36,14 @@ modernは実効`equippable`の追加・変更・削除から装備先を選ぶ�
 data付き装備済みarmorも取り出せる。survivalでは束縛の制限を適用し、creativeでは元ゲームの
 mode判定に従って取り出す。legacyのlevel getterとmodernの受信enchantment効果を区別する。
 カーソルに通常itemを持った状態でもQUICK_MOVEを送れ、その数量・dataは保持する。
-crafting/result/一般装備操作は後続作業。
+結果slotの専用APIと、入力slotの通常転送は別のowner経路を使う。
+
+player入力からは9..44、作業台入力からは10..45へ正順で転送する。装備先への自動配置や
+空offhandへの配置は行わず、mergeを空slotより先に試す。保持中cursorは数量・dataとも保存する。
+製作入力の取り出しに鎧slotの束縛制限は適用しない。作業台入力5..8も通常の入力slotとして扱う。
+製作入力全体の受信済みbaselineを要求し、他の入力の変更は競合に残す。
+結果slotの再計算は完了証拠に含めず、sourceと変化した全destinationにfresh受信を要求する。
+結果slotだけが更新されてもPendingのままで、閉じた元openingや再利用されたwindowからは送らない。
 
 storageからplayerへの順序は逆順、付属playerからstorageは正順である。
 player mainからhotbar、hotbarからmainはそれぞれ正順。nativeが装備先を持つitemは空の対応slotへ
@@ -157,3 +166,33 @@ RCONはstorage/player数量とhead装備を独立して照合し、位置も不�
 slot/cursorの実受信条件は緩和しない。保存済みmodern native player dataも装備形式の独立診断に
 使用した。native入力のsnapshot後に行ったsource互換名のre-export・diagnostic wordingと生成器commentの
 整理は動作を変えず、現在のsourceは別途全テスト・compiler・packageで確認する。
+
+
+製作入力の原版fixtureは`export_crafting_input_transfers.py`で上と同じ引数を使って再生成する。
+両版各2,496件で、player全4入力・作業台全9入力、両mode、容量64/16/1、装備可能item、
+空きslotより後方のmerge先、満杯・部分転送・複数destination、同値/異値dataと保持中cursorを照合する。
+原版コピー時のNBT compound wire順の差は、数値型を保持したdecoded treeで比較する。
+旧版はnative client-side guard、新版は空のnative recipe managerと未接続のnative connectionを使う。
+ゲームmethodは置換せず、実recipeの再計算・network受信・取消の根拠とは分けて扱う。
+packet試験は結果slot単独更新、全destination/sourceの受信、競合の復元、旧openingを検査する。
+
+```bash
+python3 -B scripts/export_crafting_input_transfers.py \
+  --downloads "$DOWNLOADS" --modern-classpath-file "$MODERN_CLASSPATH" \
+  --runtime-output .local/crafting-input-transfer-oracle --check
+```
+
+
+公式1.21.11のliveは両mode・両gridの全量/部分転送、計8ケースで成功した。
+custom data付きplanks7個を回収し、満杯時は63/62個のstackへ3個だけmergeして入力4個を残す。
+全changed slotのfresh受信と元QUICK_MOVE1packetを照合し、結果slotのbutton再計算は別に保持した。
+保持中helmetのDamage=7とcustom dataは明示返却後にRCONでも照合した。
+[実接続の根拠](evidence/common-crafting-input-transfer-20261022.json)に元packet、RCON、receipt、
+公式JAR・consumer binary・source/artifact hashを保存する。旧版liveや取消/packet lossをこのrunの証明には含めない。
+一時serverは終了済みで、供給元server directoryは変更しない。
+
+```bash
+cargo build --locked --example climbing_control_probe -j2
+python3 -B scripts/run_crafting_input_transfer_live.py --accept-eula \
+  --server-jar "$SERVER_JAR" --output .local/crafting-input-transfer-live
+```

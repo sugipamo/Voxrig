@@ -1082,7 +1082,14 @@ impl MotionGate {
                     };
                     if *id != run_id
                         || *sent
-                        || (*window == 0 && !(5..=45).contains(&slot))
+                        || (*window == 0
+                            && !(5..=45).contains(&slot)
+                            && crate::client::crafting::layout::input_transfer(
+                                crate::MinecraftVersion::Java1_16_1,
+                                "minecraft:player",
+                                usize::from(slot),
+                            )
+                            .is_none())
                         || slot >= 4096
                         || button != 0
                         || comparison.as_ref().is_some_and(|s| {
