@@ -8,22 +8,40 @@ const TYPES: &[(&str, [f64; 6])] = &[
     ("double", [0., 0., 0., 1., 1., 1.]),
 ];
 fn kind(state: &crate::NativeBlockState) -> Option<&str> {
+    (state.properties.get("waterlogged").map(String::as_str) == Some("false"))
+        .then(|| kind_with_fluid(state))
+        .flatten()
+}
+pub(super) fn kind_with_fluid(state: &crate::NativeBlockState) -> Option<&str> {
     (state.name == FAMILY
         && state.properties.len() == 2
-        && state.properties.get("waterlogged").map(String::as_str) == Some("false"))
+        && state
+            .properties
+            .get("waterlogged")
+            .map(String::as_str)
+            .is_some_and(|v| matches!(v, "true" | "false")))
     .then(|| state.properties.get("type").map(String::as_str))
     .flatten()
     .filter(|value| TYPES.iter().any(|(name, _)| name == value))
 }
+pub(super) fn collision(kind: &str) -> &'static [[f64; 6]] {
+    std::slice::from_ref(
+        &TYPES
+            .iter()
+            .find(|(name, _)| *name == kind)
+            .expect("qualified slab type")
+            .1,
+    )
+}
 fn shape(state: &crate::NativeBlockState) -> Option<[f64; 6]> {
-    let kind = kind(state)?;
+    let kind = kind_with_fluid(state)?;
     TYPES
         .iter()
         .find(|(name, _)| *name == kind)
         .map(|(_, b)| *b)
 }
-fn replace_clicked(state: &crate::NativeBlockState, face: u8, hit_y: f32) -> bool {
-    match kind(state) {
+pub(super) fn replace_clicked(state: &crate::NativeBlockState, face: u8, hit_y: f32) -> bool {
+    match kind_with_fluid(state) {
         Some("bottom") => face == 1 || (face >= 2 && hit_y > 0.5),
         Some("top") => face == 0 || (face >= 2 && hit_y <= 0.5),
         _ => false,
@@ -34,7 +52,23 @@ pub(super) fn expected(
     face: u8,
     hit_y: f32,
 ) -> crate::NativeBlockState {
-    let kind = if kind(before).is_some() {
+    expected_in(before, face, hit_y, false)
+}
+pub(super) fn expected_with_fluid(
+    before: &crate::NativeBlockState,
+    face: u8,
+    hit_y: f32,
+) -> crate::NativeBlockState {
+    expected_in(before, face, hit_y, true)
+}
+fn expected_in(
+    before: &crate::NativeBlockState,
+    face: u8,
+    hit_y: f32,
+    fluid: bool,
+) -> crate::NativeBlockState {
+    let merging = kind_with_fluid(before).is_some();
+    let kind = if merging {
         "double"
     } else if face == 0 || (face >= 2 && hit_y > 0.5) {
         "top"
@@ -45,11 +79,21 @@ pub(super) fn expected(
         name: FAMILY.into(),
         properties: [
             ("type".into(), kind.into()),
-            ("waterlogged".into(), "false".into()),
+            (
+                "waterlogged".into(),
+                (fluid
+                    && !merging
+                    && matches!(
+                        wet_slab::fluid(before),
+                        Some(crate::client::survival::SlabFluidState::Water { source: true, .. })
+                    ))
+                .to_string(),
+            ),
         ]
         .into(),
     }
 }
+#[allow(clippy::too_many_arguments)]
 pub(super) fn geometry(
     view: &impl GeometryView,
     standing: &survival::StandingContext,
@@ -57,22 +101,36 @@ pub(super) fn geometry(
     face: u8,
     requested: ([i32; 3], &crate::NativeBlockState),
     rotation: [f32; 2],
+    fluid: bool,
 ) -> Result<PlacementGeometry> {
     if face > 5 {
         return Err(invalid("invalid slab placement face"));
     }
     let eye = standing.eye_position;
     let hit = super::super::super::raycast::outline_hit_in(eye, rotation, 4.5, |p| {
-        view.block(p).map_err(anyhow::Error::from)
+        let block = view.block(p)?;
+        if fluid && wet_slab::fluid(&block).is_none() {
+            return Err(anyhow::anyhow!(
+                "fluid slab outline cell is outside audited families"
+            ));
+        }
+        Ok(block)
     })?
     .ok_or_else(|| unavailable("no first native outline hit for slab placement"))?;
     if hit.position != clicked
         || hit.face.map(|f| f as u8) != Some(face)
-        || !(survival::DRY_CUBES.contains(&hit.state.name.as_str()) || kind(&hit.state).is_some())
+        || !(survival::DRY_CUBES.contains(&hit.state.name.as_str())
+            || if fluid {
+                kind_with_fluid(&hit.state).is_some()
+            } else {
+                kind(&hit.state).is_some()
+            })
     {
-        return Err(unavailable(
-            "slab placement requires the first cube or dry oak slab outline face",
-        ));
+        return Err(unavailable(if fluid {
+            "fluid slab placement requires the first cube or oak slab outline face"
+        } else {
+            "slab placement requires the first cube or dry oak slab outline face"
+        }));
     }
     // The existing continuous uncertainty proof qualifies full cubes only.
     // Do not infer half selection or merging from sampled uncertain rays.
@@ -100,11 +158,17 @@ pub(super) fn geometry(
     let before = view.block(target)?;
     if target != requested.0
         || &before != requested.1
-        || !(air(&before) || matches!(kind(&before), Some("top" | "bottom")))
+        || !(if fluid {
+            wet_slab::destination(&before)
+        } else {
+            air(&before) || matches!(kind(&before), Some("top" | "bottom"))
+        })
     {
-        return Err(unavailable(
-            "slab placement requires the exact air or replaceable dry oak slab destination",
-        ));
+        return Err(unavailable(if fluid {
+            "fluid slab placement requires the exact audited air, water or oak half destination"
+        } else {
+            "slab placement requires the exact air or replaceable dry oak slab destination"
+        }));
     }
     Ok(PlacementGeometry {
         target,
@@ -126,7 +190,7 @@ pub(super) fn unobstructed(
     target: [i32; 3],
     expected: &crate::NativeBlockState,
 ) -> Result<()> {
-    let local = shape(expected).expect("qualified dry oak slab");
+    let local = shape(expected).expect("qualified oak slab");
     unobstructed_shapes(state, connection_id, own, target, &[local], "slab")
 }
 pub(super) fn unobstructed_shapes(
@@ -247,14 +311,20 @@ pub(super) fn record_in(
     let Some(capture) = state
         .common_placement
         .as_ref()
-        .filter(|c| c.slab)
+        .filter(|c| c.slab && c.fluid_slab.is_none())
         .and_then(|c| c.replacement.as_ref())
     else {
         return Ok(state.retired_slab_placement.clone());
     };
+    make_record(state, capture).map(Some)
+}
+pub(super) fn make_record(
+    state: &State,
+    capture: &ReplacementCapture,
+) -> Result<crate::client::survival::SlabPlacementRecord> {
     let r =
         common_record_in(state)?.ok_or_else(|| unavailable("slab placement capture missing"))?;
-    Ok(Some(crate::client::survival::SlabPlacementRecord {
+    Ok(crate::client::survival::SlabPlacementRecord {
         first_outline: capture.first_outline.clone(),
         merges_clicked: capture.replaces_clicked,
         id: r.id,
@@ -274,7 +344,7 @@ pub(super) fn record_in(
         processing: r.processing,
         requires_inspection: r.requires_inspection,
         stage: r.stage,
-    }))
+    })
 }
 
 #[cfg(test)]

@@ -143,7 +143,7 @@ pub struct SlabPlacementRecord {
     pub id: PlacementId,
     /// Coherent player/inventory capture before possible submission I/O.
     pub initial: PlayerObservation,
-    /// Original clicked cube or dry oak slab.
+    /// Original clicked cube or oak slab; the dry entry admits dry states only.
     pub support: [i32; 3],
     /// Complete support predecessor.
     pub support_state: NativeBlockState,
@@ -153,7 +153,7 @@ pub struct SlabPlacementRecord {
     pub cursor: [f32; 3],
     /// Explicit destination selected by native replace-clicked rules.
     pub target: [i32; 3],
-    /// Complete explicitly requested air or dry oak slab predecessor.
+    /// Complete explicitly requested predecessor; the dry entry admits air/dry halves only.
     pub before: NativeBlockState,
     /// Expected complete oak slab type and waterlogged properties.
     pub expected: NativeBlockState,
@@ -173,6 +173,38 @@ pub struct SlabPlacementRecord {
     pub requires_inspection: Option<String>,
     /// Retained outcome, separate from current world/slot contents.
     pub stage: PlacementStage,
+}
+/// Audited native fluid state derived from a complete block state (1.21.11).
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum SlabFluidState {
+    /// Native empty fluid, not an unavailable cell.
+    Empty,
+    /// Native water; flowing water is distinct from the source fluid type.
+    Water {
+        /// Native source fluid type, required for a newly waterlogged half.
+        source: bool,
+        /// Native falling property; falling amount-eight water is still flowing.
+        falling: bool,
+        /// Native fluid amount, 1..8.
+        amount: u8,
+    },
+}
+/// One liquid-aware slab attempt, separate from the dry slab history.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct FluidSlabPlacementRecord {
+    /// Original intent, complete states and independent block/material/ACK receipts.
+    pub placement: SlabPlacementRecord,
+    /// Raw received world-cache provenance shared by both original cells.
+    /// This is a capture boundary, not the ordinal of an individual block packet.
+    pub source: super::SceneSource,
+    /// Native fluid of the original clicked block.
+    pub support_fluid: SlabFluidState,
+    /// Native fluid of the explicitly requested predecessor.
+    pub before_fluid: SlabFluidState,
+    /// Native fluid of the expected slab, not a receipt of neighboring flow.
+    pub expected_fluid: SlabFluidState,
 }
 /// Connection-owned diagnostic snapshot, also readable after closure.
 #[derive(Clone, Debug, serde::Serialize)]

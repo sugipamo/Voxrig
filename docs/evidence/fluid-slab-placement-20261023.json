@@ -1,0 +1,1863 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "authority": "Unmodified official Java 1.21.11 server in a disposable directory. Original forwarded packets and independent RCON; no server-side patches.",
+  "scope": "Liquid-aware oak slabs: source-water top/bottom, flowing levels 1/7, falling level 8, dry cell, wet top/bottom same-cell merging, adjacent wet merging and dry bottom merging. Ordinary native ticking and source-fed channels establish stable flowing predecessors; neighboring flow is observed separately after success. Does not qualify fluid convergence as success or causal actor attribution.",
+  "base_commit": "20867bf5d570c6eed4bb2759a45af9f3e2a491cf",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "binary_sha256": "5574a2011bfc2ac5d60a82d90f37459a0bb6e613d6a2b7446d7b91d7ed1a7c78",
+  "source_sha256": {
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "examples/climbing_control_probe.rs": "1be57933cf4666d4292cf89413076bc9fc1b38207a73b0cf80f16441c554b39c",
+    "src/client/adapter.rs": "262b5d131169af704b7cb98695907f7cc1af68b7c71b093e24d17c5b39522495",
+    "src/client/operations.rs": "6ef44f6f94e619185404bba546ea8096d342fe44f59b89c2d3364dc50197a0ae",
+    "src/client/survival.rs": "a474695d747c3c3aa1125fb10bc01aefd350ef9082aa69d8a29797c039a8886b",
+    "src/client/survival/placement.rs": "3e7dc74c713ade5ab6bfea222e8cf6032f05b531cd78cada436462418bccbf76",
+    "src/versions/java_1_21_11/client.rs": "d0dce5c5a8245f710b940a550cfa874747bc94b88a55860b1fd98cf8acb43cf1",
+    "src/versions/java_1_21_11/client/operations/placement.rs": "f73bd742dc7e313f4d58380f25a2a4d1a4ea342b0faaabfb1b1680580d81719f",
+    "src/versions/java_1_21_11/client/operations/placement/slab.rs": "259546b68df89c111aebdf972cceeb3f80d472852e1145342be344555eea800c",
+    "src/versions/java_1_21_11/client/operations/placement/wet_slab.rs": "6e0ce4e54e516e0fcfc367059be0d42c471eefc653a6f5eaecdddc4956091d4c",
+    "src/versions/java_1_21_11/client/operations/survival.rs": "4ce58ea6efe0855a08e4ed31d9e910ade41df9ee087cc87b5cc1864a63124ccc",
+    "src/versions/java_1_21_11/client/raycast.rs": "2c53ffe2de8b5c29de6de331ba50e2463dcc531a169b7a8ba531506452f981a5",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "b0dff18a75ed5c0b4e1db3fc964d55081e457f23d964e310f7d1d29e2c6a7a99",
+    "data/client_api/fluid_slab_placement.json.gz": "da3af0001573f30ba4200b0a5a4d28b3ba743216db59a25552fa86eb1abadabb",
+    "data/client_api/fluid_slab_placement_source.json": "b84cf0ffc0c7767e6b53381f936a0771864aeca1a2239bae58f7b2939b26c9cf",
+    "scripts/run_fluid_slab_placement_live.py": "d4852513ac34a44c6ec8fba9e17dea82e8b6fd19b484e09bd542785bb4fea667",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8"
+  },
+  "artifacts": {
+    "inputs.json": {
+      "sha256": "bc0b12ac41dcb938fb46ee7d2ecb7184bdd4c78d532d314821849dcc77790d0e",
+      "bytes": 90
+    },
+    "packets.jsonl": {
+      "sha256": "eee7dda27dfa823d1bf693e92e017aeee80111774113a346e20edcbb7d0c837e",
+      "bytes": 86784
+    },
+    "probe.log": {
+      "sha256": "8426e51d4420ea5f82890e3dbce2355ba48679cdb4d64d65593e49cb591097a5",
+      "bytes": 335931
+    },
+    "probe.stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "report.json": {
+      "sha256": "571e698796ed16d073b792b1899ae31123680d09aa893555423318dbf8a11bfe",
+      "bytes": 422701
+    },
+    "server.log": {
+      "sha256": "92260ebb1f709793cc6bc844961bd81830f889d544c4046bd986d76279d814b8",
+      "bytes": 11286
+    }
+  },
+  "checks": [
+    {
+      "name": "source_bottom",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 129,
+        "region": {
+          "max": [
+            3,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 60
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "expected_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:stone",
+        "properties": {}
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "0"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "true"
+        }
+      },
+      "merges_clicked": false,
+      "first_outline": {
+        "distance": 4.153912491337156,
+        "face": "West",
+        "point": [
+          2.9999999999999996,
+          66.30262318178204,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 124,
+      "send": {
+        "after_sequence": 129,
+        "dispatched": true,
+        "interaction_sequence": 1
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 132
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "true"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 133
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 134,
+        "sequence": 1
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 154,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "c6cd5e21edadb3648bd9e43cff950e0d106622339cdd9fa6af73da0175f2734a",
+          "body_sha256": "be66d37426dfa35daa8cd90979f46df956545e8097bf12d22a2c88ca6c97ae33",
+          "body_hex": "0000008000000042ca66"
+        },
+        "material_receipt": {
+          "ordinal": 155,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "0f681d7ecd2efb5d91af3d1605711a7ae40b387ca3d7a66589bb581a0977ae1f",
+          "body_sha256": "4f44f95a34502d59629b1460a426f3b07d367e803986b6fc86b8f6c422fbf1e0",
+          "body_hex": "0003002400"
+        },
+        "processing": {
+          "ordinal": 156,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "7ab253baa431f391818b34fee7e927dbb19897c7a409be05d1be8521c74c956c",
+          "body_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+          "body_hex": "01"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 151,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "da4faa1053bcc70c92646be15a2e23ea65fb4df7667d45bbfefca35496b8596d",
+        "body_sha256": "ac4d0becee329e1261d52a48d88f26bb4861828c462ce8c20fe97b7bb1b52905",
+        "body_hex": "00000000c00000004204000000003e9af16d3f000000000001"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": {
+        "native_neighbor_water": "Test passed",
+        "native_retained_waterlogged_slab": "Test passed",
+        "frames": [
+          {
+            "ordinal": 157,
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "packet_id": 82,
+            "body_length": 15,
+            "wire_sha256": "e9afc6fdd2823342cb97ee1ea6220a5155d18964610224d4c4e9ef88b00b794e",
+            "body_sha256": "ccffbd3918756c23a38509453327d3e260c5f469cf2ec5e936eea775ed10bfec",
+            "body_hex": "00000000000000040291c41781c217"
+          },
+          {
+            "ordinal": 158,
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "packet_id": 8,
+            "body_length": 9,
+            "wire_sha256": "1abb1ad3037faa0b3be9ae3c19a270077baf7755af367cb267801aaf1fc881ad",
+            "body_sha256": "11b2fed168bd29937b20e6a7dfa0a5c0eae56632aa633ceba457ee786da48983",
+            "body_hex": "000000bffffff0415e"
+          }
+        ]
+      }
+    },
+    {
+      "name": "source_top",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 139,
+        "region": {
+          "max": [
+            3,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 75
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "expected_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:stone",
+        "properties": {}
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "0"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "top",
+          "waterlogged": "true"
+        }
+      },
+      "merges_clicked": false,
+      "first_outline": {
+        "distance": 3.8892108422309453,
+        "face": "West",
+        "point": [
+          3.0,
+          66.64074490066487,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 139,
+      "send": {
+        "after_sequence": 139,
+        "dispatched": true,
+        "interaction_sequence": 2
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 142
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "top",
+            "waterlogged": "true"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 143
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 144,
+        "sequence": 2
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 166,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "6c4d22a6ec5c1d1de37966ab3d27ac70a060eeebcd51d04949fe2390c37219e4",
+          "body_sha256": "153c2becb1993734f49059a0ce341707db4048b0a2f84d49b84db8e1835ac728",
+          "body_hex": "0000008000000042c866"
+        },
+        "material_receipt": {
+          "ordinal": 167,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "7eec22e80fd1d6e5d26c5ca89dc064da9ffdea457480d436a26a3db0afd24532",
+          "body_sha256": "ef6be3b04a54d0f16966d7055dd14abf816b15290d6bb8a5a3135aa2ba29fb99",
+          "body_hex": "0005002400"
+        },
+        "processing": {
+          "ordinal": 168,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "968d7dd2a50a991f8e4b38691c90ae51f0308014b9bdf9cb5de8b790a194c93f",
+          "body_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+          "body_hex": "02"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 163,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "9c6dfefed16e963351a2cc9d75dab1e8ddab722a74e0783c65411e44b79b9e6e",
+        "body_sha256": "a385554d58f344b3fdda3e5dddbbbef2b6e5ef7e043a0b3c718761aa9e701d3c",
+        "body_hex": "00000000c00000004204000000003f2407dc3f000000000002"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": null
+    },
+    {
+      "name": "flow_1",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 148,
+        "region": {
+          "max": [
+            3,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 134
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "amount": 7,
+        "falling": false,
+        "kind": "water",
+        "source": false
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:stone",
+        "properties": {}
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "1"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": false,
+      "first_outline": {
+        "distance": 4.153912491337156,
+        "face": "West",
+        "point": [
+          2.9999999999999996,
+          66.30262318178204,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 148,
+      "send": {
+        "after_sequence": 148,
+        "dispatched": true,
+        "interaction_sequence": 3
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 151
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 152
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 153,
+        "sequence": 3
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 177,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "aee27b585939e3980f1f528a6a64a998ae7142f5198344aa62c73dffdeed1e45",
+          "body_sha256": "9e40ac1a607ef2d23ac27f78f0adcb495cc764f6467713dcac057d26029d9518",
+          "body_hex": "0000008000000042cb66"
+        },
+        "material_receipt": {
+          "ordinal": 178,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "70d5df70afeebc81312fe424296657bbb0c5b6cf3fb80e377a3b90079bca341e",
+          "body_sha256": "b676334c713d9ac9d7933f57ab4e174263f1df97982a37f009ddba45e826c783",
+          "body_hex": "0007002400"
+        },
+        "processing": {
+          "ordinal": 179,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "cb8e5bb7b086a77015fc2a6c6f4e1c432aca8b00172d0f7cb257711dc72f4570",
+          "body_sha256": "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5",
+          "body_hex": "03"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 174,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "3ee1e2659c19d1fe5e1c05c4f7df86ff4f67d0e64839ad293a6c5dfbe546886d",
+        "body_sha256": "e017100cd7277f710841d628292ec574ff30d65b7f048dcaef6a60b31760892a",
+        "body_hex": "00000000c00000004204000000003e9af16d3f000000000003"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": {
+        "source_position": [
+          2,
+          66,
+          1
+        ],
+        "native_source_preserved": "Test passed"
+      }
+    },
+    {
+      "name": "flow_7",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 165,
+        "region": {
+          "max": [
+            3,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 200
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "amount": 1,
+        "falling": false,
+        "kind": "water",
+        "source": false
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:stone",
+        "properties": {}
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "7"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": false,
+      "first_outline": {
+        "distance": 4.153912491337156,
+        "face": "West",
+        "point": [
+          2.9999999999999996,
+          66.30262318178204,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 165,
+      "send": {
+        "after_sequence": 165,
+        "dispatched": true,
+        "interaction_sequence": 4
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 168
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 169
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 170,
+        "sequence": 4
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 196,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "aee27b585939e3980f1f528a6a64a998ae7142f5198344aa62c73dffdeed1e45",
+          "body_sha256": "9e40ac1a607ef2d23ac27f78f0adcb495cc764f6467713dcac057d26029d9518",
+          "body_hex": "0000008000000042cb66"
+        },
+        "material_receipt": {
+          "ordinal": 197,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "043b421d130c0ba9eab0485763f4f44ac5c0a6fba8a5b44c0b5be66bd34bd31f",
+          "body_sha256": "d076c4fe4fbeaa1257fd252e7bddf416f43768d7d97cb0177054561eea73d70c",
+          "body_hex": "0009002400"
+        },
+        "processing": {
+          "ordinal": 198,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "ed1b385533761b94d9751e453dbf9324d7af580eabc89cb55354b8565eb52796",
+          "body_sha256": "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71",
+          "body_hex": "04"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 193,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "a48cd3b2c9b9f04525a2d1a0e6f3636dc749d816dccd08807615888b67efda8b",
+        "body_sha256": "b73db197e78ff495b3c1001ccb38bb2a94099e277d1546ee854018265e22753e",
+        "body_hex": "00000000c00000004204000000003e9af16d3f000000000004"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": {
+        "source_position": [
+          2,
+          66,
+          7
+        ],
+        "native_source_preserved": "Test passed"
+      }
+    },
+    {
+      "name": "flow_8",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 175,
+        "region": {
+          "max": [
+            3,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 265
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "amount": 8,
+        "falling": true,
+        "kind": "water",
+        "source": false
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:stone",
+        "properties": {}
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:water",
+        "properties": {
+          "level": "8"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": false,
+      "first_outline": {
+        "distance": 4.153912491337156,
+        "face": "West",
+        "point": [
+          2.9999999999999996,
+          66.30262318178204,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 175,
+      "send": {
+        "after_sequence": 175,
+        "dispatched": true,
+        "interaction_sequence": 5
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 178
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 179
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 180,
+        "sequence": 5
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 208,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "aee27b585939e3980f1f528a6a64a998ae7142f5198344aa62c73dffdeed1e45",
+          "body_sha256": "9e40ac1a607ef2d23ac27f78f0adcb495cc764f6467713dcac057d26029d9518",
+          "body_hex": "0000008000000042cb66"
+        },
+        "material_receipt": {
+          "ordinal": 209,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "c07c3126897f2a56793438027c5f0a341499d9314bd6ad649beb1dc55f23cedb",
+          "body_sha256": "338f9564f7e5fc7cc3784399703d0af9f9d54701c9c2d66b7aa26d4f33154590",
+          "body_hex": "000b002400"
+        },
+        "processing": {
+          "ordinal": 210,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "f2e18fea99713c5b16af0ee90765aa27851f1ce33e5673c9db381cf2ef5b049c",
+          "body_sha256": "e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db",
+          "body_hex": "05"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 205,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "f5d8e78b0904466bd4e3897df0a6ad8be0f5d41f5e7ebdcdb454402020d15d14",
+        "body_sha256": "19f3974af1d758720a651d8ccae0429dac81c5053b31c6765332b5e6bba0726c",
+        "body_hex": "00000000c00000004204000000003e9af16d3f000000000005"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": {
+        "source_position": [
+          2,
+          67,
+          0
+        ],
+        "native_source_preserved": "Test passed"
+      }
+    },
+    {
+      "name": "dry_cell",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 183,
+        "region": {
+          "max": [
+            3,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 322
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "kind": "empty"
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:stone",
+        "properties": {}
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:air",
+        "properties": {}
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": false,
+      "first_outline": {
+        "distance": 4.153912491337156,
+        "face": "West",
+        "point": [
+          2.9999999999999996,
+          66.30262318178204,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 181,
+      "send": {
+        "after_sequence": 183,
+        "dispatched": true,
+        "interaction_sequence": 6
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 186
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 187
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 188,
+        "sequence": 6
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 218,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "aee27b585939e3980f1f528a6a64a998ae7142f5198344aa62c73dffdeed1e45",
+          "body_sha256": "9e40ac1a607ef2d23ac27f78f0adcb495cc764f6467713dcac057d26029d9518",
+          "body_hex": "0000008000000042cb66"
+        },
+        "material_receipt": {
+          "ordinal": 219,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "83ab099a29376ec3250e8d2ef3a9ad0601229ed29bc03e9e7cec1734f87d166b",
+          "body_sha256": "0a78f352d6891659a7c896201ec58ba147f6eb81578ae47e47d7dccbab0a633b",
+          "body_hex": "000d002400"
+        },
+        "processing": {
+          "ordinal": 220,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "c07fc27f6840b6189171cc2b238580a2424a74b8b04a0c4f3b2ccf1a76a30ee6",
+          "body_sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6",
+          "body_hex": "06"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 215,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "42aaee4256a49be4ef0a3412ab38cb3c3772f8ca3ed13188535dba8da295e720",
+        "body_sha256": "4c98128d0b8d34b83f02a4427ba7e5348b724832d1ed69d9f0c0ca12d14f07b6",
+        "body_hex": "00000000c00000004204000000003e9af16d3f000000000006"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": null
+    },
+    {
+      "name": "wet_bottom_up_double",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 190,
+        "region": {
+          "max": [
+            2,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 328
+      },
+      "support_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "before_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        2,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "true"
+        }
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "true"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "double",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": true,
+      "first_outline": {
+        "distance": 3.7060549082871996,
+        "face": "Up",
+        "point": [
+          2.5001107353056735,
+          66.5,
+          0.5000000000000002
+        ],
+        "position": [
+          2,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "true"
+          }
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 189,
+      "send": {
+        "after_sequence": 190,
+        "dispatched": true,
+        "interaction_sequence": 7
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 193
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "double",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 194
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 195,
+        "sequence": 7
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 227,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "5616813d863614b83b6f44c96152994edce2c0da3f397a55227c87cf005d2289",
+          "body_sha256": "b6844be32b94807b1b30e7079eaa4cf8a3573f64b1bd14c510e4e8b85dfba470",
+          "body_hex": "0000008000000042cd66"
+        },
+        "material_receipt": {
+          "ordinal": 228,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "22c37d536d5bf24d8e77603c1f9acb50a9b80d2393fe57f2b053e1ef54768e4e",
+          "body_sha256": "ab35f9d2234d0640eb33eea7ea1c890ba1ce2b09f0290ce9ca92da88882ceb74",
+          "body_hex": "000f002400"
+        },
+        "processing": {
+          "ordinal": 229,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "bf558f9e81236a98ec7a3a6b456b5cce56e09dd919f1676473c0f2c40cd6eb23",
+          "body_sha256": "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879",
+          "body_hex": "07"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 224,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "62758fdb795b6eb4e27baaa9b3a0b9b976e0f0440549c567d51facfe5f4b883f",
+        "body_sha256": "79ac35cbf134fd0ef5d684eabbf6c672056ef839ae2c2422b3e21a069b724791",
+        "body_hex": "000000008000000042013f0007423f0000003f000000000007"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": null
+    },
+    {
+      "name": "wet_top_down_double",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 197,
+        "region": {
+          "max": [
+            2,
+            70,
+            0
+          ],
+          "min": [
+            2,
+            70,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 334
+      },
+      "support_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "before_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        2,
+        70,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "top",
+          "waterlogged": "true"
+        }
+      },
+      "target": [
+        2,
+        70,
+        0
+      ],
+      "before": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "top",
+          "waterlogged": "true"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "double",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": true,
+      "first_outline": {
+        "distance": 1.7600243647325153,
+        "face": "Down",
+        "point": [
+          2.024232847318423,
+          70.5,
+          0.5000000000000002
+        ],
+        "position": [
+          2,
+          70,
+          0
+        ],
+        "state": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "top",
+            "waterlogged": "true"
+          }
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 196,
+      "send": {
+        "after_sequence": 197,
+        "dispatched": true,
+        "interaction_sequence": 8
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 200
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "double",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 201
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 202,
+        "sequence": 8
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 236,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "225de5863ead039c98eb08624436661146961ff033f60c737ac03bc0dc1309cb",
+          "body_sha256": "1beb4d5ee6ae41122e60705dda9368592926b1bae232b397f0ec3c3ed1bda14e",
+          "body_hex": "0000008000000046cd66"
+        },
+        "material_receipt": {
+          "ordinal": 237,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "89c1a1796d1aa3b836c60544420b62f75f0a8eebdd56d747163cf284794aab67",
+          "body_sha256": "1665ee8b5d7812e9c85064fa2a90806715b9fb53ca398e4b63b611f798063a5a",
+          "body_hex": "0011002400"
+        },
+        "processing": {
+          "ordinal": 238,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "83f3d8b959de3b53b248bc203c08fb5aa09cb729f41e0a5fb428b05bc3841a7b",
+          "body_sha256": "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a",
+          "body_hex": "08"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 233,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "3eb767a1fcbdbaabe4d61d74c33f76f6d56c8b329f12e0576731f4820d56a292",
+        "body_sha256": "d73bf194794975c63f513fb6e52c14827cf89406d5dbdd90f706ee23626ffa82",
+        "body_hex": "000000008000000046003cc683f73f0000003f000000000008"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": null
+    },
+    {
+      "name": "wet_adjacent_double",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 204,
+        "region": {
+          "max": [
+            3,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 341
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "amount": 8,
+        "falling": false,
+        "kind": "water",
+        "source": true
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        3,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:stone",
+        "properties": {}
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "true"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "double",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": false,
+      "first_outline": {
+        "distance": 3.8892108422309453,
+        "face": "West",
+        "point": [
+          3.0,
+          66.64074490066487,
+          0.5000000000000003
+        ],
+        "position": [
+          3,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:stone",
+          "properties": {}
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 203,
+      "send": {
+        "after_sequence": 204,
+        "dispatched": true,
+        "interaction_sequence": 9
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 208
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "double",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 209
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 210,
+        "sequence": 9
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 246,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "5616813d863614b83b6f44c96152994edce2c0da3f397a55227c87cf005d2289",
+          "body_sha256": "b6844be32b94807b1b30e7079eaa4cf8a3573f64b1bd14c510e4e8b85dfba470",
+          "body_hex": "0000008000000042cd66"
+        },
+        "material_receipt": {
+          "ordinal": 247,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "64f8bf0d6bf167d5ceba6b1f8c42212c3cc575f4f9c3b6cbbedbf52479fe7409",
+          "body_sha256": "867fd2f5cf03c9d94afd8f1092600c5858774270cdf152bb3b1d7ae0cda3db30",
+          "body_hex": "0013002400"
+        },
+        "processing": {
+          "ordinal": 248,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "2b0779c5435e3a96adfd93646adf4703a93fb8f6f013fc9fb60999261c880fee",
+          "body_sha256": "2b4c342f5433ebe591a1da77e013d1b72475562d48578dca8b84bac6651c3cb9",
+          "body_hex": "09"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 242,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "2f7cc82002d9df5f7bbb8834e4921d24c2fe68bc1efe9260b9c56b5172c44895",
+        "body_sha256": "7c1dda3681a69dc45014fd986128550c65f79d0a94e9def71491e8e0b36101a2",
+        "body_hex": "00000000c00000004204000000003f2407dc3f000000000009"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": null
+    },
+    {
+      "name": "dry_bottom_up_double",
+      "source": {
+        "connection_id": 1,
+        "receive_sequence": 212,
+        "region": {
+          "max": [
+            2,
+            66,
+            0
+          ],
+          "min": [
+            2,
+            66,
+            0
+          ]
+        },
+        "version": "Java1_21_11",
+        "world_revision": 347
+      },
+      "support_fluid": {
+        "kind": "empty"
+      },
+      "before_fluid": {
+        "kind": "empty"
+      },
+      "expected_fluid": {
+        "kind": "empty"
+      },
+      "clicked": [
+        2,
+        66,
+        0
+      ],
+      "support_state": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "target": [
+        2,
+        66,
+        0
+      ],
+      "before": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "bottom",
+          "waterlogged": "false"
+        }
+      },
+      "expected": {
+        "name": "minecraft:oak_slab",
+        "properties": {
+          "type": "double",
+          "waterlogged": "false"
+        }
+      },
+      "merges_clicked": true,
+      "first_outline": {
+        "distance": 3.7060549082871996,
+        "face": "Up",
+        "point": [
+          2.5001107353056735,
+          66.5,
+          0.5000000000000002
+        ],
+        "position": [
+          2,
+          66,
+          0
+        ],
+        "state": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "bottom",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "held_before": {
+        "count": 1,
+        "data": {
+          "kind": "default"
+        },
+        "id": {
+          "kind": "Item",
+          "value": 270,
+          "version": "Java1_21_11"
+        },
+        "name": "minecraft:oak_slab"
+      },
+      "held_receive_sequence": 211,
+      "send": {
+        "after_sequence": 212,
+        "dispatched": true,
+        "interaction_sequence": 10
+      },
+      "target_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 215
+        },
+        "value": {
+          "name": "minecraft:oak_slab",
+          "properties": {
+            "type": "double",
+            "waterlogged": "false"
+          }
+        }
+      },
+      "material_receipt": {
+        "source": {
+          "kind": "received",
+          "sequence": 216
+        },
+        "value": {
+          "kind": "empty"
+        }
+      },
+      "processing": {
+        "receive_sequence": 217,
+        "sequence": 10
+      },
+      "original_receipt_frames": {
+        "target_receipt": {
+          "ordinal": 255,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 8,
+          "body_length": 10,
+          "wire_sha256": "5616813d863614b83b6f44c96152994edce2c0da3f397a55227c87cf005d2289",
+          "body_sha256": "b6844be32b94807b1b30e7079eaa4cf8a3573f64b1bd14c510e4e8b85dfba470",
+          "body_hex": "0000008000000042cd66"
+        },
+        "material_receipt": {
+          "ordinal": 256,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 20,
+          "body_length": 5,
+          "wire_sha256": "3bc2b5fe24433ddfeff6aa947d033d3f5b0ca76533bbfec5831754d853cf67a4",
+          "body_sha256": "ebc1b5091feee6ae319dcdc27e0f966191b0ba4b8ef7731f553a8ade0b45d7e3",
+          "body_hex": "0015002400"
+        },
+        "processing": {
+          "ordinal": 257,
+          "connection": 1,
+          "direction": "clientbound",
+          "phase": "play",
+          "packet_id": 4,
+          "body_length": 1,
+          "wire_sha256": "5a02b516996608e85db1f06ec3fa7d32d4d118e6e9ac44ce15aced65194dc350",
+          "body_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "body_hex": "0a"
+        }
+      },
+      "original_use_frame": {
+        "ordinal": 252,
+        "connection": 1,
+        "direction": "serverbound",
+        "phase": "play",
+        "packet_id": 63,
+        "body_length": 25,
+        "wire_sha256": "323b5eb04a24a2729f2434033dc24452e79bbe4cf8daf41bf5a0b0676190e70b",
+        "body_sha256": "3fb062a738dff8c5b95247c59b19b9e917fad127d7b880bef9a94df0489f88df",
+        "body_hex": "000000008000000042013f0007423f0000003f00000000000a"
+      },
+      "native_block": "Test passed",
+      "native_inventory": "Found no elements matching SelectedItem",
+      "stage": "observed_placed",
+      "fluid_observation": null
+    }
+  ],
+  "passed": true,
+  "process_cleanup": "Shared harness stopped probe, proxy and server; server log confirms normal saving. EULA and world existed only in the disposable directory."
+}

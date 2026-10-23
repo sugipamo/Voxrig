@@ -263,12 +263,13 @@ pub mod prelude {
     };
     pub use super::resource_pack::ResourcePackRequest;
     pub use super::survival::{
-        BlockTargetHit, BlockTargetObservation, CapturedSurvivalScene, MiningEstimate, MiningId,
-        MiningProfileRecovery, MiningRecord, MiningRecoveryAttempt, MiningRecoveryEvidence,
-        MiningRecoveryMethod, MiningRecoveryTarget, MiningStage, MotionPreview, MotionRecord,
-        MotionStatus, PlacementId, PlacementRecord, PlacementStage, RecoveredSurvivalClient,
-        ReplaceableCubePlacementRecord, ScenePreview, SceneSource, SlabPlacementRecord,
-        StairNeighborUpdate, StairPlacementRecord, StairShapeInput, SurvivalControl, SurvivalInput,
+        BlockTargetHit, BlockTargetObservation, CapturedSurvivalScene, FluidSlabPlacementRecord,
+        MiningEstimate, MiningId, MiningProfileRecovery, MiningRecord, MiningRecoveryAttempt,
+        MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget, MiningStage,
+        MotionPreview, MotionRecord, MotionStatus, PlacementId, PlacementRecord, PlacementStage,
+        RecoveredSurvivalClient, ReplaceableCubePlacementRecord, ScenePreview, SceneSource,
+        SlabFluidState, SlabPlacementRecord, StairNeighborUpdate, StairPlacementRecord,
+        StairShapeInput, SurvivalControl, SurvivalInput,
     };
     pub use super::ui::{
         BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, PlayerChatSession,

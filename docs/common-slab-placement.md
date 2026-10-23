@@ -95,3 +95,7 @@ python3 -B scripts/run_slab_placement_live.py --accept-eula \
 独立RCONを照合した。誤ったpredecessorは無送信、正しい操作の設置packetは各1回だった。
 [source・binary・元packet/RCONのhashと受信結果](evidence/checked-slab-placement-20261023.json)を保持する。
 probe・proxy・serverはすべて終了し、元のserver directoryは変更していない。
+
+source水・流水・wet oak slabへの追加入口は
+[`place_slab_with_fluid`](common-fluid-slab-placement.md)を参照。
+元fluidの由来と生成stateを専用recordに保持し、このdry入口の意味は変えない。
