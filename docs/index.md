@@ -54,6 +54,7 @@ Microsoftアカウント認証・online-mode暗号化、および署名付きcha
 - [Java 1.21.11の共通ロード完了処理](survival-interaction-loading.md)
 - [Java 1.21.11の通常配置と材料の受信確認](survival-placement.md)
 - [共通Survivalの設置と材料の受信確認](common-survival-placement.md)
+- [確認付きoak slab設置](common-slab-placement.md)
 - [共通Clientの在庫交換](common-inventory-swaps.md)
 - [共通Clientの通常クリック](common-inventory-clicks.md)
 - [共通ClientのShift転送](common-inventory-transfers.md)

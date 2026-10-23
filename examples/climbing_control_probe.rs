@@ -418,6 +418,17 @@ async fn main() -> anyhow::Result<()> {
                     Err(error) => serde_json::json!({"error": error.to_string(), "kind": format!("{:?}", error.kind())}),
                 }
             }
+            "place_slab" => {
+                let clicked = serde_json::from_value(request["clicked"].clone())?;
+                let target = serde_json::from_value(request["target"].clone())?;
+                let before = serde_json::from_value(request["before"].clone())?;
+                let result = survival.place_slab(clicked, face(&request)?, target, before).await;
+                match result {
+                    Ok(record) => serde_json::json!({"record": record}),
+                    Err(error) => serde_json::json!({"error": error.to_string(), "kind": format!("{:?}", error.kind())}),
+                }
+            }
+            "slab_placement_record" => serde_json::to_value(survival.slab_placement_record().await?)?,
             "place_cube_replacing" => {
                 let clicked = serde_json::from_value(request["clicked"].clone())?;
                 let target = serde_json::from_value(request["target"].clone())?;

@@ -355,6 +355,26 @@ impl Survival {
     ) -> Result<Option<super::inventory::InventorySwapRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::inventory_swap_record(a).await)
     }
+    /// Place one default oak slab using the current first outline (1.21.11).
+    /// Native face/hit-height rules select a dry half or double slab. The actual
+    /// destination and complete predecessor must equal `target` and `before`.
+    /// Retains one intent before I/O; never retry a pending or uncertain attempt.
+    pub async fn place_slab(
+        &self,
+        clicked: [i32; 3],
+        face: BlockFace,
+        target: [i32; 3],
+        before: crate::NativeBlockState,
+    ) -> Result<super::survival::SlabPlacementRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::place_slab(a, clicked, face, target, before).await)
+    }
+    /// Read the retained slab attempt and independent receipts, including closure.
+    pub async fn slab_placement_record(
+        &self,
+    ) -> Result<Option<super::survival::SlabPlacementRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::slab_placement_record(a).await)
+    }
+
     /// Place one passive cube into an explicitly specified audited plant state (1.21.11).
     /// `clicked`/`face` must match the current first outline; native rules choose
     /// either that cell or its face neighbor, which must equal `target`/`before`.

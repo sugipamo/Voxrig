@@ -158,3 +158,6 @@ RCONでも対象dirtとSelectedItem消失を確認し、旧air限定APIと誤っ
 runnerは両方の実受信predecessorが揃うまで待つ。
 [source・binary・元packet/RCONのhashと受信結果](evidence/replaceable-cube-placement-20261023.json)を保持する。
 起動したprobe・proxy・serverは終了し、元のserver directoryは変更していない。
+
+乾いたoak slabのtop/bottom/doubleは追加の[`place_slab`](common-slab-placement.md)で扱う。
+専用recordに完全property stateと実際の対象cellを保持する。
