@@ -85,6 +85,8 @@ fixtureのhashを保持する。4近隣のair／8種類のfacing/halfと中心8�
 yawの斜め境界とhit高さ0.5の直前／同値／直後・全6面を含む1,386件、
 40種類の完全dry stateに対する軸・対角線・遠方座標のoutline clip 3,200件を照合する。
 構成packet試験は受信順、欠測、最後の1個、隣接更新待ち、途中の競合、取消、一度性、履歴を検査する。
+対象と近隣が同じsection更新で届く場合も、負座標の別chunkにある残りの近隣更新を待つ。
+受信TNTと各corner形状の交差では、空いた角を保ちつつcollision union全体を検査する。
 
 ```bash
 python3 -B scripts/export_stair_placement.py \

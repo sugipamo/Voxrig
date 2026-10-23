@@ -434,3 +434,154 @@ async fn stair_missing_diagonal_chunk_at_capture_and_later_chunk_replacement_are
     assert_eq!(sent.stage, PlacementStage::Pending);
     f.stop().await;
 }
+
+#[tokio::test]
+async fn stair_obstruction_checks_the_union_and_preserves_empty_corners() {
+    // Received TNT intersects only a lower corner, below the top stair's base.
+    // A full-cell box would reject both positions; checking only the base would
+    // miss the occupied corners of the step and the inner/outer shapes.
+    for (position, blocked) in [
+        ([2.4, 1.51, 1.4], [true, true, true, false, true]),
+        ([0.6, 1.51, 1.4], [false, false, true, false, false]),
+    ] {
+        let mut f = Fixture::new().await;
+        stack(&mut f, 1).await;
+        slab_fixed_entity(&mut f, "tnt", position).await;
+        {
+            let state = f.api.bot.session.state.lock().await;
+            for (shape, blocked) in [
+                "straight",
+                "inner_left",
+                "inner_right",
+                "outer_left",
+                "outer_right",
+            ]
+            .into_iter()
+            .zip(blocked)
+            {
+                assert_eq!(
+                    stair::unobstructed(
+                        &state,
+                        72,
+                        [0.2, 1., 0.2, 0.8, 2.8, 0.8],
+                        TARGET,
+                        &stair("east", "top", shape),
+                    )
+                    .is_err(),
+                    blocked,
+                    "{position:?} {shape}",
+                );
+            }
+        }
+        let result = f
+            .api
+            .place_stair(SUPPORT, crate::BlockFace::West, TARGET, native("air"))
+            .await;
+        if blocked[0] {
+            assert!(result.is_err());
+            assert!(f.api.stair_placement_record().await.unwrap().is_none());
+            assert!(
+                timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+        } else {
+            assert_eq!(result.unwrap().expected, stair("east", "top", "straight"));
+            f.expected_packet("stair with an unobstructed lower corner")
+                .await;
+        }
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn stair_section_receipts_require_both_neighbors_across_a_negative_chunk_boundary() {
+    async fn section(f: &mut Fixture, changes: &[([i32; 3], crate::NativeBlockState)]) {
+        let p = changes[0].0.map(|v| v.div_euclid(16));
+        let packed = ((p[0] as u64 & 0x3fffff) << 42)
+            | ((p[2] as u64 & 0x3fffff) << 20)
+            | (p[1] as u64 & 0xfffff);
+        let mut bytes = packed.to_be_bytes().to_vec();
+        put_varint(&mut bytes, changes.len() as i32);
+        for (position, state) in changes {
+            assert_eq!(position.map(|v| v.div_euclid(16)), p);
+            let cell = ((position[0] & 15) << 8) | ((position[2] & 15) << 4) | (position[1] & 15);
+            put_varint(&mut bytes, (state_id(state).unwrap() << 12) | cell);
+        }
+        f.receive(ids::play_clientbound::MULTI_BLOCK_CHANGE, &bytes)
+            .await;
+    }
+    let mut f = Fixture::new().await;
+    stack(&mut f, 1).await;
+    for position in [[1, 2, -1], NEIGHBOR] {
+        replacement_block(&mut f, position, &stair("south", "top", "straight")).await;
+    }
+    let sent = f
+        .api
+        .place_stair(SUPPORT, crate::BlockFace::West, TARGET, native("air"))
+        .await
+        .unwrap();
+    f.expected_packet("stair with two neighboring shape changes")
+        .await;
+    assert_eq!(sent.neighbor_updates.len(), 2);
+    let north = sent
+        .neighbor_updates
+        .iter()
+        .find(|u| u.position[2] == -1)
+        .unwrap();
+    let south = sent
+        .neighbor_updates
+        .iter()
+        .find(|u| u.position == NEIGHBOR)
+        .unwrap();
+    assert_eq!(north.expected, stair("south", "top", "outer_left"));
+    assert_eq!(south.expected, stair("south", "top", "inner_left"));
+    stack(&mut f, 0).await;
+    f.ack(sent.send.interaction_sequence.unwrap()).await;
+    // Target and one neighbor share a section packet and receive boundary.
+    section(
+        &mut f,
+        &[
+            (TARGET, sent.expected),
+            (south.position, south.expected.clone()),
+        ],
+    )
+    .await;
+    let pending = f.api.stair_placement_record().await.unwrap().unwrap();
+    assert_eq!(pending.stage, PlacementStage::Pending);
+    assert_eq!(
+        pending
+            .neighbor_updates
+            .iter()
+            .filter(|u| u.receipt.is_some())
+            .count(),
+        1
+    );
+    let target_receipt = pending.target_receipt.unwrap();
+    assert_eq!(
+        pending
+            .neighbor_updates
+            .iter()
+            .find_map(|u| u.receipt.as_ref())
+            .unwrap()
+            .source,
+        target_receipt.source,
+    );
+    // The other neighbor belongs to section z=-1 and must be received separately.
+    section(&mut f, &[(north.position, north.expected.clone())]).await;
+    let complete = f.api.stair_placement_record().await.unwrap().unwrap();
+    assert_eq!(complete.stage, PlacementStage::ObservedPlaced);
+    assert!(
+        complete
+            .neighbor_updates
+            .iter()
+            .all(|u| u.receipt.is_some())
+    );
+    let frozen = serde_json::to_value(&complete).unwrap();
+    section(&mut f, &[(north.position, native("air"))]).await;
+    assert_eq!(
+        serde_json::to_value(f.api.stair_placement_record().await.unwrap().unwrap()).unwrap(),
+        frozen
+    );
+    f.stop().await;
+}
