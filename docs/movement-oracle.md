@@ -257,3 +257,39 @@ python3 -B scripts/run_honey_live.py --accept-eula \
 予期しない補正・traceエラーは0件。数値の一致はoracleの根拠であり、
 実接続は原版clientのpacket時計やtickごとの速度一致の証明ではない。
 [結果とhash](evidence/common-honey-sliding-20261023.json)を参照。
+
+
+## 浮遊効果中のGround操作（2026-10-23）
+
+`levitation_oracle.json.gz`は1.21.11の36場面・868 tick。
+公式の`LivingEntity.aiStep`・`travelInAir`・fluid travelと`Player`の処理を変更せずに実行し、
+位置・速度・箱・姿勢・目の高さ・落下距離・移動状態を全tickでbit単位に照合する。
+自作harnessへの追加は開始速度／落下距離、属性適用後の寸法更新、tick前の明示effect更新と観測だけ。
+
+amplifier 0／1／4／127／254／255、床からの上昇、落下中の付与、天井衝突、途中の
+amplifier増減／解除／再付与、低速落下との併存、重力属性0／0.005／0.08／0.3、
+水・溶岩を含む。旧版の拒否と既存の両版移動fixtureは回帰試験として維持する。
+構築packetの受信試験は、効果の受信順・不正amplifier・world更新、3種類のGround ownerの
+継続送信、Glide／有限dry previewの既存拒否を別に検査する。
+
+```bash
+mkdir -p .local/levitation
+python3 -B scripts/movement_oracle/levitation_scenarios.py .local/levitation/scenarios.json
+python3 -B scripts/run_levitation_oracle.py \
+  --downloads /absolute/path/to/downloads --work /tmp/voxrig-levitation-oracle \
+  --scenarios "$PWD/.local/levitation/scenarios.json"
+cargo test --locked --lib -j2 levitation -- --test-threads=2
+cargo build --locked --example climbing_control_probe -j2
+python3 -B scripts/run_levitation_live.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --work /tmp/voxrig-levitation-live
+```
+
+実接続では使い捨てディレクトリの公式1.21.11 serverへ接続し、付与・amplifier増減・解除、
+天井接触後の操作継続、低速落下との併存・解除後の着地、効果付きの新owner開始を確認する。
+元のeffect受信と移動packet、保持frame、独立RCON位置を別の根拠として保存する。
+数値の根拠はoracleであり、実接続を原版clientのpacket時計やtick単位の速度一致とは扱わない。
+
+2026-10-23の実接続は16項目PASS、補正0・traceエラー0。天井接触後の水平入力変更も
+同じownerで継続した。停止後の記録保持と、開始前から効果を持つ新ownerも確認した。
+[結果とhash](evidence/common-levitation-ground-20261023.json)を参照。

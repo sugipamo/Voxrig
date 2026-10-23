@@ -5307,3 +5307,255 @@ async fn attack_strength_dispatch_resets_and_passive_read() {
         assert!(client.attack_strength().await.is_err());
     }
 }
+
+#[tokio::test(start_paused = true)]
+async fn levitation_packets_update_running_ground_owners_and_ceiling_motion() {
+    use crate::client::{
+        GameMode,
+        control::{ControlStatus, Controls},
+    };
+    async fn wait(session: &Session, handle: &crate::client::PlayerControl, tick: u64) {
+        timeout(Duration::from_secs(2), async {
+            loop {
+                let changed = session.changed.notified();
+                tokio::pin!(changed);
+                changed.as_mut().enable();
+                let record = handle.control_record().await.unwrap().unwrap();
+                assert!(record.dispatched_ticks <= tick);
+                if record.dispatched_ticks == tick {
+                    break;
+                }
+                changed.await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+    let effects =
+        &crate::client::physics::blocks::table(crate::MinecraftVersion::Java1_21_11).effect_ids;
+    for mode in [GameMode::Survival, GameMode::Adventure, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let handle = client.player_control(mode);
+        // Build a ceiling through the real block packet path. The owner must
+        // keep moving horizontally while the vertical collision repeats.
+        {
+            let mut state = session.state.lock().await;
+            for x in 7..=10 {
+                for z in 7..=15 {
+                    let mut packet = ((x as i64) << 38 | (z as i64) << 12 | 68)
+                        .to_be_bytes()
+                        .to_vec();
+                    put_varint(&mut packet, 1);
+                    state
+                        .receive(ids::play_clientbound::BLOCK_CHANGE, &packet, 256)
+                        .unwrap();
+                }
+            }
+        }
+        let start = handle.start_control().await.unwrap();
+        wait(&session, &handle, 1).await;
+        handle
+            .set_controls_for(
+                start.session_id,
+                Controls {
+                    forward: 1,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let mut at_ceiling = false;
+        for tick in 2..=27 {
+            {
+                let mut state = session.state.lock().await;
+                // Multiple receipts within a single tick are applied in order;
+                // the final original amplifier wins, including a lower level.
+                let updates: &[(&str, Option<i32>)] = match tick {
+                    2 => &[
+                        ("minecraft:levitation", Some(0)),
+                        ("minecraft:slow_falling", Some(0)),
+                    ],
+                    5 => &[("minecraft:levitation", Some(4))],
+                    10 => &[
+                        ("minecraft:levitation", None),
+                        ("minecraft:levitation", Some(1)),
+                    ],
+                    18 => &[
+                        ("minecraft:levitation", Some(4)),
+                        ("minecraft:levitation", None),
+                    ],
+                    _ => &[],
+                };
+                for (name, amplifier) in updates {
+                    let mut packet = vec![42];
+                    put_varint(&mut packet, effects[*name]);
+                    let id = if let Some(amplifier) = amplifier {
+                        put_varint(&mut packet, *amplifier);
+                        packet.extend([100, 0]);
+                        ids::play_clientbound::ENTITY_EFFECT
+                    } else {
+                        ids::play_clientbound::REMOVE_ENTITY_EFFECT
+                    };
+                    state.receive(id, &packet, 256).unwrap();
+                }
+            }
+            tokio::time::advance(Duration::from_millis(50)).await;
+            wait(&session, &handle, tick).await;
+            let record = handle.control_record().await.unwrap().unwrap();
+            assert_eq!(record.session_id, start.session_id);
+            assert_eq!(record.status, ControlStatus::Running);
+            assert_eq!(record.corrections, 0);
+            let frame = record.frame.unwrap();
+            if (frame.position[1] - (68. - f64::from(1.8f32))).abs() < 1e-10 {
+                at_ceiling = true;
+                if tick < 18 {
+                    assert!(frame.velocity[1] > 0.0);
+                }
+            }
+            if tick == 2 {
+                assert_eq!(frame.velocity[1], (0.05 * 0.2) * f64::from(0.98f32));
+            }
+            if tick == 27 {
+                assert!(at_ceiling);
+                assert!(frame.velocity[1] < 0.0);
+                assert!(frame.position[2] > 8.8);
+            }
+        }
+        let stopped = handle.stop_control_for(start.session_id).await.unwrap();
+        let frame = stopped.frame.unwrap();
+        let mut moves = 0;
+        while moves < 27 {
+            let (id, bytes) = read_packet(&mut peer, None).await.unwrap();
+            if id == ids::play_serverbound::POSITION_LOOK {
+                moves += 1;
+                if moves == 27 {
+                    for axis in 0..3 {
+                        assert_eq!(
+                            f64::from_be_bytes(bytes[axis * 8..axis * 8 + 8].try_into().unwrap()),
+                            frame.position[axis]
+                        );
+                    }
+                }
+            }
+        }
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn levitation_keeps_glide_and_finite_dry_preview_refusals() {
+    let effect = crate::client::physics::blocks::table(crate::MinecraftVersion::Java1_21_11)
+        .effect_ids["minecraft:levitation"];
+    for glide in [false, true] {
+        let (session, client, mut peer) = if glide {
+            common_glide_fixture().await
+        } else {
+            let (session, api, peer) =
+                common_ground_fixture(crate::client::GameMode::Survival).await;
+            (
+                session,
+                crate::Client::from_java_1_21_11(api.bot.clone()),
+                peer,
+            )
+        };
+        let mut packet = vec![42];
+        put_varint(&mut packet, effect);
+        packet.extend([0, 100, 0]);
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::ENTITY_EFFECT, &packet, 256)
+            .unwrap();
+        let error = if glide {
+            client
+                .player_control(crate::client::GameMode::Survival)
+                .start_glide_control(Default::default())
+                .await
+                .unwrap_err()
+        } else {
+            client
+                .survival()
+                .preview_path(&[crate::client::survival::SurvivalControl {
+                    yaw: 0.,
+                    input: Default::default(),
+                }])
+                .await
+                .unwrap_err()
+        };
+        assert!(error.to_string().contains(if glide {
+            "glide requires an airborne unit-scale non-water model without levitation"
+        } else {
+            "dry motion preview requires grounded native default movement attributes and no received effects"
+        }), "{error}");
+        assert!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        session.stop();
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn levitation_world_packet_retires_old_ground_model_and_effect() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let survival = client.survival();
+    let effect = crate::client::physics::blocks::table(crate::MinecraftVersion::Java1_21_11)
+        .effect_ids["minecraft:levitation"];
+    let mut packet = vec![42];
+    put_varint(&mut packet, effect);
+    packet.extend([1, 100, 0]);
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::ENTITY_EFFECT, &packet, 256)
+        .unwrap();
+    let start = survival.start_control().await.unwrap();
+    wait_for_control_tick(&session, &survival, 1).await;
+    // Consume the old world's one position before changing the world.
+    loop {
+        if read_packet(&mut peer, None).await.unwrap().0 == ids::play_serverbound::POSITION_LOOK {
+            break;
+        }
+    }
+    let mut spawn = vec![0];
+    put_string(&mut spawn, "minecraft:overworld");
+    spawn.extend([0; 8]);
+    spawn.extend([0, 255, 0, 1, 0, 0, 63, 0]);
+    {
+        let mut state = session.state.lock().await;
+        state.dimensions = vec![Dimension::new(-64, 384).unwrap()];
+        state
+            .receive(ids::play_clientbound::RESPAWN, &spawn, 256)
+            .unwrap();
+        assert!(state.operations.local_player.effect_updates.is_empty());
+    }
+    tokio::time::advance(Duration::from_millis(100)).await;
+    timeout(Duration::from_secs(2), async {
+        loop {
+            let record = survival.control_record().await.unwrap().unwrap();
+            if matches!(
+                record.status,
+                crate::client::control::ControlStatus::Stopped { .. }
+            ) {
+                assert_eq!(record.session_id, start.session_id);
+                assert_eq!(record.dispatched_ticks, 1);
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    assert!(survival.start_control().await.is_err()); // No fresh new-world pose/terrain.
+    session.stop();
+}

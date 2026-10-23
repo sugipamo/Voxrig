@@ -17,7 +17,7 @@
 | 操作 | 歩行・ジャンプ・しゃがみ（姿勢と箱の高さ、縁で止まる）・ダッシュ（開始と停止の条件、ダッシュジャンプ） |
 | 自分のscale | modernの実属性値0.125〜4。原版float寸法・姿勢・目の高さ、微小速度の閾値、押し出し・honeyの幅。legacyは1。step height等を独自に倍率変更しない |
 | 押し出し | blockの中に入ったときのclientの押し出し |
-| 属性・効果 | 移動速度（受信した修飾子＋clientのダッシュ修飾子。修飾子の適用順は各版のmapの順序を再現）、1.21.11の`jump_strength`・`step_height`・`gravity`・`sneaking_speed`・`movement_efficiency`・`water_movement_efficiency`、跳躍力上昇・低速落下・盲目・イルカの好意 |
+| 属性・効果 | 移動速度（受信した修飾子＋clientのダッシュ修飾子。修飾子の適用順は各版のmapの順序を再現）、1.21.11の`jump_strength`・`step_height`・`gravity`・`sneaking_speed`・`movement_efficiency`・`water_movement_efficiency`、跳躍力上昇・低速落下・盲目・イルカの好意、1.21.11 Groundの浮遊 |
 | アイテムの使用 | 使用中の入力の縮小（1.16.1は×0.2、1.21.11は`use_effects`の`speed_multiplier`）とダッシュ開始の禁止（1.21.11は`can_sprint`がfalseのとき） |
 | 装備の移動効果 | 1.16.1の受信ブーツの深海探索者とソウルスピード対象タグ。ソウルスピードの速度加算は受信属性を使用。1.21.11は水中移動効率の全modifier operationを公式順序で計算 |
 | 液体（P5） | 水と溶岩の中の移動、流れによる押し（水位・落下中の水・周囲の面）、水面でのジャンプ、しゃがんで沈む、ダッシュでの泳ぎ（泳ぐ姿勢と視線による上下）、低い隙間での這う姿勢、岸に手をかけて上がる動き、水没（目の位置）、水の中での落下距離のリセット、水浸しのblock、海草 |
@@ -40,7 +40,7 @@
 
 徒歩の範囲外は、状態を変えずに`ErrorKind::Unsupported`で拒否する。
 
-- 浮遊効果、乗車、エリトラ。Creative／Spectatorの明示的な飛行モデルは対応。
+- 1.16.1の浮遊効果、浮遊中のflight／Glide、乗車。Creative／Spectatorの明示的な飛行モデルと専用Elytra ownerは別途対応。
 - 1.16.1のハチミツの壁を滑り降りる動き（未資格のため従来の拒否を維持）。
 - 位置や周囲の状況で形が変わるblock（竹・鍾乳石の位置ずれ、粉雪、動いているピストン）。足場とplayerに対する液体の形は対応済み。
 - 下の「確認済みのblock効果」に入っていないblockの効果。
@@ -120,3 +120,11 @@ clientの移動には影響しない。
 他生物の滑空、追加姿勢やgliderを接触モデルへ一般化していない。
 
 全原版poseの[有限分類](common-posture-coverage.md)と、追加mountの[authority/操作分類](common-mount-coverage.md)は調査結果であり、追加の物理対応を保証しない。
+
+
+1.21.11のGround浮遊は[専用oracle](movement-oracle.md#浮遊効果中のground操作2026-10-23)で
+受信amplifierに応じた鉛直速度を資格化した。空気中では衝突・登り後の速度へ
+`y += (0.05 * (amplifier + 1) - y) * 0.2`を適用し、重力を加えず、最後に原版floatの
+鉛直減衰を掛ける。水・溶岩は原版の別travelを使い、浮遊の上昇加速を適用しない。
+浮遊または低速落下中はtravel前に落下距離をリセットする。そのtickの下向き移動は
+原版どおり再び落下距離へ加算される。amplifier欠測・不正値、未ロード地形ではbodyを更新しない。

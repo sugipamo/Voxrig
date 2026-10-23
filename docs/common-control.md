@@ -128,6 +128,20 @@ Survival／Adventure／Creativeの地上held controlは、落下中にハチミ�
 1.16.1の壁滑降、未ロード地形、既存の不確かな接触の拒否条件は維持する。
 数値の根拠と実接続の再現手順は[movement oracle](movement-oracle.md#ハチミツ壁の滑降2026-10-23)を参照。
 
+## 浮遊効果（1.21.11 Ground）
+
+Survival／Adventure／Creativeの地上held controlは、受信した浮遊効果のamplifier 0〜255を
+非公開の物理環境へ渡す。操作中の付与・amplifier変更・解除を次のモデルtickへ反映し、
+天井接触後も水平入力とtick送信を続ける。複数のeffect packetがtick前に届いたときは
+受信順で更新した最後の状態を使う。受信durationをSDKの時計で減らして解除を推測しない。
+
+効果の有無だけからamplifier 0を補わない。不正packetは既存decoderで拒否し、
+world変更時は旧worldの効果を破棄して旧ownerを終了する。元の効果とordinalは従来の
+`player_state().effects`で読み、モデルの速度や送信成功と区別する。
+低速落下との併存、水・溶岩の別travelも原版oracleで照合する。
+飛行・Glideの浮遊拒否と有限dry previewの制限は維持する。1.16.1の浮遊は未資格。
+[原版比較・実接続手順](movement-oracle.md#浮遊効果中のground操作2026-10-23)を参照。
+
 ## 動き
 
 - sessionを記録する呼び手は、`set_controls_for(id, controls)`と`stop_control_for(id)`で対象を指定する。

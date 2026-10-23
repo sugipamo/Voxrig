@@ -128,6 +128,10 @@ fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> 
             match name.as_str() {
                 "minecraft:jump_boost" => env.jump_boost = Some(level.as_u64().unwrap() as u8),
                 "minecraft:slow_falling" => env.slow_falling = true,
+                "minecraft:levitation" => {
+                    env.levitation = true;
+                    env.levitation_amplifier = Some(level.as_i64().unwrap() as i32);
+                }
                 "minecraft:blindness" => env.blindness = true,
                 "minecraft:weaving" => env.weaving = true,
                 "minecraft:dolphins_grace" => env.dolphins_grace = true,
@@ -187,6 +191,18 @@ pub(super) fn compare(
             yaw: t["yaw"].as_f64().unwrap() as f32,
             pitch: t["pitch"].as_f64().unwrap_or(0.0) as f32,
         };
+        if let Some(effects) = t["effect_updates"].as_object() {
+            for (name, level) in effects {
+                match name.as_str() {
+                    "minecraft:levitation" => {
+                        env.levitation = !level.is_null();
+                        env.levitation_amplifier = level.as_i64().map(|a| a as i32);
+                    }
+                    "minecraft:slow_falling" => env.slow_falling = !level.is_null(),
+                    _ => panic!("unhandled scheduled effect {name}"),
+                }
+            }
+        }
         env.using_item = t["using"].as_str().map(|name| {
             if version == MinecraftVersion::Java1_16_1 {
                 super::ItemUse::DEFAULT
@@ -785,5 +801,58 @@ fn honey_legacy_refusal_and_missing_terrain_leave_body_unchanged() {
         assert_eq!(body.bounds, before.bounds);
         assert_eq!(body.fall_distance, before.fall_distance);
         assert_eq!(body.first_tick, before.first_tick);
+    }
+}
+
+#[test]
+fn levitation_reproduces_every_modern_official_tick_without_refusals() {
+    let data: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/levitation_oracle.json.gz")[..],
+    ))
+    .unwrap();
+    let scenarios = data["scenarios"].as_array().unwrap();
+    let results = data["results"]["1.21.11"].as_array().unwrap();
+    assert_eq!(scenarios.len(), 36);
+    assert_eq!(scenarios.len(), results.len());
+    let failures: Vec<_> = scenarios
+        .iter()
+        .zip(results)
+        .filter_map(|(scenario, result)| {
+            assert_eq!(scenario["name"], result["name"]);
+            match compare(MinecraftVersion::Java1_21_11, scenario, result) {
+                Ok(None) => None,
+                other => Some(format!("{}: {other:?}", scenario["name"])),
+            }
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn levitation_missing_invalid_or_unqualified_facts_do_not_change_the_body() {
+    let version = MinecraftVersion::Java1_21_11;
+    let air = state("minecraft:air");
+    for (version, present, amplifier, flying, gliding) in [
+        (version, true, None, false, false),
+        (version, true, Some(-1), false, false),
+        (version, true, Some(256), false, false),
+        (version, false, Some(0), false, false),
+        (version, true, Some(0), true, false),
+        (version, true, Some(0), false, true),
+        (MinecraftVersion::Java1_16_1, true, Some(0), false, false),
+    ] {
+        let mut env = Environment::defaults(version);
+        env.levitation = present;
+        env.levitation_amplifier = amplifier;
+        env.flying = flying;
+        env.gliding = gliding;
+        let mut body = Body::new([0.5, 64., 0.5]);
+        let before = body.clone();
+        let error = tick(version, &mut body, &env, Controls::default(), &mut |_| {
+            Ok(air.clone())
+        })
+        .unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+        assert_eq!(body, before);
     }
 }

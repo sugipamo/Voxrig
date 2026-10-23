@@ -50,6 +50,8 @@ include = [
     "/scripts/run_control_scale.py",
     "/scripts/run_player_scale_oracle.py",
     "/scripts/run_honey_oracle.py",
+    "/scripts/run_levitation_oracle.py",
+    "/scripts/run_levitation_live.py",
     "/scripts/run_honey_live.py",
     "/scripts/run_glide_oracle.py",
     "/scripts/run_glide_live.py",
