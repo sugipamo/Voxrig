@@ -1,0 +1,415 @@
+//! Acceptance-based actions shared by headless and future attached clients.
+//!
+//! This API is additive. Existing receipt APIs retain their stricter meaning.
+//! See `docs/design/body-api.md` for evidence, deadlines and cancellation.
+use crate::client::{BlockFace, GameMode, Hand, Health, ItemData};
+use crate::{MinecraftVersion, NativeBlockState, Region, Result};
+use std::future::Future;
+use std::time::Duration;
+
+use crate::client::control::Controls;
+
+mod headless;
+mod state;
+pub use headless::HeadlessBody;
+
+/// Backend-neutral source; acceptance never changes an observation's source.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum ValueSource {
+    /// Original packet supplying this field.
+    Received {
+        /// Connection receive ordinal, not a server tick.
+        sequence: u64,
+    },
+    /// Server-supplied block cache; revision is a capture boundary, not a field receipt.
+    ReceivedCache {
+        /// Local receive high-water mark.
+        revision: u64,
+    },
+    /// Completely submitted local value.
+    Submitted,
+    /// Headless physics prediction.
+    Predicted,
+    /// Compatibility cache.
+    LocalCache,
+    /// Future attached client's live state, including its local prediction.
+    ClientState,
+}
+/// A value and its original source.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct Value<T> {
+    /// Captured value.
+    pub value: T,
+    /// Origin; no implication of server currentness.
+    pub source: ValueSource,
+}
+/// Connection/world lifetime. Backends must refuse stale requests.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct BodyWorld {
+    /// Backend-local connection identity.
+    pub connection: u64,
+    /// Changes on respawn, world change or reconfiguration.
+    pub generation: u64,
+}
+/// Neutral inventory item. Optional native data is interpreted using snapshot.version.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct BodyItem {
+    /// Namespaced item name, without a registry-bound authority token.
+    pub name: String,
+    /// Stack count.
+    pub count: u32,
+    /// Optional lossless native data; absence means unavailable, not default.
+    pub data: Option<ItemData>,
+}
+/// Knowledge of one inventory location.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum BodySlot {
+    /// Not established or unsupported.
+    Unavailable,
+    /// Established empty.
+    Empty,
+    /// Known item.
+    Item(BodyItem),
+}
+/// Player state; missing fields never imply zero, air or an empty slot.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct BodyPlayer {
+    /// Feet position.
+    pub position: Option<Value<[f64; 3]>>,
+    /// Yaw/pitch in degrees.
+    pub rotation: Option<Value<[f32; 2]>>,
+    /// Received mode when known.
+    pub game_mode: Option<GameMode>,
+    /// Health, food and saturation.
+    pub health: Option<Value<Health>>,
+    /// Main hand slot, 0..8.
+    pub selected_hotbar: Option<Value<u8>>,
+    /// Player screen slots 0..45. None means no knowledge.
+    pub inventory: Vec<Option<Value<BodySlot>>>,
+    /// Carried cursor item.
+    pub cursor: Option<Value<BodySlot>>,
+}
+/// One requested block, including explicit unavailability.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct BodyBlock {
+    /// Absolute block coordinate.
+    pub position: [i32; 3],
+    /// Missing means unloaded/unknown, never inferred air.
+    pub state: Option<Value<NativeBlockState>>,
+}
+/// Observation selection; the player is always included.
+#[derive(Clone, Debug, Default)]
+pub struct ObserveRequest {
+    /// Individual cells, useful without a rectangular region.
+    pub blocks: Vec<[i32; 3]>,
+    /// Optional inclusive region, bounded by Region::volume.
+    pub region: Option<Region>,
+}
+/// State captured on one backend boundary.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct BodySnapshot {
+    /// Owning backend instance.
+    pub backend: u64,
+    /// Protocol/data version.
+    pub version: MinecraftVersion,
+    /// Connection/world lifetime.
+    pub world: BodyWorld,
+    /// Backend revision; not a server tick or per-field receipt.
+    pub revision: u64,
+    /// Own player.
+    pub player: BodyPlayer,
+    /// Requested cells, with unavailability and source preserved.
+    pub blocks: Vec<BodyBlock>,
+}
+/// Initial action families; more can be added without changing existing Client APIs.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum Action {
+    /// Explicit native yaw/pitch, without mouse emulation.
+    Look {
+        /// Yaw in degrees.
+        yaw: f32,
+        /// Pitch in degrees (-90..90).
+        pitch: f32,
+    },
+    /// Hold inputs for at least N fully dispatched client ticks, then release.
+    /// None holds until release_control/cancel or the configured lease deadline.
+    Move {
+        /// Digital inputs and explicit rotation.
+        controls: Controls,
+        /// Tick count, or a deadline-bounded lease.
+        ticks: Option<u32>,
+    },
+    /// Use any held block item at an exact hit, without client reach/raycast filtering.
+    PlaceBlock {
+        /// Clicked block (not the resulting cell).
+        pos: [i32; 3],
+        /// Clicked face.
+        face: BlockFace,
+        /// Exact block-relative hit coordinates, each 0..1.
+        cursor: [f32; 3],
+        /// Hand holding the item.
+        hand: Hand,
+        /// Result cell whose server updates are monitored.
+        target: [i32; 3],
+        /// Expected result; None uses the held item's block name.
+        expected: Option<NativeBlockState>,
+    },
+    /// Creative instant START or survival timed START/STOP continuation.
+    BreakBlock {
+        /// Block to break.
+        pos: [i32; 3],
+        /// Explicit hit face.
+        face: BlockFace,
+    },
+    /// Use the item held in the given hand.
+    UseItem {
+        /// Selected hand.
+        hand: Hand,
+    },
+    /// Send an unsigned chat line (headless offline connections).
+    Chat(String),
+    /// Send a command without the leading slash; acceptance does not imply command success.
+    Command(String),
+    /// Select index 0..8.
+    SelectHotbar(u8),
+}
+/// Action with an optional world fence; submit binds an omitted fence to the current world.
+#[derive(Clone, Debug)]
+pub struct ActionRequest {
+    /// Desired action.
+    pub action: Action,
+    /// Expected lifetime, obtained from observe.
+    pub world: Option<BodyWorld>,
+}
+impl From<Action> for ActionRequest {
+    fn from(action: Action) -> Self {
+        Self {
+            action,
+            world: None,
+        }
+    }
+}
+/// Backend-scoped action identity, never a wire sequence or replay token.
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, serde::Deserialize,
+)]
+pub struct ActionId {
+    /// Backend instance.
+    pub backend: u64,
+    /// Local monotonically increasing action number.
+    pub number: u64,
+}
+/// Original server value which superseded an action, separate from the current snapshot.
+#[derive(Clone, Debug, serde::Serialize)]
+pub enum ServerCorrection {
+    /// Exact block update, including unchanged state rejecting a prediction.
+    Block(BodyBlock),
+    /// Resolved received teleport/correction pose.
+    Pose {
+        /// Received feet position.
+        position: Value<[f64; 3]>,
+        /// Received yaw/pitch.
+        rotation: Value<[f32; 2]>,
+    },
+    /// Server-selected slot.
+    SelectedHotbar(Value<u8>),
+    /// Full inventory resynchronization; contents are in the accompanying snapshot.
+    InventoryResync,
+}
+/// Acceptance outcome. Terminal values are immutable; later changes are ordinary observations.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ActionStatus {
+    /// Admitted locally; sending or evidence collection is still in progress.
+    Pending,
+    /// Complete send plus the documented bounded evidence policy, not perpetual authority.
+    Accepted,
+    /// The server superseded the action. Contains the observed rollback result.
+    Corrected {
+        /// Explanation of the server update.
+        reason: String,
+        /// Original correcting value (may predate the current snapshot).
+        correction: ServerCorrection,
+        /// Current coherent state after observing the correction.
+        snapshot: Box<BodySnapshot>,
+    },
+    /// Explicit local/server refusal, with no implied successful effect.
+    Rejected {
+        /// Reason for refusal.
+        reason: String,
+    },
+    /// Missing evidence, history gap, world loss or uncertain write at the deadline.
+    Unknown {
+        /// Why acceptance could not be established.
+        reason: String,
+    },
+    /// Cancellation requested; releases held control but cannot undo server effects.
+    Cancelled,
+}
+impl ActionStatus {
+    /// Whether this action has reached its immutable result.
+    pub fn is_terminal(&self) -> bool {
+        !matches!(self, Self::Pending)
+    }
+}
+/// Supported action families.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+pub enum ActionKind {
+    /// Explicit view.
+    Look,
+    /// Held ground movement.
+    Move,
+    /// Exact block hit.
+    PlaceBlock,
+    /// Creative and survival breaking.
+    BreakBlock,
+    /// Item use.
+    UseItem,
+    /// Chat and commands.
+    Chat,
+    /// Slot selection.
+    SelectHotbar,
+}
+/// Runtime-independent advertised support; readiness is established at submission.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct BackendCapabilities {
+    /// Implementation name.
+    pub backend: String,
+    /// Exact game version.
+    pub version: MinecraftVersion,
+    /// Implemented action families.
+    pub actions: Vec<ActionKind>,
+    /// Player, inventory and loaded block observation available.
+    pub observation: bool,
+    /// Ground movement uses the headless model and its geometry coverage.
+    pub ground_movement_only: bool,
+}
+/// Bounded acceptance and resource policy.
+#[derive(Clone, Debug)]
+pub struct BodyConfig {
+    /// Quiet interval after complete send (and block ACK). Must be positive.
+    pub settle_window: Duration,
+    /// Absolute deadline from submit, including sending/digging and settling.
+    /// Also the maximum duration of an until-released input lease.
+    pub action_timeout: Duration,
+    /// Maximum retained actions and events; old IDs/cursors explicitly expire.
+    pub retention: usize,
+}
+impl Default for BodyConfig {
+    fn default() -> Self {
+        Self {
+            settle_window: Duration::from_millis(300),
+            action_timeout: Duration::from_secs(10),
+            retention: 256,
+        }
+    }
+}
+/// Result of cancellation; server effects are never rolled back locally.
+#[derive(Clone, Debug, serde::Serialize)]
+pub enum CancelStatus {
+    /// Cancellation/release requested.
+    Requested,
+    /// Result was already terminal (a held lease is still released).
+    AlreadyTerminal(ActionStatus),
+}
+/// Input release result.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+pub enum ReleaseStatus {
+    /// No active body action/control remains.
+    Released,
+    /// Cleanup deadline expired; do not assume inputs are neutral.
+    Unknown,
+}
+/// Backend-scoped cursor for retained status transitions.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
+pub struct EventCursor {
+    /// Instance, zero for initial read.
+    pub backend: u64,
+    /// Event ordinal, zero for initial read.
+    pub ordinal: u64,
+}
+/// One local status transition, not a Minecraft packet receipt.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct BodyEvent {
+    /// Cursor after this event.
+    pub cursor: EventCursor,
+    /// Action identity.
+    pub action: ActionId,
+    /// New status.
+    pub status: ActionStatus,
+}
+/// Bounded transition log. A gap requires a fresh observation.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct BodyEvents {
+    /// Next cursor; advances only through returned events.
+    pub cursor: EventCursor,
+    /// Caller fell behind retention.
+    pub gap: bool,
+    /// Retained transitions in order.
+    pub events: Vec<BodyEvent>,
+}
+/// Small common boundary. Implementations own admitted work independently of waiter lifetimes.
+pub trait BodyBackend: Send + Sync {
+    /// Advertised operation and observation support.
+    fn capabilities(&self) -> BackendCapabilities;
+    /// Capture available state, preserving sources and missing fields.
+    fn observe(&self, request: ObserveRequest)
+    -> impl Future<Output = Result<BodySnapshot>> + Send;
+    /// Admit once and return an ID; do not silently replay a request.
+    fn submit(&self, request: ActionRequest) -> impl Future<Output = Result<ActionId>> + Send;
+    /// Read retained bounded outcome, including after disconnect.
+    fn action_status(&self, id: ActionId) -> impl Future<Output = Result<ActionStatus>> + Send;
+    /// Cancel work/release inputs; never undo effects already sent.
+    fn cancel(&self, id: ActionId) -> impl Future<Output = Result<CancelStatus>> + Send;
+    /// Read local transitions, with explicit retention gaps.
+    fn events_after(
+        &self,
+        cursor: EventCursor,
+        maximum: usize,
+    ) -> impl Future<Output = Result<BodyEvents>> + Send;
+    /// Release owned held input without disconnecting the underlying game client.
+    fn release_control(&self) -> impl Future<Output = Result<ReleaseStatus>> + Send;
+}
+/// Backend-independent facade. Existing clients opt in explicitly.
+pub struct Body<B: BodyBackend> {
+    backend: B,
+}
+impl<B: BodyBackend> Body<B> {
+    /// Wrap a backend.
+    pub fn new(backend: B) -> Self {
+        Self { backend }
+    }
+    /// Access backend-specific extensions.
+    pub fn backend(&self) -> &B {
+        &self.backend
+    }
+    /// Advertised support.
+    pub fn capabilities(&self) -> BackendCapabilities {
+        self.backend.capabilities()
+    }
+    /// Capture a snapshot.
+    pub async fn observe(&self, request: ObserveRequest) -> Result<BodySnapshot> {
+        self.backend.observe(request).await
+    }
+    /// Submit an action exactly once.
+    pub async fn submit(&self, request: impl Into<ActionRequest>) -> Result<ActionId> {
+        self.backend.submit(request.into()).await
+    }
+    /// Read a retained outcome.
+    pub async fn action_status(&self, id: ActionId) -> Result<ActionStatus> {
+        self.backend.action_status(id).await
+    }
+    /// Request cancellation.
+    pub async fn cancel(&self, id: ActionId) -> Result<CancelStatus> {
+        self.backend.cancel(id).await
+    }
+    /// Read transitions.
+    pub async fn events_after(&self, cursor: EventCursor, maximum: usize) -> Result<BodyEvents> {
+        self.backend.events_after(cursor, maximum).await
+    }
+    /// Release held control.
+    pub async fn release_control(&self) -> Result<ReleaseStatus> {
+        self.backend.release_control().await
+    }
+}

@@ -846,11 +846,20 @@ impl Operations {
 }
 
 impl Operations {
+    pub(crate) async fn body_start_control(
+        &self,
+        mode: GameMode,
+        world: crate::body::BodyWorld,
+    ) -> Result<ControlRecord> {
+        self.start_control_inner(mode, None, false, Some(world))
+            .await
+    }
     async fn start_control_inner(
         &self,
         mode: GameMode,
         initial_flight_controls: Option<Controls>,
         glide: bool,
+        world: Option<crate::body::BodyWorld>,
     ) -> Result<ControlRecord> {
         let admission = self.bot.session.ledger.try_work()?;
         admission.run_scoped(async {
@@ -877,6 +886,7 @@ impl Operations {
                 }
             }
             let mut state = self.bot.session.state.lock().await;
+            self.check_body_world(&state, world)?;
             self.ready(&state)?;
             if state.operations.game_mode != Some(mode) {
                 return Err(invalid(
@@ -1079,11 +1089,12 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), true).await
+        self.start_control_inner(mode, Some(controls), true, None)
+            .await
     }
 
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false).await
+        self.start_control_inner(mode, None, false, None).await
     }
 
     async fn start_flight_control(
@@ -1091,7 +1102,8 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), false).await
+        self.start_control_inner(mode, Some(controls), false, None)
+            .await
     }
 
     async fn set_controls(

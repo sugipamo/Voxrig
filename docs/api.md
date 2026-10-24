@@ -8,6 +8,11 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 
 この文書は、外部controllerが利用する公開面を用途別に示します。正確な引数型と戻り値は`cargo doc --open`で生成されるrustdocを正とします。
 
+受理に基づく追加入口は `voxrig::body::{Body, BodyBackend, HeadlessBody}` です。
+既存の receipt API を維持し、完全送信・server訂正・ACK・有限期限から
+`Accepted / Corrected / Rejected / Unknown` を返します。
+[Body API の契約と例](design/body-api.md)を参照してください（初期実装はJava 1.21.11）。
+
 ## ゲーム版と操作の入口
 
 `Client` / `ConnectionConfig` / `MinecraftVersion`で接続版を明示します。
