@@ -783,7 +783,14 @@ impl ControlSession {
             }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
-                if contact_bodies || self.kind == ControlKind::Glide {
+                if contact_bodies
+                    || self.kind == ControlKind::Glide
+                    || error.movement_refusal().is_some_and(|refusal| {
+                        refusal.unsupported_kind()
+                            && refusal.context().entity.is_some()
+                            && refusal.geometry().is_some()
+                    })
+                {
                     self.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };

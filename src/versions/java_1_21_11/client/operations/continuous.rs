@@ -613,7 +613,7 @@ impl Operations {
                         connection_id: self.bot.session.id,
                         world_generation: generation,
                     };
-                    contacts.refresh(id, &state.entities, state.sequence)?;
+                    contacts.refresh_player(id, &state.entities, state.sequence, (&session.body, &received.environment))?;
                     let teams = state.teams.capture(stamp, state.sequence);
                     let profiles = state.player_list.capture(stamp, state.sequence);
                     contacts.teams(&teams, &profiles, crate::MovementOwnerState::Invalidated)?;
@@ -1018,12 +1018,10 @@ impl Operations {
                     .local_player
                     .entity_id
                     .ok_or_else(|| invalid("contact model requires own login entity"))?;
-                let constructor = if glide {
-                    crate::client::entity::owned_contacts::OwnedContacts::new_glide
-                } else {
-                    crate::client::entity::owned_contacts::OwnedContacts::new
-                };
-                let mut contacts = constructor(stamp, id, own, &state.entities, state.sequence)?;
+                let mut contacts = crate::client::entity::owned_contacts::OwnedContacts::for_player(
+                            (stamp, id, own), &state.entities, state.sequence, (&session.body, &received.environment),
+                            self.bot.session.limits.max_contact_bodies, glide,
+                        )?;
                 let teams = state.teams.capture(stamp, state.sequence);
                 let profiles = state.player_list.capture(stamp, state.sequence);
                 contacts.teams(&teams, &profiles, crate::MovementOwnerState::NotAdmitted)?;

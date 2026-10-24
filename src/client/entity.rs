@@ -11,6 +11,7 @@ mod contact_capabilities;
 mod contact_policy;
 pub(crate) mod contact_tick;
 pub(crate) mod owned_contacts;
+mod scope;
 pub use owned_contacts::{EntityContactFrame, EntityContactSample};
 mod query;
 mod targeting;

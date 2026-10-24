@@ -92,6 +92,7 @@ pub struct LivingEntityTickOrder {
     pending: VecDeque<(u64, Option<u64>, usize)>,
     frozen: bool,
     dispatched: usize,
+    limit: usize,
 }
 impl LivingEntityTickOrder {
     /// Create an empty original-default map/list, preserving its capacity history.
@@ -110,7 +111,22 @@ impl LivingEntityTickOrder {
             pending: VecDeque::new(),
             frozen: false,
             dispatched: 0,
+            limit: MAX_LIVING_TICK_BODIES,
         }
+    }
+    // Receipt checkpoints and scoped owners retain native slots separately from
+    // the configurable numerical contact-body budget. Public models stay fixed.
+    pub(crate) fn receipt_slots(version: MinecraftVersion) -> Self {
+        let mut value = Self::new(version);
+        value.limit = usize::MAX / 2;
+        value
+    }
+    pub(crate) fn restore_default_budget(&mut self) -> Result<(), LivingTickUnavailable> {
+        self.limit = MAX_LIVING_TICK_BODIES;
+        if self.active.len() > self.limit || self.bodies.len() > self.limit * 2 {
+            return Err(LivingTickUnavailable::TooManyBodies);
+        }
+        Ok(())
     }
     fn ready(&self) -> Result<(), LivingTickUnavailable> {
         if self.valid {
@@ -133,7 +149,7 @@ impl LivingEntityTickOrder {
         use LivingTickUnavailable as U;
         self.can_mutate()?;
         if body.key <= self.fresh
-            || body.passengers.len() > MAX_LIVING_TICK_BODIES
+            || body.passengers.len() > self.limit
             || body
                 .passengers
                 .iter()
@@ -146,9 +162,8 @@ impl LivingEntityTickOrder {
         {
             return Err(U::InconsistentIdentity);
         }
-        if (self.active.len() >= MAX_LIVING_TICK_BODIES
-            && !self.active.contains_key(&body.native_id))
-            || self.bodies.len() >= 2 * MAX_LIVING_TICK_BODIES
+        if (self.active.len() >= self.limit && !self.active.contains_key(&body.native_id))
+            || self.bodies.len() >= 2 * self.limit
         {
             return Err(U::TooManyBodies);
         }
@@ -202,7 +217,7 @@ impl LivingEntityTickOrder {
         if old.native_id != body.native_id
             || old.player != body.player
             || (old.removed && !body.removed)
-            || body.passengers.len() > MAX_LIVING_TICK_BODIES
+            || body.passengers.len() > self.limit
             || body
                 .passengers
                 .iter()
@@ -340,12 +355,12 @@ impl LivingEntityTickOrder {
                 return Err(U::UnsupportedChunkUpdate);
             }
             self.dispatched += 1;
-            if self.dispatched > MAX_LIVING_TICK_BODIES {
+            if self.dispatched > self.limit {
                 return Err(U::TooManyBodies);
             }
             // Children run immediately after their original parent callback,
             // before the next root, in the explicitly supplied native list order.
-            if self.pending.len().saturating_add(b.passengers.len()) > MAX_LIVING_TICK_BODIES {
+            if self.pending.len().saturating_add(b.passengers.len()) > self.limit {
                 return Err(U::TooManyBodies);
             }
             for child in b.passengers.iter().rev() {

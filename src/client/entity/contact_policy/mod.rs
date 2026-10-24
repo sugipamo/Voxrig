@@ -87,7 +87,6 @@ fn callback_decision(
 }
 
 /// The finite evidence allowlist remains distinct from policy pass-through.
-#[cfg(test)]
 pub(super) fn harmless_packet(
     version: crate::MinecraftVersion,
     name: &str,

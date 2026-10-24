@@ -83,6 +83,7 @@ pub(crate) struct OwnedContacts {
     native_keys: BTreeMap<i32, u64>,
     own_glide: bool,
     checkpoint_errors: Vec<(Option<EntityId>, MovementRefusal)>,
+    scope: Option<super::scope::PlayerScope>,
 }
 /// Unticked numerical receipt reducer at the public eviction boundary. Storage
 /// follows active lifetimes and native map capacity, rather than receipt count.
@@ -93,19 +94,22 @@ pub(super) struct ContactCheckpoint {
     errors: BTreeMap<i32, (Option<EntityId>, MovementRefusal)>,
     global_error: Option<MovementRefusal>,
     own_id: i32,
+    pub(super) proof: super::scope::ScopeReceipts,
 }
 impl ContactCheckpoint {
     pub(super) fn new(session: SessionStamp, own_id: i32) -> Result<Self> {
         Ok(Self {
-            model: OwnedContacts::empty(session, own_id)?,
+            model: OwnedContacts::receipt_model(session, own_id)?,
             own_metadata: BTreeMap::new(),
             errors: BTreeMap::new(),
             global_error: None,
             own_id,
+            proof: Default::default(),
         })
     }
 
     pub(super) fn advance(&mut self, record: super::EntityHistoryRecord) {
+        self.proof.apply(&record, self.own_id);
         // World/order failures cannot be repaired by later receipt deltas.
         // Keep the bounded refusal until the world checkpoint is superseded.
         if self.global_error.is_some() {
@@ -224,6 +228,18 @@ impl ContactCheckpoint {
             return Err(failure("contact checkpoint local player changed"));
         }
         target.world = self.model.world.clone();
+        if target.scope.is_none() {
+            target
+                .world
+                .order
+                .restore_default_budget()
+                .map_err(failure)?;
+            target
+                .world
+                .spatial
+                .restore_default_budget()
+                .map_err(failure)?;
+        }
         target.inputs = self.model.inputs.clone();
         target.deferred = self.model.deferred.clone();
         for body in target.deferred.values_mut() {
@@ -333,6 +349,12 @@ fn entity_failure(error: crate::Error, input: &Inputs) -> crate::Error {
     value.into_error()
 }
 
+fn remote_geometry_error(error: crate::Error, input: &Inputs, position: [f64; 3]) -> crate::Error {
+    let mut value = refusal(&entity_failure(error, input));
+    value.geometry_mut().entity_position = Some(position);
+    value.into_error()
+}
+
 impl OwnedContacts {
     fn empty(session: SessionStamp, own_native_id: i32) -> Result<Self> {
         let mut model = Self {
@@ -351,9 +373,69 @@ impl OwnedContacts {
             native_keys: BTreeMap::from([(own_native_id, 1)]),
             own_glide: false,
             checkpoint_errors: Vec::new(),
+            scope: None,
         };
         model.world.admit(tick_body(1, own_native_id, true), None)?;
         Ok(model)
+    }
+
+    fn receipt_model(session: SessionStamp, own: i32) -> Result<Self> {
+        let mut value = Self::empty(session, own)?;
+        value.world.order = super::LivingEntityTickOrder::receipt_slots(session.version);
+        value.world.spatial = super::LivingContactIndex::receipt_slots(session.version);
+        value.world.admit(tick_body(1, own, true), None)?;
+        Ok(value)
+    }
+
+    pub(crate) fn for_player(
+        identity: (SessionStamp, u64, i32),
+        ledger: &SpawnLedger,
+        sequence: u64,
+        player: (
+            &crate::client::physics::Body,
+            &crate::client::physics::Environment,
+        ),
+        cap: usize,
+        glide: bool,
+    ) -> Result<Self> {
+        let (session, owner, own) = identity;
+        let result = (|| {
+            let mut model = Self::receipt_model(session, own)?;
+            model.owner = owner;
+            model.own_glide = glide;
+            model.scope = Some(super::scope::PlayerScope::new(
+                session, own, ledger, sequence, player.0, player.1, cap,
+            )?);
+            model.drain(ledger, sequence, true)?;
+            model.origin = model.cursor.map_or(0, EntityHistoryCursor::ordinal);
+            Ok(model)
+        })();
+        result.map_err(|error| {
+            let mut value = refusal(&error);
+            value.context_mut().session = Some(session);
+            value.context_mut().owner_id = Some(owner);
+            value.context_mut().owner_state = MovementOwnerState::NotAdmitted;
+            value.into_error()
+        })
+    }
+
+    fn prune_scope(&mut self) -> Result<()> {
+        let Some(scope) = &self.scope else {
+            return Ok(());
+        };
+        let keys = self
+            .inputs
+            .iter()
+            .filter(|(_, input)| scope.excludes(input.entity))
+            .map(|(&key, _)| key)
+            .collect::<Vec<_>>();
+        for key in keys {
+            self.world.bodies.remove(&key);
+            self.inputs.remove(&key);
+            self.world.spatial.remove(key).map_err(failure)?;
+        }
+        self.deferred.retain(|_, b| !scope.excludes(b.entity));
+        Ok(())
     }
 
     pub(crate) fn has_bodies(&self) -> bool {
@@ -545,7 +627,10 @@ impl OwnedContacts {
                     bounds,
                     interpolation.pose.position[1],
                     &mut *read.borrow_mut(),
-                )? && !overlap(bounds, *own_bounds.borrow())
+                )
+                .map_err(|e| {
+                    remote_geometry_error(e, &inputs[&remote.key], interpolation.pose.position)
+                })? && !overlap(bounds, *own_bounds.borrow())
                     && !fixed.iter().any(|b| overlap(bounds, *b));
                 Ok(Some(clear))
             },
@@ -557,7 +642,14 @@ impl OwnedContacts {
                             version,
                             remote.motion.frame().interpolation.pose.position,
                             &mut *read.borrow_mut(),
-                        )?);
+                        )
+                        .map_err(|e| {
+                            remote_geometry_error(
+                                e,
+                                input,
+                                remote.motion.frame().interpolation.pose.position,
+                            )
+                        })?);
                 Ok(())
             },
         )?;
@@ -601,13 +693,23 @@ impl OwnedContacts {
         EntityContactFrame,
     )> {
         use crate::client::{LivingContactBody, LivingPushBody, physics};
+        if let Some(scope) = &mut self.scope {
+            scope.stage(body, environment, self.tick)?;
+        }
+        self.prune_scope()?;
+        let scope = &self.scope;
         let version = self.session.version;
         let deferred = &self.deferred;
+        if let Some(scope) = scope {
+            scope.check(aabb(body.bounds))?;
+        }
         contact_capabilities::check(deferred.values(), aabb(body.bounds), false)?;
         contact_capabilities::check_peers(deferred.values(), &self.world, false)?;
         let mut guarded_blocks = |p: [i32; 3]| {
-            contact_capabilities::check(deferred.values(), contact_capabilities::cell(p), false)?;
-            block_at(p)
+            if let Some(scope) = scope {
+                scope.check(contact_capabilities::cell(p))?;
+            }
+            block_at(p).map_err(|error| super::scope::block_error(error, p))
         };
         let read = std::cell::RefCell::new(&mut guarded_blocks);
         let mut local = LivingContactBody {
@@ -648,6 +750,9 @@ impl OwnedContacts {
                 local.push.position = body.position;
                 local.push.velocity = body.velocity;
                 local.bounds = aabb(body.bounds);
+                if let Some(scope) = scope {
+                    scope.check(contact_capabilities::hull(before, local.bounds))?;
+                }
                 contact_capabilities::check(
                     deferred.values(),
                     contact_capabilities::hull(before, local.bounds),
@@ -681,12 +786,17 @@ impl OwnedContacts {
                     query[1] + f64::from(remote.height),
                     query[2] + half,
                 ];
-                Ok(Some(physics::contact_block_collision_free(
-                    version,
-                    bounds,
-                    interpolation.pose.position[1],
-                    &mut *read.borrow_mut(),
-                )?))
+                Ok(Some(
+                    physics::contact_block_collision_free(
+                        version,
+                        bounds,
+                        interpolation.pose.position[1],
+                        &mut *read.borrow_mut(),
+                    )
+                    .map_err(|e| {
+                        remote_geometry_error(e, &inputs[&remote.key], interpolation.pose.position)
+                    })?,
+                ))
             },
             |remote| {
                 let input = &inputs[&remote.key];
@@ -696,7 +806,14 @@ impl OwnedContacts {
                             version,
                             remote.motion.frame().interpolation.pose.position,
                             &mut *read.borrow_mut(),
-                        )?);
+                        )
+                        .map_err(|e| {
+                            remote_geometry_error(
+                                e,
+                                input,
+                                remote.motion.frame().interpolation.pose.position,
+                            )
+                        })?);
                 Ok(())
             },
         )?;
@@ -704,6 +821,7 @@ impl OwnedContacts {
         Ok((outcome, self.frame(pairs)))
     }
 
+    #[cfg(test)]
     pub(crate) fn new(
         session: SessionStamp,
         owner: u64,
@@ -719,24 +837,6 @@ impl OwnedContacts {
             receive_sequence,
             None,
             false,
-        )
-    }
-
-    pub(crate) fn new_glide(
-        session: SessionStamp,
-        owner: u64,
-        own_native_id: i32,
-        ledger: &SpawnLedger,
-        receive_sequence: u64,
-    ) -> Result<Self> {
-        Self::new_scoped(
-            session,
-            owner,
-            own_native_id,
-            ledger,
-            receive_sequence,
-            None,
-            true,
         )
     }
 
@@ -863,6 +963,32 @@ impl OwnedContacts {
         ledger: &SpawnLedger,
         sequence: u64,
     ) -> Result<()> {
+        self.refresh_at(owner, ledger, sequence, None)
+    }
+
+    pub(crate) fn refresh_player(
+        &mut self,
+        owner: u64,
+        ledger: &SpawnLedger,
+        sequence: u64,
+        player: (
+            &crate::client::physics::Body,
+            &crate::client::physics::Environment,
+        ),
+    ) -> Result<()> {
+        self.refresh_at(owner, ledger, sequence, Some(player))
+    }
+
+    fn refresh_at(
+        &mut self,
+        owner: u64,
+        ledger: &SpawnLedger,
+        sequence: u64,
+        player: Option<(
+            &crate::client::physics::Body,
+            &crate::client::physics::Environment,
+        )>,
+    ) -> Result<()> {
         let result = (|| {
             if !self.valid || owner != self.owner {
                 self.valid = false;
@@ -870,7 +996,17 @@ impl OwnedContacts {
                 return Err(failure("discarded contact owner"));
             }
             let mut next = self.clone();
-            match next.drain(ledger, sequence, false) {
+            let staged = (|| {
+                if let Some(scope) = &mut next.scope {
+                    if let Some((body, env)) = player {
+                        scope.prepare(body, env)?;
+                    }
+                    scope.refresh(ledger, sequence, next.tick)?;
+                }
+                next.prune_scope()?;
+                next.drain(ledger, sequence, false)
+            })();
+            match staged {
                 Ok(()) => {
                     *self = next;
                     Ok(())
@@ -915,6 +1051,7 @@ impl OwnedContacts {
             }
             if let Some(checkpoint) = checkpoint {
                 checkpoint.seed(self, &surviving, &mut own_metadata)?;
+                self.prune_scope()?;
             }
             self.cursor = Some(boundary);
         }
@@ -965,6 +1102,16 @@ impl OwnedContacts {
             })?;
         }
         for (entity, error) in &self.checkpoint_errors {
+            if self.scope.as_ref().is_some_and(|scope| {
+                entity.is_some_and(|id| scope.excludes(id))
+                    || error
+                        .context()
+                        .packet
+                        .as_ref()
+                        .is_some_and(|p| p.packet_type == "Passengers")
+            }) {
+                continue;
+            }
             if entity.is_none()
                 || entity.is_some_and(|id| {
                     surviving.contains(&id)
@@ -981,7 +1128,11 @@ impl OwnedContacts {
         // Deferred bodies retain native order; only separately proven envelopes
         // can establish irrelevance at the movement boundary.
         for spawn in ledger.capture(self.session, sequence).entities {
-            if !self.inputs.values().any(|i| i.entity == spawn.id)
+            if !self
+                .scope
+                .as_ref()
+                .is_some_and(|scope| scope.excludes(spawn.id))
+                && !self.inputs.values().any(|i| i.entity == spawn.id)
                 && !self.deferred.values().any(|i| i.entity == spawn.id)
                 && !self.boat.as_ref().is_some_and(|scope| {
                     scope.ignored.contains(&spawn.id)
@@ -1058,6 +1209,9 @@ impl OwnedContacts {
 
     fn annotate(&self, error: crate::Error, state: MovementOwnerState) -> crate::Error {
         let mut value = refusal(&error);
+        if let Some(scope) = &self.scope {
+            scope.annotate(&mut value);
+        }
         let context = value.context_mut();
         context.session = Some(self.session);
         context.owner_id = (self.owner != 0).then_some(self.owner);
@@ -1246,7 +1400,8 @@ impl OwnedContacts {
                 }
                 // Missing registry names select the table's Unknown fallback.
                 let name = m.entity.type_name.as_deref().unwrap_or("");
-                if (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
+                if self.scope.as_ref().is_some_and(|scope| scope.excludes(id))
+                    || (bootstrap && surviving.is_some_and(|ids| !ids.contains(&id)))
                     || !locality::modeled(
                         self.session.version,
                         name,
@@ -1256,7 +1411,8 @@ impl OwnedContacts {
                 {
                     // Harmless and unresolved bodies keep their original slot.
                     // No received target is claimed as a current model box.
-                    if surviving.is_none_or(|ids| ids.contains(&id))
+                    if !self.scope.as_ref().is_some_and(|scope| scope.excludes(id))
+                        && surviving.is_none_or(|ids| ids.contains(&id))
                         && !self.boat.as_ref().is_some_and(|scope| {
                             scope.ignored.contains(&id)
                                 || crate::client::vehicle::collision::rigid(name)
@@ -1565,6 +1721,9 @@ impl OwnedContacts {
                             return Ok(());
                         }
                     }
+                }
+                if self.scope.is_some() {
+                    return Ok(());
                 }
                 if self.inputs.values().any(|i| {
                     Some(i.entity) == *entity || value.iter().any(|(_, id)| *id == Some(i.entity))
@@ -1934,6 +2093,11 @@ mod tests {
         (ledger, session)
     }
     fn numerical_state(model: &OwnedContacts) -> serde_json::Value {
+        // Retention budgets differ at checkpoints; they are not part of the
+        // original numerical map/list order or its capacity history.
+        let mut model = model.clone();
+        model.world.order.restore_default_budget().unwrap();
+        model.world.spatial.restore_default_budget().unwrap();
         serde_json::json!({
             "bodies": model.world.bodies.iter().map(|(key, body)|
                 (key, body.motion.frame(), body.velocity, body.width, body.height)
