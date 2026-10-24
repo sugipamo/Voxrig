@@ -2,6 +2,7 @@
 //! Static dry-cube standing and bounded survival controls have explicit admission.
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
+pub(crate) mod body;
 pub(super) mod container;
 mod operational_dig;
 use crate::client::adapter::FlightOps;
@@ -463,6 +464,13 @@ impl Operations {
     /// Send an unsigned command on an offline connection. Server permissions still apply.
     /// No leading slash; dispatch does not imply command success.
     pub async fn send_command(&self, command: &str) -> Result<()> {
+        self.send_command_body(command, None).await
+    }
+    async fn send_command_body(
+        &self,
+        command: &str,
+        world: Option<crate::body::BodyWorld>,
+    ) -> Result<()> {
         let admission = self.bot.session.ledger.try_work()?;
         admission
             .run_scoped(async {
@@ -474,6 +482,7 @@ impl Operations {
                     return Err(invalid("invalid command text"));
                 }
                 let state = self.bot.session.state.lock().await;
+                self.check_body_world(&state, world)?;
                 self.mutable(&state)?;
                 let mut payload = Vec::new();
                 put_string(&mut payload, command);
@@ -488,11 +497,19 @@ impl Operations {
     /// Send an unsigned chat line on an offline connection. The server may
     /// still reject or rewrite it; dispatch is not delivery.
     pub async fn send_chat(&self, message: &str) -> Result<()> {
+        self.send_chat_body(message, None).await
+    }
+    async fn send_chat_body(
+        &self,
+        message: &str,
+        world: Option<crate::body::BodyWorld>,
+    ) -> Result<()> {
         let admission = self.bot.session.ledger.try_work()?;
         admission
             .run_scoped(async {
                 crate::client::chat::validate_chat(message)?;
                 let state = self.bot.session.state.lock().await;
+                self.check_body_world(&state, world)?;
                 self.mutable(&state)?;
                 let timestamp = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -607,6 +624,14 @@ impl Operations {
         self.look_in_mode(None, rotation).await
     }
     async fn look_in_mode(&self, mode: Option<GameMode>, rotation: [f32; 2]) -> Result<()> {
+        self.look_body(mode, rotation, None).await
+    }
+    async fn look_body(
+        &self,
+        mode: Option<GameMode>,
+        rotation: [f32; 2],
+        world: Option<crate::body::BodyWorld>,
+    ) -> Result<()> {
         self.bot
             .session
             .ledger
@@ -614,6 +639,7 @@ impl Operations {
             .run_scoped(async {
                 validate_pose([0.0; 3], rotation)?;
                 let mut state = self.bot.session.state.lock().await;
+                self.check_body_world(&state, world)?;
                 self.mutable(&state)?;
                 self.require_mode(&state, mode)?;
                 let mut payload = Vec::new();
@@ -678,6 +704,14 @@ impl Operations {
         self.select_hotbar_in_mode(None, slot).await
     }
     async fn select_hotbar_in_mode(&self, mode: Option<GameMode>, slot: u8) -> Result<()> {
+        self.select_hotbar_body(mode, slot, None).await
+    }
+    async fn select_hotbar_body(
+        &self,
+        mode: Option<GameMode>,
+        slot: u8,
+        world: Option<crate::body::BodyWorld>,
+    ) -> Result<()> {
         self.bot
             .session
             .ledger
@@ -687,6 +721,7 @@ impl Operations {
                     return Err(invalid("hotbar slot must be 0..8"));
                 }
                 let mut state = self.bot.session.state.lock().await;
+                self.check_body_world(&state, world)?;
                 self.mutable(&state)?;
                 self.require_mode(&state, mode)?;
                 if let Some(mode) = mode {
@@ -830,10 +865,19 @@ impl Operations {
     /// ServerboundUseItemPacket: hand, sequence, then the current rotation, which the
     /// server snaps the player to before using the item.
     async fn use_item_in(&self, mode: GameMode, hand: crate::client::Hand) -> Result<i32> {
+        self.use_item_body(mode, hand, None).await
+    }
+    async fn use_item_body(
+        &self,
+        mode: GameMode,
+        hand: crate::client::Hand,
+        world: Option<crate::body::BodyWorld>,
+    ) -> Result<i32> {
         let admission = self.bot.session.ledger.try_work()?;
         admission
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
+                self.check_body_world(&state, world)?;
                 self.mutable(&state)?;
                 self.require_mode(&state, Some(mode))?;
                 let seq = self.next_sequence()?;

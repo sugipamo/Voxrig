@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "minecraft": "1.21.11",
+  "base_commit": "95518b480ff91d6cf3fbfdd26cb2b0108896e549",
+  "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "binary_sha256": "4c03156513025a44a4339ebf801f7d5c7869ab1ead3515e380be9f8e6997e616",
+  "cargo_lock_sha256": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+  "source_files_sha256": {
+    "Cargo.toml": "51db76e2d2156cd13770a089e96dc2240bc783c327a4606c8dd1d15410fdfda6",
+    "docs/api.md": "a8e10d2e8933c355257394be9b9d5803978b3671ae436e8346e48034e76fd43d",
+    "docs/design/body-api.md": "e3a345501760882d1d6bf60966a7fd42896d1e2b36b21aeb9176252697ebce6e",
+    "examples/body_probe.rs": "3485d3048c96b752ff2d43a00254ea954249f43186224929781141b626525c44",
+    "scripts/run_body_live.py": "e5fb89999311039db8ed931ee6d6489a591907b7d1bdf736c1a05f1a5aef1b63",
+    "src/body/headless.rs": "b2559e1bf70f44235d0442c33bf6b48a71fcf538f0105ee3ceee76e1561c9b40",
+    "src/body/mod.rs": "d5b2b4e4a44c1dbaa6cfccb395a4b1502052f779458445fa1bf3635af2a9e23f",
+    "src/body/state.rs": "ff05d1d7ea40912d359011c8b9c8f2986955d7f3e920b2336a4061c6c21a1acc",
+    "src/lib.rs": "5ab20d6994abe152121b71f69cab84e454c5ff606f44865671e2639abc13a53f",
+    "src/versions/java_1_21_11/client.rs": "836447b8d3710720edcedf14b6372324765259f1480dd274735584df4507c55b",
+    "src/versions/java_1_21_11/client/operations.rs": "496247382be7f681e3d622e29ddc722c4bca68c056708b99100c8fa2d9637de6",
+    "src/versions/java_1_21_11/client/operations/body.rs": "1df3366c8b94ba3661745dda0bdbc16a3604a322b5aab8d474663b0841d30c4d",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "312881cbc96b165314553241782b251b9c53bd8ea0fda32635a249f5557cd47c"
+  },
+  "passed": true,
+  "trace_errors": [],
+  "method": "Disposable official server; original framed bytes forwarded through established proxy; independent RCON checks. Only the missing-ACK case delays an original ACK without changing bytes.",
+  "checks": [
+    {
+      "name": "look_without_pose_echo",
+      "id": {
+        "backend": 1,
+        "number": 1
+      },
+      "seconds": 0.4639181289821863,
+      "native_rotation": "ClimbingProbe has the following entity data: [37.0f, 13.0f]",
+      "status": "accepted"
+    },
+    {
+      "name": "select_without_slot_echo",
+      "id": {
+        "backend": 1,
+        "number": 2
+      },
+      "seconds": 0.4644948620116338,
+      "status": "accepted"
+    },
+    {
+      "name": "move_ten_ticks_without_pose_echo",
+      "id": {
+        "backend": 1,
+        "number": 3
+      },
+      "seconds": 0.8682368170120753,
+      "native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 2.1008017491988142d]",
+      "status": "accepted"
+    },
+    {
+      "name": "arbitrary_gold_block_exact_hit",
+      "id": {
+        "backend": 1,
+        "number": 4
+      },
+      "seconds": 0.4716131880413741,
+      "native_block": "Test passed",
+      "status": "accepted"
+    },
+    {
+      "name": "occupied_placement_rollback",
+      "id": {
+        "backend": 1,
+        "number": 5
+      },
+      "status": "corrected",
+      "reason": "server block update contradicted the requested result",
+      "correction": {
+        "Block": {
+          "position": [
+            2,
+            65,
+            0
+          ],
+          "state": {
+            "source": {
+              "Received": {
+                "sequence": 133
+              }
+            },
+            "value": {
+              "name": "minecraft:diamond_block",
+              "properties": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "survival_dig_continuation",
+      "id": {
+        "backend": 1,
+        "number": 6
+      },
+      "seconds": 1.7919575489941053,
+      "native_block": "Test passed",
+      "status": "accepted"
+    },
+    {
+      "name": "creative_instant_break",
+      "id": {
+        "backend": 1,
+        "number": 7
+      },
+      "seconds": 0.46893139596795663,
+      "native_block": "Test passed",
+      "status": "accepted"
+    },
+    {
+      "name": "chat_without_delivery_receipt",
+      "id": {
+        "backend": 1,
+        "number": 8
+      },
+      "seconds": 0.4639040019828826,
+      "status": "accepted"
+    },
+    {
+      "name": "command_without_success_receipt",
+      "id": {
+        "backend": 1,
+        "number": 9
+      },
+      "seconds": 0.3770870899898,
+      "status": "accepted"
+    },
+    {
+      "name": "use_item",
+      "id": {
+        "backend": 1,
+        "number": 10
+      },
+      "seconds": 0.46385617001214996,
+      "status": "accepted"
+    },
+    {
+      "name": "teleport_rollback",
+      "status": "corrected",
+      "reason": "server position/rotation correction superseded the action",
+      "correction": {
+        "Pose": {
+          "position": {
+            "source": {
+              "Received": {
+                "sequence": 169
+              }
+            },
+            "value": [
+              1.5,
+              65.0,
+              0.5
+            ]
+          },
+          "rotation": {
+            "source": {
+              "Received": {
+                "sequence": 169
+              }
+            },
+            "value": [
+              12.0,
+              3.0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "held_input_release",
+      "id": {
+        "backend": 1,
+        "number": 12
+      },
+      "result": "accepted then released"
+    },
+    {
+      "name": "cancel",
+      "id": {
+        "backend": 1,
+        "number": 14
+      },
+      "status": "cancelled"
+    },
+    {
+      "name": "invalid_slot_rejected_before_send",
+      "id": {
+        "backend": 1,
+        "number": 15
+      },
+      "seconds": 0.06246414902852848,
+      "status": "rejected",
+      "reason": "hotbar slot must be 0..8"
+    },
+    {
+      "name": "missing_ack_bounded_unknown",
+      "id": {
+        "backend": 1,
+        "number": 16
+      },
+      "seconds": 10.065169948036782,
+      "native_block": "Test passed",
+      "status": "unknown",
+      "reason": "absolute action/lease deadline expired"
+    }
+  ],
+  "raw_artifacts_sha256": {
+    "report.json": "97d6443b48594d14c2fd118c26d39f7dfc10f9998c44c72863a73086d41a2d6d",
+    "packets.jsonl": "78bb917bdf032f850c053a747c123478596cc529f097a5b167ca1fdc7e721e1c",
+    "probe.log": "d97a6be2e16ff41fbbe92cb1841897c358e93efcb72c1dcc6026b29c81edd3c3",
+    "server.log": "c2db2bdd6565134234a919cd80dccff5bcf14493862bbe288ff9a4fc0f764f01"
+  }
+}

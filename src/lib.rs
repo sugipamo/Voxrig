@@ -44,6 +44,7 @@
 #![warn(missing_docs)]
 
 pub mod block_state;
+pub mod body;
 pub mod client;
 pub mod connection;
 mod diagnostic_projection;

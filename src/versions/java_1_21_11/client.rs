@@ -141,6 +141,7 @@ struct State {
     rotation: [f32; 2],
     ready: bool,
     sequence: u64,
+    body_evidence: operations::body::EvidenceLog,
     failure: Option<Error>,
     trace: Option<TraceCapture>,
 }
@@ -218,6 +219,7 @@ impl Default for State {
             rotation: [0.0; 2],
             ready: false,
             sequence: 0,
+            body_evidence: Default::default(),
             failure: None,
             trace: None,
         }
@@ -282,6 +284,9 @@ impl State {
         });
         if result.is_ok() {
             operations::continuous::ground_motion_received(self, id);
+            if in_play {
+                operations::body::received(self, id);
+            }
             if self.phase == Phase::Play && id == ids::play_clientbound::RESPAWN {
                 crate::client::respawn::received(
                     &self.respawn_history,
@@ -1284,6 +1289,7 @@ fn apply_play(
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
             let pistons = state.world.load(payload, max_chunks)?;
+            operations::body::chunk(state, chunk);
             state.world.stamp_context(chunk, state.sequence);
             operations::mining_chunk_changed(state, chunk);
             operations::placement_chunk_changed(state, chunk);
@@ -1307,6 +1313,7 @@ fn apply_play(
             if let Some(capture) = &mut state.recording {
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
+            operations::body::blocks(state, &changes);
             state.reconstruction.received(&changes);
             operations::mining_received(state, &changes)?;
             operations::placement_received(state, &changes)?;
@@ -1316,6 +1323,7 @@ fn apply_play(
             if let Some(capture) = &mut state.recording {
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
+            operations::body::blocks(state, &changes);
             state.reconstruction.received(&changes);
             operations::mining_received(state, &changes)?;
             operations::placement_received(state, &changes)?;
@@ -1324,6 +1332,7 @@ fn apply_play(
             let z = r.i32()?;
             let x = r.i32()?;
             state.world.unload(payload)?;
+            operations::body::chunk(state, [x, z]);
             if let Some(capture) = &mut state.recording {
                 capture.chunk_changed([x, z]);
             }
