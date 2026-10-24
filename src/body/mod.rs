@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use crate::client::control::Controls;
 
+pub(crate) mod evidence;
 mod headless;
 mod state;
 pub use headless::HeadlessBody;
@@ -288,7 +289,7 @@ pub struct BackendCapabilities {
 /// Bounded acceptance and resource policy.
 #[derive(Clone, Debug)]
 pub struct BodyConfig {
-    /// Quiet interval after complete send (and block ACK). Must be positive.
+    /// Quiet interval after complete send and required block evidence. Must be positive.
     pub settle_window: Duration,
     /// Absolute deadline from submit, including sending/digging and settling.
     /// Also the maximum duration of an until-released input lease.

@@ -70,6 +70,35 @@ async fn main() -> anyhow::Result<()> {
         let v: Json = serde_json::from_str(&line)?;
         let result: anyhow::Result<Json> = async {
             Ok(match v["command"].as_str().unwrap_or("") {
+                "path_start" => {
+                    let controls: Vec<voxrig::client::survival::SurvivalControl> =
+                        serde_json::from_value(v["controls"].clone())?;
+                    serde_json::to_value(client.survival().start_predicted_path(&controls).await?)?
+                }
+                "path_record" => serde_json::to_value(client.survival().motion_record().await?)?,
+                "control_start" => serde_json::to_value(client.survival().start_control().await?)?,
+                "control_set" => serde_json::to_value(
+                    client
+                        .survival()
+                        .set_controls(serde_json::from_value(v["controls"].clone())?)
+                        .await?,
+                )?,
+                "control_record" => {
+                    serde_json::to_value(client.survival().control_record().await?)?
+                }
+                "control_stop" => serde_json::to_value(client.survival().stop_control().await?)?,
+                "select" => serde_json::to_value(
+                    client
+                        .survival()
+                        .select_hotbar(v["slot"].as_u64().unwrap().try_into()?)
+                        .await?,
+                )?,
+                "strict_place" => serde_json::to_value(
+                    client
+                        .survival()
+                        .place_cube(serde_json::from_value(v["pos"].clone())?, BlockFace::South)
+                        .await?,
+                )?,
                 "submit" => serde_json::to_value(
                     body.submit(ActionRequest {
                         action: parse_action(&v)?,

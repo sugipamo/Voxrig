@@ -79,7 +79,19 @@ impl Error {
         self.source.downcast_ref::<crate::client::DigRefusal>()
     }
 
+    /// Exact unsupported state from the bounded dry walking model.
+    pub fn terrain_refusal(&self) -> Option<&crate::client::survival::TerrainRefusal> {
+        self.source
+            .downcast_ref::<crate::client::survival::TerrainRefusal>()
+    }
+
     fn classify(source: &anyhow::Error) -> ErrorKind {
+        if source
+            .downcast_ref::<crate::client::survival::TerrainRefusal>()
+            .is_some()
+        {
+            return ErrorKind::Unsupported;
+        }
         if source.downcast_ref::<crate::client::DigRefusal>().is_some() {
             return ErrorKind::State;
         }
