@@ -152,19 +152,21 @@ pub(crate) fn collision_shape(
     ) {
         return Ok(&[]);
     }
-    if DRY_CUBES.contains(&block.name.as_str()) {
+    if DRY_CUBES.contains(&block.name.as_str())
+        && (version.table().registry.state_id)(block).is_ok()
+    {
         return Ok(CUBE);
     }
     super::terrain::lookup(version, block)
+        .or_else(|| super::terrain::natural::lookup(version, block))
         .map(|shape| shape.collision.as_slice())
         .ok_or_else(|| {
             Error::new(
                 ErrorKind::Unsupported,
-                anyhow::anyhow!(
-                    "unsupported dry terrain state {} {:?}",
-                    block.name,
-                    block.properties
-                ),
+                super::TerrainRefusal {
+                    version,
+                    state: block.clone(),
+                },
             )
         })
 }

@@ -1,44 +1,9 @@
 //! Private bridge to existing headless state, writer, ledger and interaction sequences.
 use super::*;
-use crate::body::{
-    self, BodyBlock, BodyPlayer, BodySlot, BodySnapshot, BodyWorld, ObserveRequest, Value,
-};
-use std::collections::VecDeque;
+use crate::body::{self, BodyBlock, BodyPlayer, BodySnapshot, BodyWorld, ObserveRequest, Value};
 
-#[derive(Clone)]
-pub(crate) enum Update {
-    Block([i32; 3], i32),
-    Pose(motion::ReceivedPose),
-    Selection(u8),
-    Resync,
-    World,
-    Chunk([i32; 2]),
-}
-#[derive(Clone)]
-pub(crate) struct Evidence {
-    pub ordinal: u64,
-    pub sequence: u64,
-    pub update: Update,
-}
-#[derive(Default)]
-pub(crate) struct EvidenceLog {
-    events: VecDeque<Evidence>,
-    next: u64,
-    dropped: u64,
-}
-impl EvidenceLog {
-    fn push(&mut self, sequence: u64, update: Update) {
-        self.next += 1;
-        self.events.push_back(Evidence {
-            ordinal: self.next,
-            sequence,
-            update,
-        });
-        if self.events.len() > 4096 {
-            self.dropped = self.events.pop_front().unwrap().ordinal;
-        }
-    }
-}
+pub(crate) use crate::body::evidence::{EvidenceBatch, EvidenceLog, Update};
+use crate::body::evidence::{slot, source, value};
 pub(in crate::versions::java_1_21_11::client) fn blocks(
     state: &mut State,
     changes: &[([i32; 3], i32)],
@@ -59,9 +24,13 @@ pub(in crate::versions::java_1_21_11::client) fn received(state: &mut State, id:
     match id {
         input::POSITION => {
             if let Some(pose) = &state.motion.received_pose {
-                state
-                    .body_evidence
-                    .push(state.sequence, Update::Pose(pose.clone()));
+                state.body_evidence.push(
+                    state.sequence,
+                    Update::Pose {
+                        position: pose.position,
+                        rotation: pose.rotation,
+                    },
+                );
             }
         }
         input::HELD_ITEM_SLOT => {
@@ -77,42 +46,6 @@ pub(in crate::versions::java_1_21_11::client) fn received(state: &mut State, id:
         }
         _ => {}
     }
-}
-fn source(source: crate::client::ValueSource) -> body::ValueSource {
-    use crate::client::ValueSource as S;
-    match source {
-        S::Received { sequence } => body::ValueSource::Received { sequence },
-        S::Submitted => body::ValueSource::Submitted,
-        S::Predicted => body::ValueSource::Predicted,
-        S::LocalCache => body::ValueSource::LocalCache,
-    }
-}
-fn value<T>(v: crate::client::ObservedValue<T>) -> Value<T> {
-    Value {
-        value: v.value,
-        source: source(v.source),
-    }
-}
-fn slot(v: crate::client::ObservedValue<crate::client::SlotKnowledge>) -> Value<BodySlot> {
-    Value {
-        source: source(v.source),
-        value: match v.value {
-            crate::client::SlotKnowledge::Unavailable => BodySlot::Unavailable,
-            crate::client::SlotKnowledge::Empty => BodySlot::Empty,
-            crate::client::SlotKnowledge::Item { item } => BodySlot::Item(body::BodyItem {
-                name: item.name,
-                count: item.count,
-                data: Some(item.data),
-            }),
-        },
-    }
-}
-pub(crate) struct EvidenceBatch {
-    pub cursor: u64,
-    pub gap: bool,
-    pub events: Vec<Evidence>,
-    pub ack: Option<i32>,
-    pub snapshot: BodySnapshot,
 }
 impl Operations {
     pub(super) fn check_body_world(

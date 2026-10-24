@@ -1,5 +1,6 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
+mod body;
 mod common_api;
 mod common_chunks;
 mod common_click;
@@ -1122,6 +1123,7 @@ pub struct Bot {
     oxygen_level: Arc<Mutex<Option<u8>>>,
     local_pose: Arc<Mutex<Option<i32>>>,
     protocol_packet_sequence: Arc<AtomicU64>,
+    body_evidence: Arc<Mutex<crate::body::evidence::EvidenceLog>>,
     block_geometry_revision: Arc<AtomicU64>,
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
     common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
@@ -1251,6 +1253,7 @@ impl Bot {
             oxygen_level: self.oxygen_level.clone(),
             local_pose: self.local_pose.clone(),
             protocol_packet_sequence: self.protocol_packet_sequence.clone(),
+            body_evidence: self.body_evidence.clone(),
             block_geometry_revision: self.block_geometry_revision.clone(),
             inventory: self.inventory.clone(),
             common_receipts: self.common_receipts.clone(),
@@ -1468,6 +1471,7 @@ impl Bot {
             oxygen_level: Arc::new(Mutex::new(None)),
             local_pose: Arc::new(Mutex::new(None)),
             protocol_packet_sequence: Arc::new(AtomicU64::new(0)),
+            body_evidence: Arc::new(Mutex::new(Default::default())),
             block_geometry_revision: Arc::new(AtomicU64::new(0)),
             inventory: Arc::new(RwLock::new(Versioned::new(
                 InventoryState::default(),
@@ -6167,6 +6171,7 @@ impl Bot {
             0x5b => self.receive_tags(&p, packet_sequence).await?,
             _ => {}
         }
+        self.body_received(id, packet_sequence).await;
         self.commit_received_snapshot(id, &p, packet_sequence)
             .await?;
         self.common_dismount_context_received().await;

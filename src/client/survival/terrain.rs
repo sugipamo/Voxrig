@@ -16,6 +16,7 @@ pub(crate) struct Shape {
 struct Terrain {
     states: Vec<Shape>,
 }
+pub(crate) mod natural;
 mod rails;
 type Shapes = BTreeMap<String, BTreeMap<BTreeMap<String, String>, Shape>>;
 fn shapes(version: MinecraftVersion) -> &'static Shapes {

@@ -1,10 +1,80 @@
+use super::evidence::{EvidenceBatch, Update};
 use super::state::Acceptance;
 use super::*;
 use crate::connection::Adapter;
-use crate::versions::java_1_21_11::operations::{
-    Operations,
-    body::{EvidenceBatch, Update},
-};
+use crate::versions::java_1_16_1::Bot as LegacyBot;
+use crate::versions::java_1_21_11::operations::Operations as ModernOperations;
+
+#[derive(Clone)]
+enum Operations {
+    Modern(ModernOperations),
+    Legacy(Box<LegacyBot>),
+}
+impl Operations {
+    async fn body_evidence(
+        &self,
+        backend: u64,
+        request: &ObserveRequest,
+        cursor: Option<u64>,
+    ) -> Result<EvidenceBatch> {
+        match self {
+            Self::Modern(ops) => ops.body_evidence(backend, request, cursor).await,
+            Self::Legacy(bot) => bot.body_evidence(backend, request, cursor).await,
+        }
+    }
+    async fn body_block_send(&self, world: BodyWorld, action: &Action, status: i32) -> Result<i32> {
+        match self {
+            Self::Modern(ops) => ops.body_block_send(world, action, status).await,
+            Self::Legacy(_) => Err(error(
+                ErrorKind::Unsupported,
+                "legacy body supports placement only",
+            )),
+        }
+    }
+    async fn body_place_send(
+        &self,
+        world: BodyWorld,
+        action: &Action,
+    ) -> Result<(Option<i32>, Option<u64>)> {
+        match self {
+            Self::Modern(ops) => ops
+                .body_block_send(world, action, 0)
+                .await
+                .map(|s| (Some(s), None)),
+            Self::Legacy(bot) => bot
+                .body_place_send(world, action)
+                .await
+                .map(|c| (None, Some(c))),
+        }
+    }
+    async fn body_simple_send(
+        &self,
+        world: BodyWorld,
+        mode: GameMode,
+        action: &Action,
+    ) -> Result<()> {
+        match self {
+            Self::Modern(ops) => ops.body_simple_send(world, mode, action).await,
+            Self::Legacy(_) => Err(error(
+                ErrorKind::Unsupported,
+                "legacy body currently supports placement only",
+            )),
+        }
+    }
+    async fn body_start_control(
+        &self,
+        mode: GameMode,
+        world: BodyWorld,
+    ) -> Result<crate::client::control::ControlRecord> {
+        match self {
+            Self::Modern(ops) => ops.body_start_control(mode, world).await,
+            Self::Legacy(_) => Err(error(
+                ErrorKind::Unsupported,
+                "legacy body currently supports placement only",
+            )),
+        }
+    }
+}
 use crate::{Client, Error, ErrorKind};
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{
@@ -48,13 +118,16 @@ struct Inner {
 ///
 /// Use one wrapper per Client, and avoid concurrent mutations through other Client clones.
 /// There is one active body action/lease at a time; overlapping submissions are Rejected.
+/// Legacy placement may accompany an existing `Client::survival().start_control()` session;
+/// that caller retains movement ownership and must stop it separately. Finite path and
+/// unresolved strict-operation admission gates still apply.
 #[derive(Clone)]
 pub struct HeadlessBody {
     inner: Arc<Inner>,
 }
 impl HeadlessBody {
     /// Wrap without reconnecting or changing the existing strict API.
-    /// Java 1.16.1 advertises no support and returns Unsupported on submit/observe.
+    /// Java 1.16.1 supports observation and explicit placement. Other actions are Unsupported.
     pub fn new(client: Client, config: BodyConfig) -> Result<Self> {
         if config.settle_window.is_zero()
             || config.action_timeout <= config.settle_window
@@ -89,11 +162,8 @@ impl HeadlessBody {
     }
     fn operations(&self) -> Result<Operations> {
         match &self.inner.client.adapter {
-            Adapter::Java1_21_11(bot) => Ok(bot.operations()),
-            Adapter::Java1_16_1(_) => Err(error(
-                ErrorKind::Unsupported,
-                "body backend currently supports Java 1.21.11",
-            )),
+            Adapter::Java1_21_11(bot) => Ok(Operations::Modern(bot.operations())),
+            Adapter::Java1_16_1(bot) => Ok(Operations::Legacy(bot.clone())),
         }
     }
 }
@@ -153,9 +223,9 @@ impl BodyBackend for HeadlessBody {
                     ActionKind::SelectHotbar,
                 ]
             } else {
-                vec![]
+                vec![ActionKind::PlaceBlock]
             },
-            observation: supported,
+            observation: true,
             ground_movement_only: true,
         }
     }
@@ -172,6 +242,14 @@ impl BodyBackend for HeadlessBody {
     }
     async fn submit(&self, request: ActionRequest) -> Result<ActionId> {
         let ops = self.operations()?;
+        if matches!(&ops, Operations::Legacy(_))
+            && !matches!(request.action, Action::PlaceBlock { .. })
+        {
+            return Err(error(
+                ErrorKind::Unsupported,
+                "legacy body currently supports placement only",
+            ));
+        }
         let deadline = Instant::now() + self.inner.config.action_timeout;
         let needs_ack = matches!(
             request.action,
@@ -495,14 +573,16 @@ async fn run(
         ..
     } = &request.action
     {
-        crate::versions::java_1_21_11::state_id(state)?;
+        (inner.client.version().table().registry.state_id)(state)?;
     }
     let expected = expected(&request.action, &baseline.snapshot)?;
-    let mode = baseline
-        .snapshot
-        .player
-        .game_mode
-        .ok_or_else(|| invalid("game mode unavailable"))?;
+    let mode = || {
+        baseline
+            .snapshot
+            .player
+            .game_mode
+            .ok_or_else(|| invalid("game mode unavailable"))
+    };
     let mut cursor = baseline.cursor;
     let mut sequence = None;
     match &request.action {
@@ -512,16 +592,21 @@ async fn run(
         | Action::Command(_)
         | Action::UseItem { .. } => {
             cleanup.attempted = true;
-            ops.body_simple_send(world, mode, &request.action).await?;
+            ops.body_simple_send(world, mode()?, &request.action)
+                .await?;
             cleanup.dispatched = true;
         }
         Action::PlaceBlock { .. } => {
             cleanup.attempted = true;
-            sequence = Some(ops.body_block_send(world, &request.action, 0).await?);
+            let (sent_sequence, sent_cursor) = ops.body_place_send(world, &request.action).await?;
+            sequence = sent_sequence;
+            if let Some(sent_cursor) = sent_cursor {
+                cursor = sent_cursor;
+            }
             cleanup.dispatched = true;
         }
         Action::BreakBlock { pos, .. } => {
-            let ticks = match mode {
+            let ticks = match mode()? {
                 GameMode::Creative => 0,
                 GameMode::Survival => inner.client.survival().dig_estimate(*pos).await?.ticks,
                 _ => return Err(invalid("break requires survival or creative mode")),
@@ -567,6 +652,7 @@ async fn run(
             }
         }
         Action::Move { controls, ticks } => {
+            let mode = mode()?;
             let control = inner.client.player_control(mode);
             let record = ops.body_start_control(mode, world).await?;
             cleanup.control = Some((mode, record.session_id));
@@ -644,7 +730,18 @@ async fn run(
             inner.finish(id, status);
             return Ok(());
         }
-        if sequence.is_some_and(|s| batch.ack.is_some_and(|ack| ack >= s)) {
+        let legacy_target_received = batch.snapshot.version == MinecraftVersion::Java1_16_1
+            && expected.as_ref().is_some_and(|(target, wanted)| {
+                batch.events.iter().any(|event| match &event.update {
+                    Update::Block(pos, state) if pos == target => {
+                        (batch.snapshot.version.table().registry.native_state)(*state)
+                            .is_ok_and(|state| wanted.matches(&state))
+                    }
+                    _ => false,
+                })
+            });
+        if legacy_target_received || sequence.is_some_and(|s| batch.ack.is_some_and(|ack| ack >= s))
+        {
             inner.update(id, |m| m.ack(Instant::now()));
         }
         inner.update(id, |m| m.advance(Instant::now()));
@@ -675,7 +772,7 @@ fn correction(
         };
         let (reason, actual) = match &evidence.update {
             Update::Block(pos, state) if expected.is_some_and(|(target, _)| target == pos) => {
-                let state = crate::versions::java_1_21_11::native_state(*state)?;
+                let state = (batch.snapshot.version.table().registry.native_state)(*state)?;
                 if expected.unwrap().1.matches(&state) {
                     continue;
                 }
@@ -690,15 +787,15 @@ fn correction(
                     }),
                 )
             }
-            Update::Pose(pose) => (
+            Update::Pose { position, rotation } => (
                 "server position/rotation correction superseded the action",
                 ServerCorrection::Pose {
                     position: Value {
-                        value: pose.position,
+                        value: *position,
                         source: received.clone(),
                     },
                     rotation: Value {
-                        value: pose.rotation,
+                        value: *rotation,
                         source: received,
                     },
                 },
@@ -747,7 +844,7 @@ fn correction(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::versions::java_1_21_11::operations::body::Evidence;
+    use crate::body::evidence::Evidence;
 
     fn snapshot() -> BodySnapshot {
         BodySnapshot {
@@ -879,7 +976,10 @@ mod tests {
             rotation: [40., 2.],
             velocity: None,
         };
-        let batch = batch(vec![Update::Pose(pose)]);
+        let batch = batch(vec![Update::Pose {
+            position: pose.position,
+            rotation: pose.rotation,
+        }]);
         let actual = correction(&batch, None, &Action::Chat("test".into()))
             .unwrap()
             .unwrap();

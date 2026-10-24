@@ -56,3 +56,41 @@ observer・生成物のhashを記録した。各版30件のcollisionと60件のr
 有限歩行→実乗車→有限乗車入力→新しい車両位置受信→実下車とneutral→切断を検証する。
 下車後の地上継続には、受信poseと宣言したcontroller停止値を分けて扱う後続実装が必要。
 この地形対応だけで再開guardを解除しない。
+
+## 草地・森林などの自然地形
+
+fern / large_fern、版ごとの grass / short_grass、tall_grass、花、sapling、
+leaves、log / wood、clay、sand / red_sand、gravel、snow layers、farmland、泥などを追加した。
+1.16.1 の133 block / 525 dry states、1.21.11 の192 block / 730 dry statesを
+[専用の公式形状データ](../data/client_api/natural_terrain_source.json)から完全一致で選ぶ。
+植物の空collisionは通過し、葉・原木はfull cube、雪層はnativeの `(layers-1)/8`、
+耕地・土の道・泥などは各版の部分形状として衝突・step処理する。
+登録名のfamily選択は公式JARの抽出時だけ行い、実行時にsuffixから形状を推測しない。
+
+自然地形の追加はcollisionに限る。植物のoutlineには位置offsetがあるため、
+原点で取得したoutlineを共通raycastへ流用しない。厳密なtargeting・place_cubeの対応範囲は維持する。
+既存のcaptured scene、開始／終端の支持検査にも同じcollisionデータが適用される。
+
+未モデル化のstate/effectには `ErrorKind::Unsupported` と
+`Error::terrain_refusal() -> Option<&TerrainRefusal>` を返す。
+`TerrainRefusal.version / state` は完全な名前・propertiesを保持し、diagnostic context後も取得できる。
+waterlogged、特殊な摩擦・減速・damage（berry bush、wither rose、cactus、powder snow等）、
+位置依存のcollision、未知のstateをairやcubeへ補完しない。
+
+単体テストは全登録stateとnative ID、全properties、snow 1..8層、空の植物、
+combined VoxelShapeの元collision結果（legacy330 / modern390入力）と有限経路を検査する。
+実機再現は `scripts/run_path_place_gaps_live.py` と `examples/body_probe.rs` を使う。
+
+```sh
+cargo build --example body_probe --features native -j2
+python3 -B scripts/run_path_place_gaps_live.py --accept-eula \
+  --binary target/debug/examples/body_probe --jars /path/to/official-jars
+```
+
+抽出の再現は次の通り。JAR / mappings とmodernの元bundle classpathは既存generatorと同じ検証を行う。
+
+```sh
+python3 -B scripts/export_natural_terrain.py \
+  --downloads /path/to/official-jars --modern-classpath-file /path/to/classpath.txt \
+  --runtime-output /tmp/voxrig-natural-oracle --check
+```

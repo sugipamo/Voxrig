@@ -14,6 +14,16 @@ impl Bot {
             acknowledgement.position,
             acknowledgement.block_state_id,
         );
+        self.body_block_received(
+            [
+                acknowledgement.position.x,
+                acknowledgement.position.y,
+                acknowledgement.position.z,
+            ],
+            acknowledgement.block_state_id,
+            packet_sequence,
+        )
+        .await;
         self.advance_block_geometry_revision();
         let geometry_revision_after = self.block_geometry_revision.load(Ordering::Acquire);
         self.world_updated.notify_waiters();
@@ -63,6 +73,8 @@ impl Bot {
             .await?;
         self.common_placement_block_received([x, y, z], state_id, packet_sequence)
             .await?;
+        self.body_block_received([x, y, z], state_id, packet_sequence)
+            .await;
         self.emit(Event::BlockChanged { x, y, z, state_id });
         Ok(())
     }
@@ -87,6 +99,12 @@ impl Bot {
                 .record(packet_sequence, kind);
         }
         for (position, state_id) in changes {
+            self.body_block_received(
+                [position.x, position.y, position.z],
+                state_id,
+                packet_sequence,
+            )
+            .await;
             self.common_placement_block_received(
                 [position.x, position.y, position.z],
                 state_id,
@@ -114,6 +132,14 @@ impl Bot {
             .await
             .vehicles
             .interrupt_motion(self.protocol_packet_sequence.load(Ordering::Acquire));
+        for pos in &explosion.affected_blocks {
+            self.body_block_received(
+                [pos.x, pos.y, pos.z],
+                0,
+                self.protocol_packet_sequence.load(Ordering::Acquire),
+            )
+            .await;
+        }
         self.world
             .lock()
             .await
@@ -136,6 +162,7 @@ impl Bot {
         self.advance_block_geometry_revision();
         self.common_mining_chunk_changed([x, z]).await;
         self.common_placement_chunk_changed([x, z]).await;
+        self.body_chunk_received([x, z]).await;
         self.emit(Event::ChunkUnloaded { x, z });
         Ok(())
     }
@@ -156,6 +183,7 @@ impl Bot {
                 self.world_updated.notify_waiters();
                 self.common_mining_chunk_changed([x, z]).await;
                 self.common_placement_chunk_changed([x, z]).await;
+                self.body_chunk_received([x, z]).await;
                 self.emit(Event::ChunkLoaded { x, z });
             }
             Err(e) => self.emit(Event::Error {

@@ -1,6 +1,6 @@
 # Body API: 受理に基づく共通契約
 
-`voxrig::body` は既存 `Client` の横に追加する API である。headless を残し、将来の Fabric client-only mod バックエンドにも同じ意図・観測・結果の境界を実装できるようにする。この PR は段階 1〜3（契約、共通 facade、Java 1.21.11 headless）のみ。Microsoft 認証、Fabric/IPC、既存 API の移行は含まない。1.16.1 は capability を空にし、操作・観測は `Unsupported` を返す。
+`voxrig::body` は既存 `Client` の横に追加する API である。headless を残し、将来の Fabric client-only mod バックエンドにも同じ意図・観測・結果の境界を実装できるようにする。Java 1.21.11 headless に加え、1.16.1 は観測と明示的 `PlaceBlock` を提供する。1.16.1 の他 action は `Unsupported`。Microsoft 認証、Fabric/IPC、既存 API の移行は含まない。
 
 ## 受理と完了
 
@@ -19,13 +19,21 @@
 
 ### ブロック操作
 
-- 設置・破壊は既存 headless の送信 ledger、guarded writer、単調 interaction sequence を使う。
+- 1.21.11 の設置・破壊は既存 headless の送信 ledger、guarded writer、単調 interaction sequence を使う。
 - 最後の完全送信 sequence を覆う server の block-change ACK（最高 ACK >= 自分の sequence）が必要。ACK は処理済みの証拠であり、単独では要求結果の証明ではない。
 - 完全送信と ACK の両方を観測した後、`settle_window` 中に対象結果と矛盾する block update がなければ `Accepted`。材料の slot receipt や不要な own-pose echo は待たない。
 - 対象セルの元の block update が要求結果と違えば、同じ値への更新であっても `Corrected`。元の更新値と receive ordinal を返す。最新 cache だけで判定しないため、訂正直後に期待値へ戻った場合も訂正を失わない。
 - ACK が来なければ、block cache が期待通りでも期限に `Unknown`。unload/履歴欠落は成功の証拠にならない。
 - `PlaceBlock.pos` はクリックするセル、`target` は監視する結果セル。置換可能セル・隣接セル等を controller が明示する。`expected` があれば完全な native state を比較し、省略時は現在の指定 hand の item 名と結果 block 名を比較する。item と block の名称が異なるもの、特定 property を要求する場合は `expected` を渡す。材料の種類による送信制限は設けない。
 - `BreakBlock` は Creative なら START 一回、Survival なら既存 dig estimate に基づき START→保持→STOP を送信する。instant block は START のみ。取消・期限切れで保持中の dig は元 world に ABORT を試みる。結果は air を期待する。見積りより長い採掘は `action_timeout` を適切に設定する必要がある。
+
+### 1.16.1 の設置
+
+`PlaceBlock` は指定の `pos / face / cursor / hand / target / expected` を使用し、既存 native actor の writer へ一回送信する。通常立位・接地・raycast の一致・default passive cube・空 cursor・全 inventory receipt は要求しない。`expected` を明示すれば手や選択 slot の観測も送信条件にしない。protocol の有限値・座標表現、現在 world、connection/admission は検査する。
+
+この版は設置 sequence ACK を持たない。完全送信時の coherent gate 内で evidence cursor を確定し、**送信境界より後に適用された元の対象 block update** が期待状態と一致してから `settle_window` を待つ。一致する旧 cache や送信前の更新だけでは `Accepted` にせず、期限に `Unknown`。対象への矛盾した更新は `Corrected`。unload、world 変更、履歴欠落、切断は `Unknown`。外部要因による同じ結果の更新と設置の因果を protocol から証明することはできない。材料減少の receipt は要求しない。既存 `place_cube` とその material/target receipt の意味は変更しない。
+
+既に開始済みの共通 `start_control` session と 1.16.1 の body 設置は併用できる。body はその移動 session を所有・解除せず、呼出し側が `stop_control` する。body の操作は一つずつ行い、他の inventory・設置 stream は並行させない。既存 finite path や未解決な strict 操作の actor admission は維持する。
 
 ### 個別の結果 ACK がない操作
 
@@ -47,7 +55,7 @@ headless の movement は既存の ground/fluid/climbing physics と geometry co
 
 `Move.ticks=Some(N)` は少なくとも N 個の完全送信 client tick を待って入力解除し、その後監視する。tick は50msの local client tick で、server tick ではない。停止との競合で境界の追加 tick があり得る。`None` は最初の tick の完全送信から監視し `Accepted` となった後も入力を保持する。明示解除・cancel、または submit 時からの絶対期限で lease を解除する。`Accepted` は慣性・落下・物理的静止を意味しない。
 
-同じ `HeadlessBody` の clone は所有を共有する。同時には一つの body action/lease を許し、競合は ID 付き `Rejected` にする。yaw/pitch を movement と同時指定したければ `Controls` に含める。body を同一 Client に複数作成したり、別の Client clone の strict mutation と並行実行しないこと。既存の未解決な診断操作に関する admission gate を消さない。
+同じ `HeadlessBody` の clone は所有を共有する。同時には一つの body action/lease を許し、競合は ID 付き `Rejected` にする。yaw/pitch を movement と同時指定したければ `Controls` に含める。body を同一 Client に複数作成したり、別の Client clone の strict mutation と並行実行しないこと（上記 1.16.1 の既存 continuous control との併用を除く）。既存の未解決な診断操作に関する admission gate を消さない。
 
 `cancel` は Pending を終端にし、既送信を取り消せない。終端 action の cancel でも残っている入力 lease は解除する。`release_control` は body が所有する action を取消し、選択された movement owner/dig の解除完了を有限に待つ。失敗時は `Unknown`。不確実な cleanup では既存 disconnect を有限に試み、以後 body の新規操作を拒否する。正常な release は underlying game connection を切断しない。
 

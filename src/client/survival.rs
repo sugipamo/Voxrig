@@ -34,3 +34,22 @@ pub use target::{
 };
 #[cfg(test)]
 mod oracle_tests;
+
+/// Exact unmodeled state refused by the bounded dry walking model.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TerrainRefusal {
+    /// Version whose collision/effect model was requested.
+    pub version: crate::MinecraftVersion,
+    /// Full received name and properties; no fallback shape was assumed.
+    pub state: crate::NativeBlockState,
+}
+impl std::fmt::Display for TerrainRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "unsupported dry terrain state {} {:?} ({:?})",
+            self.state.name, self.state.properties, self.version
+        )
+    }
+}
+impl std::error::Error for TerrainRefusal {}
