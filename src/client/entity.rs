@@ -30,7 +30,9 @@ pub use contact::{
     LivingContactResult, LivingContactsModel, LivingContactsUnavailable,
     MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts,
 };
+mod eyes;
 mod geometry;
+pub use eyes::EntityEyeHeight;
 mod interpolation;
 mod packet_model;
 mod replay;
@@ -82,6 +84,8 @@ pub use parts::{
     EntityPartState, EntityPartUnavailable,
 };
 pub(crate) use state::modern_living;
+mod items;
+pub use items::{EntityItemStackObservation, EntityItemStacksObservation};
 pub use state::{EntitiesObservation, EntityDataValue, EntityObservation, EquipmentSlot};
 
 /// An original received spawn on one connection/world, independent of reusable numeric IDs.

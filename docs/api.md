@@ -334,3 +334,5 @@ Futureをdropすると利用側の待機はcancelされますが、すでにserv
 - `bot.server_info()`：実際に接続しているhostとport
 
 利用側は起動時にこれらを検査し、要求するprotocolや能力と一致しない場合は早期に停止できます。
+
+Item-stack metadata, received posture/eye height, dig slot refusals and fluid properties: [observation APIs](observation-gaps.md).

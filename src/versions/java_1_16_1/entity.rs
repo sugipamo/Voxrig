@@ -785,3 +785,76 @@ mod tests {
         );
     }
 }
+
+pub(crate) fn common_item_metadata(
+    metadata: &HashMap<u8, MetadataValue>,
+) -> Vec<(u8, crate::client::SlotKnowledge)> {
+    metadata
+        .iter()
+        .filter_map(|(&index, value)| {
+            let MetadataValue::Slot(stack) = value else {
+                return None;
+            };
+            Some((
+                index,
+                crate::client::legacy_slot(stack.as_ref())
+                    .unwrap_or(crate::client::SlotKnowledge::Unavailable),
+            ))
+        })
+        .collect()
+}
+#[cfg(test)]
+mod item_observation_gap_tests {
+    use super::*;
+    #[test]
+    fn legacy_item_metadata_decodes_id_count_and_lossless_custom_nbt() {
+        let registry =
+            crate::client::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1);
+        let id = registry.item("minecraft:diamond").unwrap().id;
+        let nbt = vec![10, 0, 0, 3, 0, 1, b'x', 0, 0, 0, 42, 0];
+        for item in [
+            Some(ItemStack {
+                item_id: id.value(),
+                count: 3,
+                nbt: Some(nbt.clone()),
+            }),
+            None,
+        ] {
+            let mut packet = vec![7, 7, 6];
+            crate::versions::java_1_16_1::inventory::write_slot(&mut packet, item.as_ref());
+            packet.extend([8, 0, 42, 255]); // Following scalar must still be readable.
+            let (entity, metadata) = parse_metadata(&packet).unwrap();
+            assert_eq!(entity, 7);
+            assert_eq!(metadata.get(&8), Some(&MetadataValue::Byte(42)));
+            let items = common_item_metadata(&metadata);
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].0, 7);
+            match &items[0].1 {
+                crate::client::SlotKnowledge::Item { item } => {
+                    assert_eq!(item.id, id);
+                    assert_eq!(item.count, 3);
+                    assert_eq!(item.name, "minecraft:diamond");
+                    assert_eq!(
+                        item.data,
+                        crate::client::ItemData::LegacyNbt { bytes: nbt.clone() }
+                    );
+                    assert_eq!(
+                        item.custom_data()
+                            .unwrap()
+                            .unwrap()
+                            .root()
+                            .get("x")
+                            .unwrap()
+                            .as_int(),
+                        Some(42)
+                    );
+                }
+                crate::client::SlotKnowledge::Empty => assert!(item.is_none()),
+                _ => panic!("supported stack was not decoded"),
+            }
+            for len in 3..packet.len() - 4 {
+                assert!(parse_metadata(&packet[..len]).is_err());
+            }
+        }
+    }
+}

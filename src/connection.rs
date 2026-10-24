@@ -923,3 +923,70 @@ mod tests {
         server.await.unwrap();
     }
 }
+
+impl ObservedBlock {
+    /// All native palette properties of this observed state. Unloaded cells
+    /// remain None; a known propertyless block returns an empty map.
+    pub fn properties(&self) -> Option<&std::collections::BTreeMap<String, String>> {
+        self.state.as_ref().map(|state| &state.properties)
+    }
+    /// One native palette property, such as `waterlogged` or water `level`.
+    /// None means either an unavailable cell or a property absent on this block;
+    /// inspect `state` to distinguish them.
+    pub fn property(&self, name: &str) -> Option<&str> {
+        self.properties()?.get(name).map(String::as_str)
+    }
+}
+
+#[cfg(test)]
+mod observation_gap_tests {
+    use super::*;
+    #[test]
+    fn palette_water_level_and_all_slab_properties_are_observable_in_both_versions() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let registry = crate::client::registry::Registry::for_version(version);
+            for level in 0..16 {
+                let state = NativeBlockState {
+                    name: "minecraft:water".into(),
+                    properties: [("level".into(), level.to_string())].into(),
+                };
+                let state = registry
+                    .block_state(registry.resolve_block_state(&state).unwrap())
+                    .unwrap();
+                let block = ObservedBlock {
+                    position: [0; 3],
+                    state: Some(state),
+                };
+                assert_eq!(block.property("level"), Some(level.to_string().as_str()));
+            }
+            for wet in ["true", "false"] {
+                let state = NativeBlockState {
+                    name: "minecraft:oak_slab".into(),
+                    properties: [
+                        ("type".into(), "bottom".into()),
+                        ("waterlogged".into(), wet.into()),
+                    ]
+                    .into(),
+                };
+                let received = registry
+                    .block_state(registry.resolve_block_state(&state).unwrap())
+                    .unwrap();
+                let block = ObservedBlock {
+                    position: [0; 3],
+                    state: Some(received),
+                };
+                assert_eq!(block.properties(), Some(&state.properties));
+                assert_eq!(block.property("waterlogged"), Some(wet));
+                assert_eq!(block.property("type"), Some("bottom"));
+            }
+        }
+        assert!(
+            ObservedBlock {
+                position: [0; 3],
+                state: None
+            }
+            .properties()
+            .is_none()
+        );
+    }
+}

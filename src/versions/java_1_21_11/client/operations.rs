@@ -2020,6 +2020,20 @@ impl crate::client::adapter::CoreOps for Operations {
             state.sequence,
         ))
     }
+    async fn entity_item_stacks(&self) -> Result<crate::client::EntityItemStacksObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.entities.capture_items(player.session, state.sequence))
+    }
+    async fn player_posture(&self) -> Result<crate::client::PlayerPostureObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(crate::client::posture::capture(
+            &player,
+            state.posture_pose.clone(),
+            state.posture_swimming.clone(),
+        ))
+    }
     async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
         let state = self.bot.session.state.lock().await;
         let player = self.common_player_unlocked(&state)?;

@@ -285,6 +285,28 @@ async fn main() -> anyhow::Result<()> {
                 });
                 serde_json::json!({"model":model,"velocity_bits":bits})
             },
+            "observation_gaps" => {
+                let region: Region = serde_json::from_value(request["region"].clone())?;
+                let capture = client.capture(region).await?;
+                let predicted = survival.control_record().await?.and_then(|r| r.frame).map(|f|
+                    serde_json::json!({"in_water":f.in_water_observation(),"swimming":f.swimming_observation(),"eye_in_water":f.eye_in_water_observation()}));
+                serde_json::json!({"capture":capture,"posture":client.player_posture().await?,"items":client.entity_item_stacks().await?,"predicted":predicted})
+            }
+            "gap_estimate" => {
+                let target = serde_json::from_value(request["target"].clone())?;
+                match survival.dig_estimate(target).await {
+                    Ok(record) => serde_json::json!({"estimate":record}),
+                    Err(error) => serde_json::json!({"error":error.to_string(),"refusal":error.dig_refusal()}),
+                }
+            }
+            "gap_dig" => {
+                let target = serde_json::from_value(request["target"].clone())?;
+                let before = client.player_state().await?;
+                match survival.dig(target, face(&request)?).await {
+                    Ok(record) => serde_json::json!({"before":before,"record":record}),
+                    Err(error) => serde_json::json!({"before":before,"error":error.to_string(),"refusal":error.dig_refusal()}),
+                }
+            }
             "entity_geometry" => serde_json::json!(client.entities().await?.entities.iter()
                 .map(|entity| serde_json::json!({"entity":entity.motion.entity,"geometry":entity.derived_geometry(),"scale":entity.scale(),"metadata_complete":entity.metadata_complete}))
                 .collect::<Vec<_>>()),

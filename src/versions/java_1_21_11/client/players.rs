@@ -505,6 +505,7 @@ pub(super) fn read_attribute_details(
 /// Entity.DATA_AIR_SUPPLY_ID (an int).
 const AIR_SUPPLY_METADATA: u8 = 1;
 pub(super) struct PoseUpdate {
+    pub native_pose: Option<i32>,
     pub entity_flags: Option<u8>,
     pub supported: bool,
     pub received: bool,
@@ -523,6 +524,7 @@ pub(super) fn read_pose(
         .living_flags_metadata_index;
     let mut seen = BTreeSet::new();
     let mut update = PoseUpdate {
+        native_pose: None,
         entity_flags: None,
         supported: true,
         received: false,
@@ -547,7 +549,9 @@ pub(super) fn read_pose(
             if kind != 20 {
                 bail!("incorrect player pose serializer");
             }
-            *pose = Some(PlayerPose::decode(r.varint()?));
+            let id = r.varint()?;
+            update.native_pose = Some(id);
+            *pose = Some(PlayerPose::decode(id));
             update.received = true;
         } else if key == flags_index {
             if kind != 0 {

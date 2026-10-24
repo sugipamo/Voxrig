@@ -528,6 +528,26 @@ impl crate::client::adapter::CoreOps for Bot {
             player.receive_sequence,
         ))
     }
+    async fn entity_item_stacks(&self) -> Result<api::EntityItemStacksObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_receipts
+            .lock()
+            .await
+            .entities
+            .capture_items(player.session, player.receive_sequence))
+    }
+    async fn player_posture(&self) -> Result<api::PlayerPostureObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        Ok(api::posture::capture(
+            &player,
+            receipts.entity_pose.clone(),
+            receipts.swimming.clone(),
+        ))
+    }
     async fn vehicle_state(&self) -> Result<api::VehicleObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;

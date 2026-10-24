@@ -67,7 +67,8 @@ pub struct EntityObservation {
 }
 
 /// One received entity-data value. Scalar, pose and block-position serializers are
-/// decoded; any other serializer keeps only its native kind.
+/// decoded; any other serializer keeps only its native kind. Decoded item stacks
+/// are available separately through [`crate::Client::entity_item_stacks`].
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum EntityDataValue {
     /// Byte serializer.
@@ -107,6 +108,7 @@ pub struct EntitiesObservation {
 
 #[derive(Default)]
 pub(super) struct Extra {
+    pub item_metadata: BTreeMap<u8, ObservedValue<SlotKnowledge>>,
     pub scale_attribute: Option<ObservedValue<crate::client::control::ReceivedAttribute>>,
     pub scale_attribute_unavailable_sequence: Option<u64>,
     pub health: Option<ObservedValue<f32>>,
@@ -185,6 +187,9 @@ impl SpawnLedger {
         if let Some(spawn) = self.0.get_mut(&native_id) {
             spawn.extra.metadata_truncated |= !complete;
             for (index, value) in entries {
+                // A replacement serializer retires any older stack at this index.
+                // The item sidecar is applied after the scalar projection.
+                spawn.extra.item_metadata.remove(&index);
                 spawn.extra.metadata.insert(
                     index,
                     ObservedValue {

@@ -69,7 +69,7 @@ pub use dig_operation::{
     DigOwnerExit, DigPhase, DigResult, DigSnapshot, DigWriteEvidence,
 };
 pub(crate) mod operational_dig;
-pub use dig::{DigEstimate, DigRecord};
+pub use dig::{DigEstimate, DigRecord, DigRefusal};
 pub use operational_dig::{DigCleanupRecord, DigCleanupStatus};
 mod geometry;
 mod hash_ops;
@@ -156,8 +156,9 @@ pub use crafting::{
 };
 pub use entity::{
     EntitiesObservation, EntityDataField, EntityDataReading, EntityDataSource, EntityDataValue,
-    EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
-    EntityId, EntityMotionObservation, EntityMotionPacket, EntityObservation, EntityPartEvidence,
+    EntityEyeHeight, EntityGeometry, EntityGeometryEvidence, EntityGeometryModel,
+    EntityGeometryUnavailable, EntityId, EntityItemStackObservation, EntityItemStacksObservation,
+    EntityMotionObservation, EntityMotionPacket, EntityObservation, EntityPartEvidence,
     EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
     EntityPartUnavailable, EntityPose, EntityPoseReading, EntityPosition, EntityPositionCorrection,
     EntityScaleReading, EntitySleepingReading, EntitySpawn, EntitySpawns, EquipmentSlot,
@@ -171,6 +172,7 @@ pub use entity::{
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
 pub(crate) use item::{modern_prototype_components, modern_weight_defaults};
+pub(crate) mod posture;
 pub use observation::{
     Capture, ConnectionIdentity, Dimension, GameMode, Health, InventoryObservation, ItemComponent,
     ItemComponentPatch, ItemData, ItemStack, ObservedValue, PlayerObservation, ReceivedPose,
@@ -178,6 +180,7 @@ pub use observation::{
 };
 pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
+pub use posture::{PlayerEyeHeight, PlayerPostureObservation};
 pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{
@@ -215,8 +218,9 @@ pub mod prelude {
         WorldDifficulty, WorldEntryContext, WorldViewObservation,
     };
     pub use super::entity::{
-        EntitiesObservation, EntityContactFrame, EntityContactSample, EntityGeometry,
-        EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable, EntityObservation,
+        EntitiesObservation, EntityContactFrame, EntityContactSample, EntityEyeHeight,
+        EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
+        EntityItemStackObservation, EntityItemStacksObservation, EntityObservation,
         EntityPartEvidence, EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation,
         EntityPartState, EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading,
         EntitySleepingReading, EntityTargetCandidate, EntityTargetObservation, EquipmentSlot,
@@ -294,9 +298,9 @@ pub mod prelude {
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceError, CraftOnceRecord,
         CraftOnceUnknownCause, CraftingFillRecord, DigCancelOutcome, DigCompletion,
         DigDispatchEvidence, DigEstimate, DigOperation, DigOperationId, DigOwnerExit, DigPhase,
-        DigRecord, DigResult, DigSnapshot, DigWriteEvidence, Hand, InventoryMoveRecord,
+        DigRecord, DigRefusal, DigResult, DigSnapshot, DigWriteEvidence, Hand, InventoryMoveRecord,
         InventoryMoveStage, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,
-        PlayerControl, PlayerEffect, ValueSource,
+        PlayerControl, PlayerEffect, PlayerEyeHeight, PlayerPostureObservation, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
