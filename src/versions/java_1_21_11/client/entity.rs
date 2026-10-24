@@ -696,8 +696,10 @@ mod item_observation_gap_tests {
             scalar.last(),
             Some(&(9, crate::client::EntityDataValue::Byte(42)))
         );
-        let mut state = State::default();
-        state.sequence = 5;
+        let mut state = State {
+            sequence: 5,
+            ..Default::default()
+        };
         state
             .entities
             .insert(

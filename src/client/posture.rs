@@ -112,6 +112,31 @@ impl crate::Client {
     }
 }
 
+impl super::control::ControlFrame {
+    /// Numerical water intersection, explicitly labeled as predicted.
+    pub fn in_water_observation(&self) -> crate::client::ObservedValue<bool> {
+        crate::client::ObservedValue {
+            value: self.in_water,
+            source: crate::client::ValueSource::Predicted,
+        }
+    }
+    /// Numerical swimming state, independent of the received shared entity flag
+    /// available through `Client::player_posture`.
+    pub fn swimming_observation(&self) -> crate::client::ObservedValue<bool> {
+        crate::client::ObservedValue {
+            value: self.swimming,
+            source: crate::client::ValueSource::Predicted,
+        }
+    }
+    /// Numerical eye-water intersection for this model's pose.
+    pub fn eye_in_water_observation(&self) -> crate::client::ObservedValue<bool> {
+        crate::client::ObservedValue {
+            value: self.eye_in_water,
+            source: crate::client::ValueSource::Predicted,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,30 +243,5 @@ mod tests {
             EntityPose::LongJumping.player_eye_height(MinecraftVersion::Java1_16_1),
             None
         );
-    }
-}
-
-impl super::control::ControlFrame {
-    /// Numerical water intersection, explicitly labeled as predicted.
-    pub fn in_water_observation(&self) -> crate::client::ObservedValue<bool> {
-        crate::client::ObservedValue {
-            value: self.in_water,
-            source: crate::client::ValueSource::Predicted,
-        }
-    }
-    /// Numerical swimming state, independent of the received shared entity flag
-    /// available through `Client::player_posture`.
-    pub fn swimming_observation(&self) -> crate::client::ObservedValue<bool> {
-        crate::client::ObservedValue {
-            value: self.swimming,
-            source: crate::client::ValueSource::Predicted,
-        }
-    }
-    /// Numerical eye-water intersection for this model's pose.
-    pub fn eye_in_water_observation(&self) -> crate::client::ObservedValue<bool> {
-        crate::client::ObservedValue {
-            value: self.eye_in_water,
-            source: crate::client::ValueSource::Predicted,
-        }
     }
 }
