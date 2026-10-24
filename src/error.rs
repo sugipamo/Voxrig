@@ -74,7 +74,15 @@ impl Error {
         self.source.downcast_ref::<crate::MovementRefusal>()
     }
 
+    /// Structured missing-input refusal from survival digging.
+    pub fn dig_refusal(&self) -> Option<&crate::client::DigRefusal> {
+        self.source.downcast_ref::<crate::client::DigRefusal>()
+    }
+
     fn classify(source: &anyhow::Error) -> ErrorKind {
+        if source.downcast_ref::<crate::client::DigRefusal>().is_some() {
+            return ErrorKind::State;
+        }
         if let Some(refusal) = source.downcast_ref::<crate::MovementRefusal>() {
             return if refusal.unsupported_kind() {
                 ErrorKind::Unsupported

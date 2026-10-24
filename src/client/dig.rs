@@ -91,7 +91,7 @@ pub(crate) fn estimate(
         .selected_hotbar
         .as_ref()
         .map(|s| s.value)
-        .ok_or_else(|| invalid_input("selected hotbar slot is not known"))?;
+        .ok_or_else(|| refusal(DigRefusal::MissingSelection))?;
     let held = slot(player, 36 + usize::from(selected))?;
     let (mut speed, harvestable) = match held {
         SlotKnowledge::Empty => (1.0f32, profile.hand_harvestable),
@@ -102,7 +102,11 @@ pub(crate) fn estimate(
             .map_or((1.0, profile.hand_harvestable), |t| {
                 (t.speed, t.harvestable)
             }),
-        SlotKnowledge::Unavailable => return Err(invalid_input("held item is not known")),
+        SlotKnowledge::Unavailable => {
+            return Err(refusal(DigRefusal::MissingSlot {
+                slot: 36 + usize::from(selected),
+            }));
+        }
     };
     // PlayerAttribute retains the pre-clamp observation; apply native ranges here.
     let attribute = |name: &str, default: f64, max: f64| {
@@ -150,7 +154,10 @@ pub(crate) fn estimate(
         if legacy {
             let helmet = match slot(player, 5)? {
                 SlotKnowledge::Item { item } => legacy_enchantment(item, "aqua_affinity")?,
-                _ => 0,
+                SlotKnowledge::Empty => 0,
+                SlotKnowledge::Unavailable => {
+                    return Err(refusal(DigRefusal::MissingSlot { slot: 5 }));
+                }
             };
             if helmet == 0 {
                 speed /= 5.0;
@@ -186,8 +193,12 @@ pub(crate) fn estimate(
 
 pub(crate) fn slot(player: &PlayerObservation, index: usize) -> Result<&SlotKnowledge> {
     match player.inventory.slots.get(index).and_then(Option::as_ref) {
+        Some(ObservedValue {
+            value: SlotKnowledge::Unavailable,
+            ..
+        })
+        | None => Err(refusal(DigRefusal::MissingSlot { slot: index })),
         Some(ObservedValue { value, .. }) => Ok(value),
-        None => Err(invalid_input("received inventory slot is not known")),
     }
 }
 
@@ -441,4 +452,32 @@ mod tests {
             }
         }
     }
+}
+
+/// A survival dig cannot determine its timing from the received inventory.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[non_exhaustive]
+pub enum DigRefusal {
+    /// Neither a received nor a completely submitted main-hand selection is known.
+    MissingSelection,
+    /// This required player-screen slot has no complete supported receipt.
+    MissingSlot {
+        /// Player-screen index: 36..44 for a selected hand, 5 for a legacy underwater helmet.
+        slot: usize,
+    },
+}
+impl std::fmt::Display for DigRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingSelection => write!(f, "dig selected hotbar slot is not known"),
+            Self::MissingSlot { slot } => write!(
+                f,
+                "dig required received inventory slot {slot} is not known"
+            ),
+        }
+    }
+}
+impl std::error::Error for DigRefusal {}
+fn refusal(detail: DigRefusal) -> crate::Error {
+    crate::Error::new(crate::ErrorKind::State, anyhow::Error::new(detail))
 }

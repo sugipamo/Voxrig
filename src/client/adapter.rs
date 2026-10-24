@@ -90,6 +90,8 @@ pub(crate) trait CoreOps {
     async fn entity_spawns(&self) -> Result<EntitySpawns>;
     async fn entity_motion(&self, target: EntityId) -> Result<EntityMotionObservation>;
     async fn entities(&self) -> Result<super::EntitiesObservation>;
+    async fn entity_item_stacks(&self) -> Result<super::EntityItemStacksObservation>;
+    async fn player_posture(&self) -> Result<super::PlayerPostureObservation>;
     async fn vehicle_state(&self) -> Result<VehicleObservation>;
     async fn screen_state(&self) -> Result<ScreenObservation>;
     async fn screen_properties(

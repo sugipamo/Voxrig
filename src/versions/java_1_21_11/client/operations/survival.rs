@@ -209,6 +209,8 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     }
     let mut r = Reader::new(payload);
     let mut next = state.operations.local_player.clone();
+    let mut posture_pose = state.posture_pose.clone();
+    let mut posture_swimming = state.posture_swimming.clone();
     if id != input::UPDATE_HEALTH && Some(r.varint()?) != next.entity_id {
         return Ok(false); // Let the remote-player receiver inspect its own entities.
     }
@@ -238,6 +240,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             let update = players::read_pose(&mut r, &mut next.pose)?;
             if let Some(flags) = update.entity_flags {
                 next.fall_flying = Some((flags & 128 != 0, sequence));
+                posture_swimming = Some(crate::client::received(flags & 0x10 != 0, sequence));
             }
             if let Some(air) = update.air_supply {
                 next.air_supply = Some((air, sequence));
@@ -248,14 +251,20 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                     receive_sequence: sequence,
                 });
             }
+            if update.received {
+                posture_pose = update
+                    .native_pose
+                    .map(|id| crate::client::received(id, sequence));
+                next.pose_basis = Some(ValueBasis::Received { sequence });
+            }
             if !update.supported {
+                posture_pose = None;
                 next.pose = None;
                 next.pose_basis = None;
+                state.posture_pose = posture_pose;
+                state.posture_swimming = posture_swimming;
                 state.operations.local_player = next;
                 return Ok(true); // Unsupported serializer deliberately invalidates posture.
-            }
-            if update.received {
-                next.pose_basis = Some(ValueBasis::Received { sequence });
             }
         }
         input::ENTITY_UPDATE_ATTRIBUTES => {
@@ -309,6 +318,8 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         _ => unreachable!(),
     }
     r.end()?;
+    state.posture_pose = posture_pose;
+    state.posture_swimming = posture_swimming;
     state.operations.local_player = next;
     Ok(true)
 }
@@ -758,4 +769,81 @@ pub(super) fn uncertain_target_in(
     super::super::raycast::uncertain_cube_hit_in(eye_position, error, rotation, hit, |p| {
         state.block(p).map_err(anyhow::Error::from)
     })
+}
+
+#[cfg(test)]
+mod posture_receipt_tests {
+    use super::*;
+    #[test]
+    fn own_posture_keeps_original_metadata_ordinals_and_configuration_retires_receipts() {
+        let mut state = State::default();
+        state.operations.local_player = LocalPlayerState::spawned(7);
+        assert!(state.posture_pose.is_none() && state.posture_swimming.is_none());
+        state.sequence = 10;
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_METADATA,
+            &[7, 0, 0, 16, 6, 20, 3, 255],
+        )
+        .unwrap();
+        assert_eq!(state.posture_pose, Some(crate::client::received(3, 10)));
+        assert_eq!(
+            state.posture_swimming,
+            Some(crate::client::received(true, 10))
+        );
+        state.sequence = 12;
+        // A foreign entity cannot overwrite the local player's receipts.
+        assert!(
+            !receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_METADATA,
+                &[8, 0, 0, 0, 6, 20, 0, 255]
+            )
+            .unwrap()
+        );
+        assert_eq!(state.posture_pose, Some(crate::client::received(3, 10)));
+        // Pose alone must not rewrite the independent swimming flag's ordinal.
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_METADATA,
+            &[7, 6, 20, 5, 255],
+        )
+        .unwrap();
+        assert_eq!(state.posture_pose, Some(crate::client::received(5, 12)));
+        assert_eq!(
+            state.posture_swimming,
+            Some(crate::client::received(true, 10))
+        );
+        // Wrong/truncated metadata cannot commit partial receipt changes.
+        state.sequence = 13;
+        assert!(
+            receive(
+                &mut state,
+                ids::play_clientbound::ENTITY_METADATA,
+                &[7, 0, 0, 0, 6, 20]
+            )
+            .is_err()
+        );
+        assert_eq!(
+            state.posture_swimming,
+            Some(crate::client::received(true, 10))
+        );
+        // Preserve the existing own-player policy: an unsupported serializer
+        // invalidates posture without requiring item framing from this parser.
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_METADATA,
+            &[7, 6, 20, 3, 9, 7],
+        )
+        .unwrap();
+        assert!(state.posture_pose.is_none());
+        super::super::super::apply_play(
+            &mut state,
+            ids::play_clientbound::START_CONFIGURATION,
+            &[],
+            16,
+        )
+        .unwrap();
+        assert!(state.posture_pose.is_none() && state.posture_swimming.is_none());
+    }
 }

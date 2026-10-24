@@ -83,6 +83,8 @@ impl Bot {
 
             receipts.abilities = None;
             receipts.fall_flying = None;
+            receipts.entity_pose = None;
+            receipts.swimming = None;
             receipts.may_fly = None;
             receipts.requested_flying = false;
             receipts.context.world_view.distance = join
@@ -295,6 +297,8 @@ impl Bot {
             receipts.health = None;
             receipts.using_item = None;
             receipts.fall_flying = None;
+            receipts.entity_pose = None;
+            receipts.swimming = None;
             receipts.attributes.clear();
             receipts.effects.clear();
             receipts.air_supply = None;

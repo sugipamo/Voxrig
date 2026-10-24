@@ -694,7 +694,7 @@ mod tests {
         }
     }
 
-    fn fixture(version: MinecraftVersion) -> Inputs {
+    pub(super) fn fixture(version: MinecraftVersion) -> Inputs {
         let player = PlayerObservation {
             session: SessionStamp {
                 version,
@@ -760,6 +760,8 @@ mod tests {
         after: SlotKnowledge,
         compatible: bool,
     ) {
+        let missing_slot = matches!(&before, SlotKnowledge::Unavailable)
+            || matches!(&after, SlotKnowledge::Unavailable);
         let mut initial = fixture(version);
         let mut current = initial.clone();
         // Keep estimates equal to test the hand check independently.
@@ -777,6 +779,13 @@ mod tests {
             } else {
                 let error = result.unwrap_err();
                 assert_eq!(error.kind(), ErrorKind::State);
+                if missing_slot {
+                    assert_eq!(
+                        error.dig_refusal(),
+                        Some(&crate::client::DigRefusal::MissingSlot { slot: 38 })
+                    );
+                    continue;
+                }
                 assert!(error.to_string().starts_with(&format!(
                     "{PREFIX} ({action}): held item changed in hotbar 2 ("
                 )));
@@ -1285,6 +1294,77 @@ mod tests {
                     validate(&initial, &current, action).unwrap();
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod observation_gap_tests {
+    use super::*;
+    use crate::client::{DigRefusal, SlotKnowledge, received};
+    #[test]
+    fn dig_needs_selected_hand_and_only_legacy_underwater_helmet() {
+        for version in [
+            crate::MinecraftVersion::Java1_16_1,
+            crate::MinecraftVersion::Java1_21_11,
+        ] {
+            let original = super::tests::fixture(version);
+            let mut player = original.player.clone();
+            player.inventory.slots.fill(None);
+            player.inventory.cursor = None;
+            player.inventory.slots[38] = Some(received(SlotKnowledge::Empty, 12));
+            let state = super::super::registry::Registry::for_version(version)
+                .resolve_block_state(&original.state)
+                .unwrap()
+                .value();
+            let estimate = |p: &PlayerObservation, wet| {
+                super::super::dig::estimate(
+                    version,
+                    state,
+                    &DigContext {
+                        player: p,
+                        on_ground: true,
+                        eye_in_water: wet,
+                    },
+                )
+            };
+            assert_eq!(estimate(&player, false).unwrap(), original.estimate);
+            let wet = estimate(&player, true);
+            if version == crate::MinecraftVersion::Java1_16_1 {
+                assert_eq!(
+                    wet.unwrap_err().dig_refusal(),
+                    Some(&DigRefusal::MissingSlot { slot: 5 })
+                );
+                player.inventory.slots[5] = Some(received(SlotKnowledge::Empty, 13));
+                assert!(estimate(&player, true).is_ok());
+                player.inventory.slots[5] = Some(received(SlotKnowledge::Unavailable, 14));
+                assert_eq!(
+                    estimate(&player, true).unwrap_err().dig_refusal(),
+                    Some(&DigRefusal::MissingSlot { slot: 5 })
+                );
+            } else {
+                assert!(wet.is_ok());
+            }
+            for slot in [None, Some(received(SlotKnowledge::Unavailable, 15))] {
+                player.inventory.slots[38] = slot;
+                let error = estimate(&player, false).unwrap_err();
+                assert_eq!(error.kind(), ErrorKind::State);
+                assert_eq!(
+                    error.dig_refusal(),
+                    Some(&DigRefusal::MissingSlot { slot: 38 })
+                );
+                let contextual = error.context("dig admission");
+                assert!(contextual.to_string().contains("dig admission"));
+                assert_eq!(
+                    contextual.dig_refusal(),
+                    Some(&DigRefusal::MissingSlot { slot: 38 })
+                );
+            }
+            player.selected_hotbar = None;
+            assert_eq!(
+                estimate(&player, false).unwrap_err().dig_refusal(),
+                Some(&DigRefusal::MissingSelection)
+            );
         }
     }
 }

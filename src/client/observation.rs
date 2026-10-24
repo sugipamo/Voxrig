@@ -428,6 +428,8 @@ pub(crate) struct LegacyReceipts {
     pub using_item: Option<ObservedValue<Option<super::Hand>>>,
     /// Own received shared fall-flying flag; absent before its actual packet.
     pub fall_flying: Option<ObservedValue<bool>>,
+    pub entity_pose: Option<ObservedValue<i32>>,
+    pub swimming: Option<ObservedValue<bool>>,
     pub attributes: std::collections::BTreeMap<String, ObservedValue<super::PlayerAttribute>>,
     pub effects: std::collections::BTreeMap<String, ObservedValue<super::PlayerEffect>>,
     pub air_supply: Option<ObservedValue<i32>>,

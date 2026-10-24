@@ -76,6 +76,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                     .entities
                     .receive_metadata(entity, values, complete, state.sequence);
             }
+            if let Some((entity, items)) = item_metadata(payload) {
+                state
+                    .entities
+                    .receive_item_metadata(entity, items, state.sequence);
+            }
             if let Some((entity, health)) = living_health(state, payload) {
                 state
                     .entities
@@ -147,6 +152,12 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
             2 => r.varlong().ok().map(V::Long),
             3 => r.f32().ok().map(V::Float),
             4 => r.string().ok().map(V::String),
+            // Read item-stack framing only in this additive entity observation.
+            // The own-player parser keeps its existing unsupported-input policy.
+            7 => super::operations::slot(&mut r)
+                .ok()
+                .flatten()
+                .map(|_| V::Other(kind)),
             8 => r.bool().ok().map(V::Bool),
             10 => r.take(8).ok().map(|bytes| {
                 V::BlockPosition(crate::client::BlockPos::unpack(u64::from_be_bytes(
@@ -599,5 +610,155 @@ mod scale_receipt_tests {
             )
             .unwrap();
         assert!(capture(&state).is_none());
+    }
+}
+
+/// Read the item sidecar without changing the public exhaustive scalar enum.
+fn item_metadata(payload: &[u8]) -> Option<(i32, Vec<(u8, crate::client::SlotKnowledge)>)> {
+    use crate::client::SlotKnowledge;
+    let mut r = Reader::new(payload);
+    let entity = r.varint().ok()?;
+    let mut items = Vec::new();
+    while let Ok(index) = r.u8() {
+        if index == 255 {
+            break;
+        }
+        let Ok(kind) = r.varint() else { break };
+        if kind == 7 {
+            match super::operations::slot(&mut r) {
+                Ok(Some(stack)) => items.push((
+                    index,
+                    super::operations::common_slot(&stack).unwrap_or(SlotKnowledge::Unavailable),
+                )),
+                // An unsupported/truncated new stack must not leave an old known one usable.
+                _ => {
+                    items.push((index, SlotKnowledge::Unavailable));
+                    break;
+                }
+            }
+        } else if !super::players::skip_metadata(&mut r, kind).unwrap_or(false) {
+            break;
+        }
+    }
+    Some((entity, items))
+}
+
+#[cfg(test)]
+mod item_observation_gap_tests {
+    use super::*;
+    use crate::protocol::put_varint;
+    use crate::{
+        MinecraftVersion,
+        client::{ItemData, SlotKnowledge, ValueSource, registry::Registry},
+    };
+    #[test]
+    fn modern_item_metadata_retains_component_patch_and_invalidates_unsupported_stack() {
+        let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+        let item = registry.item("minecraft:diamond").unwrap();
+        let component = registry.item_component("minecraft:custom_data").unwrap();
+        let removed = registry.item_component("minecraft:custom_name").unwrap();
+        let mut packet = vec![7, 8, 7, 3];
+        put_varint(&mut packet, item.id.value());
+        packet.extend([1, 1]);
+        put_varint(&mut packet, component.id.value());
+        let nbt = vec![10, 3, 0, 1, b'x', 0, 0, 0, 42, 0];
+        packet.extend(&nbt);
+        put_varint(&mut packet, removed.id.value());
+        packet.extend([9, 0, 42, 255]);
+        let (_, items) = item_metadata(&packet).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].0, 8);
+        let SlotKnowledge::Item { item: stack } = &items[0].1 else {
+            panic!("known stack")
+        };
+        assert_eq!(stack.name, "minecraft:diamond");
+        assert_eq!(stack.id, item.id);
+        assert_eq!(stack.count, 3);
+        assert_eq!(
+            stack
+                .custom_data()
+                .unwrap()
+                .unwrap()
+                .root()
+                .get("x")
+                .unwrap()
+                .as_int(),
+            Some(42)
+        );
+        let ItemData::ModernComponents { patch } = &stack.data else {
+            panic!("component patch")
+        };
+        assert_eq!(patch.added[0].bytes, nbt);
+        assert_eq!(patch.removed, [removed]);
+        let (_, scalar, complete) = common_metadata(&packet).unwrap();
+        assert!(complete);
+        assert_eq!(
+            scalar.last(),
+            Some(&(9, crate::client::EntityDataValue::Byte(42)))
+        );
+        let mut state = State::default();
+        state.sequence = 5;
+        state
+            .entities
+            .insert(
+                MinecraftVersion::Java1_21_11,
+                NativeSpawn {
+                    id: 7,
+                    uuid: None,
+                    type_id: Some(
+                        registry
+                            .builtin_id("minecraft:entity_type", "minecraft:item")
+                            .unwrap()
+                            .value(),
+                    ),
+                    dedicated_type_name: None,
+                    position: [0.; 3],
+                    living: None,
+                },
+                1,
+                16,
+            )
+            .unwrap();
+        receive(&mut state, ids::play_clientbound::ENTITY_METADATA, &packet).unwrap();
+        let session = crate::client::SessionStamp {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: 1,
+            world_generation: 0,
+        };
+        let observed = state.entities.capture_items(session, 6);
+        assert_eq!(
+            observed.stacks[0].stack.source,
+            ValueSource::Received { sequence: 5 }
+        );
+        assert_eq!(observed.stacks[0].stack.value, items[0].1);
+        let mut unsupported = vec![7, 8, 7, 1];
+        put_varint(&mut unsupported, item.id.value());
+        unsupported.extend([1, 0]);
+        put_varint(&mut unsupported, i32::MAX);
+        state.sequence = 8;
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_METADATA,
+            &unsupported,
+        )
+        .unwrap();
+        assert_eq!(
+            state.entities.capture_items(session, 9).stacks[0].stack,
+            crate::client::received(SlotKnowledge::Unavailable, 8)
+        );
+        receive(
+            &mut state,
+            ids::play_clientbound::ENTITY_METADATA,
+            &[7, 8, 7, 0, 255],
+        )
+        .unwrap();
+        assert_eq!(
+            state.entities.capture_items(session, 9).stacks[0]
+                .stack
+                .value,
+            SlotKnowledge::Empty
+        );
+        state.entities.remove(7);
+        assert!(state.entities.capture_items(session, 10).stacks.is_empty());
     }
 }

@@ -115,6 +115,12 @@ impl Bot {
     ) -> Result<()> {
         let (entity_id, metadata) = parse_metadata(p)?;
         let (_, common, complete) = crate::versions::java_1_16_1::entity::common_metadata(p)?;
+        let pose_receipt = common
+            .iter()
+            .find_map(|(index, value)| match (index, value) {
+                (6, crate::client::EntityDataValue::Pose(pose)) => Some(*pose),
+                _ => None,
+            });
         // The legacy decoder reads a packet to its end or fails it.
         self.common_receipts.lock().await.entities.receive_metadata(
             entity_id,
@@ -122,8 +128,18 @@ impl Bot {
             complete,
             packet_sequence,
         );
+        let items = crate::versions::java_1_16_1::entity::common_item_metadata(&metadata);
+        self.common_receipts
+            .lock()
+            .await
+            .entities
+            .receive_item_metadata(entity_id, items, packet_sequence);
         if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
             if let Some(MetadataValue::Byte(flags)) = metadata.get(&0) {
+                self.common_receipts.lock().await.swimming = Some(crate::client::received(
+                    *flags as u8 & 0x10 != 0,
+                    packet_sequence,
+                ));
                 let value = *flags as u8 & 128 != 0;
                 self.common_receipts.lock().await.fall_flying =
                     Some(crate::client::received(value, packet_sequence));
@@ -131,6 +147,10 @@ impl Bot {
                     .lock()
                     .await
                     .observe_gliding(value, packet_sequence);
+            }
+            if metadata.contains_key(&6) {
+                self.common_receipts.lock().await.entity_pose =
+                    pose_receipt.map(|pose| crate::client::received(pose, packet_sequence));
             }
             if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                 *self.local_pose.lock().await = Some(*pose);
@@ -343,5 +363,45 @@ impl Bot {
             self.emit(Event::EntityUpdated(entity.clone()));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod posture_receipt_tests {
+    #[tokio::test]
+    async fn own_posture_reads_actual_legacy_metadata_and_keeps_field_sources_independent() {
+        let (bot, _packets, _release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        bot.player.lock().await.entity_id = Some(7);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert!(client.player_posture().await.unwrap().pose.is_none());
+        bot.apply_packet(0x44, vec![7, 0, 0, 16, 6, 18, 3, 255])
+            .await
+            .unwrap();
+        let observed = client.player_posture().await.unwrap();
+        let pose = observed.pose.unwrap();
+        assert_eq!(pose.value, 3);
+        assert_eq!(
+            observed.swimming,
+            Some(crate::client::ObservedValue {
+                value: true,
+                source: pose.source
+            })
+        );
+        assert_eq!(observed.eye_height.unwrap().height.value, 0.4);
+        bot.apply_packet(0x44, vec![7, 6, 18, 5, 255])
+            .await
+            .unwrap();
+        let crouching = client.player_posture().await.unwrap();
+        assert_eq!(crouching.pose.unwrap().value, 5);
+        assert_eq!(crouching.swimming.unwrap().source, pose.source);
+        assert_eq!(crouching.eye_height.unwrap().height.value, 1.27);
+        // An ordinary VarInt is not the original Pose serializer.
+        bot.apply_packet(0x44, vec![7, 6, 1, 0, 255]).await.unwrap();
+        let wrong = client.player_posture().await.unwrap();
+        assert!(wrong.pose.is_none() && wrong.eye_height.is_none());
+        let _ = bot.revoke_connection();
+        client.wait_shutdown().await.unwrap();
+        server.await.unwrap();
     }
 }

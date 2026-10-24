@@ -141,6 +141,8 @@ struct State {
     rotation: [f32; 2],
     ready: bool,
     sequence: u64,
+    posture_pose: Option<crate::client::ObservedValue<i32>>,
+    posture_swimming: Option<crate::client::ObservedValue<bool>>,
     body_evidence: operations::body::EvidenceLog,
     failure: Option<Error>,
     trace: Option<TraceCapture>,
@@ -219,6 +221,8 @@ impl Default for State {
             rotation: [0.0; 2],
             ready: false,
             sequence: 0,
+            posture_pose: None,
+            posture_swimming: None,
             body_evidence: Default::default(),
             failure: None,
             trace: None,
@@ -1073,6 +1077,8 @@ fn apply_spawn_info(
     state.attack_strength.reset_world();
     state.players.reset_world();
     state.entities.clear();
+    state.posture_pose = None;
+    state.posture_swimming = None;
     state.vehicles.clear();
     state.ready = false;
     state.position = None;
@@ -1416,6 +1422,8 @@ fn apply_play(
             state.boss_bars.reset_context(state.sequence);
             state.display.reset_context(state.sequence);
             state.entities.clear();
+            state.posture_pose = None;
+            state.posture_swimming = None;
             state.vehicles.clear();
             if let Some(capture) = &mut state.recording {
                 capture.invalidate(recording::RecordingIssue::WorldChanged);
