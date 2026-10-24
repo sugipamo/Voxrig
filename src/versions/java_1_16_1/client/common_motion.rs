@@ -796,7 +796,9 @@ pub(super) fn legacy_motion_block(
     }
     let state = world
         .block(position[0], position[1], position[2])
-        .ok_or_else(|| motion_state("motion geometry is not loaded"))?;
+        .ok_or_else(|| {
+            crate::MovementRefusal::terrain(motion_state("motion geometry is not loaded"), position)
+        })?;
     crate::versions::java_1_16_1::native_state(state)
 }
 pub(super) fn legacy_clearance(

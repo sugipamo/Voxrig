@@ -71,5 +71,6 @@ pub mod prelude {
 
 mod movement_refusal;
 pub use movement_refusal::{
-    MovementOwnerState, MovementPacketTrigger, MovementRefusal, MovementRefusalContext,
+    MovementGeometryContext, MovementOwnerState, MovementPacketTrigger, MovementRefusal,
+    MovementRefusalContext,
 };

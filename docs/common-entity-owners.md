@@ -28,11 +28,22 @@ Wolf は Unknown のまま、Step 6 (#128 option 3) では contact の影響を�
 
 共通 `Client` の地上・held flight・ボート操作は、受信した生物の履歴を操作ownerに結び付け、版ごとの private capability table で資格化した inherited-living / RemotePlayer の通常scaleの接触を自動計算する。利用側が生物の番号を作ったり、保存したJSONから操作対象を復元する必要はない。生物との接触を除いた既存の地形、装備、乗車、実受信速度の適用、送信の検査も継続する。
 
+## Player の接触範囲（#246）
+
+徒歩・held flight・glide の admission／毎 physics tick は、両版で共有の
+[接触スコープ](player-contact-scope.md)を適用する。model-origin／明示 tick 契約内で、
+受信履歴の包絡と接触伝播により無関係と証明できる body の数値更新・地形問い合わせを省略する。
+サーバーの実時間位置の証明ではない。近傍の騎乗組・未知入力・省略 tick 後の再入域は送信前に拒否する。
+`max_contact_bodies` の既定値は scoped remote 256、`max_chunks` は 512。
+停止済み owner は再利用せず、原因の除去後に同じ接続で新しい `start_control` を試せる。
+詳細な再開始条件と診断 API は上記の契約を参照。以下の従来の全 body 上限の記述は
+独立数値 API／boat lane のものとし、player scope の body 数には適用しない。
+
 ## モデルの開始点
 
 新しいownerは、その接続・worldに属する実際のspawn寿命と完全な履歴を読み、原版の数値constructorから受信操作を適用する。履歴を読み終えた境界が `origin_after_record` で、そこからownerが明示的に進めた回数が `model_tick` になる。既に動いていたグラフィカルなMinecraftクライアントの補間経過や、サーバーの現在位置を再現する開始点ではない。receive ordinalや経過時間を原版のentity tickへ変換しない。
 
-履歴の保持は8,192件、1ページは最大1,024件。欠落したspawnや古い履歴を最新の位置だけで補わない。新しいownerにも完全な履歴が必要で、保持上限を越えた場合は新しい接続と観測が必要になる。操作中は連続した履歴を一度だけ取り込み、同じパケットを再適用しない。除去済みの古い寿命は、原版のmap/listの保持・容量履歴だけに反映する。
+履歴の保持は8,192件、1ページは最大1,024件。欠落したspawnや古い履歴を最新の位置だけで補わない。新しいownerは、完全な接触checkpointと連続した保持suffixがあれば、公開履歴の保持上限を越えていても宣言原点を作れる。checkpointがなくspawnや関係履歴を復元できない場合は、新しい接続／worldと観測が必要になる。操作中は連続した履歴を一度だけ取り込み、同じパケットを再適用しない。除去済みの古い寿命は、原版のmap/listの保持・容量履歴だけに反映する。
 
 ## 徒歩とheld flight
 

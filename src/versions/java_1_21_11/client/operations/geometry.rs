@@ -21,9 +21,12 @@ impl GeometryView for State {
             return Err(invalid("moving geometry is not a static planning cell"));
         }
         cell.state.ok_or_else(|| {
-            Error::new(
-                ErrorKind::State,
-                anyhow::anyhow!("static geometry unavailable at {position:?}"),
+            crate::MovementRefusal::terrain(
+                Error::new(
+                    ErrorKind::State,
+                    anyhow::anyhow!("static geometry unavailable at {position:?}"),
+                ),
+                position,
             )
         })
     }

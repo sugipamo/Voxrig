@@ -425,6 +425,9 @@ pub struct ConnectionOptions {
     pub ready_timeout: Duration,
     /// Maximum chunks retained by one connection.
     pub max_chunks: usize,
+    /// Maximum remote bodies in the per-tick player contact scope (default 256).
+    /// Excluded native slots do not consume this budget. Zero refuses any contact.
+    pub max_contact_bodies: usize,
     /// Maximum entities retained by one connection.
     pub max_entities: usize,
     /// Maximum map IDs retained by one connection.
@@ -452,7 +455,8 @@ impl Default for ConnectionOptions {
             login_packet_timeout: Duration::from_secs(15),
             play_packet_timeout: Duration::from_secs(60),
             ready_timeout: Duration::from_secs(15),
-            max_chunks: 256,
+            max_chunks: 512,
+            max_contact_bodies: 256,
             max_entities: 4_096,
             max_maps: 128,
             max_cached_records: 4_096,

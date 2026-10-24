@@ -168,3 +168,11 @@ existing interpolation/shifted-target hull. This preserves the indirect-effect
 fence when newly qualified metadata changes dimensions. The same evidence auditor
 refreshes the dated evidence's source hashes and exports the additional owner
 columns; all original Step B method-owner bindings remain checked.
+
+## Player scope after decision A (#246)
+
+Player admission and per-tick revalidation now use the separate
+[player scope proof](player-contact-scope.md), including qualified mounted
+groups and transitive contact propagation. That proof is bound to the declared
+model origin and explicit numerical ticks, not real-time server position.
+The older spider deferred-policy proof and boat/numerical APIs above are unchanged.

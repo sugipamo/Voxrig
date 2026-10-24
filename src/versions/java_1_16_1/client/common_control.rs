@@ -403,7 +403,12 @@ impl Bot {
                                 connection_id: self.connection_id(),
                                 world_generation: generation,
                             };
-                            contacts.refresh(id, &receipts.entities, sequence)?;
+                            contacts.refresh_player(
+                                id,
+                                &receipts.entities,
+                                sequence,
+                                (&session.body, &received.environment),
+                            )?;
                             let teams = self.common_teams.lock().await.capture(stamp, sequence);
                             let profiles = self
                                 .common_player_list
@@ -774,13 +779,15 @@ impl Bot {
                         world_generation: generation,
                     };
                     if let Some(own) = player.entity_id {
-                        let constructor = if glide {
-                            crate::client::entity::owned_contacts::OwnedContacts::new_glide
-                        } else {
-                            crate::client::entity::owned_contacts::OwnedContacts::new
-                        };
                         let mut contacts =
-                            constructor(stamp, id, own, &receipts.entities, sequence)?;
+                            crate::client::entity::owned_contacts::OwnedContacts::for_player(
+                                (stamp, id, own),
+                                &receipts.entities,
+                                sequence,
+                                (&session.body, &received.environment),
+                                self.connection_options.max_contact_bodies,
+                                glide,
+                            )?;
                         let teams = self.common_teams.lock().await.capture(stamp, sequence);
                         let profiles = self
                             .common_player_list

@@ -783,7 +783,7 @@ async fn main() -> anyhow::Result<()> {
                         value
                     }
                     Err(error) => {
-                        serde_json::json!({"admitted":false,"kind":format!("{:?}",error.kind()),"error":error.to_string(),"record":handle.control_record().await?})
+                        serde_json::json!({"admitted":false,"kind":format!("{:?}",error.kind()),"error":error.to_string(),"movement_refusal":error.movement_refusal(),"record":handle.control_record().await?})
                     }
                 }
             }

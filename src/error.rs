@@ -76,7 +76,7 @@ impl Error {
 
     fn classify(source: &anyhow::Error) -> ErrorKind {
         if let Some(refusal) = source.downcast_ref::<crate::MovementRefusal>() {
-            return if matches!(refusal, crate::MovementRefusal::Unsupported { .. }) {
+            return if refusal.unsupported_kind() {
                 ErrorKind::Unsupported
             } else {
                 ErrorKind::State

@@ -117,11 +117,24 @@ pub struct LivingContactIndex {
     version: MinecraftVersion,
     valid: bool,
     bodies: BTreeMap<u64, LivingContactIndexedBody>,
+    body_limit: usize,
     sections: BTreeMap<[i32; 3], Section>,
     chunks: BTreeSet<[i32; 2]>,
 }
 
 impl LivingContactIndex {
+    pub(crate) fn receipt_slots(version: MinecraftVersion) -> Self {
+        let mut value = Self::new(version);
+        value.body_limit = usize::MAX / 2;
+        value
+    }
+    pub(crate) fn restore_default_budget(&mut self) -> Result<(), LivingContactQueryUnavailable> {
+        self.body_limit = MAX_LIVING_CONTACT_INDEX_BODIES;
+        if self.bodies.len() > self.body_limit {
+            return Err(LivingContactQueryUnavailable::TooManyBodies);
+        }
+        Ok(())
+    }
     /// Legacy packet callbacks change the live box before ClientLevel's
     /// post-tick chunk/section registration. Keep that original listed slot.
     pub(crate) fn set_bounds_in_listed_section(
@@ -214,6 +227,7 @@ impl LivingContactIndex {
             version,
             valid: true,
             bodies: BTreeMap::new(),
+            body_limit: MAX_LIVING_CONTACT_INDEX_BODIES,
             sections: BTreeMap::new(),
             chunks: BTreeSet::new(),
         }
@@ -275,7 +289,7 @@ impl LivingContactIndex {
             .get(&entity.key)
             .map(|e| section(self.version, e.body.push.position))
             .transpose()?;
-        if old_section.is_none() && self.bodies.len() == MAX_LIVING_CONTACT_INDEX_BODIES {
+        if old_section.is_none() && self.bodies.len() == self.body_limit {
             return Err(LivingContactQueryUnavailable::TooManyBodies);
         }
         if old_section != Some(new_section) {

@@ -34,7 +34,7 @@ impl Default for Server {
 ///     let mut config = ConnectionConfig::offline(
 ///         Server::default(), "AgentOne", MinecraftVersion::Java1_16_1,
 ///     );
-///     config.limits.max_chunks = 256;
+///     config.limits.max_chunks = 512;
 ///     config.limits.native_event_channel_capacity = Some(8192);
 ///     Client::connect(config).await
 /// }
@@ -52,6 +52,9 @@ pub struct ClientLimits {
     pub ready_timeout: Duration,
     /// Maximum retained chunks per connection.
     pub max_chunks: usize,
+    /// Maximum remote bodies in the per-tick player contact scope (default 256).
+    /// Excluded native slots do not consume this budget. Zero refuses any contact.
+    pub max_contact_bodies: usize,
     /// Capacity requested for the native event broadcast source, currently
     /// supported only by Java 1.16.1. `None` preserves the native default (256).
     /// `Some(8192)` preserves an 8192-event source during migration to Client.
@@ -68,7 +71,8 @@ impl Default for ClientLimits {
             login_packet_timeout: Duration::from_secs(15),
             play_packet_timeout: Duration::from_secs(60),
             ready_timeout: Duration::from_secs(15),
-            max_chunks: 256,
+            max_chunks: 512,
+            max_contact_bodies: 256,
             native_event_channel_capacity: None,
         }
     }
@@ -81,6 +85,7 @@ impl ClientLimits {
             play_packet_timeout: self.play_packet_timeout,
             ready_timeout: self.ready_timeout,
             max_chunks: self.max_chunks,
+            max_contact_bodies: self.max_contact_bodies,
             event_channel_capacity: self.native_event_channel_capacity.unwrap_or_else(|| {
                 crate::versions::java_1_16_1::ConnectionOptions::default().event_channel_capacity
             }),
