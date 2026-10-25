@@ -1,6 +1,6 @@
 # Body API: 受理に基づく共通契約
 
-`voxrig::body` は既存 `Client` の横に追加する API である。headless を残し、将来の Fabric client-only mod バックエンドにも同じ意図・観測・結果の境界を実装できるようにする。Java 1.21.11 headless に加え、1.16.1 は観測と明示的 `PlaceBlock` / `ActivateBlock` を提供する。1.16.1 の他 action は `Unsupported`。Microsoft 認証、Fabric/IPC、既存 API の移行は含まない。
+`voxrig::body` は既存 `Client` の横に追加する API である。headless を残し、将来の Fabric client-only mod バックエンドにも同じ意図・観測・結果の境界を実装できるようにする。Java 1.21.11 と1.16.1のheadlessで観測と全body actionを提供する。Microsoft 認証、Fabric/IPC、既存 API の移行は含まない。
 
 ## 受理と完了
 
@@ -129,3 +129,33 @@ coherent state lock を保持し、選択スロットと受信済み item ID が
 完全送信＋bounded quietで、menuのcontents受信をrollbackとは扱わない。
 実際のscreenは別途観測する。公式serverの距離条件とstrict receipt APIとの違いは
 [明示block操作](../explicit-block-interactions.md)を参照。
+
+### 拒否削減 step 4: 1.16.1 の基本action・移動・採掘
+
+`HeadlessBody` は1.16.1でも Look / SelectHotbar / Chat / Command / UseItem /
+Move / BreakBlock を送信する。既存の Bot の送信関数・continuous control を再利用し、
+protocol encoding を増設しない。Look等のACKのない操作は完全送信後のbounded quietで
+Acceptedとなる。これはチャット配信・コマンド成功・食料消費の証明ではない。
+`use_item_expect` の選択・受信item ID照合は同じ受信ロック内に残す。
+
+Moveはsteps 1–2のbest-effort contactとRemoteStateDropped診断を使う。
+受信poseへの補正はCorrected、world変更・接続喪失・期限切れはUnknownとなる。
+同じ接続の既存strict controlと有限path APIは診断用として残し、意味を変更しない。
+未知地形や有限歩行の静止条件の緩和はstep 5、他領域のunresolved gate整理はstep 6の範囲。
+
+BreakBlockは既存のsurvival `dig_estimate` で時間を決め、native START / FINISH /
+取消時ABORTを一度ずつ送信する。1.16.1のSTART ACKは採掘中の元ブロックを返せるので、
+successfulなSTARTのsolid stateだけではrollbackにしない。instant STARTまたはFINISHの
+成功ACKとairの結果、続くquiet windowでAcceptedとする。失敗ACK・矛盾するtarget updateは
+Corrected、ACK欠落・target unload・world喪失は期限内にUnknownとなる。
+FINISH前にworld・mode・選択・手持ちitemのidentityをロック内で再照合する。
+旧worldへのABORTは新worldに送らない。
+
+survival採掘のMissingSelection / MissingSlot / 水中装備等の見積り条件、負hardnessの拒否、
+既存の所有者排他は残る。時間見積りとadmissionの分離はstep 7であり、ここでは行わない。
+wire座標・hotbar 0..8・有限角度・不正文字列・公式serverの採掘距離とworld lifetimeは維持する。
+1.21.11のpacket経路・sequence ACK条件は変更しない。
+
+`scripts/run_legacy_body_live.py` は両版に対して同じHeadlessBodyシナリオを使う。
+look・hotbar・chat・command・通常使用と期待item付き使用での食事・近傍skeletonがいる段差歩行・
+採掘ACK・block置換・pose補正を原本packet traceとRCONで検査する。

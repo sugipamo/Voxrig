@@ -14,16 +14,19 @@ impl Bot {
             acknowledgement.position,
             acknowledgement.block_state_id,
         );
-        self.body_block_received(
-            [
-                acknowledgement.position.x,
-                acknowledgement.position.y,
-                acknowledgement.position.z,
-            ],
-            acknowledgement.block_state_id,
+        self.body_evidence.lock().await.push(
             packet_sequence,
-        )
-        .await;
+            crate::body::evidence::Update::DigAck {
+                pos: [
+                    acknowledgement.position.x,
+                    acknowledgement.position.y,
+                    acknowledgement.position.z,
+                ],
+                state: acknowledgement.block_state_id,
+                status: acknowledgement.status,
+                successful: acknowledgement.successful,
+            },
+        );
         self.advance_block_geometry_revision();
         let geometry_revision_after = self.block_geometry_revision.load(Ordering::Acquire);
         self.world_updated.notify_waiters();

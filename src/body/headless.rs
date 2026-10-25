@@ -22,13 +22,19 @@ impl Operations {
             Self::Legacy(bot) => bot.body_evidence(backend, request, cursor).await,
         }
     }
-    async fn body_block_send(&self, world: BodyWorld, action: &Action, status: i32) -> Result<i32> {
+    async fn body_block_send(
+        &self,
+        world: BodyWorld,
+        action: &Action,
+        status: i32,
+        initial: Option<&BodySnapshot>,
+    ) -> Result<Option<i32>> {
         match self {
-            Self::Modern(ops) => ops.body_block_send(world, action, status).await,
-            Self::Legacy(_) => Err(error(
-                ErrorKind::Unsupported,
-                "legacy body supports placement only",
-            )),
+            Self::Modern(ops) => ops.body_block_send(world, action, status).await.map(Some),
+            Self::Legacy(bot) => bot
+                .body_break_send(world, action, status, initial)
+                .await
+                .map(|_| None),
         }
     }
     async fn body_place_send(
@@ -66,10 +72,7 @@ impl Operations {
     ) -> Result<crate::client::control::ControlRecord> {
         match self {
             Self::Modern(ops) => ops.body_start_control(mode, world).await,
-            Self::Legacy(_) => Err(error(
-                ErrorKind::Unsupported,
-                "legacy body currently supports placement only",
-            )),
+            Self::Legacy(bot) => bot.body_start_control(mode, world).await,
         }
     }
 }
@@ -151,8 +154,8 @@ impl HeadlessBody {
     }
 
     /// Wrap without reconnecting or changing the existing strict API.
-    /// Java 1.16.1 supports observation, explicit placement and activation. Atomic item use is
-    /// available through `HeadlessBody::use_item_expect`. Other actions are Unsupported.
+    /// Both native versions support all body actions, including atomic item use.
+    /// Break retains the existing survival timing estimate prerequisites.
     pub fn new(client: Client, config: BodyConfig) -> Result<Self> {
         if config.settle_window.is_zero()
             || config.action_timeout <= config.settle_window
@@ -268,18 +271,6 @@ impl HeadlessBody {
         expected_use: Option<(u8, crate::client::registry::RegistryId)>,
     ) -> Result<ActionId> {
         let ops = self.operations()?;
-        if matches!(&ops, Operations::Legacy(_))
-            && !matches!(
-                request.action,
-                Action::PlaceBlock { .. } | Action::ActivateBlock { .. }
-            )
-            && expected_use.is_none()
-        {
-            return Err(error(
-                ErrorKind::Unsupported,
-                "legacy body currently supports placement only",
-            ));
-        }
         let deadline = Instant::now() + self.inner.config.action_timeout;
         let needs_ack = matches!(
             request.action,
@@ -395,23 +386,18 @@ impl HeadlessBody {
 }
 impl BodyBackend for HeadlessBody {
     fn capabilities(&self) -> BackendCapabilities {
-        let supported = self.inner.client.version() == MinecraftVersion::Java1_21_11;
         BackendCapabilities {
             backend: "headless".into(),
             version: self.inner.client.version(),
-            actions: if supported {
-                vec![
-                    ActionKind::Look,
-                    ActionKind::Move,
-                    ActionKind::PlaceBlock,
-                    ActionKind::BreakBlock,
-                    ActionKind::UseItem,
-                    ActionKind::Chat,
-                    ActionKind::SelectHotbar,
-                ]
-            } else {
-                vec![ActionKind::PlaceBlock]
-            },
+            actions: vec![
+                ActionKind::Look,
+                ActionKind::Move,
+                ActionKind::PlaceBlock,
+                ActionKind::BreakBlock,
+                ActionKind::UseItem,
+                ActionKind::Chat,
+                ActionKind::SelectHotbar,
+            ],
             observation: true,
             ground_movement_only: true,
         }
@@ -552,7 +538,7 @@ impl Cleanup {
             client.player_control(mode).stop_control_for(id).await?;
         }
         if let Some((world, action)) = self.dig.take() {
-            ops.body_block_send(world, &action, 1).await?;
+            ops.body_block_send(world, &action, 1, None).await?;
         }
         Ok(())
     }
@@ -691,7 +677,9 @@ async fn run(
             if ticks > 0 {
                 cleanup.dig = Some((world, request.action.clone()));
             }
-            sequence = Some(ops.body_block_send(world, &request.action, 0).await?);
+            sequence = ops
+                .body_block_send(world, &request.action, 0, Some(&baseline.snapshot))
+                .await?;
             cleanup.dispatched = true;
             if ticks > 0 {
                 sleep(
@@ -703,6 +691,22 @@ async fn run(
                     .await?;
                 if current.snapshot.world != world {
                     return Err(invalid("world changed during dig"));
+                }
+                if current.snapshot.version == MinecraftVersion::Java1_16_1 {
+                    if current.gap {
+                        inner.finish(
+                            id,
+                            ActionStatus::Unknown {
+                                reason: "dig evidence history gap".into(),
+                            },
+                        );
+                        return Ok(());
+                    }
+                    if let Some(status) = correction(&current, expected.as_ref(), &request.action)?
+                    {
+                        inner.finish(id, status);
+                        return Ok(());
+                    }
                 }
                 let before = baseline
                     .snapshot
@@ -719,7 +723,9 @@ async fn run(
                     .and_then(|b| b.state.as_ref())
                     .map(|s| &s.value);
                 if before == after {
-                    sequence = Some(ops.body_block_send(world, &request.action, 2).await?);
+                    sequence = ops
+                        .body_block_send(world, &request.action, 2, Some(&baseline.snapshot))
+                        .await?;
                 }
                 if after.is_some_and(|state| state.name == "minecraft:air") || before == after {
                     cleanup.dig = None;
@@ -826,7 +832,19 @@ async fn run(
         let legacy_target_received = batch.snapshot.version == MinecraftVersion::Java1_16_1
             && expected.as_ref().is_some_and(|(target, wanted)| {
                 batch.events.iter().any(|event| match &event.update {
-                    Update::Block(pos, state) if pos == target => {
+                    Update::DigAck {
+                        pos,
+                        state,
+                        status: 0 | 2,
+                        successful: true,
+                    } if pos == target && matches!(request.action, Action::BreakBlock { .. }) => {
+                        (batch.snapshot.version.table().registry.native_state)(*state)
+                            .is_ok_and(|state| wanted.matches(&state))
+                    }
+                    Update::Block(pos, state)
+                        if pos == target
+                            && !matches!(request.action, Action::BreakBlock { .. }) =>
+                    {
                         (batch.snapshot.version.table().registry.native_state)(*state)
                             .is_ok_and(|state| wanted.matches(&state))
                     }
@@ -864,6 +882,31 @@ fn correction(
             sequence: evidence.sequence,
         };
         let (reason, actual) = match &evidence.update {
+            Update::DigAck {
+                pos,
+                state,
+                status,
+                successful,
+            } if matches!(action, Action::BreakBlock { .. })
+                && expected.is_some_and(|(target, _)| target == pos) =>
+            {
+                let state = (batch.snapshot.version.table().registry.native_state)(*state)?;
+                // START normally acknowledges the original, still-solid block.
+                // FINISH (or an instant START) supplies the actual result.
+                if *successful && (*status == 0 || expected.unwrap().1.matches(&state)) {
+                    continue;
+                }
+                (
+                    "server dig acknowledgement contradicted the requested result",
+                    ServerCorrection::Block(BodyBlock {
+                        position: *pos,
+                        state: Some(Value {
+                            value: state,
+                            source: received,
+                        }),
+                    }),
+                )
+            }
             Update::Block(pos, state) if expected.is_some_and(|(target, _)| target == pos) => {
                 let state = (batch.snapshot.version.table().registry.native_state)(*state)?;
                 if expected.unwrap().1.matches(&state) {

@@ -77,6 +77,21 @@ async fn main() -> anyhow::Result<()> {
         let v: Json = serde_json::from_str(&line)?;
         let result: anyhow::Result<Json> = async {
             Ok(match v["command"].as_str().unwrap_or("") {
+                "player" => serde_json::to_value(client.player_state().await?)?,
+                "body_use_item_expect" => {
+                    let id = body
+                        .backend()
+                        .use_item_expect(
+                            Hand::Main,
+                            v["slot"].as_u64().unwrap().try_into()?,
+                            client.registry().item(v["item"].as_str().unwrap())?.id,
+                        )
+                        .await?;
+                    serde_json::to_value(id)?
+                }
+                "release_use_item" => {
+                    serde_json::to_value(client.survival().release_use_item().await?)?
+                }
                 "path_start" => {
                     let controls: Vec<voxrig::client::survival::SurvivalControl> =
                         serde_json::from_value(v["controls"].clone())?;

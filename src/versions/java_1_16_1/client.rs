@@ -3200,15 +3200,19 @@ impl Bot {
                 }
                 self.wait_until_ready().await?;
                 let _coherent_state = self.coherent_state_gate.lock().await;
-                let mut p = self.player.lock().await;
-                p.yaw = yaw;
-                p.pitch = pitch.clamp(-90.0, 90.0);
-                self.common_receipts.lock().await.rotation_source =
-                    Some(crate::client::ValueSource::Submitted);
-                drop(p);
-                self.send_position().await
+                self.look_unlocked(yaw, pitch).await
             })
             .await
+    }
+    // Caller holds coherent_state_gate across body world validation and dispatch.
+    async fn look_unlocked(&self, yaw: f32, pitch: f32) -> Result<()> {
+        let mut p = self.player.lock().await;
+        p.yaw = yaw;
+        p.pitch = pitch.clamp(-90.0, 90.0);
+        self.common_receipts.lock().await.rotation_source =
+            Some(crate::client::ValueSource::Submitted);
+        drop(p);
+        self.send_position().await
     }
     /// Returns an owned cube of block observations around the current position.
     ///
@@ -3838,21 +3842,24 @@ impl Bot {
                     bail!("hotbar slot must be 0..=8");
                 }
                 let _coherent_state = self.coherent_state_gate.lock().await;
-                let mut payload = Vec::new();
-                payload.write_i16::<BigEndian>(i16::from(slot))?;
-                // An interrupted native selection must not leave an old identity
-                // usable by use_item_expect. Dispatch is submission, never receipt.
-                self.common_receipts.lock().await.selected_hotbar = None;
-                self.send(0x24, &payload).await?;
-                self.inventory.write().await.selected_hotbar = slot;
-                self.common_receipts.lock().await.selected_hotbar =
-                    Some(crate::client::ObservedValue {
-                        value: slot,
-                        source: crate::client::ValueSource::Submitted,
-                    });
-                Ok(())
+                self.select_hotbar_unlocked(slot).await
             })
             .await
+    }
+    // Caller holds coherent_state_gate; slot is already validated.
+    async fn select_hotbar_unlocked(&self, slot: u8) -> Result<()> {
+        let mut payload = Vec::new();
+        payload.write_i16::<BigEndian>(i16::from(slot))?;
+        // An interrupted native selection must not leave an old identity
+        // usable by use_item_expect. Dispatch is submission, never receipt.
+        self.common_receipts.lock().await.selected_hotbar = None;
+        self.send(0x24, &payload).await?;
+        self.inventory.write().await.selected_hotbar = slot;
+        self.common_receipts.lock().await.selected_hotbar = Some(crate::client::ObservedValue {
+            value: slot,
+            source: crate::client::ValueSource::Submitted,
+        });
+        Ok(())
     }
     /// Dispatches an item-drop action without waiting for an inventory update.
     pub async fn drop_selected(&self, entire_stack: bool) -> Result<()> {

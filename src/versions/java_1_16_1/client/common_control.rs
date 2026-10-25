@@ -626,12 +626,21 @@ impl Bot {
 }
 
 impl Bot {
+    pub(crate) async fn body_start_control(
+        &self,
+        mode: GameMode,
+        world: crate::body::BodyWorld,
+    ) -> Result<ControlRecord> {
+        self.start_control_inner(mode, None, false, true, Some(world))
+            .await
+    }
     async fn start_control_inner(
         &self,
         mode: GameMode,
         initial_flight_controls: Option<Controls>,
         glide: bool,
         best_effort_contacts: bool,
+        world: Option<crate::body::BodyWorld>,
     ) -> Result<ControlRecord> {
         let admission = self.connection.ledger().try_work()?;
         admission
@@ -665,6 +674,16 @@ impl Bot {
                 }
                 self.wait_until_ready().await?;
                 let _gate = self.coherent_state_gate.lock().await;
+                let generation = self.common_receipts.lock().await.generation;
+                if world.is_some_and(|world| {
+                    world
+                        != (crate::body::BodyWorld {
+                            connection: self.connection_id(),
+                            generation,
+                        })
+                }) {
+                    return Err(state_error("body world changed before control admission"));
+                }
 
                 if self
                     .survival
@@ -694,7 +713,6 @@ impl Bot {
                         "a native ground jump is pending; wait for its physics tick",
                     ));
                 }
-                let generation = self.common_receipts.lock().await.generation;
                 if let Some(reason) = self.control_stop_reason(generation, mode, kind).await {
                     return Err(state_error(reason));
                 }
@@ -891,12 +909,13 @@ impl crate::client::adapter::ControlOps for Bot {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), true, false)
+        self.start_control_inner(mode, Some(controls), true, false, None)
             .await
     }
 
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, false).await
+        self.start_control_inner(mode, None, false, false, None)
+            .await
     }
 
     async fn start_flight_control(
@@ -904,12 +923,13 @@ impl crate::client::adapter::ControlOps for Bot {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), false, false)
+        self.start_control_inner(mode, Some(controls), false, false, None)
             .await
     }
 
     async fn start_control_best_effort(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, true).await
+        self.start_control_inner(mode, None, false, true, None)
+            .await
     }
 
     async fn contact_diagnostic_for(
