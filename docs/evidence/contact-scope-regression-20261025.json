@@ -8896,12 +8896,12 @@
     }
   },
   "source_sha256": {
-    "src/client/entity.rs": "e753085d5fc3d48f00a55dd3a009f9f1af688ba9bedde7005db83968ff6427eb",
-    "src/client/entity/scope.rs": "c24b212e134c21c021ff2db90ac23c87067a58755cf6e8e16f4cbf2d3f50f5f4",
+    "src/client/entity.rs": "541dcf624624e2c7d63f64c22cb679660e3dd9b2aeb7db7aac63a5d70ac1c1ab",
+    "src/client/entity/scope.rs": "4fbb2eaab15edc82ff33cedf741de89d99fc576d97e837cc1e66c67142fb7f20",
     "src/client/entity/owned_contacts.rs": "42e6a596afb6c7841f22dc1247db1245a5b5b983ff43f46bf0e7c00e445dfd7d",
     "src/versions/java_1_16_1/client/play_player.rs": "b28fa735cdc80f206fd6c75a6f7b2342f22ba8b36f62a6ff4675376dffcd4f76",
     "src/versions/java_1_21_11/client.rs": "82a2c458971e236fa16d0337e0a09be64878da7bc76cb72ed142a13bc6b748f6",
-    "src/versions/java_1_21_11/client/entity.rs": "509eb23ef8a08bbbd82f2333f5e06eadae692d658d153ee5e9d6cd29d1fef474",
+    "src/versions/java_1_21_11/client/entity.rs": "2d9f0041cfdbab8225e575198a01655c9841c809358ec1917ebe7286b0bb555c",
     "docs/contact-scope-regression-audit.md": "731434970e5a1ce85d43213bcb06585a948d322f2a33651bb278af1584afe903",
     "docs/common-respawn.md": "2bfd4a38f25f6010e159b11a94021451fd8254e51a23cfbbe5242cedc6407d6d",
     "scripts/audit_contact_scope_regression.py": "803fe661b5825af169e6d5ed3945d59a4ac7f43cfb3ca26fba23a250509261fb"

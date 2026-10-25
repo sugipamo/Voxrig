@@ -21,31 +21,25 @@ A separate receipt reducer retains a monotone possibility hull, independently of
 numerical travel and terrain loading. It covers every admitted spawn/codec anchor,
 raw teleport endpoint, remaining interpolation endpoint, clamped placement,
 metadata bed placement, native dimensions, and rounding/contact-query margins.
-Supported size changes are bounded by the version's adult ordinary dimensions;
-For potentially contact-relevant bodies, unknown size, velocity, age/health
-serializer, scale, callback, nonfinite input or incomplete history cannot establish
-exclusion. Velocity is validated even though
-the qualified remote nonauthoritative client lane does not travel using it.
-Its position acceleration from input/AI and pair impulses is zero in this declared
-lane; this does not describe authoritative server travel. Existing qualified living species provide this proof. The
-[regression review](contact-scope-regression-audit.md) additionally qualifies
-finite exclusion for the reported remote species and ordinary chest minecarts,
-and positive noncontact for drops, experience orbs and arrows. These exclusions
-do not qualify nearby numerical contact. Other unreviewed species still refuse
-when no finite audited proof exists. Only callbacks with finite packet-audit evidence retain the proof;
-policy pass-through is never reused as exclusion evidence. The previous
-pass-through policy remains in independent/boat APIs.
+The [all-registry review](contact-scope-all-types.md) extends finite exclusion to
+every official EntityType: 107 in 1.16.1 and 157 in 1.21.11, generated from the
+official JARs. Pose/age/variant/scale bounds, native no-contact predicates and
+received interpolation/attachment endpoints determine the envelope. Nearby
+unsupported numerical contact still refuses typed. An unknown registry ID uses
+the documented conservative global bound, rather than an invented ordinary size.
+Malformed numeric/provenance inputs and incomplete relationship history still
+fail closed. Policy pass-through is never reused as exclusion evidence.
 
-Existing positive class proofs (for example Bat and ArmorStand) remain valid:
-a connected group made entirely of proven no-contact classes needs no geometric
-or velocity sample. These groups cannot be edges in contact propagation. A mixed
-group with a potentially relevant rider still requires every member's finite
-group envelope; an unresolved rider is refused. No zero-size box is fabricated.
-The existing default unmounted Spider/CaveSpider envelope is reused only for
-exclusion. Nearby spiders remain unqualified numerical contacts, and any metadata,
-scale, equipment, status/animation or mount involvement revokes this finite proof
-exactly as in the earlier envelope audit. These are evidence-backed exceptions;
-the policy's PassThrough fallback is never treated as proof.
+Positive class proofs (for example Bat and ArmorStand) remain valid: a connected
+group made entirely of proven no-contact classes needs no geometric or velocity
+sample. A mixed group with a potentially relevant rider requires every member's
+finite group envelope; an unresolved rider is refused. No zero-size box is
+fabricated. The original default Spider/CaveSpider provider and its revocations
+remain unchanged for independent/boat APIs. Player scope now has an independent
+generated proof that includes received spider metadata and maximum dimensions.
+The all-registry review also documents the private weighted minecart-path hull
+and the fishing-hook/firework target exceptions; neither produces synthetic
+public receipt records.
 
 The initial player broad phase encloses its box, momentum, ordinary input and
 step alternatives. Every actual attempted physics cell is checked again before
@@ -130,10 +124,9 @@ own-pose/momentum/world receipts still qualify. The live regression exercises th
 without reconnecting. Monotone hulls intentionally do not forget a previous nearby
 anchor merely because a later target is far away; an unqualified dismount,
 unsupported callback or lost own momentum may therefore still prevent restart.
-A per-lifetime refusal can disappear with that received lifetime. A lost
-relationship-placement proof or incomplete relationship history is retained as a
-world-level refusal: a new owner or removing the remaining members cannot repair
-it; a fresh connection/world observation is required. A running cursor gap always
+A per-lifetime refusal can disappear with that received lifetime. Lost relationship placement or incomplete passenger history is retained for the
+affected carrier until fresh complete passenger state (including empty) or that
+carrier's removal. A new owner cannot guess the missing placement. A running cursor gap always
 stops the old owner; a new origin can use a complete eviction checkpoint and
 continuous retained suffix, otherwise it also needs fresh observation. No automatic retry or weakened receipt
 acknowledgement is introduced.
@@ -168,3 +161,7 @@ carrier-scoped history recovery, terrain-footprint closure, retention of nearby
 active states and exact stationary re-entry within the same owner. It supersedes
 the blanket new-owner requirement only for those proved identity steps; omitted
 interpolation/motion and final sweep failures remain typed refusals before I/O.
+
+The [registry-wide extension](contact-scope-all-types.md) and its live evidence
+cover both official server versions with varied far and nearby non-touching
+entity sets, and confirm touching unsupported contacts still refuse typed.

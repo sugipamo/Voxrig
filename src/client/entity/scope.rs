@@ -37,46 +37,49 @@ fn audited_type(version: crate::MinecraftVersion, name: &str) -> bool {
     ) && selectors::dispatch(version, name).is_some()
 }
 
-// Exclusion-only review. These species retain their numerical refusal nearby.
-// See docs/contact-scope-regression-audit.md and its original-JAR fingerprints.
+// A separate, generated all-registry proof; never numerical qualification.
+#[derive(Debug)]
+struct RegistryScope {
+    name: &'static str,
+    dimensions: [f64; 2],
+    maximum: [f64; 2],
+    size_index: Option<u8>,
+    sizes: &'static [(i32, [f64; 2])],
+    irrelevant: bool,
+    remote_hull: bool,
+    dependent: bool,
+    placement_indices: &'static [u8],
+}
+#[path = "scope_registry_generated.rs"]
+mod registry_generated;
+fn registry_scope(version: crate::MinecraftVersion, name: &str) -> Option<&'static RegistryScope> {
+    let rows = match version {
+        crate::MinecraftVersion::Java1_16_1 => registry_generated::V1_16_1,
+        crate::MinecraftVersion::Java1_21_11 => registry_generated::V1_21_11,
+    };
+    rows.binary_search_by_key(&name, |row| row.name)
+        .ok()
+        .map(|i| &rows[i])
+}
 fn exclusion_type(version: crate::MinecraftVersion, name: &str) -> bool {
-    matches!(
-        version,
-        crate::MinecraftVersion::Java1_16_1 | crate::MinecraftVersion::Java1_21_11
-    ) && matches!(
-        name,
-        "minecraft:fox"
-            | "minecraft:skeleton"
-            | "minecraft:stray"
-            | "minecraft:wither_skeleton"
-            | "minecraft:enderman"
-            | "minecraft:wolf"
-            | "minecraft:horse"
-            | "minecraft:donkey"
-            | "minecraft:mule"
-            | "minecraft:skeleton_horse"
-            | "minecraft:zombie_horse"
-            | "minecraft:cod"
-            | "minecraft:salmon"
-            | "minecraft:tropical_fish"
-            | "minecraft:pufferfish"
-            | "minecraft:husk"
-            | "minecraft:drowned"
-            | "minecraft:chest_minecart"
-    )
+    registry_scope(version, name).is_some() && !audited_type(version, name)
 }
 fn noncontact_type(version: crate::MinecraftVersion, name: &str) -> bool {
-    matches!(
-        version,
-        crate::MinecraftVersion::Java1_16_1 | crate::MinecraftVersion::Java1_21_11
-    ) && matches!(
-        name,
-        "minecraft:item"
-            | "minecraft:experience_orb"
-            | "minecraft:arrow"
-            | "minecraft:spectral_arrow"
-            | "minecraft:trident"
-    )
+    registry_scope(version, name).is_some_and(|row| row.irrelevant || row.dependent)
+}
+// Includes every finite native float dimension and the maximum scale (16).
+// Unknown IDs cannot be assigned arbitrary mod geometry: within this fallback
+// they remain refused. See docs/contact-scope-all-types.md for the exact domain.
+const UNKNOWN_EXTENT: f64 = f32::MAX as f64 * 32.;
+fn unknown_envelope() -> Aabb {
+    Aabb {
+        min_x: -UNKNOWN_EXTENT,
+        min_y: -UNKNOWN_EXTENT,
+        min_z: -UNKNOWN_EXTENT,
+        max_x: UNKNOWN_EXTENT,
+        max_y: UNKNOWN_EXTENT,
+        max_z: UNKNOWN_EXTENT,
+    }
 }
 
 fn finite_living_callback(version: crate::MinecraftVersion, name: &str, kind: &K) -> bool {
@@ -112,10 +115,6 @@ fn finite_living_callback(version: crate::MinecraftVersion, name: &str, kind: &K
         )
 }
 
-fn default_spider(version: crate::MinecraftVersion, name: &str) -> bool {
-    matches!(name, "minecraft:spider" | "minecraft:cave_spider")
-        && contact_policy::locality::DeferredPolicy::new(version, name).envelope(false)
-}
 fn no_contact(version: crate::MinecraftVersion, name: &str) -> bool {
     use super::contact_capabilities::{Classification, capabilities};
     if noncontact_type(version, name) {
@@ -148,6 +147,8 @@ struct Bound {
     irrelevant: bool,
     stationary: bool,
     fault: Option<String>,
+    near_fault: Option<String>,
+    free_motion: f64,
     ordinal: u64,
     sequence: u64,
     trigger: crate::MovementPacketTrigger,
@@ -187,7 +188,7 @@ impl Bound {
         // native float dimensions, pair selector (0.2) and rounding.
         let b = Aabb {
             min_x: p[0].min(p[0].clamp(-30_000_000., 30_000_000.)) - w - 1.,
-            min_y: p[1] - 1.,
+            min_y: p[1] - h - 1.,
             min_z: p[2].min(p[2].clamp(-30_000_000., 30_000_000.)) - w - 1.,
             max_x: p[0].max(p[0].clamp(-30_000_000., 30_000_000.)) + w + 1.,
             max_y: p[1] + h + 1.,
@@ -228,6 +229,7 @@ struct Group {
     // effects. Unknown geometry never creates this alternative.
     envelope: Option<Aabb>,
     mounted: bool,
+    free_motion: f64,
 }
 
 fn trigger(kind: &K) -> crate::MovementPacketTrigger {
@@ -283,14 +285,12 @@ impl ScopeReceipts {
                 let irrelevant = name
                     .as_deref()
                     .is_some_and(|n| no_contact(r.session.version, n));
-                let qualified = name.as_deref().is_some_and(|n| {
-                    audited_type(r.session.version, n)
-                        || default_spider(r.session.version, n)
-                        || exclusion_type(r.session.version, n)
-                });
+                let qualified = name
+                    .as_deref()
+                    .is_some_and(|n| registry_scope(r.session.version, n).is_some());
                 let d = name
                     .as_deref()
-                    .and_then(|n| r.session.version.table().entity_dimensions(n));
+                    .and_then(|n| registry_scope(r.session.version, n));
                 let pose = m
                     .position
                     .as_ref()
@@ -313,30 +313,25 @@ impl ScopeReceipts {
                     motion: pose
                         .and_then(|p| LivingPacketModel::new(r.session.version, p, r.ordinal).ok()),
                     envelope: None,
-                    dimensions: d.map_or([0.; 2], |d| {
-                        // Salmon's large variant scales its default dimensions by 1.5.
-                        // Pufferfish's maximum puff uses its full EntityType dimensions.
-                        let factor = if m.entity.type_name.as_deref() == Some("minecraft:salmon")
-                            && r.session.version == crate::MinecraftVersion::Java1_21_11
-                        {
-                            1.5
-                        } else {
-                            1.
-                        };
-                        [
-                            f64::from(d.width as f32) * factor,
-                            f64::from(d.height as f32) * factor,
-                        ]
-                    }),
+                    dimensions: d.map_or([UNKNOWN_EXTENT; 2], |d| d.dimensions),
                     irrelevant,
                     stationary: m.velocity.as_ref().is_some_and(|v| v.value == [0.; 3]),
                     fault: None,
+                    near_fault: (!qualified)
+                        .then(|| "unknown registry geometry within global fallback bound".into()),
+                    free_motion: if d.is_some_and(|d| d.remote_hull) {
+                        0.
+                    } else {
+                        64. + m
+                            .velocity
+                            .as_ref()
+                            .map_or(0., |v| v.value.iter().map(|x| x.abs()).sum::<f64>())
+                    },
                     ordinal: r.ordinal,
                     sequence: r.receive_sequence,
                     trigger: trigger(&r.kind),
                 };
-                if (!irrelevant && (!qualified || d.is_none() || b.motion.is_none()))
-                    || id.spawn_sequence() != r.receive_sequence
+                if (!irrelevant && b.motion.is_none()) || id.spawn_sequence() != r.receive_sequence
                 {
                     b.fault = Some("no audited finite contact scope for this spawn".into());
                 }
@@ -378,28 +373,6 @@ impl ScopeReceipts {
                 entity,
                 passengers,
             } => {
-                for (&id, b) in &mut self.members {
-                    let involved = *native_id == id
-                        || match passengers {
-                            EntityHistoryValue::Retained { value } => {
-                                value.iter().any(|(child, _)| *child == id)
-                            }
-                            EntityHistoryValue::RetentionLimit => true,
-                        };
-                    if involved
-                        && b.name
-                            .as_deref()
-                            .is_some_and(|n| default_spider(r.session.version, n))
-                        && b.fault.is_none()
-                    {
-                        b.fault =
-                            Some("default spider mount involvement revokes finite proof".into());
-                        b.ordinal = r.ordinal;
-                        b.sequence = r.receive_sequence;
-                        b.trigger = trigger(&r.kind);
-                    }
-                }
-
                 if let (Some(entity), EntityHistoryValue::Retained { value }) = (entity, passengers)
                 {
                     self.relationship_errors.remove(native_id);
@@ -488,25 +461,93 @@ impl ScopeReceipts {
                 }
                 let result = apply_body(b, r);
                 if let Err(error) = result {
-                    b.fault.get_or_insert_with(|| error.to_string());
+                    if b.irrelevant {
+                        // The class proof still omits an isolated body. A relevant
+                        // rider cannot inherit that proof or unknown placement.
+                        b.near_fault.get_or_insert_with(|| error.to_string());
+                        b.envelope = Some(unknown_envelope());
+                    } else {
+                        b.fault.get_or_insert_with(|| error.to_string());
+                    }
                 }
             }
         }
     }
+    fn retain_omitted_travel(&mut self, tick: u64) -> Result<()> {
+        for group in self.groups()?.into_iter().filter(|g| g.free_motion != 0.) {
+            if let Some(envelope) = group.envelope {
+                let reach =
+                    (group.free_motion * (2_f64.powf(tick as f64) - 1.)).min(UNKNOWN_EXTENT);
+                let envelope = expand(envelope, reach);
+                for id in group.ids {
+                    let b = self.members.get_mut(&id).expect("validated group member");
+                    b.envelope = Some(b.envelope.map_or(envelope, |old| hull(old, envelope)));
+                    b.stationary = false;
+                }
+            }
+        }
+        Ok(())
+    }
     fn packet_faults(&mut self, ledger: &SpawnLedger) {
         for (&native, spawn) in &ledger.0 {
-            if let (Some((sequence, packet)), Some(bound)) =
-                (spawn.contact_fault, self.members.get_mut(&native))
-            {
-                bound.fault = Some("contact scope packet has no finite exclusion proof".into());
-                bound.sequence = sequence;
-                // This opaque packet has no public history record. Do not label
-                // its trigger with the preceding spawn/motion record ordinal.
-                bound.ordinal = 0;
-                bound.trigger = crate::MovementPacketTrigger {
-                    packet_type: packet.into(),
-                    opcode: 0,
-                };
+            let target_bounds = spawn.contact_target.as_ref().and_then(|receipt| {
+                if receipt.unresolved {
+                    return Some(unknown_envelope());
+                }
+                receipt
+                    .targets
+                    .iter()
+                    .map(|target| {
+                        self.members
+                            .get(&target.native)
+                            .filter(|b| Some(b.id.spawn_sequence()) == target.spawn_sequence)
+                            .and_then(|b| b.envelope)
+                            .unwrap_or_else(unknown_envelope)
+                    })
+                    .reduce(hull)
+            });
+            if let Some(bound) = self.members.get_mut(&native) {
+                if let Some(super::ContactPathReceipt {
+                    sequence,
+                    packet,
+                    bounds: anchors,
+                }) = spawn.contact_fault
+                {
+                    bound.near_fault =
+                        Some("contact scope packet has no numerical path proof".into());
+                    bound.sequence = sequence;
+                    bound.ordinal = 0;
+                    bound.trigger = crate::MovementPacketTrigger {
+                        packet_type: packet.into(),
+                        opcode: 0,
+                    };
+                    if let Some(a) = anchors {
+                        bound.include([a.min_x, a.min_y, a.min_z]);
+                        bound.include([a.max_x, a.max_y, a.max_z]);
+                    }
+                }
+                if let Some(receipt) = &spawn.contact_target {
+                    bound.irrelevant = target_bounds.is_none()
+                        && bound
+                            .name
+                            .as_deref()
+                            .is_some_and(|n| no_contact(bound.id.session().version, n));
+                    if let Some(target_bounds) = target_bounds {
+                        bound.envelope = Some(
+                            bound
+                                .envelope
+                                .map_or(target_bounds, |old| hull(old, target_bounds)),
+                        );
+                        bound.near_fault =
+                            Some("received attachment can affect player movement".into());
+                        bound.sequence = receipt.sequence;
+                        bound.ordinal = 0;
+                        bound.trigger = crate::MovementPacketTrigger {
+                            packet_type: "Metadata".into(),
+                            opcode: 0,
+                        };
+                    }
+                }
             }
         }
     }
@@ -562,6 +603,7 @@ impl ScopeReceipts {
                 {
                     for id in ids {
                         if let Some(b) = self.members.get_mut(&id) {
+                            b.stationary = false;
                             b.envelope = Some(b.envelope.map_or(envelope, |v| hull(v, envelope)));
                         }
                     }
@@ -657,17 +699,9 @@ impl ScopeReceipts {
                     mounted: ids.len() > 1,
                     ids,
                     envelope: None,
+                    free_motion: 0.,
                 });
                 continue;
-            }
-            if let Some(body) = ids.iter().map(|id| &self.members[id]).find(|body| {
-                body.name
-                    .as_deref()
-                    .is_some_and(|name| noncontact_type(body.id.session().version, name))
-            }) {
-                return Err(body.error(
-                    "noncontact carrier with contact-relevant rider has no finite group proof",
-                ));
             }
             let mut envelope = None;
             let mut offsets = 0.;
@@ -699,6 +733,7 @@ impl ScopeReceipts {
             };
             groups.push(Group {
                 mounted: ids.len() > 1,
+                free_motion: ids.iter().map(|id| self.members[id].free_motion).sum(),
                 ids,
                 envelope: Some(envelope),
             });
@@ -771,21 +806,6 @@ impl ScopeReceipts {
 
 fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
     let version = r.session.version;
-    if b.irrelevant {
-        if let K::Motion(m) = &r.kind {
-            b.position = m.position.as_ref().map(|p| p.value.position).or(b.position);
-        }
-        return Ok(());
-    }
-    if b.name
-        .as_deref()
-        .is_some_and(|n| default_spider(version, n))
-        && !matches!(r.kind, K::Motion(_))
-    {
-        return Err(permanent(
-            "default spider callback/metadata revokes finite proof",
-        ));
-    }
     match &r.kind {
         K::Motion(m) => {
             b.position = m.position.as_ref().map(|p| p.value.position).or(b.position);
@@ -802,6 +822,18 @@ fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
                 .value
                 .living_packet(version)
                 .map_err(|_| permanent("contact scope motion unsupported"))?;
+            if b.free_motion != 0. {
+                let velocity = match packet {
+                    super::LivingMotionPacket::Velocity(v)
+                    | super::LivingMotionPacket::ModernPositionSync { velocity: v, .. } => Some(v),
+                    _ => None,
+                };
+                if let Some(v) = velocity {
+                    b.free_motion = b
+                        .free_motion
+                        .max(64. + v.iter().map(|x| x.abs()).sum::<f64>());
+                }
+            }
             let stationary_packet = match packet {
                 super::LivingMotionPacket::Velocity(v) => v == [0.; 3],
                 super::LivingMotionPacket::HeadYaw(_)
@@ -899,12 +931,41 @@ fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
                             f64::from(p.z) + 0.5,
                         ]);
                     }
+                } else if registry_scope(version, name)
+                    .is_some_and(|row| row.placement_indices.contains(&entry.index))
+                {
+                    let p = match entry.value {
+                        EntityDataValue::BlockPosition(p)
+                        | EntityDataValue::OptionalBlockPosition(Some(p)) => Some(p),
+                        EntityDataValue::OptionalBlockPosition(None) => None,
+                        _ => return Err(permanent("contact scope placement serializer unknown")),
+                    };
+                    if let Some(p) = p {
+                        anchors.push([f64::from(p.x) + 0.5, f64::from(p.y), f64::from(p.z) + 0.5]);
+                    }
                 } else if field(entry.index, EntityDataField::LivingFlags)
                     && entry.value.as_i64().is_none_or(|f| f & 4 != 0)
                 {
                     return Err(permanent("contact scope spin dispatch unknown"));
                 }
             }
+            if let Some(row) = registry_scope(version, name) {
+                if let Some(index) = row.size_index {
+                    for entry in value.iter().filter(|entry| entry.index == index) {
+                        let shape = match entry.value {
+                            EntityDataValue::Int(size) => {
+                                row.sizes.iter().find(|(v, _)| *v == size).map(|(_, d)| *d)
+                            }
+                            _ => None,
+                        }
+                        .unwrap_or(row.maximum);
+                        for (old, new) in b.dimensions.iter_mut().zip(shape) {
+                            *old = old.max(new);
+                        }
+                    }
+                }
+            }
+            b.extend();
             for p in anchors {
                 // A bed callback can move feet after modern interpolation's
                 // previous pose was retained. Enclose both collision choices
@@ -946,11 +1007,21 @@ fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
                 return Err(permanent("contact scope scale unknown"));
             }
             let mods = value.modifiers.iter().collect::<Vec<_>>();
-            if crate::client::physics::attribute_value(version, value.base, &mods)
-                .clamp(0.0625, 16.) as f32
-                != 1.
-            {
-                return Err(permanent("contact scope requires audited unit scale"));
+            let scale = crate::client::physics::attribute_value(version, value.base, &mods)
+                .clamp(0.0625, 16.) as f32;
+            if scale != 1. {
+                b.near_fault =
+                    Some("contact scope requires audited unit scale for numerical contact".into());
+                if let Some(row) = b
+                    .name
+                    .as_deref()
+                    .and_then(|name| registry_scope(version, name))
+                {
+                    for (old, new) in b.dimensions.iter_mut().zip(row.maximum) {
+                        *old = old.max(new);
+                    }
+                }
+                b.extend();
             }
         }
         K::Status { .. } | K::Animation { .. }
@@ -1022,6 +1093,9 @@ impl PlayerScope {
                 return Err(permanent("contact scope history gap/world changed"));
             }
             for record in &page.records {
+                if matches!(record.kind, K::Passengers { .. } | K::Removed { .. }) {
+                    self.proof.retain_omitted_travel(tick)?;
+                }
                 self.proof.apply(record, self.own);
             }
             self.cursor = page.next_cursor;
@@ -1062,6 +1136,15 @@ impl PlayerScope {
     }
     fn select(&mut self, tick: u64, restore: bool) -> Result<()> {
         self.groups = self.proof.groups()?;
+        for group in &mut self.groups {
+            if let Some(envelope) = &mut group.envelope {
+                let reach =
+                    (group.free_motion * (2_f64.powf(tick as f64) - 1.)).min(UNKNOWN_EXTENT);
+                if group.free_motion != 0. {
+                    *envelope = expand(*envelope, reach);
+                }
+            }
+        }
         let mut selected = BTreeSet::new();
         // Retain already active nearby bodies across small graph changes. This
         // is extra work, never a weaker exclusion. Do not discard their derived
@@ -1115,6 +1198,9 @@ impl PlayerScope {
             for id in &group.ids {
                 let body = &self.proof.members[id];
                 if selected.contains(&i) {
+                    if let Some(reason) = &body.near_fault {
+                        return Err(body.error(reason));
+                    }
                     if group.mounted {
                         return Err(body.error("living passenger group reaches player contact scope; separate contact origin required"));
                     }
@@ -1320,7 +1406,7 @@ mod tests {
                     id,
                     uuid: Some([id as u8; 16]),
                     type_id: None,
-                    dedicated_type_name: Some(name),
+                    dedicated_type_name: Some(name.strip_prefix("minecraft:").unwrap_or(name)),
                     position: [x, 65., 0.5],
                     living: Some(true),
                 },
@@ -1396,6 +1482,240 @@ mod tests {
             .map(|_| ())
     }
     #[test]
+    fn every_generated_registry_type_has_an_exclusion_and_near_classification() {
+        for version in VERSIONS {
+            let rows = match version {
+                V::Java1_16_1 => registry_generated::V1_16_1,
+                V::Java1_21_11 => registry_generated::V1_21_11,
+            };
+            assert_eq!(rows.len(), version.table().entities.dimensions.len());
+            for row in rows {
+                assert!(
+                    version.table().entity_dimensions(row.name).is_some(),
+                    "{}",
+                    row.name
+                );
+                assert!(
+                    row.dimensions
+                        .iter()
+                        .chain(row.maximum.iter())
+                        .all(|v| v.is_finite() && *v >= 0.)
+                );
+                let mut ledger = SpawnLedger::default();
+                spawn(&mut ledger, version, 7, row.name, 128., 1);
+                ledger.history_context(version, 3, 2);
+                let metadata = version
+                    .table()
+                    .entity_data(row.name)
+                    .iter()
+                    .filter_map(|field| {
+                        use crate::versions::table::EntityDataDefault as D;
+                        let value = if field.index == 6 {
+                            EntityDataValue::Pose(0)
+                        } else {
+                            match field.default {
+                                D::Byte(v) => EntityDataValue::Byte(v),
+                                D::Int(v) => EntityDataValue::Int(v),
+                                D::Long(v) => EntityDataValue::Long(v),
+                                D::Float(v) => EntityDataValue::Float(v),
+                                D::Bool(v) => EntityDataValue::Bool(v),
+                                D::Other | D::Unknown => return None,
+                            }
+                        };
+                        Some((field.index, value))
+                    })
+                    .collect::<Vec<_>>();
+                ledger.receive_metadata(7, metadata, true, 2);
+                let mut model = owner(version, &ledger, 2, 0)
+                    .unwrap_or_else(|e| panic!("{version:?}/{}: {e}", row.name));
+                tick(version, &mut model, &mut body())
+                    .unwrap_or_else(|e| panic!("{version:?}/{}: {e}", row.name));
+                assert!(model.world.bodies.is_empty());
+                let near = Body::new([128., 65., 0.5]);
+                let result = PlayerScope::new(
+                    stamp(version),
+                    99,
+                    &ledger,
+                    2,
+                    &near,
+                    &Environment::defaults(version),
+                    256,
+                );
+                if no_contact(version, row.name) || audited_type(version, row.name) {
+                    assert!(result.is_ok(), "{version:?}/{}: {result:?}", row.name);
+                } else {
+                    let e = result.unwrap_err();
+                    assert!(
+                        matches!(e.movement_refusal(), Some(MovementRefusal::Scoped { .. })),
+                        "{e}"
+                    );
+                    assert_eq!(
+                        e.movement_refusal()
+                            .unwrap()
+                            .context()
+                            .entity_type
+                            .as_deref(),
+                        Some(row.name)
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn generated_size_cases_enlarge_the_hull_before_exclusion() {
+        for version in VERSIONS {
+            let rows = match version {
+                V::Java1_16_1 => registry_generated::V1_16_1,
+                V::Java1_21_11 => registry_generated::V1_21_11,
+            };
+            for row in rows.iter().filter(|row| row.size_index.is_some()) {
+                for (size, dimensions) in row.sizes {
+                    let mut ledger = SpawnLedger::default();
+                    spawn(&mut ledger, version, 7, row.name, 128., 1);
+                    ledger.history_context(version, 3, 2);
+                    ledger.receive_metadata(
+                        7,
+                        [(row.size_index.unwrap(), EntityDataValue::Int(*size))],
+                        true,
+                        2,
+                    );
+                    let (proof, _) =
+                        ScopeReceipts::capture(stamp(version), 99, &ledger, 2).unwrap();
+                    for (actual, needed) in proof.members[&7].dimensions.iter().zip(dimensions) {
+                        assert!(actual >= needed, "{version:?}/{} size={size}", row.name);
+                    }
+                    let bounds = proof.members[&7].envelope.unwrap();
+                    assert!(bounds.max_x >= 128. + dimensions[0]);
+                }
+            }
+        }
+    }
+    #[test]
+    fn unknown_registry_geometry_is_scoped_to_documented_global_bound() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "not_a_vanilla_type", 128., 1);
+            let e = owner(version, &ledger, 1, 256).unwrap_err();
+            assert!(
+                matches!(e.movement_refusal(), Some(MovementRefusal::Scoped { .. })),
+                "{e}"
+            );
+            let b = Body::new([UNKNOWN_EXTENT * 4., 65., 0.5]);
+            assert!(
+                PlayerScope::new(
+                    stamp(version),
+                    99,
+                    &ledger,
+                    1,
+                    &b,
+                    &Environment::defaults(version),
+                    256
+                )
+                .is_ok()
+            );
+        }
+    }
+    #[test]
+    fn received_effect_target_cannot_be_hidden_by_no_contact_predicates() {
+        for version in VERSIONS {
+            for name in ["fishing_bobber", "firework_rocket"] {
+                let mut ledger = SpawnLedger::default();
+                spawn(&mut ledger, version, 7, name, 128., 1);
+                assert!(owner(version, &ledger, 1, 0).is_ok());
+                ledger.contact_effect_target(7, 2, Some(99));
+                let e = owner(version, &ledger, 2, 256).unwrap_err();
+                assert!(
+                    matches!(e.movement_refusal(), Some(MovementRefusal::Scoped { .. })),
+                    "{version:?}/{name}: {e}"
+                );
+                ledger.contact_effect_target(7, 3, None);
+                assert!(owner(version, &ledger, 3, 0).is_err());
+                ledger.history_context(version, 3, 4);
+                ledger.remove(7);
+                assert!(owner(version, &ledger, 4, 0).is_ok());
+            }
+        }
+    }
+    #[test]
+    fn dismount_retains_omitted_autonomous_carrier_travel_and_cannot_rehydrate_as_stationary() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "item", 10000., 1);
+            spawn(&mut ledger, version, 8, "cow", 10000., 2);
+            passengers(&mut ledger, version, 3, vec![8]);
+            let env = Environment::defaults(version);
+            let mut scope =
+                PlayerScope::new(stamp(version), 99, &ledger, 3, &body(), &env, 256).unwrap();
+            scope.stage(&body(), &env, 2).unwrap();
+            passengers(&mut ledger, version, 4, vec![]);
+            scope.refresh(&ledger, 4, 2).unwrap();
+            assert!(!scope.proof.members[&8].stationary);
+            let near = Body::new([9800., 65., 0.5]);
+            let error = scope.stage(&near, &env, 2).unwrap_err();
+            assert!(
+                matches!(
+                    error.movement_refusal(),
+                    Some(MovementRefusal::Scoped { .. })
+                ),
+                "{error}"
+            );
+        }
+    }
+    #[test]
+    fn ai_block_targets_do_not_relocate_feet_but_native_attachment_metadata_does() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "turtle", 48., 1);
+            let targets = version
+                .table()
+                .entity_data("minecraft:turtle")
+                .iter()
+                .filter(|row| row.owner == "Turtle" && row.field.contains("POS"))
+                .map(|row| {
+                    (
+                        row.index,
+                        EntityDataValue::BlockPosition(crate::client::BlockPos {
+                            x: 0,
+                            y: 0,
+                            z: 0,
+                        }),
+                    )
+                })
+                .collect::<Vec<_>>();
+            if version == V::Java1_16_1 {
+                assert!(!targets.is_empty());
+            }
+            ledger.history_context(version, 3, 2);
+            ledger.receive_metadata(7, targets, true, 2);
+            let mut model = owner(version, &ledger, 2, 0).unwrap();
+            tick(version, &mut model, &mut body()).unwrap();
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "shulker", 48., 1);
+            let row = registry_scope(version, "minecraft:shulker").unwrap();
+            if let Some(index) = row.placement_indices.first() {
+                ledger.history_context(version, 3, 2);
+                ledger.receive_metadata(
+                    7,
+                    [(
+                        *index,
+                        EntityDataValue::OptionalBlockPosition(Some(crate::client::BlockPos {
+                            x: 0,
+                            y: 65,
+                            z: 0,
+                        })),
+                    )],
+                    true,
+                    2,
+                );
+                let e = owner(version, &ledger, 2, 256).unwrap_err();
+                assert!(
+                    matches!(e.movement_refusal(), Some(MovementRefusal::Scoped { .. })),
+                    "{e}"
+                );
+            }
+        }
+    }
+    #[test]
     fn proven_no_contact_classes_need_no_geometry_and_cannot_hide_a_rider() {
         for version in VERSIONS {
             let mut ledger = SpawnLedger::default();
@@ -1414,7 +1734,7 @@ mod tests {
         }
     }
     #[test]
-    fn existing_default_spider_proof_only_excludes_and_revokes_on_metadata() {
+    fn all_type_spider_exclusion_survives_metadata_without_changing_old_policy() {
         for version in VERSIONS {
             for name in ["spider", "cave_spider"] {
                 let mut ledger = SpawnLedger::default();
@@ -1436,7 +1756,7 @@ mod tests {
                 );
                 ledger.history_context(version, 3, 2);
                 ledger.receive_metadata(7, [], true, 2);
-                assert!(owner(version, &ledger, 2, 256).is_err());
+                assert!(owner(version, &ledger, 2, 256).is_ok());
             }
         }
     }
@@ -1512,13 +1832,17 @@ mod tests {
         }
     }
     #[test]
-    fn experimental_cart_path_packet_revokes_default_cart_exclusion_until_lifetime_ends() {
+    fn experimental_cart_path_is_excluded_far_and_refuses_when_actual_path_reaches_player() {
         let version = V::Java1_21_11;
         let mut ledger = SpawnLedger::default();
         spawn(&mut ledger, version, 7, "chest_minecart", 100., 1);
         let mut model = owner(version, &ledger, 1, 0).unwrap();
-        ledger.contact_unavailable(7, 2, "MoveMinecart");
-        let e = model.refresh(10, &ledger, 2).unwrap_err();
+        ledger.contact_unavailable(7, 2, "MoveMinecart", &[[110., 65., 0.5]]);
+        model.refresh(10, &ledger, 2).unwrap();
+        assert!(owner(version, &ledger, 2, 0).is_ok());
+        // A later weighted path crosses the player even with both endpoints far.
+        ledger.contact_unavailable(7, 3, "MoveMinecart", &[[-100., 65., 0.5]]);
+        let e = model.refresh(10, &ledger, 3).unwrap_err();
         assert_eq!(
             e.movement_refusal()
                 .unwrap()
@@ -1530,10 +1854,10 @@ mod tests {
             "MoveMinecart"
         );
         assert_eq!(e.movement_refusal().unwrap().context().record_ordinal, None);
-        assert!(owner(version, &ledger, 2, 0).is_err());
-        ledger.history_context(version, 3, 3);
+        assert!(owner(version, &ledger, 3, 0).is_err());
+        ledger.history_context(version, 3, 4);
         ledger.remove(7);
-        assert!(owner(version, &ledger, 3, 0).is_ok());
+        assert!(owner(version, &ledger, 4, 0).is_ok());
     }
     #[test]
     fn drops_orbs_and_arrows_do_not_block_even_at_the_player() {

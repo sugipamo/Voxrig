@@ -184,7 +184,24 @@ struct Spawn {
     position: [f64; 3],
     motion: motion::Motion,
     extra: state::Extra,
-    contact_fault: Option<(u64, &'static str)>,
+    contact_fault: Option<ContactPathReceipt>,
+    contact_target: Option<ContactTargetReceipt>,
+}
+#[derive(Clone, Copy)]
+struct ContactPathReceipt {
+    sequence: u64,
+    packet: &'static str,
+    bounds: Option<crate::client::Aabb>,
+}
+struct ContactTargetReceipt {
+    sequence: u64,
+    targets: Vec<ContactTarget>,
+    unresolved: bool,
+}
+#[derive(Clone, Copy, PartialEq)]
+struct ContactTarget {
+    native: i32,
+    spawn_sequence: Option<u64>,
 }
 pub(crate) struct NativeSpawn {
     pub id: i32,
@@ -196,9 +213,82 @@ pub(crate) struct NativeSpawn {
     pub living: Option<bool>,
 }
 impl SpawnLedger {
-    pub(crate) fn contact_unavailable(&mut self, native: i32, sequence: u64, packet: &'static str) {
+    pub(crate) fn contact_unavailable(
+        &mut self,
+        native: i32,
+        sequence: u64,
+        packet: &'static str,
+        anchors: &[[f64; 3]],
+    ) {
         if let Some(spawn) = self.0.get_mut(&native) {
-            spawn.contact_fault = Some((sequence, packet));
+            let mut bounds = spawn.contact_fault.and_then(|receipt| receipt.bounds);
+            for &[x, y, z] in anchors {
+                let point = crate::client::Aabb {
+                    min_x: x,
+                    min_y: y,
+                    min_z: z,
+                    max_x: x,
+                    max_y: y,
+                    max_z: z,
+                };
+                bounds = Some(bounds.map_or(point, |old| contact_capabilities::hull(old, point)));
+            }
+            spawn.contact_fault = Some(ContactPathReceipt {
+                sequence,
+                packet,
+                bounds,
+            });
+        }
+    }
+    pub(crate) fn contact_target_field(
+        &self,
+        version: crate::MinecraftVersion,
+        native: i32,
+    ) -> Option<(u8, bool)> {
+        let name = self.0.get(&native)?.name.as_deref()?;
+        version
+            .table()
+            .entity_data(name)
+            .iter()
+            .find(|row| matches!(row.field, "DATA_HOOKED_ENTITY" | "DATA_ATTACHED_TO_TARGET"))
+            .map(|row| (row.index, row.field == "DATA_ATTACHED_TO_TARGET"))
+    }
+    pub(crate) fn contact_effect_target(
+        &mut self,
+        native: i32,
+        sequence: u64,
+        target: Option<i32>,
+    ) {
+        let target = target.map(|id| ContactTarget {
+            native: id,
+            spawn_sequence: self.0.get(&id).map(|spawn| spawn.sequence),
+        });
+        if let Some(spawn) = self.0.get_mut(&native) {
+            let receipt = spawn
+                .contact_target
+                .get_or_insert_with(|| ContactTargetReceipt {
+                    sequence,
+                    targets: Vec::new(),
+                    unresolved: false,
+                });
+            receipt.sequence = sequence;
+            if let Some(target) = target.filter(|target| !receipt.targets.contains(target)) {
+                if receipt.targets.len() < 64 {
+                    receipt.targets.push(target);
+                } else {
+                    receipt.unresolved = true;
+                }
+            }
+        }
+    }
+    pub(crate) fn contact_effect_unknown(&mut self, native: i32, sequence: u64) {
+        self.contact_effect_target(native, sequence, None);
+        if let Some(receipt) = self
+            .0
+            .get_mut(&native)
+            .and_then(|spawn| spawn.contact_target.as_mut())
+        {
+            receipt.unresolved = true;
         }
     }
     pub(crate) fn spawn_sequence(&self, native_id: i32) -> Option<u64> {
@@ -275,6 +365,7 @@ impl SpawnLedger {
                 motion: Default::default(),
                 extra: Default::default(),
                 contact_fault: None,
+                contact_target: None,
             },
         );
         Ok(())

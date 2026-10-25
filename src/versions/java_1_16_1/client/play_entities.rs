@@ -121,13 +121,35 @@ impl Bot {
                 (6, crate::client::EntityDataValue::Pose(pose)) => Some(*pose),
                 _ => None,
             });
-        // The legacy decoder reads a packet to its end or fails it.
-        self.common_receipts.lock().await.entities.receive_metadata(
-            entity_id,
-            common,
-            complete,
-            packet_sequence,
-        );
+        // Private attachment evidence uses the already decoded actual field.
+        // It does not change the common public metadata value or receipt stream.
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            if let Some((index, optional)) = receipts
+                .entities
+                .contact_target_field(crate::MinecraftVersion::Java1_16_1, entity_id)
+            {
+                let target = match (optional, metadata.get(&index)) {
+                    (false, Some(MetadataValue::VarInt(raw))) if *raw >= 0 => {
+                        Some((*raw != 0).then_some(*raw - 1))
+                    }
+                    (true, Some(MetadataValue::OptionalVarInt(target))) => Some(*target),
+                    _ => None,
+                };
+                if let Some(target) = target {
+                    receipts
+                        .entities
+                        .contact_effect_target(entity_id, packet_sequence, target);
+                } else if metadata.contains_key(&index) {
+                    receipts
+                        .entities
+                        .contact_effect_unknown(entity_id, packet_sequence);
+                }
+            }
+            receipts
+                .entities
+                .receive_metadata(entity_id, common, complete, packet_sequence);
+        }
         let items = crate::versions::java_1_16_1::entity::common_item_metadata(&metadata);
         self.common_receipts
             .lock()

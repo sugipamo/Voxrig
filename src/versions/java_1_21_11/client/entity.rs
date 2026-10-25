@@ -44,12 +44,13 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             state.vehicles.retire(entity_id);
         }
         ids::play_clientbound::MOVE_MINECART => {
-            // Experimental weighted lerp paths are outside the contact codec.
-            // Do not let the default-cart exclusion proof survive this packet.
+            // Preserve only the private hull of the actual weighted path.
+            // Numerical execution remains unsupported; public receipts stay raw.
             let native = r.varint()?;
+            let anchors = minecart_path(&mut r)?;
             state
                 .entities
-                .contact_unavailable(native, state.sequence, "MoveMinecart");
+                .contact_unavailable(native, state.sequence, "MoveMinecart", &anchors);
         }
         ids::play_clientbound::ENTITY_STATUS => {
             let native_id = r.i32()?;
@@ -79,6 +80,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         // Health and equipment are best-effort: a payload this reader cannot
         // follow is left to the other receivers and records nothing here.
         ids::play_clientbound::ENTITY_METADATA => {
+            contact_target_metadata(state, payload);
             if let Some((entity, values, complete)) = common_metadata(payload) {
                 state
                     .entities
@@ -134,6 +136,79 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
 }
 
 /// Health (the table's LivingEntity metadata index, float) of a living entity type.
+fn minecart_path(r: &mut Reader<'_>) -> anyhow::Result<Vec<[f64; 3]>> {
+    let mut anchors = Vec::new();
+    for _ in 0..r.count(65536)? {
+        anchors.push(coordinates(r)?);
+        let velocity = [r.f64()?, r.f64()?, r.f64()?];
+        anyhow::ensure!(
+            velocity.iter().all(|x| x.is_finite()),
+            "nonfinite minecart velocity"
+        );
+        angle(r)?;
+        angle(r)?;
+        let weight = r.f32()?;
+        anyhow::ensure!(
+            weight.is_finite() && weight >= 0.,
+            "invalid minecart weight"
+        );
+    }
+    r.end()?;
+    Ok(anchors)
+}
+
+// Optional entity targets are retained privately without changing the public
+// EntityDataValue representation or synthesizing any history record.
+fn contact_target_metadata(state: &mut State, payload: &[u8]) {
+    let mut r = Reader::new(payload);
+    let Ok(entity) = r.varint() else {
+        return;
+    };
+    let Some((index, optional)) = state
+        .entities
+        .contact_target_field(crate::MinecraftVersion::Java1_21_11, entity)
+    else {
+        return;
+    };
+    let decoded = (|| -> anyhow::Result<Option<Option<i32>>> {
+        let mut target = None;
+        loop {
+            let key = r.u8()?;
+            if key == 255 {
+                break;
+            }
+            let kind = r.varint()?;
+            if key == index {
+                anyhow::ensure!(
+                    kind == if optional { 19 } else { 1 },
+                    "contact target serializer unknown"
+                );
+                let raw = r.varint()?;
+                anyhow::ensure!(raw >= 0, "negative contact target");
+                target = Some((raw != 0).then_some(raw - 1));
+            } else if kind == 7 {
+                super::operations::slot(&mut r)?;
+            } else {
+                anyhow::ensure!(
+                    super::players::skip_metadata(&mut r, kind)?,
+                    "contact metadata framing unknown"
+                );
+            }
+        }
+        r.end()?;
+        Ok(target)
+    })();
+    match decoded {
+        Ok(Some(target)) => state
+            .entities
+            .contact_effect_target(entity, state.sequence, target),
+        Ok(None) => {}
+        Err(_) => state
+            .entities
+            .contact_effect_unknown(entity, state.sequence),
+    }
+}
+
 /// Entity data in the common form. Entries after a serializer this reader cannot follow
 /// are not recorded (the ones before it are).
 /// Entity id, entries and whether the terminator was reached.
@@ -162,10 +237,7 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
             4 => r.string().ok().map(V::String),
             // Read item-stack framing only in this additive entity observation.
             // The own-player parser keeps its existing unsupported-input policy.
-            7 => super::operations::slot(&mut r)
-                .ok()
-                .flatten()
-                .map(|_| V::Other(kind)),
+            7 => super::operations::slot(&mut r).ok().map(|_| V::Other(kind)),
             8 => r.bool().ok().map(V::Bool),
             10 => r.take(8).ok().map(|bytes| {
                 V::BlockPosition(crate::client::BlockPos::unpack(u64::from_be_bytes(
@@ -770,5 +842,43 @@ mod item_observation_gap_tests {
         );
         state.entities.remove(7);
         assert!(state.entities.capture_items(session, 10).stacks.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod scope_path_tests {
+    use super::*;
+    #[test]
+    fn weighted_path_retains_all_endpoints_and_requires_complete_original_framing() {
+        // Original Vec3 codec: three doubles, twice; two ROTATION_BYTEs; FLOAT weight.
+        let mut payload = vec![2];
+        for x in [-100_f64, 100.] {
+            for value in [x, 65., 0.5, 0., 0., 0.] {
+                payload.extend(value.to_be_bytes());
+            }
+            payload.extend([0, 0]);
+            payload.extend(1_f32.to_be_bytes());
+        }
+        assert_eq!(
+            minecart_path(&mut Reader::new(&payload)).unwrap(),
+            vec![[-100., 65., 0.5], [100., 65., 0.5]]
+        );
+        for end in 0..payload.len() {
+            assert!(minecart_path(&mut Reader::new(&payload[..end])).is_err());
+        }
+        let mut trailing = payload.clone();
+        trailing.push(0);
+        assert!(minecart_path(&mut Reader::new(&trailing)).is_err());
+        let length = payload.len();
+        for bad in [f32::NAN, -1., f32::INFINITY] {
+            payload[length - 4..].copy_from_slice(&bad.to_be_bytes());
+            assert!(minecart_path(&mut Reader::new(&payload)).is_err());
+        }
+    }
+    #[test]
+    fn empty_item_metadata_is_a_complete_actual_receipt() {
+        let (_, values, complete) = common_metadata(&[9, 8, 7, 0, 255]).unwrap();
+        assert!(complete);
+        assert_eq!(values, vec![(8, crate::client::EntityDataValue::Other(7))]);
     }
 }

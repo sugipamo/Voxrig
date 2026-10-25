@@ -3968,12 +3968,12 @@
     }
   },
   "source_sha256": {
-    "src/client/entity/scope.rs": "c24b212e134c21c021ff2db90ac23c87067a58755cf6e8e16f4cbf2d3f50f5f4",
+    "src/client/entity/scope.rs": "4fbb2eaab15edc82ff33cedf741de89d99fc576d97e837cc1e66c67142fb7f20",
     "src/client/entity/owned_contacts.rs": "42e6a596afb6c7841f22dc1247db1245a5b5b983ff43f46bf0e7c00e445dfd7d",
     "src/client/entity/tick_order.rs": "7e740e898f3d90049ee63465b24190f1ecce2c7b04428f98a50d96d25037eceb",
     "src/client/entity/query.rs": "7817058f2014c5b0815030b4434952aa44444be80684c3b12a2489f42cf05b80",
     "src/movement_refusal.rs": "565b0a27a7b40c46bdbfa422084eefcee1468b5c135e4e8963768f7257acfc3d",
-    "docs/player-contact-scope.md": "610b15e6d03e83a84b91810acbdf7b28b15b77e8bc2283fd990e153b4565bab5",
+    "docs/player-contact-scope.md": "344b42ea65b765cf408888aaba9bbed3cc1d4060e49a3a921037a7a3ce122769",
     "scripts/audit_player_contact_scope.py": "0cae39df3d83162bc567cc1574ae022caa6e19838365c65b868d891da2824837",
     "src/client/entity/contact_policy/mod.rs": "859e45f15f74cb8af1e7f4de5e5a0ad8b14c6176a24b31a1f2caf16c2958cf00",
     "src/client/entity/contact_policy/table.rs": "f0be5407a3ccd9338e6694924cbb137fc0704c7ad42b88269d3c5762cf42cb32",
