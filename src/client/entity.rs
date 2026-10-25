@@ -184,6 +184,7 @@ struct Spawn {
     position: [f64; 3],
     motion: motion::Motion,
     extra: state::Extra,
+    contact_fault: Option<(u64, &'static str)>,
 }
 pub(crate) struct NativeSpawn {
     pub id: i32,
@@ -195,6 +196,11 @@ pub(crate) struct NativeSpawn {
     pub living: Option<bool>,
 }
 impl SpawnLedger {
+    pub(crate) fn contact_unavailable(&mut self, native: i32, sequence: u64, packet: &'static str) {
+        if let Some(spawn) = self.0.get_mut(&native) {
+            spawn.contact_fault = Some((sequence, packet));
+        }
+    }
     pub(crate) fn spawn_sequence(&self, native_id: i32) -> Option<u64> {
         self.0.get(&native_id).map(|spawn| spawn.sequence)
     }
@@ -268,6 +274,7 @@ impl SpawnLedger {
                 position: native.position,
                 motion: Default::default(),
                 extra: Default::default(),
+                contact_fault: None,
             },
         );
         Ok(())

@@ -1125,6 +1125,48 @@ impl OwnedContacts {
             }
         }
         self.checkpoint_errors.clear();
+        let reentered = self
+            .scope
+            .as_mut()
+            .map_or_else(Vec::new, |s| s.take_reentered());
+        if !reentered.is_empty() {
+            // Rehydrate only states for which scope proved that omitted ticks
+            // were identity operations. Existing numerical bodies and the owner
+            // origin/tick/order remain intact. Full bootstrap validates receipts.
+            let mut seed = Self::receipt_model(
+                self.session,
+                self.world
+                    .order
+                    .body(self.world.own_key)
+                    .expect("own slot")
+                    .native_id,
+            )?;
+            seed.owner = self.owner;
+            seed.own_glide = self.own_glide;
+            seed.scope = self.scope.clone();
+            seed.drain(ledger, sequence, true)?;
+            for id in reentered {
+                let from = seed.native_keys[&id.native_id()];
+                let to = self.native_keys[&id.native_id()];
+                let mut body =
+                    seed.world.bodies.remove(&from).ok_or_else(|| {
+                        failure("stationary scope re-entry lacks numerical state")
+                    })?;
+                let input = seed
+                    .inputs
+                    .remove(&from)
+                    .ok_or_else(|| failure("stationary scope re-entry lacks input state"))?;
+                body.key = to;
+                super::contact_tick::index_geometry(
+                    &mut self.world.spatial,
+                    to,
+                    body.motion.frame().interpolation.pose.position,
+                    body.contact().bounds,
+                )?;
+                self.world.bodies.insert(to, body);
+                self.inputs.insert(to, input);
+            }
+        }
         // Deferred bodies retain native order; only separately proven envelopes
         // can establish irrelevance at the movement boundary.
         for spawn in ledger.capture(self.session, sequence).entities {
@@ -1678,6 +1720,27 @@ impl OwnedContacts {
             } if self.inputs.values().any(|i| i.entity == *entity) => {
                 if !complete || matches!(entries, EntityHistoryValue::RetentionLimit) {
                     return Err(failure("contact equipment input unavailable"));
+                }
+            }
+            EntityHistoryKind::Status {
+                entity: Some(entity),
+                status: 3,
+                ..
+            } if self.scope.is_some()
+                && self
+                    .inputs
+                    .values()
+                    .any(|i| i.entity == *entity && i.name != "minecraft:player") =>
+            {
+                // Original LivingEntity event 3 sets non-player health to zero
+                // and calls die. Derived callback state is not a health receipt.
+                for (&key, input) in &mut self.inputs {
+                    if input.entity == *entity {
+                        input.alive = false;
+                        if let Some(body) = self.world.bodies.get_mut(&key) {
+                            body.pushable = false;
+                        }
+                    }
                 }
             }
             EntityHistoryKind::Status {

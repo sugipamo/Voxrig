@@ -37,12 +37,90 @@ fn audited_type(version: crate::MinecraftVersion, name: &str) -> bool {
     ) && selectors::dispatch(version, name).is_some()
 }
 
+// Exclusion-only review. These species retain their numerical refusal nearby.
+// See docs/contact-scope-regression-audit.md and its original-JAR fingerprints.
+fn exclusion_type(version: crate::MinecraftVersion, name: &str) -> bool {
+    matches!(
+        version,
+        crate::MinecraftVersion::Java1_16_1 | crate::MinecraftVersion::Java1_21_11
+    ) && matches!(
+        name,
+        "minecraft:fox"
+            | "minecraft:skeleton"
+            | "minecraft:stray"
+            | "minecraft:wither_skeleton"
+            | "minecraft:enderman"
+            | "minecraft:wolf"
+            | "minecraft:horse"
+            | "minecraft:donkey"
+            | "minecraft:mule"
+            | "minecraft:skeleton_horse"
+            | "minecraft:zombie_horse"
+            | "minecraft:cod"
+            | "minecraft:salmon"
+            | "minecraft:tropical_fish"
+            | "minecraft:pufferfish"
+            | "minecraft:husk"
+            | "minecraft:drowned"
+            | "minecraft:chest_minecart"
+    )
+}
+fn noncontact_type(version: crate::MinecraftVersion, name: &str) -> bool {
+    matches!(
+        version,
+        crate::MinecraftVersion::Java1_16_1 | crate::MinecraftVersion::Java1_21_11
+    ) && matches!(
+        name,
+        "minecraft:item"
+            | "minecraft:experience_orb"
+            | "minecraft:arrow"
+            | "minecraft:spectral_arrow"
+            | "minecraft:trident"
+    )
+}
+
+fn finite_living_callback(version: crate::MinecraftVersion, name: &str, kind: &K) -> bool {
+    audited_type(version, name)
+        && name != "minecraft:player"
+        && matches!(
+            kind,
+            K::Status {
+                status: 2
+                    | 3
+                    | 29
+                    | 30
+                    | 33
+                    | 35
+                    | 36
+                    | 37
+                    | 44
+                    | 46
+                    | 47
+                    | 48
+                    | 49
+                    | 50
+                    | 51
+                    | 52
+                    | 54
+                    | 55
+                    | 60
+                    | 65
+                    | 67
+                    | 68,
+                ..
+            }
+        )
+}
+
 fn default_spider(version: crate::MinecraftVersion, name: &str) -> bool {
     matches!(name, "minecraft:spider" | "minecraft:cave_spider")
         && contact_policy::locality::DeferredPolicy::new(version, name).envelope(false)
 }
 fn no_contact(version: crate::MinecraftVersion, name: &str) -> bool {
     use super::contact_capabilities::{Classification, capabilities};
+    if noncontact_type(version, name) {
+        return true;
+    }
     let c = capabilities(version, name);
     // Geometry may remain unknown only because every way it could matter to
     // this contact lane, including callbacks, has positive irrelevance evidence.
@@ -68,6 +146,7 @@ struct Bound {
     // Maximum ordinary shape, including constructor and metadata placements.
     dimensions: [f64; 2],
     irrelevant: bool,
+    stationary: bool,
     fault: Option<String>,
     ordinal: u64,
     sequence: u64,
@@ -80,7 +159,7 @@ impl Bound {
         c.entity = Some(self.id);
         c.native_entity_id = Some(self.id.native_id());
         c.entity_type = self.name.clone();
-        c.record_ordinal = Some(self.ordinal);
+        c.record_ordinal = (self.ordinal != 0).then_some(self.ordinal);
         c.receive_sequence = Some(self.sequence);
         c.packet = Some(self.trigger.clone());
         let mut value = MovementRefusal::Unsupported { context: c.clone() };
@@ -140,6 +219,7 @@ pub(super) struct ScopeReceipts {
     // Exact lifetimes, rather than numeric IDs which can be reused.
     riders: BTreeMap<i32, RiderMembership>,
     global: Option<MovementRefusal>,
+    relationship_errors: BTreeMap<i32, MovementRefusal>,
 }
 #[derive(Clone, Debug)]
 struct Group {
@@ -204,7 +284,9 @@ impl ScopeReceipts {
                     .as_deref()
                     .is_some_and(|n| no_contact(r.session.version, n));
                 let qualified = name.as_deref().is_some_and(|n| {
-                    audited_type(r.session.version, n) || default_spider(r.session.version, n)
+                    audited_type(r.session.version, n)
+                        || default_spider(r.session.version, n)
+                        || exclusion_type(r.session.version, n)
                 });
                 let d = name
                     .as_deref()
@@ -232,9 +314,22 @@ impl ScopeReceipts {
                         .and_then(|p| LivingPacketModel::new(r.session.version, p, r.ordinal).ok()),
                     envelope: None,
                     dimensions: d.map_or([0.; 2], |d| {
-                        [f64::from(d.width as f32), f64::from(d.height as f32)]
+                        // Salmon's large variant scales its default dimensions by 1.5.
+                        // Pufferfish's maximum puff uses its full EntityType dimensions.
+                        let factor = if m.entity.type_name.as_deref() == Some("minecraft:salmon")
+                            && r.session.version == crate::MinecraftVersion::Java1_21_11
+                        {
+                            1.5
+                        } else {
+                            1.
+                        };
+                        [
+                            f64::from(d.width as f32) * factor,
+                            f64::from(d.height as f32) * factor,
+                        ]
                     }),
                     irrelevant,
+                    stationary: m.velocity.as_ref().is_some_and(|v| v.value == [0.; 3]),
                     fault: None,
                     ordinal: r.ordinal,
                     sequence: r.receive_sequence,
@@ -264,9 +359,7 @@ impl ScopeReceipts {
                 {
                     b.fault = Some("contact scope spawn provenance/numeric input invalid".into());
                 }
-                if !irrelevant {
-                    b.extend();
-                }
+                b.extend();
                 self.members.insert(id.native_id(), b);
             }
             K::Removed { native_id, .. } => {
@@ -275,6 +368,7 @@ impl ScopeReceipts {
                 self.preserve_groups(&[*native_id]);
                 self.members.remove(native_id);
                 self.riders.remove(native_id);
+                self.relationship_errors.remove(native_id);
                 for (_, children) in self.riders.values_mut() {
                     children.retain(|(id, _)| id != native_id);
                 }
@@ -308,6 +402,7 @@ impl ScopeReceipts {
 
                 if let (Some(entity), EntityHistoryValue::Retained { value }) = (entity, passengers)
                 {
+                    self.relationship_errors.remove(native_id);
                     if self
                         .riders
                         .get(native_id)
@@ -331,6 +426,7 @@ impl ScopeReceipts {
                 }
                 match (entity, passengers) {
                     (Some(entity), EntityHistoryValue::Retained { value }) => {
+                        self.relationship_errors.remove(native_id);
                         if value.is_empty() {
                             self.riders.remove(native_id);
                         } else {
@@ -338,11 +434,9 @@ impl ScopeReceipts {
                         }
                     }
                     _ => {
-                        self.global = Some(self.record_error(
-                            r,
-                            *native_id,
-                            *entity,
-                            "contact scope passenger history unavailable",
+                        self.relationship_errors.insert(*native_id, self.record_error(
+                            r, *native_id, *entity,
+                            "contact scope passenger history unavailable; fresh relationship state required",
                         ));
                     }
                 }
@@ -389,10 +483,30 @@ impl ScopeReceipts {
                     b.fault = Some("contact scope lifetime changed".into());
                     return;
                 }
+                if matches!(r.kind, K::Status { .. } | K::Animation { .. }) {
+                    b.stationary = false;
+                }
                 let result = apply_body(b, r);
                 if let Err(error) = result {
                     b.fault.get_or_insert_with(|| error.to_string());
                 }
+            }
+        }
+    }
+    fn packet_faults(&mut self, ledger: &SpawnLedger) {
+        for (&native, spawn) in &ledger.0 {
+            if let (Some((sequence, packet)), Some(bound)) =
+                (spawn.contact_fault, self.members.get_mut(&native))
+            {
+                bound.fault = Some("contact scope packet has no finite exclusion proof".into());
+                bound.sequence = sequence;
+                // This opaque packet has no public history record. Do not label
+                // its trigger with the preceding spawn/motion record ordinal.
+                bound.ordinal = 0;
+                bound.trigger = crate::MovementPacketTrigger {
+                    packet_type: packet.into(),
+                    opcode: 0,
+                };
             }
         }
     }
@@ -422,7 +536,24 @@ impl ScopeReceipts {
         }) {
             return;
         }
-        match self.groups() {
+        let mut ids = affected.iter().copied().collect::<BTreeSet<_>>();
+        loop {
+            let before = ids.len();
+            for (&parent, (_, children)) in &self.riders {
+                if ids.contains(&parent) || children.iter().any(|(id, _)| ids.contains(id)) {
+                    ids.insert(parent);
+                    ids.extend(children.iter().map(|(id, _)| *id));
+                }
+            }
+            if ids.len() == before {
+                break;
+            }
+        }
+        let mut subset = self.clone();
+        subset.members.retain(|id, _| ids.contains(id));
+        subset.riders.retain(|id, _| ids.contains(id));
+        subset.relationship_errors.retain(|id, _| ids.contains(id));
+        match subset.groups() {
             Ok(groups) => {
                 for (ids, envelope) in groups
                     .into_iter()
@@ -446,15 +577,20 @@ impl ScopeReceipts {
                     .unwrap_or_else(|| MovementRefusal::permanent(error.to_string()));
                 let c = value.context_mut();
                 c.reason = format!(
-                    "contact scope lost relationship placement history (fresh connection required): {}",
+                    "contact scope lost relationship placement history; fresh relationship state required: {}",
                     c.reason
                 );
-                self.global = Some(value);
+                if let Some(&parent) = affected.first() {
+                    self.relationship_errors.insert(parent, value);
+                }
             }
         }
     }
     fn groups(&self) -> Result<Vec<Group>> {
         if let Some(error) = &self.global {
+            return Err(error.clone().into_error());
+        }
+        if let Some(error) = self.relationship_errors.values().next() {
             return Err(error.clone().into_error());
         }
         let mut neighbors: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
@@ -524,6 +660,15 @@ impl ScopeReceipts {
                 });
                 continue;
             }
+            if let Some(body) = ids.iter().map(|id| &self.members[id]).find(|body| {
+                body.name
+                    .as_deref()
+                    .is_some_and(|name| noncontact_type(body.id.session().version, name))
+            }) {
+                return Err(body.error(
+                    "noncontact carrier with contact-relevant rider has no finite group proof",
+                ));
+            }
             let mut envelope = None;
             let mut offsets = 0.;
             for id in &ids {
@@ -583,6 +728,11 @@ impl ScopeReceipts {
                 id.session.connection_id = session.connection_id;
             }
         }
+        for error in proof.relationship_errors.values_mut() {
+            if let Some(id) = &mut error.context_mut().entity {
+                id.session.connection_id = session.connection_id;
+            }
+        }
         for (id, children) in proof.riders.values_mut() {
             id.session.connection_id = session.connection_id;
             for (_, child) in children {
@@ -605,6 +755,7 @@ impl ScopeReceipts {
                 break;
             }
         }
+        proof.packet_faults(ledger);
         let surviving = ledger.capture(session, sequence).entities;
         if surviving
             .iter()
@@ -651,6 +802,15 @@ fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
                 .value
                 .living_packet(version)
                 .map_err(|_| permanent("contact scope motion unsupported"))?;
+            let stationary_packet = match packet {
+                super::LivingMotionPacket::Velocity(v) => v == [0.; 3],
+                super::LivingMotionPacket::HeadYaw(_)
+                | super::LivingMotionPacket::Rotation { .. } => true,
+                _ => false,
+            };
+            if !stationary_packet {
+                b.stationary = false;
+            }
             b.motion
                 .as_mut()
                 .ok_or_else(|| permanent("contact scope motion unavailable"))?
@@ -704,11 +864,18 @@ fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
                     };
                     let pose = EntityPose::from_native(version, pose)
                         .ok_or_else(|| permanent("contact scope pose unknown"))?;
-                    let shape = selectors::shape(version, name, pose, 1., 1.);
-                    if f64::from(shape.0) > b.dimensions[0] || f64::from(shape.1) > b.dimensions[1]
-                    {
-                        return Err(permanent("contact scope shape exceeds audited dimensions"));
+                    if audited_type(version, name) {
+                        let shape = selectors::shape(version, name, pose, 1., 1.);
+                        if f64::from(shape.0) > b.dimensions[0]
+                            || f64::from(shape.1) > b.dimensions[1]
+                        {
+                            return Err(permanent(
+                                "contact scope shape exceeds audited dimensions",
+                            ));
+                        }
                     }
+                    // Exclusion-only shapes use their separately reviewed maximum,
+                    // never the numerical dispatch selector (which requires admission).
                 } else if field(entry.index, EntityDataField::Health) {
                     if !matches!(entry.value, EntityDataValue::Float(health) if health.is_finite())
                     {
@@ -725,6 +892,7 @@ fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
                         return Err(permanent("contact scope sleeping serializer unknown"));
                     };
                     if let Some(p) = position {
+                        b.stationary = false;
                         anchors.push([
                             f64::from(p.x) + 0.5,
                             f64::from(p.y) + 0.6875,
@@ -786,9 +954,11 @@ fn apply_body(b: &mut Bound, r: &EntityHistoryRecord) -> Result<()> {
             }
         }
         K::Status { .. } | K::Animation { .. }
-            if b.name
-                .as_deref()
-                .is_some_and(|n| contact_policy::harmless_packet(version, n, &r.kind)) => {}
+            if b.name.as_deref().is_some_and(|n| {
+                exclusion_type(version, n)
+                    || finite_living_callback(version, n, &r.kind)
+                    || contact_policy::harmless_packet(version, n, &r.kind)
+            }) => {}
         _ => return Err(permanent("contact scope callback/history unavailable")),
     }
     Ok(())
@@ -802,6 +972,8 @@ pub(super) struct PlayerScope {
     cursor: EntityHistoryCursor,
     excluded: Vec<EntityId>,
     omitted: Vec<EntityId>,
+    reentered: Vec<EntityId>,
+    advanced: Vec<EntityId>,
     groups: Vec<Group>,
     query: Aabb,
     own_position: [f64; 3],
@@ -825,12 +997,14 @@ impl PlayerScope {
             cursor,
             excluded: Vec::new(),
             omitted: Vec::new(),
+            reentered: Vec::new(),
+            advanced: Vec::new(),
             groups: Vec::new(),
             query: body_query(session.version, body, environment)?,
             own_position: body.position,
             cap,
         };
-        value.select(0)?;
+        value.select(0, true)?;
         Ok(value)
     }
     pub(super) fn excludes(&self, id: EntityId) -> bool {
@@ -855,9 +1029,12 @@ impl PlayerScope {
                 break;
             }
         }
+        self.proof.packet_faults(ledger);
+        self.advanced
+            .retain(|id| self.proof.members.values().any(|body| body.id == *id));
         self.omitted
             .retain(|id| self.proof.members.values().any(|b| b.id == *id));
-        self.select(tick)
+        self.select(tick, true)
     }
     pub(super) fn prepare(
         &mut self,
@@ -875,11 +1052,32 @@ impl PlayerScope {
         tick: u64,
     ) -> Result<()> {
         self.prepare(body, environment)?;
-        self.select(tick)
+        self.select(tick, false)?;
+        for body in self.proof.members.values() {
+            if !self.excluded.contains(&body.id) && !self.advanced.contains(&body.id) {
+                self.advanced.push(body.id);
+            }
+        }
+        Ok(())
     }
-    fn select(&mut self, tick: u64) -> Result<()> {
+    fn select(&mut self, tick: u64, restore: bool) -> Result<()> {
         self.groups = self.proof.groups()?;
         let mut selected = BTreeSet::new();
+        // Retain already active nearby bodies across small graph changes. This
+        // is extra work, never a weaker exclusion. Do not discard their derived
+        // state just because a bridging spawn disappeared for one receipt.
+        for (i, group) in self.groups.iter().enumerate() {
+            if group
+                .envelope
+                .is_some_and(|envelope| intersects(expand(self.query, 8.), envelope))
+                && group.ids.iter().any(|id| {
+                    let id = self.proof.members[id].id;
+                    self.advanced.contains(&id) && !self.omitted.contains(&id)
+                })
+            {
+                selected.insert(i);
+            }
+        }
         // Fixed-point graph closure: retain whole rider groups and every first
         // contact edge, independent of native order or propagation chain length.
         loop {
@@ -888,7 +1086,7 @@ impl PlayerScope {
                 .iter()
                 .map(|&i: &usize| self.groups[i].ids.len())
                 .sum();
-            let query = expand(self.query, count as f64 * 0.1);
+            let query = expand(self.query, count as f64 * 0.1 + 2.);
             for (i, g) in self.groups.iter().enumerate() {
                 if selected.contains(&i) {
                     continue;
@@ -900,7 +1098,7 @@ impl PlayerScope {
                     || selected.iter().any(|&j| {
                         self.groups[j]
                             .envelope
-                            .is_some_and(|peer| intersects(envelope, peer))
+                            .is_some_and(|peer| intersects(expand(envelope, 2.), peer))
                     })
                 {
                     selected.insert(i);
@@ -930,7 +1128,14 @@ impl PlayerScope {
                         ));
                     }
                     if tick != 0 && self.omitted.contains(&body.id) {
-                        return Err(body.error("contact scope re-entry after omitted model ticks; start a new control owner"));
+                        if !body.stationary || !restore || self.advanced.contains(&body.id) {
+                            return Err(body.error("contact scope re-entry after omitted interpolation/motion ticks; start a new control owner"));
+                        }
+                        // No travel in this remote lane, no received displacement,
+                        // no bed placement, zero velocity and no prior local pairs.
+                        // Its receipt-reduced state is also its exact skipped-tick state.
+                        self.reentered.push(body.id);
+                        self.omitted.retain(|id| *id != body.id);
                     }
                     count += 1;
                     if count > self.cap {
@@ -946,6 +1151,9 @@ impl PlayerScope {
             }
         }
         Ok(())
+    }
+    pub(super) fn take_reentered(&mut self) -> Vec<EntityId> {
+        std::mem::take(&mut self.reentered)
     }
     pub(super) fn annotate(&self, error: &mut MovementRefusal) {
         if error.context().native_entity_id.is_none()
@@ -1233,6 +1441,222 @@ mod tests {
         }
     }
     #[test]
+    fn reported_unaudited_types_have_far_only_envelopes_in_both_versions() {
+        for version in VERSIONS {
+            for name in [
+                "fox",
+                "skeleton",
+                "stray",
+                "wither_skeleton",
+                "enderman",
+                "wolf",
+                "horse",
+                "donkey",
+                "mule",
+                "skeleton_horse",
+                "zombie_horse",
+                "cod",
+                "salmon",
+                "tropical_fish",
+                "pufferfish",
+                "husk",
+                "drowned",
+                "chest_minecart",
+            ] {
+                let mut ledger = SpawnLedger::default();
+                spawn(&mut ledger, version, 7, name, 100., 1);
+                ledger.history_context(version, 3, 2);
+                ledger.receive_metadata(7, [(6, EntityDataValue::Pose(0))], true, 2);
+                let mut model = owner(version, &ledger, 2, 0).unwrap();
+                tick(version, &mut model, &mut body()).unwrap();
+                assert!(model.world.bodies.is_empty(), "{version:?}/{name}");
+                let mut near = body();
+                near.teleport(version, [100., 65., 0.5]);
+                let e = OwnedContacts::for_player(
+                    (stamp(version), 11, 99),
+                    &ledger,
+                    2,
+                    (&near, &Environment::defaults(version)),
+                    256,
+                    false,
+                )
+                .unwrap_err();
+                assert!(
+                    matches!(e.movement_refusal(), Some(MovementRefusal::Scoped { .. })),
+                    "{e}"
+                );
+                assert_eq!(
+                    e.movement_refusal().unwrap().context().native_entity_id,
+                    Some(7)
+                );
+            }
+        }
+    }
+    #[test]
+    fn nearby_death_status_preserves_scope_until_actual_despawn() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "cow", 6.5, 1);
+            let mut model = owner(version, &ledger, 1, 256).unwrap();
+            tick(version, &mut model, &mut body()).unwrap();
+            ledger.history_context(version, 3, 2);
+            ledger.history_signal(7, Some(3), None);
+            model.refresh(10, &ledger, 2).unwrap();
+            assert!(!model.world.bodies.values().next().unwrap().pushable);
+            tick(version, &mut model, &mut body()).unwrap();
+            ledger.history_context(version, 3, 3);
+            ledger.remove(7);
+            model.refresh(10, &ledger, 3).unwrap();
+            tick(version, &mut model, &mut body()).unwrap();
+            assert!(model.world.bodies.is_empty());
+        }
+    }
+    #[test]
+    fn experimental_cart_path_packet_revokes_default_cart_exclusion_until_lifetime_ends() {
+        let version = V::Java1_21_11;
+        let mut ledger = SpawnLedger::default();
+        spawn(&mut ledger, version, 7, "chest_minecart", 100., 1);
+        let mut model = owner(version, &ledger, 1, 0).unwrap();
+        ledger.contact_unavailable(7, 2, "MoveMinecart");
+        let e = model.refresh(10, &ledger, 2).unwrap_err();
+        assert_eq!(
+            e.movement_refusal()
+                .unwrap()
+                .context()
+                .packet
+                .as_ref()
+                .unwrap()
+                .packet_type,
+            "MoveMinecart"
+        );
+        assert_eq!(e.movement_refusal().unwrap().context().record_ordinal, None);
+        assert!(owner(version, &ledger, 2, 0).is_err());
+        ledger.history_context(version, 3, 3);
+        ledger.remove(7);
+        assert!(owner(version, &ledger, 3, 0).is_ok());
+    }
+    #[test]
+    fn drops_orbs_and_arrows_do_not_block_even_at_the_player() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            for (i, name) in [
+                "item",
+                "experience_orb",
+                "arrow",
+                "spectral_arrow",
+                "trident",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                spawn(&mut ledger, version, i as i32 + 7, name, 0.5, i as u64 + 1);
+            }
+            let mut model = owner(version, &ledger, 5, 0).unwrap();
+            tick(version, &mut model, &mut body()).unwrap();
+            assert!(model.world.bodies.is_empty());
+        }
+    }
+    #[test]
+    fn fresh_relationship_state_recovers_both_history_failures_without_reconnect() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "chicken", 100., 1);
+            spawn(&mut ledger, version, 8, "zombie", 100., 2);
+            passengers(&mut ledger, version, 3, vec![1234]);
+            // Replacing an unresolved old group used to permanently poison self.global.
+            passengers(&mut ledger, version, 4, vec![]);
+            assert!(owner(version, &ledger, 4, 0).is_ok());
+            let (mut proof, _) = ScopeReceipts::capture(stamp(version), 99, &ledger, 4).unwrap();
+            let mut record = ledger
+                .history_after(stamp(version), 4, None, MAX_ENTITY_HISTORY_READ)
+                .unwrap()
+                .records
+                .pop()
+                .unwrap();
+            record.kind = K::Passengers {
+                native_id: 7,
+                entity: Some(proof.members[&7].id),
+                passengers: EntityHistoryValue::RetentionLimit,
+            };
+            proof.apply(&record, 99);
+            assert!(proof.groups().is_err());
+            record.kind = K::Passengers {
+                native_id: 7,
+                entity: Some(proof.members[&7].id),
+                passengers: EntityHistoryValue::Retained { value: vec![] },
+            };
+            proof.apply(&record, 99);
+            assert!(proof.groups().is_ok());
+        }
+    }
+    #[test]
+    fn unrelated_fault_cannot_poison_relationship_placement_history() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "chicken", 100., 1);
+            spawn(&mut ledger, version, 8, "zombie", 100., 2);
+            passengers(&mut ledger, version, 3, vec![8]);
+            spawn(&mut ledger, version, 9, "cow", 100., 4);
+            ledger.history_context(version, 3, 5);
+            ledger.history_signal(9, Some(127), None);
+            passengers(&mut ledger, version, 6, vec![]);
+            ledger.history_context(version, 3, 7);
+            ledger.remove(9);
+            assert!(owner(version, &ledger, 7, 0).is_ok());
+        }
+    }
+    #[test]
+    fn stationary_excluded_body_reenters_in_place_and_churn_keeps_owner() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "cow", 32., 1);
+            let mut model = owner(version, &ledger, 1, 256).unwrap();
+            let mut b = body();
+            for _ in 0..8 {
+                tick(version, &mut model, &mut b).unwrap();
+            }
+            b.teleport(version, [32., 65., 0.5]);
+            model
+                .refresh_player(10, &ledger, 1, (&b, &Environment::defaults(version)))
+                .unwrap();
+            assert_eq!(model.world.bodies.len(), 1);
+            assert_eq!(
+                model.world.bodies.values().next().unwrap().velocity,
+                [0.; 3]
+            );
+            for sequence in 2..12 {
+                spawn(&mut ledger, version, 8, "cow", 33., sequence);
+                model
+                    .refresh_player(10, &ledger, sequence, (&b, &Environment::defaults(version)))
+                    .unwrap();
+                model
+                    .tick_player(
+                        &mut b,
+                        &Environment::defaults(version),
+                        Controls::default(),
+                        false,
+                        None,
+                        &mut |p| {
+                            Ok(state(
+                                version,
+                                if p[1] < 65 {
+                                    "minecraft:stone"
+                                } else {
+                                    "minecraft:air"
+                                },
+                            ))
+                        },
+                    )
+                    .unwrap();
+                ledger.history_context(version, 3, sequence);
+                ledger.remove(8);
+                model
+                    .refresh_player(10, &ledger, sequence, (&b, &Environment::defaults(version)))
+                    .unwrap();
+            }
+        }
+    }
+    #[test]
     fn far_unloaded_entity_is_not_ticked_or_queried() {
         for version in VERSIONS {
             let mut ledger = SpawnLedger::default();
@@ -1440,9 +1864,7 @@ mod tests {
     fn unknown_inputs_and_actual_motion_changes_never_gain_distance_exemptions() {
         use crate::client::entity::NativeMotion;
         for version in VERSIONS {
-            for bad in [
-                "velocity", "age", "health", "callback", "history", "type", "rider",
-            ] {
+            for bad in ["velocity", "age", "health", "callback", "history", "rider"] {
                 let mut ledger = SpawnLedger::default();
                 spawn(
                     &mut ledger,

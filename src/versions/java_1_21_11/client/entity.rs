@@ -43,6 +43,14 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             );
             state.vehicles.retire(entity_id);
         }
+        ids::play_clientbound::MOVE_MINECART => {
+            // Experimental weighted lerp paths are outside the contact codec.
+            // Do not let the default-cart exclusion proof survive this packet.
+            let native = r.varint()?;
+            state
+                .entities
+                .contact_unavailable(native, state.sequence, "MoveMinecart");
+        }
         ids::play_clientbound::ENTITY_STATUS => {
             let native_id = r.i32()?;
             let status = r.u8()? as i8;

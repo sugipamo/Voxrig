@@ -508,31 +508,10 @@ impl super::Survival {
     }
 }
 
-// All writes below use the existing public click operation and its retained record.
-async fn move_capture(
-    client: &crate::Client,
-) -> Result<(
-    super::PlayerObservation,
-    ScreenObservation,
-    super::registry::ServerRegistryObservation,
-)> {
-    // Separate passive reads must describe the same actual receive boundary.
-    for _ in 0..8 {
-        let player = client.player_state().await?;
-        let screen = client.screen_state().await?;
-        let registries = client.server_registry_state().await?;
-        if player.session == screen.session
-            && player.session == registries.session()
-            && player.receive_sequence == screen.receive_sequence
-            && player.receive_sequence == registries.receive_sequence()
-        {
-            return Ok((player, screen, registries));
-        }
-    }
-    Err(error(
-        ErrorKind::State,
-        "move could not capture one received boundary",
-    ))
+// One adapter receive lock owns all constituents, including under entity churn.
+async fn move_capture(client: &crate::Client) -> Result<super::adapter::InventoryMoveCapture> {
+    use super::adapter::CoreOps;
+    crate::client::dispatch!(&client.adapter, a => CoreOps::inventory_move_capture(a).await)
 }
 
 async fn refresh_move(client: &crate::Client, record: &mut InventoryMoveRecord) -> Result<()> {

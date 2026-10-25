@@ -1172,3 +1172,39 @@ async fn ledger_modern_login_configuration_and_responses_keep_the_same_epoch() {
         server.await.unwrap();
     }
 }
+
+#[test]
+fn respawn_reasserts_only_known_dispatched_selection_without_receipt_fabrication() {
+    for known in [false, true] {
+        for dispatched in [false, true] {
+            let mut state = play_state();
+            state.dimensions.push(Dimension::new(-64, 384).unwrap());
+            if known {
+                state.operations.selected_hotbar = Some(operations::HotbarSelection {
+                    slot: 5,
+                    sequence: 1,
+                    dispatched,
+                    from_server: true,
+                });
+            }
+            let mut spawn = vec![0];
+            put_string(&mut spawn, "minecraft:overworld");
+            spawn.extend([0; 8]);
+            spawn.extend([0, 255, 0, 1, 0, 0, 63, 0]);
+            let replies = state
+                .receive(ids::play_clientbound::RESPAWN, &spawn, 256)
+                .unwrap();
+            if known && dispatched {
+                assert_eq!(
+                    replies,
+                    vec![(ids::play_serverbound::HELD_ITEM_SLOT, vec![0, 5])]
+                );
+                let selection = state.operations.selected_hotbar.as_ref().unwrap();
+                assert!(!selection.dispatched && !selection.from_server);
+            } else {
+                assert!(replies.is_empty());
+                assert!(state.operations.selected_hotbar.is_none());
+            }
+        }
+    }
+}

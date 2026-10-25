@@ -2172,6 +2172,27 @@ impl crate::client::adapter::CoreOps for Operations {
             .capture(player.session, player.receive_sequence);
         crate::client::ReceivedCrafting::capture(&player, &screen, registries)
     }
+    async fn inventory_move_capture(&self) -> Result<crate::client::adapter::InventoryMoveCapture> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let screen = crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor.clone(),
+        };
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        Ok((player, screen, registries))
+    }
     async fn capture(&self, region: crate::Region) -> Result<crate::client::Capture> {
         let volume = region.volume()?;
         let state = self.bot.session.state.lock().await;
