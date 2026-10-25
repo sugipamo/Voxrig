@@ -288,7 +288,12 @@ impl Bot {
                 payload.push(face as u8);
                 (0x1b, payload)
             }
-            Action::UseOnBlock(position, face, cursor, hand) => {
+            Action::UseOnBlock(position, face, cursor, hand)
+            | Action::UseOnBlockExpect(position, face, cursor, hand, ..) => {
+                if let Action::UseOnBlockExpect(_, _, _, _, selected, item) = action {
+                    self.validate_use_item_expected_unlocked(hand, selected, item)
+                        .await?;
+                }
                 api::item_use::validate_cursor(cursor)?;
                 let player = self.common_player_unlocked().await?;
                 crate::body::interaction::validate_server_range(&player, None, position)?;

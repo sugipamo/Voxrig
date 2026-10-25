@@ -826,8 +826,15 @@ impl Operations {
         face: crate::BlockFace,
         cursor: [f32; 3],
     ) -> Result<i32> {
-        self.use_on_block_in(None, crate::client::Hand::Main, position, face, cursor)
-            .await
+        self.use_on_block_in(
+            None,
+            crate::client::Hand::Main,
+            position,
+            face,
+            cursor,
+            None,
+        )
+        .await
     }
     /// Explicit hit dispatch; strict material receipts remain in place_survival_cube.
     async fn use_on_block_in(
@@ -837,12 +844,17 @@ impl Operations {
         position: [i32; 3],
         face: crate::BlockFace,
         cursor: [f32; 3],
+        expected: Option<(u8, crate::client::registry::RegistryId)>,
     ) -> Result<i32> {
         let admission = self.bot.session.ledger.try_work()?;
         admission
             .run_scoped(async {
                 crate::client::item_use::validate_cursor(cursor)?;
                 let state = self.bot.session.state.lock().await;
+                if let Some((selected, item)) = expected {
+                    let player = self.common_player_unlocked(&state)?;
+                    crate::client::item_use::validate_expected(&player, hand, selected, item)?;
+                }
                 self.mutable_with_ground_requirement(&state, false)?;
                 self.require_mode(&state, mode)?;
                 if state.operations.inventory.pending_swap.is_some() {
@@ -2030,7 +2042,20 @@ impl crate::client::adapter::CoreOps for Operations {
                     }
                     Action::UseOnBlock(position, face, cursor, hand) => {
                         return self
-                            .use_on_block_in(Some(mode), hand, position, face, cursor)
+                            .use_on_block_in(Some(mode), hand, position, face, cursor, None)
+                            .await
+                            .map(Some);
+                    }
+                    Action::UseOnBlockExpect(position, face, cursor, hand, selected, item) => {
+                        return self
+                            .use_on_block_in(
+                                Some(mode),
+                                hand,
+                                position,
+                                face,
+                                cursor,
+                                Some((selected, item)),
+                            )
                             .await
                             .map(Some);
                     }

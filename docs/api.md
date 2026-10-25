@@ -38,6 +38,15 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 の `Arc` を返します。STOP committed 境界、証拠・結果・owner exit の読み方と
 呼出側の deadline は [共通の採掘](common-dig.md#per-dig-cancellation-handle-begin_dig--digoperation) を参照してください。
 
+共通 `Survival` / `Creative` の `use_on_block_expect(target: [i32; 3], face: BlockFace,
+cursor: [f32; 3], hand: Hand, selected_hotbar: u8, item: RegistryId) -> Result<DispatchReceipt>` は
+1.21.11 / 1.16.1 native両対応の追加APIです。`use_item_expect` と同じ手持ち検証を
+packet送信と同一ロック内で行い、offhandでも選択スロットを検証します。
+不一致・未知状態は無送信で `ErrorKind::State`、既存の `UseItemRefusal` を
+`Error::use_item_refusal()` から取得できます（期待値・観測値を含む）。
+既存 `use_on_block` の挙動は維持し、成功はserver受理を意味しません。
+[共通アイテム使用の契約と例](common-item-use.md#atomic-block-use-expectations-use_on_block_expect)を参照してください。
+
 以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
 型は`voxrig::versions::java_1_16_1`からimportします（crate rootからは再exportしません）。
 1.21.11の版固有操作は[版別操作API](java-1.21.11-operations.md)を参照してください。

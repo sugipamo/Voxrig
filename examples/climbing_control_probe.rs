@@ -332,6 +332,23 @@ async fn main() -> anyhow::Result<()> {
                     Err(error) => serde_json::json!({"error":error.to_string(), "kind":format!("{:?}",error.kind()),"refusal":error.use_item_refusal()}),
                 }
             },
+            "use_on_block_expect" => {
+                let hand = if request["offhand"] == true { Hand::Off } else { Hand::Main };
+                let slot = request["slot"].as_u64().unwrap().try_into()?;
+                let item = client.registry().item(request["item"].as_str().unwrap())?.id;
+                let target = serde_json::from_value(request["support"].clone())?;
+                let face = face(&request)?;
+                let cursor = serde_json::from_value(request["cursor"].clone())?;
+                let result = if request["mode"] == "creative" {
+                    client.creative().use_on_block_expect(target, face, cursor, hand, slot, item).await
+                } else {
+                    survival.use_on_block_expect(target, face, cursor, hand, slot, item).await
+                };
+                match result {
+                    Ok(receipt) => serde_json::json!({"receipt":receipt}),
+                    Err(error) => serde_json::json!({"error":error.to_string(), "kind":format!("{:?}",error.kind()),"refusal":error.use_item_refusal()}),
+                }
+            },
             "body_use_item_expect" => {
                 use voxrig::body::{Body, BodyConfig, HeadlessBody};
                 let hand = if request["offhand"] == true { Hand::Off } else { Hand::Main };
