@@ -52,13 +52,11 @@ impl Operations {
         world: BodyWorld,
         mode: GameMode,
         action: &Action,
+        expected: Option<(u8, crate::client::registry::RegistryId)>,
     ) -> Result<()> {
         match self {
-            Self::Modern(ops) => ops.body_simple_send(world, mode, action).await,
-            Self::Legacy(_) => Err(error(
-                ErrorKind::Unsupported,
-                "legacy body currently supports placement only",
-            )),
+            Self::Modern(ops) => ops.body_simple_send(world, mode, action, expected).await,
+            Self::Legacy(bot) => bot.body_simple_send(world, mode, action, expected).await,
         }
     }
     async fn body_start_control(
@@ -97,6 +95,7 @@ struct Job {
     acceptance: Mutex<Acceptance>,
     cancel: watch::Sender<bool>,
     release: Mutex<Option<ReleaseStatus>>,
+    use_item_refusal: Mutex<Option<crate::client::UseItemRefusal>>,
 }
 struct Records {
     next: u64,
@@ -126,8 +125,34 @@ pub struct HeadlessBody {
     inner: Arc<Inner>,
 }
 impl HeadlessBody {
+    /// Submit atomic item use on either native version, returning a normal Body
+    /// action ID. Checks selected index 0..8 and received held item ID inside the
+    /// dispatch lock; count/data are ignored. Refusal sends nothing, produces
+    /// Rejected, and is retained by `Self::use_item_refusal`. Accepted retains the
+    /// usual Body meaning and does not prove consumption. Binds the current world.
+    pub async fn use_item_expect(
+        &self,
+        hand: Hand,
+        selected_hotbar: u8,
+        item: crate::client::registry::RegistryId,
+    ) -> Result<ActionId> {
+        self.submit_inner(
+            Action::UseItem { hand }.into(),
+            Some((selected_hotbar, item)),
+        )
+        .await
+    }
+
+    /// Retained typed identity refusal for a rejected `HeadlessBody::use_item_expect`.
+    /// None until an identity refusal is recorded. Uses the same
+    /// retention and foreign/expired-ID checks as action status.
+    pub fn use_item_refusal(&self, id: ActionId) -> Result<Option<crate::client::UseItemRefusal>> {
+        Ok(self.inner.job(id)?.use_item_refusal.lock().unwrap().clone())
+    }
+
     /// Wrap without reconnecting or changing the existing strict API.
-    /// Java 1.16.1 supports observation and explicit placement. Other actions are Unsupported.
+    /// Java 1.16.1 supports observation and explicit placement. Atomic item use is
+    /// available through `HeadlessBody::use_item_expect`. Other actions are Unsupported.
     pub fn new(client: Client, config: BodyConfig) -> Result<Self> {
         if config.settle_window.is_zero()
             || config.action_timeout <= config.settle_window
@@ -206,44 +231,16 @@ impl Inner {
             .ok_or_else(|| invalid("unknown, expired or foreign body action ID"))
     }
 }
-impl BodyBackend for HeadlessBody {
-    fn capabilities(&self) -> BackendCapabilities {
-        let supported = self.inner.client.version() == MinecraftVersion::Java1_21_11;
-        BackendCapabilities {
-            backend: "headless".into(),
-            version: self.inner.client.version(),
-            actions: if supported {
-                vec![
-                    ActionKind::Look,
-                    ActionKind::Move,
-                    ActionKind::PlaceBlock,
-                    ActionKind::BreakBlock,
-                    ActionKind::UseItem,
-                    ActionKind::Chat,
-                    ActionKind::SelectHotbar,
-                ]
-            } else {
-                vec![ActionKind::PlaceBlock]
-            },
-            observation: true,
-            ground_movement_only: true,
-        }
-    }
-    async fn observe(&self, request: ObserveRequest) -> Result<BodySnapshot> {
-        validate_observe(&request)?;
-        let ops = self.operations()?;
-        timeout(
-            self.inner.config.action_timeout,
-            ops.body_evidence(self.inner.id, &request, None),
-        )
-        .await
-        .map_err(|_| error(ErrorKind::Timeout, "body observation deadline expired"))?
-        .map(|b| b.snapshot)
-    }
-    async fn submit(&self, request: ActionRequest) -> Result<ActionId> {
+impl HeadlessBody {
+    async fn submit_inner(
+        &self,
+        request: ActionRequest,
+        expected_use: Option<(u8, crate::client::registry::RegistryId)>,
+    ) -> Result<ActionId> {
         let ops = self.operations()?;
         if matches!(&ops, Operations::Legacy(_))
             && !matches!(request.action, Action::PlaceBlock { .. })
+            && expected_use.is_none()
         {
             return Err(error(
                 ErrorKind::Unsupported,
@@ -263,6 +260,7 @@ impl BodyBackend for HeadlessBody {
             )),
             cancel: watch::channel(false).0,
             release: Mutex::new(None),
+            use_item_refusal: Mutex::new(None),
         });
         let id;
         {
@@ -304,13 +302,14 @@ impl BodyBackend for HeadlessBody {
             let result = tokio::select! {
                 biased;
                 _ = cancelled(&mut cancel) => { inner.finish(id, ActionStatus::Cancelled); Ok(()) },
-                result = timeout_at(deadline, run(&inner, &ops, id, &request, &mut cleanup)) => {
+                result = timeout_at(deadline, run(&inner, &ops, id, &request, &mut cleanup, expected_use)) => {
                     match result { Ok(result) => result, Err(_) => {
                         inner.finish(id, ActionStatus::Unknown { reason: "absolute action/lease deadline expired".into() }); Ok(())
                     } }
                 }
             };
             if let Err(e) = result {
+                *job.use_item_refusal.lock().unwrap() = e.use_item_refusal().cloned();
                 // Once any send may have started, failure cannot establish rejection.
                 inner.finish(
                     id,
@@ -358,6 +357,44 @@ impl BodyBackend for HeadlessBody {
             inner.changed.send_modify(|n| *n += 1);
         });
         Ok(id)
+    }
+}
+impl BodyBackend for HeadlessBody {
+    fn capabilities(&self) -> BackendCapabilities {
+        let supported = self.inner.client.version() == MinecraftVersion::Java1_21_11;
+        BackendCapabilities {
+            backend: "headless".into(),
+            version: self.inner.client.version(),
+            actions: if supported {
+                vec![
+                    ActionKind::Look,
+                    ActionKind::Move,
+                    ActionKind::PlaceBlock,
+                    ActionKind::BreakBlock,
+                    ActionKind::UseItem,
+                    ActionKind::Chat,
+                    ActionKind::SelectHotbar,
+                ]
+            } else {
+                vec![ActionKind::PlaceBlock]
+            },
+            observation: true,
+            ground_movement_only: true,
+        }
+    }
+    async fn observe(&self, request: ObserveRequest) -> Result<BodySnapshot> {
+        validate_observe(&request)?;
+        let ops = self.operations()?;
+        timeout(
+            self.inner.config.action_timeout,
+            ops.body_evidence(self.inner.id, &request, None),
+        )
+        .await
+        .map_err(|_| error(ErrorKind::Timeout, "body observation deadline expired"))?
+        .map(|b| b.snapshot)
+    }
+    async fn submit(&self, request: ActionRequest) -> Result<ActionId> {
+        self.submit_inner(request, None).await
     }
     async fn action_status(&self, id: ActionId) -> Result<ActionStatus> {
         let job = self.inner.job(id)?;
@@ -549,6 +586,7 @@ async fn run(
     id: ActionId,
     request: &ActionRequest,
     cleanup: &mut Cleanup,
+    expected_use: Option<(u8, crate::client::registry::RegistryId)>,
 ) -> Result<()> {
     let selection = observe_action(&request.action);
     validate_observe(&selection)?;
@@ -592,7 +630,7 @@ async fn run(
         | Action::Command(_)
         | Action::UseItem { .. } => {
             cleanup.attempted = true;
-            ops.body_simple_send(world, mode()?, &request.action)
+            ops.body_simple_send(world, mode()?, &request.action, expected_use)
                 .await?;
             cleanup.dispatched = true;
         }

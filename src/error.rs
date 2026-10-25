@@ -79,6 +79,11 @@ impl Error {
         self.source.downcast_ref::<crate::client::DigRefusal>()
     }
 
+    /// Held-item identity refusal; the operation sent no use-item packet.
+    pub fn use_item_refusal(&self) -> Option<&crate::client::UseItemRefusal> {
+        self.source.downcast_ref::<crate::client::UseItemRefusal>()
+    }
+
     /// Exact unsupported state from the bounded dry walking model.
     pub fn terrain_refusal(&self) -> Option<&crate::client::survival::TerrainRefusal> {
         self.source
@@ -91,6 +96,12 @@ impl Error {
             .is_some()
         {
             return ErrorKind::Unsupported;
+        }
+        if source
+            .downcast_ref::<crate::client::UseItemRefusal>()
+            .is_some()
+        {
+            return ErrorKind::State;
         }
         if source.downcast_ref::<crate::client::DigRefusal>().is_some() {
             return ErrorKind::State;

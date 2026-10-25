@@ -69,6 +69,7 @@ impl Operations {
         world: BodyWorld,
         mode: GameMode,
         action: &body::Action,
+        expected: Option<(u8, crate::client::registry::RegistryId)>,
     ) -> Result<()> {
         match action {
             body::Action::Look { yaw, pitch } => {
@@ -82,7 +83,7 @@ impl Operations {
             body::Action::Chat(text) => self.send_chat_body(text, Some(world)).await,
             body::Action::Command(text) => self.send_command_body(text, Some(world)).await,
             body::Action::UseItem { hand } => self
-                .use_item_body(mode, *hand, Some(world))
+                .use_item_body(mode, *hand, Some(world), expected)
                 .await
                 .map(|_| ()),
             _ => Err(invalid("expected one-shot body action")),

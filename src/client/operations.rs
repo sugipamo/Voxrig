@@ -48,6 +48,7 @@ pub(crate) enum Action<'a> {
     Dig([i32; 3], BlockFace),
     UseOnBlock([i32; 3], BlockFace, [f32; 3], super::Hand),
     UseItem(super::Hand),
+    UseItemExpect(super::Hand, u8, super::registry::RegistryId),
     ReleaseUseItem,
     Swing(super::Hand),
     /// Survival START_DESTROY_BLOCK.
@@ -994,6 +995,26 @@ impl Creative {
             .execute(GameMode::Creative, Action::UseItem(hand))
             .await
     }
+    /// Use only if the selected hotbar index and held item ID still match under
+    /// the native coherent state lock. Main hand inspects player slot 36+selection;
+    /// offhand inspects slot 45 and also checks selection. Inventory must be received;
+    /// a fully submitted selection is allowed. Count and components are not compared.
+    /// Unknown/mismatched identity sends nothing: inspect `Error::use_item_refusal()`.
+    /// Invalid slot/version/registry IDs return InvalidInput. Success is dispatch only,
+    /// never server acceptance. See `docs/common-item-use.md`.
+    pub async fn use_item_expect(
+        &self,
+        hand: super::Hand,
+        selected_hotbar: u8,
+        item: super::registry::RegistryId,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Creative,
+                Action::UseItemExpect(hand, selected_hotbar, item),
+            )
+            .await
+    }
     /// Release the item in use (shoot a bow, lower a shield, stop eating). Dispatch only.
     pub async fn release_use_item(&self) -> Result<DispatchReceipt> {
         self.client
@@ -1034,6 +1055,26 @@ impl Survival {
     pub async fn use_item(&self, hand: super::Hand) -> Result<DispatchReceipt> {
         self.client
             .execute(GameMode::Survival, Action::UseItem(hand))
+            .await
+    }
+    /// Use only if the selected hotbar index and held item ID still match under
+    /// the native coherent state lock. Main hand inspects player slot 36+selection;
+    /// offhand inspects slot 45 and also checks selection. Inventory must be received;
+    /// a fully submitted selection is allowed. Count and components are not compared.
+    /// Unknown/mismatched identity sends nothing: inspect `Error::use_item_refusal()`.
+    /// Invalid slot/version/registry IDs return InvalidInput. Success is dispatch only,
+    /// never server acceptance. See `docs/common-item-use.md`.
+    pub async fn use_item_expect(
+        &self,
+        hand: super::Hand,
+        selected_hotbar: u8,
+        item: super::registry::RegistryId,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Survival,
+                Action::UseItemExpect(hand, selected_hotbar, item),
+            )
             .await
     }
     /// Release the item in use (shoot a bow, lower a shield, stop eating). Dispatch only.

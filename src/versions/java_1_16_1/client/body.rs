@@ -3,6 +3,7 @@
 use super::*;
 use crate::body::evidence::{EvidenceBatch, Update, slot, source, value};
 use crate::body::{self, *};
+use crate::client as api;
 
 impl Bot {
     pub(crate) async fn body_evidence(
@@ -86,6 +87,41 @@ impl Bot {
             ack: None,
             snapshot,
         })
+    }
+    pub(crate) async fn body_simple_send(
+        &self,
+        world: BodyWorld,
+        mode: api::GameMode,
+        action: &Action,
+        expected: Option<(u8, api::registry::RegistryId)>,
+    ) -> Result<()> {
+        self.connection
+            .ledger()
+            .try_work()?
+            .run_scoped(async {
+                let _gate = self.coherent_state_gate.lock().await;
+                let generation = self.common_receipts.lock().await.generation;
+                if world
+                    != (BodyWorld {
+                        connection: self.connection_id(),
+                        generation,
+                    })
+                {
+                    return Err(crate::error::invalid_input(
+                        "body world changed before item dispatch",
+                    ));
+                }
+                let (Action::UseItem { hand }, Some((selected, item))) = (action, expected) else {
+                    return Err(crate::error::invalid_input(
+                        "expected atomic body item-use action",
+                    ));
+                };
+                let action = api::operations::Action::UseItemExpect(*hand, selected, item);
+                self.execute_common_unlocked(mode, action, None)
+                    .await
+                    .map(|_| ())
+            })
+            .await
     }
     pub(crate) async fn body_place_send(&self, world: BodyWorld, action: &Action) -> Result<u64> {
         self.connection

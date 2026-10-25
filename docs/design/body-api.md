@@ -109,3 +109,13 @@ python3 scripts/run_body_live.py --accept-eula \
   --server-jar ~/mc/1.21.11/server.jar \
   --binary target/debug/examples/body_probe --output .local/body/live
 ```
+
+### 手持ちの期待値を指定した使用
+
+`body.backend().use_item_expect(hand, selected_hotbar, item_id)` は両 native version で
+`Result<ActionId>` を返す。公開 `Action` / `ActionKind` enum は拡張せず、既存の
+unchecked `UseItem` と capabilities の契約も変更しない。内部では world fence と
+coherent state lock を保持し、選択スロットと受信済み item ID が一致してから送信する。
+不一致・未知状態なら送信せず `Rejected` になり、
+`body.backend().use_item_refusal(id)` で期待値と観測値を取得できる。
+`Accepted` は消費成功を意味しない。詳細は [common-item-use.md](../common-item-use.md)。

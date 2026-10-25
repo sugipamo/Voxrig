@@ -87,6 +87,7 @@ pub(crate) mod item_components;
 pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
 pub(crate) mod item_use;
+pub use item_use::UseItemRefusal;
 pub(crate) mod placement_check;
 mod player_control;
 pub(crate) mod player_facts;
@@ -300,7 +301,8 @@ pub mod prelude {
         DigDispatchEvidence, DigEstimate, DigOperation, DigOperationId, DigOwnerExit, DigPhase,
         DigRecord, DigRefusal, DigResult, DigSnapshot, DigWriteEvidence, Hand, InventoryMoveRecord,
         InventoryMoveStage, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,
-        PlayerControl, PlayerEffect, PlayerEyeHeight, PlayerPostureObservation, ValueSource,
+        PlayerControl, PlayerEffect, PlayerEyeHeight, PlayerPostureObservation, UseItemRefusal,
+        ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

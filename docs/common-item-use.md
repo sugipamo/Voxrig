@@ -1,10 +1,11 @@
 # 共通のアイテム使用（use_item・release_use_item・use_on_block）
 
-`Client::survival()`と`Client::creative()`の両方に、同じ型で次の3つがある（`Feature::ItemUse`）。
+`Client::survival()`と`Client::creative()`の両方に、同じ型で次の操作がある（`Feature::ItemUse`）。
 
 | 操作 | 送るもの | 例 |
 | --- | --- | --- |
 | `use_item(hand)` | 手に持ったアイテムを対象なしで使う | 食べる・飲む、盾を構える、弓を引く、投げる |
+| `use_item_expect(hand, selected_hotbar, item)` | 同じロック内で選択スロットと受信済み item ID を検査してから使う | 呼び出し前の確認後に手持ちが変わった場合は送信せず型付きエラー |
 | `release_use_item()` | 使用中のアイテムを離す | 弓を放つ、盾を下ろす、食事を途中でやめる |
 | `use_on_block(target, face, cursor, hand)` | 手に持ったアイテムでblockの面を使う | 松明・ドア・レールなどの設置、ドア・レバー・ボタン・チェストの操作 |
 
@@ -114,3 +115,61 @@ client.wait_for_block([10, 64, 20], std::time::Duration::from_secs(3), |b| {
 Golemkit #152 の保存された半加算器の立ち位置・支持・West 面を平行移動した隔離 fixture は
 `scripts/run_block_hit_reach.py` で両公式サーバーに接続して確認します。
 新しい世界での fixture 検証と、元の半加算器の全施工・回路出力は区別します。
+
+### Atomic held-item expectations
+
+Both Java 1.21.11 and 1.16.1 adapters provide the additive common API:
+
+```rust,no_run
+# async fn example(client: &voxrig::Client) -> voxrig::Result<()> {
+let food = client.registry().item("minecraft:bread")?.id;
+let sent = client.survival()
+    .use_item_expect(voxrig::Hand::Main, 0, food).await?;
+// `sent` proves complete dispatch only. Observe received state for the result.
+# let _ = sent;
+# Ok(()) }
+```
+
+`Creative::use_item_expect(hand, selected_hotbar: u8, item: RegistryId)` has the
+same signature and returns `Result<DispatchReceipt>`. The native Java 1.16.1
+`Bot::use_item_expect` returns `Result<()>`, like its existing `use_item`.
+The original `use_item` APIs keep their behavior.
+
+The expected hotbar index is 0..8. Under the native coherent state lock
+(`coherent_state_gate` on 1.16.1; session state mutex on 1.21.11), the operation
+checks both the current selection and the held item's version-bound registry ID,
+then keeps that lock through complete packet dispatch. Main hand reads player
+inventory slot `36 + selected_hotbar`; offhand reads slot 45 and **also checks the
+expected hotbar selection**. A selection received from the server or fully
+submitted locally is usable. The item slot must have received provenance;
+local cache predictions are insufficient. Native 1.16.1 `select_hotbar` clears
+its prior selection identity before sending and records `Submitted` only after
+complete dispatch. A disagreement between native compatibility selection and the
+common selection is treated as unknown. Unknown, unavailable or empty slots
+refuse use. Count, NBT and components are deliberately not part of this item-ID
+contract: a same-ID replacement is allowed, even if its data differ.
+
+A state mismatch or missing identity sends no use-item packet and returns
+`ErrorKind::State`. `Error::use_item_refusal()` returns `UseItemRefusal` with the
+hand, expected/observed selection and expected item ID/observed received slot.
+`observed_item == None` means no received slot value; explicit empty and
+unavailable values remain distinct. Invalid indices, foreign-version IDs and
+non-item registry IDs return `InvalidInput`. Other admission/connection failures
+retain their existing errors. This checks client state at dispatch, not a future
+server state, and neither dispatch nor identity matching proves that use began
+or that food was consumed. Check received metadata, health and inventory updates.
+
+`voxrig::body::HeadlessBody::use_item_expect(hand, selected_hotbar, item)` returns
+`Result<ActionId>` on both versions, without extending the existing exhaustive
+public action enums. It uses the same atomic validation and
+world fence. The asynchronous action is Rejected on identity refusal;
+`body.backend().use_item_refusal(action_id)` retains the typed details with the
+normal action retention policy. Its Accepted status has the Body API's usual
+meaning; it is not a consumption receipt. Use `body.backend().use_item_expect(...)` to submit through a `Body` facade.
+The existing capability list and unchecked actions retain their behavior.
+
+Local official-server evidence for both native versions is retained in
+[the 2026-10-25 live summary](evidence/use-item-expect-live-20261025.json), with
+compressed full reports and source/binary hashes alongside it. Each version
+checks Survival and HeadlessBody, both hands, actual bread consumption, and
+slot/item mismatches with zero use-item packets.
