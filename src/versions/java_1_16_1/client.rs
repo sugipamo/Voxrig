@@ -11522,3 +11522,6 @@ mod quiesce;
 
 #[cfg(test)]
 mod use_item_expect_tests;
+
+#[cfg(test)]
+mod use_on_block_expect_tests;

@@ -2922,3 +2922,6 @@ include!("dig_handle_tests.rs");
 
 #[path = "use_item_expect_tests.rs"]
 mod use_item_expect_tests;
+
+#[path = "use_on_block_expect_tests.rs"]
+mod use_on_block_expect_tests;

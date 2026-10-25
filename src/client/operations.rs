@@ -47,6 +47,14 @@ pub(crate) enum Action<'a> {
     SetHotbar(u8, Option<(&'a str, u8)>),
     Dig([i32; 3], BlockFace),
     UseOnBlock([i32; 3], BlockFace, [f32; 3], super::Hand),
+    UseOnBlockExpect(
+        [i32; 3],
+        BlockFace,
+        [f32; 3],
+        super::Hand,
+        u8,
+        super::registry::RegistryId,
+    ),
     UseItem(super::Hand),
     UseItemExpect(super::Hand, u8, super::registry::RegistryId),
     ReleaseUseItem,
@@ -994,6 +1002,27 @@ impl Creative {
             )
             .await
     }
+    /// Send an explicit block hit only if selection and received held item ID match
+    /// inside the dispatch lock. Uses the same identity/hand contract as `use_item_expect`
+    /// and the same hit/admission rules as `use_on_block`. Count/data are ignored.
+    /// Unknown/mismatch sends nothing and returns `Error::use_item_refusal()`.
+    /// Success proves complete dispatch only; observe received state for the result.
+    pub async fn use_on_block_expect(
+        &self,
+        target: [i32; 3],
+        face: BlockFace,
+        cursor: [f32; 3],
+        hand: super::Hand,
+        selected_hotbar: u8,
+        item: super::registry::RegistryId,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Creative,
+                Action::UseOnBlockExpect(target, face, cursor, hand, selected_hotbar, item),
+            )
+            .await
+    }
     /// Use the item in `hand` without a target (eat, drink, raise a shield, draw a bow).
     /// Dispatch only: whether use started is the received `PlayerObservation::using_item`.
     /// A running control session applies the item-use slowdown once that is received.
@@ -1053,6 +1082,27 @@ impl Survival {
             .execute(
                 GameMode::Survival,
                 Action::UseOnBlock(target, face, cursor, hand),
+            )
+            .await
+    }
+    /// Send an explicit block hit only if selection and received held item ID match
+    /// inside the dispatch lock. Uses the same identity/hand contract as `use_item_expect`
+    /// and the same hit/admission rules as `use_on_block`. Count/data are ignored.
+    /// Unknown/mismatch sends nothing and returns `Error::use_item_refusal()`.
+    /// Success proves complete dispatch only; observe received state for the result.
+    pub async fn use_on_block_expect(
+        &self,
+        target: [i32; 3],
+        face: BlockFace,
+        cursor: [f32; 3],
+        hand: super::Hand,
+        selected_hotbar: u8,
+        item: super::registry::RegistryId,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Survival,
+                Action::UseOnBlockExpect(target, face, cursor, hand, selected_hotbar, item),
             )
             .await
     }

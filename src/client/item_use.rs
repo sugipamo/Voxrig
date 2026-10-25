@@ -4,7 +4,7 @@ use super::physics::ItemUse;
 use crate::{Error, ErrorKind, MinecraftVersion, Result};
 
 /// Expected held identity was unknown or different at the dispatch boundary.
-/// No use-item packet was sent. Count and item data are not compared.
+/// No use-item or block-use packet was sent. Count and item data are not compared.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub struct UseItemRefusal {

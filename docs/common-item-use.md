@@ -7,6 +7,7 @@
 | `use_item(hand)` | 手に持ったアイテムを対象なしで使う | 食べる・飲む、盾を構える、弓を引く、投げる |
 | `use_item_expect(hand, selected_hotbar, item)` | 同じロック内で選択スロットと受信済み item ID を検査してから使う | 呼び出し前の確認後に手持ちが変わった場合は送信せず型付きエラー |
 | `release_use_item()` | 使用中のアイテムを離す | 弓を放つ、盾を下ろす、食事を途中でやめる |
+| `use_on_block_expect(target, face, cursor, hand, selected_hotbar, item)` | 同じ送信ロック内で選択スロットと指定handの受信済みitem IDを検証してblockを使う | End portal frameへのender eye挿入など |
 | `use_on_block(target, face, cursor, hand)` | 手に持ったアイテムでblockの面を使う | 松明・ドア・レールなどの設置、ドア・レバー・ボタン・チェストの操作 |
 
 ```rust,no_run
@@ -32,7 +33,7 @@ client.wait_for_block([10, 64, 20], std::time::Duration::from_secs(3), |b| {
 
 ## 契約
 
-- 3つとも**送信だけ**の操作で、`DispatchReceipt`は完全な送信を表す。serverの受理や結果ではない。
+- すべて**送信だけ**の操作で、`DispatchReceipt`は完全な送信を表す。serverの受理や結果ではない。
   結果は受信した状態で確かめる。
   - 使用の開始と終了: `PlayerObservation::using_item`（下記）。
   - 設置・操作の結果: 受信したblockの状態（`wait_for_block`、world capture）。
@@ -171,3 +172,60 @@ Local official-server evidence for both native versions is retained in
 compressed full reports and source/binary hashes alongside it. Each version
 checks Survival and HeadlessBody, both hands, actual bread consumption, and
 slot/item mismatches with zero use-item packets.
+
+### Atomic block-use expectations (`use_on_block_expect`)
+
+共通 `Survival` / `Creative` の両方に、1.21.11 / 1.16.1 nativeで次の追加APIがあります。
+型は `voxrig::client`（`RegistryId` は `voxrig::client::registry`）からimportできます。
+
+```rust,ignore
+pub async fn use_on_block_expect(
+    &self,
+    target: [i32; 3],
+    face: BlockFace,
+    cursor: [f32; 3],
+    hand: Hand,
+    selected_hotbar: u8,
+    item: RegistryId,
+) -> Result<DispatchReceipt>;
+```
+
+```rust,no_run
+# async fn example(client: &voxrig::Client) -> voxrig::Result<()> {
+let eye = client.registry().item("minecraft:ender_eye")?.id;
+let sent = client.survival().use_on_block_expect(
+    [0, 65, 2], voxrig::BlockFace::Up, [0.5, 1.0, 0.5],
+    voxrig::Hand::Main, 0, eye,
+).await?;
+# let _ = sent;
+# Ok(()) }
+```
+
+`player_state()` の確認から呼出しまでにselectionやinventoryが更新されても、送信と同じ
+ロック内（1.16.1: `coherent_state_gate`、1.21.11: session state mutex）で再検証します。
+一致の確認からpacketの完全送信までロックを保持します。期待値の型と意味は上記
+`use_item_expect(hand, selected_hotbar: u8, item: RegistryId)` と同じです。
+main handは現在の選択スロットのplayer inventory `36 + selected_hotbar`、offhandは45を読み、
+**offhandでも選択スロットを検証**します。受信済みitem IDと、受信済みまたは完全送信済みの
+selectionを要求し、count・NBT・componentsは比較しません。同じIDへの置換は許可します。
+
+不一致・未知・未受信・空・unavailableはblock-use packetを送らず、`ErrorKind::State` と
+既存の `UseItemRefusal` を返します。`Error::use_item_refusal()` からhand、
+`expected_selected_hotbar` / `observed_selected_hotbar`、`expected_item` /
+`observed_item` を参照できます。未受信の観測値は `None` です。
+不正slot（0..8以外）、別versionまたはitem以外の `RegistryId` は `InvalidInput` です。
+その他のadmission条件、距離・cursor・wire座標、packet内容は `use_on_block` と同じです。
+1.21.11のreceiptはinteraction sequenceを含み、1.16.1は `None` です。
+成功は完全送信だけを示します。End portal frameの `eye=true` やinventoryの消費など、
+serverの結果は受信状態で確認してください。serverが将来扱う手持ちの保証ではありません。
+既存 `use_on_block` と版固有APIの挙動は変更しません。
+
+bodyの `ActivateBlock` / `PlaceBlock` は専用のworld fence・証拠境界・受理判定を通り、
+`use_item_expect` のone-shot送信経路と異なります。期待itemの追加はその別経路に契約を
+通す必要があるため、body側のblock-use expectationはfollow-upです。
+
+2026-10-25に公式ローカルserver両版で、Survivalのmain/off handからEnd portal frameへ
+ender eyeを挿入し、serverの `eye=true` と受信inventoryの3→2を確認しました。
+slot不一致・item不一致は各0 block-use packets、一致は各1 packetです。
+[実機サマリー](evidence/use-on-block-expect-live-20261025.json)と隣接の圧縮reportに
+元packet・期待値/観測値・source/binary hashを保持しています。

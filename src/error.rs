@@ -79,7 +79,7 @@ impl Error {
         self.source.downcast_ref::<crate::client::DigRefusal>()
     }
 
-    /// Held-item identity refusal; the operation sent no use-item packet.
+    /// Held-item identity refusal; the operation sent no use-item or block-use packet.
     pub fn use_item_refusal(&self) -> Option<&crate::client::UseItemRefusal> {
         self.source.downcast_ref::<crate::client::UseItemRefusal>()
     }

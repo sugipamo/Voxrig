@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-25",
+  "issue": "https://github.com/sugipamo/Voxrig/issues/263",
+  "scope": "Survival::use_on_block_expect, main/off hand; official localhost servers via original packet trace proxy",
+  "versions": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "binary_sha256": "43ecaae7d104f1333fc78bbf926d28513fe5eada94a2b525b9394c773854d96d",
+      "checks": [
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": false,
+          "expected_slot": 1,
+          "expected_item": "minecraft:ender_eye",
+          "block_use_packets": 0
+        },
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": false,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "block_use_packets": 0
+        },
+        {
+          "name": "inserted_eye",
+          "mode": "survival",
+          "offhand": false,
+          "sent": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "native": "Test passed",
+          "native_inventory": "ClimbingProbe has the following entity data: {Slot: 0b, id: \"minecraft:ender_eye\", Count: 2b}",
+          "block_use_packets": 1
+        },
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": true,
+          "expected_slot": 1,
+          "expected_item": "minecraft:ender_eye",
+          "block_use_packets": 0
+        },
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": true,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "block_use_packets": 0
+        },
+        {
+          "name": "inserted_eye",
+          "mode": "survival",
+          "offhand": true,
+          "sent": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "native": "Test passed",
+          "native_inventory": "ClimbingProbe has the following entity data: {Slot: -106b, id: \"minecraft:ender_eye\", Count: 2b}",
+          "block_use_packets": 1
+        }
+      ],
+      "full_report": "use-on-block-expect-live-1.16.1-20261025.json.gz",
+      "report_sha256": "823de060b543b03eebd1fd0590f239f5f5bfbf4b80349d06b2546a8c26606b41",
+      "local_report": "/home/dev/logs/contact/ue1-live-1.16.1-final/1.16.1-20261025-175456/report.json"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "binary_sha256": "43ecaae7d104f1333fc78bbf926d28513fe5eada94a2b525b9394c773854d96d",
+      "checks": [
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": false,
+          "expected_slot": 1,
+          "expected_item": "minecraft:ender_eye",
+          "block_use_packets": 0
+        },
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": false,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "block_use_packets": 0
+        },
+        {
+          "name": "inserted_eye",
+          "mode": "survival",
+          "offhand": false,
+          "sent": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": 1,
+              "version": "Java1_21_11"
+            }
+          },
+          "native": "Test passed",
+          "native_inventory": "ClimbingProbe has the following entity data: {count: 2, Slot: 0b, id: \"minecraft:ender_eye\"}",
+          "block_use_packets": 1
+        },
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": true,
+          "expected_slot": 1,
+          "expected_item": "minecraft:ender_eye",
+          "block_use_packets": 0
+        },
+        {
+          "name": "refused",
+          "mode": "survival",
+          "offhand": true,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "block_use_packets": 0
+        },
+        {
+          "name": "inserted_eye",
+          "mode": "survival",
+          "offhand": true,
+          "sent": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": 2,
+              "version": "Java1_21_11"
+            }
+          },
+          "native": "Test passed",
+          "native_inventory": "ClimbingProbe has the following entity data: {count: 2, id: \"minecraft:ender_eye\"}",
+          "block_use_packets": 1
+        }
+      ],
+      "full_report": "use-on-block-expect-live-1.21.11-20261025.json.gz",
+      "report_sha256": "fd293ab60b5e3ef5ed3a93de35c5a5a6665c6abf6cfbfd69156c2301807bd968",
+      "local_report": "/home/dev/logs/contact/ue1-live-1.21.11-final/1.21.11-20261025-175456/report.json"
+    }
+  ]
+}
