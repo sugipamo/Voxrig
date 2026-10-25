@@ -1,0 +1,2129 @@
+{
+  "base": "aba47af227d8d35c3e3d5743cad8c157dff2821f",
+  "source_sha256": {
+    "Cargo.toml": "b19fba7bf3fe79ee524774548f258801e3d16279dba24da274c3b21b213a66ec",
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "src/client/control.rs": "3af86e569276e6f583027fd0cd01c8fbeedff307ee0952b6ef9767bcb3022ec7",
+    "src/client/entity/scope.rs": "58bc92ad4a001141b48ddefac631011f1732fa1f4f136121c05b57e7d7b7a032",
+    "src/client/entity/owned_contacts.rs": "42e6a596afb6c7841f22dc1247db1245a5b5b983ff43f46bf0e7c00e445dfd7d",
+    "src/client/player_control.rs": "064f8e35704eb7801f2d373ccf9ecde091d97d522dcb9710961b9ccf5a86bae1",
+    "src/movement_refusal.rs": "4deac93ddbc25442dd15eb8e4043144dab7f9df03ac8e22176adb977091b1824",
+    "src/body/headless.rs": "97a3ea025037a0c08dd92f662de0f1ca1b966cb717f32e94ecc2fab49750c40a",
+    "src/versions/java_1_16_1/client/common_control.rs": "dcf0d967ba46aa6e20b0e3929a7e54b8d44d3e7eedf48cbcfdb7fa38ec470dee",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "2d2ace9a10b54ebdd6ef7a7433fbe557d0a67fa7c8f36e637f2f8f341aef1072",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "6b4c6dd7a528061e025eaf77dabe2bb16244217a9fd0be5b8c6ce40a7787726a",
+    "examples/body_probe.rs": "eb3f8d618439caaf15f7f1371bdc0c21e33fbecd610585aabca0857aebf4ec45",
+    "scripts/run_climbing_control.py": "3312615f26fff487aed3ea7bee8d32e289a9c18e62e843026acf95244fad9655",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
+    "scripts/run_contact_history_live.py": "ef9db577701dee38184ee7b3842afdb8ff123571df5a0617856f062df311144c",
+    "scripts/run_contact_best_effort_live.py": "8ccc0c2ee17e1991547db54ea682b880a3421b71b432cd740aafe54a7409a848"
+  },
+  "correction_method": "Original server teleport via loopback RCON during held movement, not a spontaneous contact rejection.",
+  "native_contract": "Explicit PlayerControl best-effort opt-in; complete writes and received corrections are diagnostics, not body acceptance. Java 1.16.1 body Move wiring remains step 4.",
+  "missing_relationship_fixture": {
+    "1.16.1": "Boat at x=140 with a zombie passenger beyond zombie tracking range; passenger lifetime is unreceived.",
+    "1.21.11": "Nearby boat with a server-only marker passenger; passenger lifetime is unreceived."
+  },
+  "reports": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "sdk": {
+        "binary_sha256": "93e5a49c00c5836b573a28415c1961a0b977d39ac4f377a301c6d1c59c53e607"
+      },
+      "raw_report": "/home/dev/work/Voxrig-rx2/.local/climbing/live/1.16.1-20261025-082212/report.json",
+      "raw_report_sha256": "7441d42c0b63d1278e9801c92186f130dbd64de31601dd9345808c4dfaf817ce",
+      "packets_sha256": "83d8e7fb39cf594e7ade0e6dae4e814c032d40840d5c137fce1b49b680c3529f",
+      "checks": [
+        {
+          "name": "untracked_passenger_relationship",
+          "owner": 2,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 11,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      140,
+                      65,
+                      0
+                    ],
+                    "chunk_position": [
+                      8,
+                      0
+                    ],
+                    "entity_position": [
+                      140.5,
+                      65.0,
+                      0.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 37,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_16_1",
+                            "world_generation": 1
+                          },
+                          "spawn_sequence": 659
+                        },
+                        "entity_type": "minecraft:boat",
+                        "model_tick": null,
+                        "native_entity_id": 37,
+                        "owner_id": 2,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Spawn"
+                        },
+                        "reason": "contact rider spawn unresolved",
+                        "receive_sequence": 659,
+                        "record_ordinal": 6,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.501263819991173
+          ],
+          "result": null,
+          "frame_count": 11,
+          "strict_refusal": {
+            "error": "contact rider spawn unresolved [entity=Some(37) type=Some(\"minecraft:boat\") position=Some([140.5, 65.0, 0.5]) block=Some([140, 65, 0]) chunk=Some([8, 0])]"
+          }
+        },
+        {
+          "name": "missing_relationship_correction_reanchors",
+          "owner": 4,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 19,
+          "corrections": 1,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      140,
+                      65,
+                      0
+                    ],
+                    "chunk_position": [
+                      8,
+                      0
+                    ],
+                    "entity_position": [
+                      140.5,
+                      65.0,
+                      0.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 37,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_16_1",
+                            "world_generation": 1
+                          },
+                          "spawn_sequence": 659
+                        },
+                        "entity_type": "minecraft:boat",
+                        "model_tick": null,
+                        "native_entity_id": 37,
+                        "owner_id": 4,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Spawn"
+                        },
+                        "reason": "contact rider spawn unresolved",
+                        "receive_sequence": 659,
+                        "record_ordinal": 6,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            2.2858101848432373
+          ],
+          "result": null,
+          "frame_count": 285,
+          "strict_refusal": {
+            "error": "contact rider spawn unresolved [entity=Some(37) type=Some(\"minecraft:boat\") position=Some([140.5, 65.0, 0.5]) block=Some([140, 65, 0]) chunk=Some([8, 0])]"
+          }
+        },
+        {
+          "name": "near_living_passenger",
+          "owner": 6,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 13,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      6,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      6.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 39,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_16_1",
+                            "world_generation": 1
+                          },
+                          "spawn_sequence": 935
+                        },
+                        "entity_type": "minecraft:pig",
+                        "model_tick": null,
+                        "native_entity_id": 39,
+                        "owner_id": 6,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "living passenger group reaches player contact scope; separate contact origin required",
+                        "receive_sequence": 952,
+                        "record_ordinal": 30,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.9326397240518096
+          ],
+          "result": null,
+          "frame_count": 42,
+          "strict_refusal": {
+            "error": "living passenger group reaches player contact scope; separate contact origin required [entity=Some(39) type=Some(\"minecraft:pig\") position=Some([6.5, 65.0, 1.5]) block=Some([6, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "spawn_despawn_during_same_held_input",
+          "owner": 7,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 92,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      6,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      6.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 41,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_16_1",
+                            "world_generation": 1
+                          },
+                          "spawn_sequence": 995
+                        },
+                        "entity_type": "minecraft:fox",
+                        "model_tick": 5,
+                        "native_entity_id": 41,
+                        "owner_id": 7,
+                        "owner_state": "Invalidated",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "finite exclusion proof does not qualify nearby numerical contact",
+                        "receive_sequence": 996,
+                        "record_ordinal": 70,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            19.726601005685644
+          ],
+          "result": null,
+          "frame_count": 197,
+          "strict_refusal": null
+        },
+        {
+          "name": "scope_reselection_after_remote_teleport",
+          "owner": 8,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 15,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      6,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      6.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 44,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_16_1",
+                            "world_generation": 1
+                          },
+                          "spawn_sequence": 1099
+                        },
+                        "entity_type": "minecraft:cow",
+                        "model_tick": 5,
+                        "native_entity_id": 44,
+                        "owner_id": 8,
+                        "owner_state": "Invalidated",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "contact scope re-entry after omitted interpolation/motion ticks; start a new control owner",
+                        "receive_sequence": 1135,
+                        "record_ordinal": 106,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            3.1055371784814354
+          ],
+          "result": null,
+          "frame_count": 33,
+          "strict_refusal": null
+        },
+        {
+          "name": "intact_remote_origin_correction_reanchors",
+          "owner": 9,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 15,
+          "corrections": 1,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Permanent": {
+                  "context": {
+                    "entity": null,
+                    "entity_type": null,
+                    "model_tick": 5,
+                    "native_entity_id": null,
+                    "owner_id": 9,
+                    "owner_state": "Invalidated",
+                    "packet": null,
+                    "reason": "received pose correction changed the contact origin",
+                    "receive_sequence": 1156,
+                    "record_ordinal": null,
+                    "session": null
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            2.2858101848432373
+          ],
+          "result": null,
+          "frame_count": 19,
+          "strict_refusal": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "sdk": {
+        "binary_sha256": "93e5a49c00c5836b573a28415c1961a0b977d39ac4f377a301c6d1c59c53e607"
+      },
+      "raw_report": "/home/dev/work/Voxrig-rx2/.local/climbing/live/1.21.11-20261025-082212/report.json",
+      "raw_report_sha256": "d89421a904b8b7918a1f4beb3ed225a3f117dfe9c720f8e7480d3188b32f1d08",
+      "packets_sha256": "26782b53a50f33aa5334114fe3592db2196b277c1eddfaff05eddacbe23e15c3",
+      "checks": [
+        {
+          "name": "untracked_passenger_relationship",
+          "owner": 1,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 13,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      8,
+                      65,
+                      0
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      8.5,
+                      65.0,
+                      0.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 2,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 221
+                        },
+                        "entity_type": "minecraft:oak_boat",
+                        "model_tick": null,
+                        "native_entity_id": 2,
+                        "owner_id": 1,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Spawn"
+                        },
+                        "reason": "contact rider spawn unresolved",
+                        "receive_sequence": 221,
+                        "record_ordinal": 5,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.4583942987839595
+          ],
+          "result": null,
+          "frame_count": 16,
+          "strict_refusal": {
+            "error": "contact rider spawn unresolved [entity=Some(2) type=Some(\"minecraft:oak_boat\") position=Some([8.5, 65.0, 0.5]) block=Some([8, 65, 0]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "missing_relationship_correction_reanchors",
+          "owner": 2,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 13,
+          "corrections": 1,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      8,
+                      65,
+                      0
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      8.5,
+                      65.0,
+                      0.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 2,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 221
+                        },
+                        "entity_type": "minecraft:oak_boat",
+                        "model_tick": null,
+                        "native_entity_id": 2,
+                        "owner_id": 2,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Spawn"
+                        },
+                        "reason": "contact rider spawn unresolved",
+                        "receive_sequence": 221,
+                        "record_ordinal": 5,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            1.6428263298592805
+          ],
+          "result": null,
+          "frame_count": 18,
+          "strict_refusal": {
+            "error": "contact rider spawn unresolved [entity=Some(2) type=Some(\"minecraft:oak_boat\") position=Some([8.5, 65.0, 0.5]) block=Some([8, 65, 0]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_living_passenger",
+          "owner": 3,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 13,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      6,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      6.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 4,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 245
+                        },
+                        "entity_type": "minecraft:pig",
+                        "model_tick": null,
+                        "native_entity_id": 4,
+                        "owner_id": 3,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "living passenger group reaches player contact scope; separate contact origin required",
+                        "receive_sequence": 257,
+                        "record_ordinal": 23,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.4583942987839595
+          ],
+          "result": null,
+          "frame_count": 18,
+          "strict_refusal": {
+            "error": "living passenger group reaches player contact scope; separate contact origin required [entity=Some(4) type=Some(\"minecraft:pig\") position=Some([6.5, 65.0, 1.5]) block=Some([6, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "spawn_despawn_during_same_held_input",
+          "owner": 4,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 90,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      6,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      6.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 6,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 285
+                        },
+                        "entity_type": "minecraft:fox",
+                        "model_tick": 5,
+                        "native_entity_id": 6,
+                        "owner_id": 4,
+                        "owner_state": "Invalidated",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "finite exclusion proof does not qualify nearby numerical contact",
+                        "receive_sequence": 289,
+                        "record_ordinal": 42,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            19.337783564160503
+          ],
+          "result": null,
+          "frame_count": 170,
+          "strict_refusal": null
+        },
+        {
+          "name": "scope_reselection_after_remote_teleport",
+          "owner": 5,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 15,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      6,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      6.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 9,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 360
+                        },
+                        "entity_type": "minecraft:cow",
+                        "model_tick": 5,
+                        "native_entity_id": 9,
+                        "owner_id": 5,
+                        "owner_state": "Invalidated",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Motion"
+                        },
+                        "reason": "contact scope re-entry after omitted interpolation/motion ticks; start a new control owner",
+                        "receive_sequence": 397,
+                        "record_ordinal": 71,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            3.148432799523545
+          ],
+          "result": null,
+          "frame_count": 20,
+          "strict_refusal": null
+        },
+        {
+          "name": "intact_remote_origin_correction_reanchors",
+          "owner": 6,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 15,
+          "corrections": 1,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Permanent": {
+                  "context": {
+                    "entity": null,
+                    "entity_type": null,
+                    "model_tick": 5,
+                    "native_entity_id": null,
+                    "owner_id": 6,
+                    "owner_state": "Invalidated",
+                    "packet": null,
+                    "reason": "received pose correction changed the contact origin",
+                    "receive_sequence": 408,
+                    "record_ordinal": null,
+                    "session": null
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            2.0706936681074772
+          ],
+          "result": null,
+          "frame_count": 21,
+          "strict_refusal": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "sdk": {
+        "binary_sha256": "93e5a49c00c5836b573a28415c1961a0b977d39ac4f377a301c6d1c59c53e607"
+      },
+      "raw_report": "/home/dev/work/Voxrig-rx2/.local/climbing/live/1.21.11-20261025-081421/report.json",
+      "raw_report_sha256": "c6e80ea836768de4f574f2e83623229a63a8fe658e8e92ed5ab23c54fe33d6d0",
+      "packets_sha256": "584e3c604481c1cd6300184d9414171c14ebb9c05fb090405c6c49a5b487b7f0",
+      "checks": [
+        {
+          "name": "strict_near_fox_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(2) type=Some(\"minecraft:fox\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_fox",
+          "owner": 1,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 4,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      1,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      1.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 2,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 134
+                        },
+                        "entity_type": "minecraft:fox",
+                        "model_tick": null,
+                        "native_entity_id": 2,
+                        "owner_id": 1,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "finite exclusion proof does not qualify nearby numerical contact",
+                        "receive_sequence": 138,
+                        "record_ordinal": 8,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.1008017491988142
+          ],
+          "result": {
+            "status": "accepted"
+          },
+          "frame_count": 12,
+          "strict_refusal": null
+        },
+        {
+          "name": "strict_near_skeleton_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(3) type=Some(\"minecraft:skeleton\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_skeleton",
+          "owner": 2,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 4,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      1,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      1.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 3,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 187
+                        },
+                        "entity_type": "minecraft:skeleton",
+                        "model_tick": null,
+                        "native_entity_id": 3,
+                        "owner_id": 2,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "finite exclusion proof does not qualify nearby numerical contact",
+                        "receive_sequence": 193,
+                        "record_ordinal": 20,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "result": {
+            "status": "accepted"
+          },
+          "frame_count": 13,
+          "strict_refusal": null
+        },
+        {
+          "name": "strict_near_horse_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(5) type=Some(\"minecraft:horse\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_horse",
+          "owner": 3,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 4,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      1,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      1.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 5,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 217
+                        },
+                        "entity_type": "minecraft:horse",
+                        "model_tick": null,
+                        "native_entity_id": 5,
+                        "owner_id": 3,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "finite exclusion proof does not qualify nearby numerical contact",
+                        "receive_sequence": 222,
+                        "record_ordinal": 38,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "result": {
+            "status": "accepted"
+          },
+          "frame_count": 13,
+          "strict_refusal": null
+        },
+        {
+          "name": "near_horse_server_correction",
+          "owner": 4,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      1,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      1.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 5,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 217
+                        },
+                        "entity_type": "minecraft:horse",
+                        "model_tick": null,
+                        "native_entity_id": 5,
+                        "owner_id": 4,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "finite exclusion proof does not qualify nearby numerical contact",
+                        "receive_sequence": 222,
+                        "record_ordinal": 38,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            0.5
+          ],
+          "result": {
+            "correction": {
+              "Pose": {
+                "position": {
+                  "source": {
+                    "Received": {
+                      "sequence": 228
+                    }
+                  },
+                  "value": [
+                    4.5,
+                    65.0,
+                    0.5
+                  ]
+                },
+                "rotation": {
+                  "source": {
+                    "Received": {
+                      "sequence": 228
+                    }
+                  },
+                  "value": [
+                    0.0,
+                    0.0
+                  ]
+                }
+              }
+            },
+            "reason": "server position/rotation correction superseded the action",
+            "snapshot": {
+              "backend": 1,
+              "blocks": [],
+              "player": {
+                "cursor": {
+                  "source": {
+                    "Received": {
+                      "sequence": 49
+                    }
+                  },
+                  "value": "Empty"
+                },
+                "game_mode": "survival",
+                "health": {
+                  "source": {
+                    "Received": {
+                      "sequence": 53
+                    }
+                  },
+                  "value": {
+                    "food": 20,
+                    "health": 20.0,
+                    "saturation": 5.0
+                  }
+                },
+                "inventory": [
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 211
+                      }
+                    },
+                    "value": {
+                      "Item": {
+                        "count": 2,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "name": "minecraft:arrow"
+                      }
+                    }
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  },
+                  {
+                    "source": {
+                      "Received": {
+                        "sequence": 49
+                      }
+                    },
+                    "value": "Empty"
+                  }
+                ],
+                "position": {
+                  "source": {
+                    "Received": {
+                      "sequence": 228
+                    }
+                  },
+                  "value": [
+                    4.5,
+                    65.0,
+                    0.5
+                  ]
+                },
+                "rotation": {
+                  "source": {
+                    "Received": {
+                      "sequence": 228
+                    }
+                  },
+                  "value": [
+                    0.0,
+                    0.0
+                  ]
+                },
+                "selected_hotbar": {
+                  "source": {
+                    "Received": {
+                      "sequence": 32
+                    }
+                  },
+                  "value": 0
+                }
+              },
+              "revision": 228,
+              "version": "Java1_21_11",
+              "world": {
+                "connection": 1,
+                "generation": 29
+              }
+            },
+            "status": "corrected"
+          },
+          "frame_count": 9,
+          "strict_refusal": null
+        },
+        {
+          "name": "drops_after_kill",
+          "owner": 5,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": null,
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "result": {
+            "status": "accepted"
+          },
+          "frame_count": 30,
+          "strict_refusal": null
+        },
+        {
+          "name": "near_spawn_during_same_owner",
+          "owner": 6,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      1,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      1.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 9,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 295
+                        },
+                        "entity_type": "minecraft:fox",
+                        "model_tick": 5,
+                        "native_entity_id": 9,
+                        "owner_id": 6,
+                        "owner_state": "Invalidated",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "finite exclusion proof does not qualify nearby numerical contact",
+                        "receive_sequence": 299,
+                        "record_ordinal": 81,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            6.602098533030632
+          ],
+          "result": {
+            "status": "accepted"
+          },
+          "frame_count": 41,
+          "strict_refusal": null
+        },
+        {
+          "name": "near_living_passenger",
+          "owner": 7,
+          "status": {
+            "status": "running"
+          },
+          "controls": {
+            "forward": 1,
+            "jump": false,
+            "pitch": 0.0,
+            "sneak": false,
+            "sprint": false,
+            "strafe": 0,
+            "yaw": 0.0
+          },
+          "dispatched_ticks": 3,
+          "corrections": 0,
+          "movement_refusal": null,
+          "warning": {
+            "RemoteStateDropped": {
+              "refusal": {
+                "Scoped": {
+                  "geometry": {
+                    "block_position": [
+                      1,
+                      65,
+                      1
+                    ],
+                    "chunk_position": [
+                      0,
+                      0
+                    ],
+                    "entity_position": [
+                      1.5,
+                      65.0,
+                      1.5
+                    ]
+                  },
+                  "refusal": {
+                    "Unsupported": {
+                      "context": {
+                        "entity": {
+                          "native_id": 10,
+                          "session": {
+                            "connection_id": 1,
+                            "version": "Java1_21_11",
+                            "world_generation": 29
+                          },
+                          "spawn_sequence": 312
+                        },
+                        "entity_type": "minecraft:pig",
+                        "model_tick": null,
+                        "native_entity_id": 10,
+                        "owner_id": 7,
+                        "owner_state": "NotAdmitted",
+                        "packet": {
+                          "opcode": 0,
+                          "packet_type": "Metadata"
+                        },
+                        "reason": "living passenger group reaches player contact scope; separate contact origin required",
+                        "receive_sequence": 326,
+                        "record_ordinal": 96,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "result": {
+            "status": "accepted"
+          },
+          "frame_count": 13,
+          "strict_refusal": null
+        }
+      ]
+    }
+  ]
+}

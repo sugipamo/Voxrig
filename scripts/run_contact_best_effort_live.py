@@ -38,10 +38,13 @@ def check(version, command, request, trace, report):
         before = position()
         boundary = trace.mark()
         if modern:
+            previous = request('control_record')
+            previous_owner = previous['session_id'] if previous else None
             identity = request('submit', kind='move', controls=keys, ticks=30 if correct or during else 10)
             assert 'error' not in identity, identity
-            until(lambda: (r := request('control_record')) and r.get('dispatched_ticks', 0) >= 3, 6)
-            record = request('control_record')
+            record = until(lambda: (r if r['session_id'] != previous_owner
+                                    and r.get('dispatched_ticks', 0) >= 3 else None)
+                           if (r := request('control_record')) else None, 6)
             owner = record['session_id']
             if during:
                 assert request('contact_diagnostic', session_id=owner) is None

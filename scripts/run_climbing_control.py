@@ -130,7 +130,7 @@ def run_vehicle_checks(version, vehicle, mode, command, request, trace, report):
 
 
 def run(version, binary, jars, vehicle=None, mode="survival", check=None, server_properties=None,
-        trace_factory=PacketTraceProxy, server_launcher=None):
+        trace_factory=PacketTraceProxy, server_launcher=None, rcon_timeout=10):
     folder = ROOT / (version + "-" + time.strftime("%Y%m%d-%H%M%S"))
     folder.mkdir(parents=True)
     if jars:
@@ -189,6 +189,7 @@ def run(version, binary, jars, vehicle=None, mode="survival", check=None, server
                     return None
 
             rcon = until(connect, 120)
+            rcon.stream.settimeout(rcon_timeout)
 
             def command(text):
                 response = rcon.command(text)

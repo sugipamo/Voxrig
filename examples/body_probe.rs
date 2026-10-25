@@ -102,6 +102,18 @@ async fn main() -> anyhow::Result<()> {
                         .set_controls(serde_json::from_value(v["controls"].clone())?)
                         .await?,
                 )?,
+                "control_set_for" => {
+                    let mode = client.player_state().await?.game_mode.unwrap();
+                    serde_json::to_value(
+                        client
+                            .player_control(mode)
+                            .set_controls_for(
+                                v["session_id"].as_u64().unwrap(),
+                                serde_json::from_value(v["controls"].clone())?,
+                            )
+                            .await?,
+                    )?
+                }
                 "control_record" => {
                     serde_json::to_value(client.survival().control_record().await?)?
                 }

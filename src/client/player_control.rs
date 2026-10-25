@@ -70,6 +70,10 @@ impl PlayerControl {
     /// If contact admission, refresh or prediction fails, retain its diagnostic,
     /// discard the entire remote contact model for this owner and predict using
     /// local terrain only. World, owner, own-player and mode checks still apply.
+    /// Passenger/relationship history gaps, scope re-entry/reselection and
+    /// sweep overruns are warnings through `contact_diagnostic_for`, never a
+    /// request to replace this owner. Corrections re-anchor on the received pose
+    /// and discard any remote numerical state tied to the previous origin.
     /// Dispatch is not acceptance: inspect corrections or use `body::Move` on
     /// Java 1.21.11 for bounded acceptance. `start_control` remains strict.
     pub async fn start_control_best_effort(&self) -> Result<super::control::ControlRecord> {
@@ -79,6 +83,9 @@ impl PlayerControl {
     /// Frozen cause of omitted contacts for the selected owner, including after
     /// it stops. None means no contact failure was omitted. A replaced ID refuses.
     /// This diagnostic does not establish server acceptance or invalidate control.
+    /// `MovementRefusal::RemoteStateDropped` explicitly marks the warning; its
+    /// inner cause's owner state and replacement advice concern the strict
+    /// contact model. Read `ControlRecord.status` for the control owner's state.
     pub async fn contact_diagnostic_for(
         &self,
         session_id: u64,
