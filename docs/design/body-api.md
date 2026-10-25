@@ -139,6 +139,9 @@ Acceptedとなる。これはチャット配信・コマンド成功・食料消
 `use_item_expect` の選択・受信item ID照合は同じ受信ロック内に残す。
 
 Moveはsteps 1–2のbest-effort contactとRemoteStateDropped診断を使う。
+step 5では両版の未知地形も最大0.1 blockのbounded probe（証拠更新なしで20 tick）にし、
+`PlayerControl::walking_diagnostics_for`で警告を保持する。strictの床支持・静止証明は要求しない。
+補正はCorrected、証拠不足の長期化は既存absolute deadlineでUnknownとなる。
 受信poseへの補正はCorrected、world変更・接続喪失・期限切れはUnknownとなる。
 同じ接続の既存strict controlと有限path APIは診断用として残し、意味を変更しない。
 未知地形や有限歩行の静止条件の緩和はstep 5、他領域のunresolved gate整理はstep 6の範囲。

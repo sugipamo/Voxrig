@@ -66,18 +66,51 @@ impl PlayerControl {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_control(a, self.mode).await)
     }
 
-    /// Start ground movement with best-effort remote entity prediction.
+    /// Start ground movement with best-effort entity and terrain prediction.
     /// If contact admission, refresh or prediction fails, retain its diagnostic,
     /// discard the entire remote contact model for this owner and predict using
-    /// local terrain only. World, owner, own-player and mode checks still apply.
+    /// local terrain only. Unavailable terrain uses coordinate probes of at most
+    /// 0.1 blocks horizontally and 0.1 vertically per tick, for at most 20 ticks
+    /// without a new received pose or a usable local terrain tick. At the bound,
+    /// the same owner pauses and retries terrain; it does not invent support.
+    /// With no vertical momentum, probes keep their height. Speculative probes
+    /// never claim on-ground or apply jumps. See `walking_diagnostics_for`.
+    /// World, owner, own-player and mode checks still apply.
     /// Passenger/relationship history gaps, scope re-entry/reselection and
     /// sweep overruns are warnings through `contact_diagnostic_for`, never a
     /// request to replace this owner. Corrections re-anchor on the received pose
     /// and discard any remote numerical state tied to the previous origin.
     /// Dispatch is not acceptance: inspect corrections or use `body::Move` on
-    /// Java 1.21.11 for bounded acceptance. `start_control` remains strict.
+    /// both versions for bounded acceptance. `start_control` remains strict.
     pub async fn start_control_best_effort(&self) -> Result<super::control::ControlRecord> {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_control_best_effort(a, self.mode).await)
+    }
+
+    /// Walk 1..120 route inputs using the best-effort ground owner, without
+    /// exact-zero velocity, full floor support or a settled endpoint requirement.
+    /// Each input is written once at 50 ms spacing. The connection owns the run
+    /// after admission, even if the caller drops its future. Corrections re-anchor
+    /// the same owner and remaining inputs; they never replay earlier inputs.
+    /// Input replacement refuses while this finite path owns the schedule.
+    /// Completion releases keys; inspect `walking_diagnostics_for` and corrections.
+    /// Dispatch is not acceptance. A bounded evidence deadline stops a stalled
+    /// route; the strict `Survival::start_predicted_path` remains diagnostic.
+    pub async fn start_path_best_effort(
+        &self,
+        controls: &[super::survival::SurvivalControl],
+    ) -> Result<super::control::ControlRecord> {
+        super::survival::model::validate_controls(controls)?;
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_path_best_effort(a, self.mode, controls).await)
+    }
+
+    /// Terrain warnings and finite route progress for this exact owner, including
+    /// after stopping. A stale ID refuses. Reading diagnostics sends no packets,
+    /// replenishes no speculative walking budget and grants no acceptance.
+    pub async fn walking_diagnostics_for(
+        &self,
+        session_id: u64,
+    ) -> Result<super::control::WalkingDiagnostics> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::walking_diagnostics_for(a, session_id).await)
     }
 
     /// Frozen cause of omitted contacts for the selected owner, including after

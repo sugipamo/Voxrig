@@ -420,3 +420,59 @@ rider lifetime 欠落、近傍 living passenger、
 proxy は受信 bytes を変更しない。RCON 座標と同じ owner の dispatch を別々に検査する。
 履歴警告の [両版の実測](evidence/contact-history-warnings-live-20261025.json) に、
 元の typed cause、継続した入力と owner、独立した座標、source / binary / JAR の fingerprint を保存した。
+
+## 未証明地形でのbest-effort歩行（step 5）
+
+両版の`body::Action::Move`と`PlayerControl::start_control_best_effort()`は、
+未知chunk/section・未登録state・位置依存shape・衝突データ不足を送信前の拒否にしない。
+既知地形では既存の物理予測を使い、地形計算だけが失敗した場合は短い座標probeを送る。
+1.21.11でpiston reconstruction全体の履歴が欠ける場合も、警告を残して受信済みの
+static block cacheで予測する。そのcellが未知/未対応なら同じbounded probeへ進む。
+strictのreconstruction状態やreceiptは書き換えず、遠方の履歴不足を既知の足元の永久停止にしない。
+入力値・自分のmode/scale/装備環境の検証はその前に行い、地形fallbackで迂回しない。
+エラー文言を比較せず、地形計算の境界で付ける内部の型付き原因を使う。
+
+probeは水平距離最大0.1 block、垂直変位の絶対値最大0.1 block/tick。
+斜め入力も水平距離を正規化し、sprintで上限を増やさない。sneakとitem-useは減速する。
+床は推定で捏造せず、`on_ground=false`とし、未証明のjump impulseは適用しない。
+垂直のmomentumがない場合はその高さで試行し、ある場合は小さく制限して引き継ぐ。
+これはバニラ物理の再現保証ではない。地形が利用可能になれば通常の重力・衝突予測へ戻る。
+未知cellをair/solidとしてcacheに登録することはない。
+
+`PlayerControl::walking_diagnostics_for(id).terrain`は失敗理由・未証明tick数・証拠待ちを保持する。
+新しいown-pose補正または正常な地形計算なしに送れるprobeは最大20 tick（約1秒）。
+上限では同じownerが`Paused`になり、座標送信を止めて地形の再試行を続ける。
+同じ古いposeを読み直しても、ownerを停止・再作成しても、この予算は補充しない。
+新しい補正は座標へ再起点を取り、古いremote数値状態を捨て、同じheld inputで続行する。
+単なるvelocity更新や警告の読取りでは予算を補充しない。
+bodyは既存のabsolute deadlineで`Unknown`へ終端し、永久に待たない。
+`Corrected`は受信したrollback通知であり、失敗した入力の自動再送を意味しない。
+
+有限経路には`PlayerControl::start_path_best_effort(&[SurvivalControl])`を追加した。
+1〜120個の入力をconnectionが50ms間隔で所有して送信し、完全送信後は入力を解除する。
+厳密な初速0・完全床支持・解放後静止の証明は要求しない。
+`PlayerControl::walking_diagnostics_for(id).path`に予定tick数と完全送信数を残す。途中補正でも同じownerで残りだけを実行する。
+予定入力の上書きは拒否し、変更には選択ownerの明示停止を使う。
+証拠不足等で進めない経路は`(入力数 + 20) × 50ms + 1秒`の期限で停止・解除する。
+`Stopped`や完全送信はserver受理そのものではなく、補正の観測は別に行う。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn walk(client: &Client) -> Result<()> {
+let control = client.player_control(GameMode::Survival);
+let path = [SurvivalControl {
+    yaw: 0.0,
+    input: SurvivalInput { forward: 1, ..Default::default() },
+}; 8];
+let owner = control.start_path_best_effort(&path).await?;
+let record = control.control_record().await?;
+# let _ = (owner, record);
+# Ok(())
+# }
+```
+
+`start_control`・`preview_path`・`start_predicted_path`と既存receiptの意味は維持した。
+完全予測を要求する診断では従来の拒否を読める。通常送信には上記の明示opt-inかbodyを使う。
+connection/world/spawn/owner、mode、死亡・乗車・飛行の照合と入力の有限値・範囲制限を維持する。
+inventory等のunresolved gate分割とdig見積りの緩和（step 6–7）は対象外。
+公式server実機の再現は`scripts/run_walk_unknown_live.py`を参照。

@@ -1,0 +1,834 @@
+{
+  "base": "2ffd6fc1437f75774eb3a26bfdb8dbad8fe6d94a",
+  "source_sha256": {
+    "CHANGELOG.md": "1b3eeb7b4d37c02376e61acbfae95d4da7008c34c10ad892c83a9235cc890101",
+    "Cargo.toml": "e32d09cc5c6e27034450c6e74babb903506683cf1100f88edaebea5879b93dc2",
+    "docs/common-control.md": "4116a4872caa6a2297b1ca3740a9ace2a9df9ec098bde968262f59477e88f4e1",
+    "docs/common-survival-motion.md": "edb23586310b76de290b773bd3feb96cd5d47d9fc5909f92803ff027583644e2",
+    "docs/design/body-api.md": "49c6cbb417d02d3ac27d58826c23e00532abc062fe633f25144e02b3fc45e819",
+    "examples/body_probe.rs": "a9ed8bc7970576c0b83efdc48d07e143621d86b173ed8c650cfeaea034fd7c66",
+    "src/body/mod.rs": "ae495aa685612d0bd257c4d5fd041c9f1da38d628e80fcbb70df1dd2dd82146d",
+    "src/client/adapter.rs": "54e5da44ef598f53ec8f01a80c18c4cd5d0ac05db5fa967639198ecde7665919",
+    "src/client/control.rs": "01ca20acc7e56c94e591f642f51d674365705708b473a4b158a75cb53937a222",
+    "src/client/entity/scope.rs": "4872336e27b15e0caf73fa3f68f27c502b2f58042d7a8de37a21a341eacd2b66",
+    "src/client/physics/mod.rs": "bd1063db4be57ad438ea1bde17ac029fd7c0beda35f405bc85c7b85f86d94512",
+    "src/client/player_control.rs": "773d6cc7732f118f53f002e77d9ced883dab49e339a1c0fcda349dd7f35a9dda",
+    "src/client/tests.rs": "6dd9ac2117291b7a089c341ccecd6a001d2267fae799769489a1c6de8a9483fa",
+    "src/versions/java_1_16_1/client/common_control.rs": "d5f2d4183629bdb25a2cea9dc2f278be80e0d8f8fbf7c7614b59d87cb736dd1f",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "f53280bdb489c6854720c8a46fd255f4e2959f7d23f826a9c0e4311b7b014d47",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "18484c6537242a0f16051cd3a1c8067242c7ae3eb6ec496ba43483f1b4db5519",
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "scripts/run_walk_unknown_live.py": "d7e2636420a0508136dc5929ff0d10456bd3c04dae1cc0390a4b62df9e0a8635",
+    "scripts/run_climbing_control.py": "3312615f26fff487aed3ea7bee8d32e289a9c18e62e843026acf95244fad9655",
+    "scripts/run_common_native.py": "c0bcc73222f58997790c82ae9abefcc4a8cccac656cab868c4929f897b695ab8",
+    "docs/evidence/contact-envelopes-20261015.json": "7fb2c15e02b8819e9b82225e8a02d7b302fbc35d3aa11ee1d88fbf919b84a0b8",
+    "docs/evidence/player-contact-scope-20261024.json": "f88bbd04a250fbec327df685b68ec73aa4161ef8895d79bc08565c92dbc2b5f5",
+    "docs/evidence/contact-scope-regression-20261025.json": "483574535f4569f6ef8ca4b32eff6694943815146d027aeee1782d6a4db8fdb0"
+  },
+  "binary_sha256": "90c419e8d78c8233fe6f11d2a04ebdf0b4ff249362c8e4d98dfd9bb8ccb162b2",
+  "contract": "Body Move uses complete requested writes plus bounded no-correction settling; finite and continuous PlayerControl records remain dispatch/model diagnostics, not acceptance receipts.",
+  "unknown_fixture": "Delay original chunk packets after a server teleport into a never-received distant column. No packet bytes, SDK caches or collision tables are edited.",
+  "correction_fixture": "Original official-server teleport via loopback RCON during walking; not claimed as spontaneous collision rejection.",
+  "limits": {
+    "horizontal_blocks_per_probe": 0.1,
+    "absolute_vertical_blocks_per_probe": 0.1,
+    "max_ticks_without_fresh_pose_or_usable_terrain": 20
+  },
+  "reports": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "report_artifact": "docs/evidence/walk-unknown-live-1.16.1-20261025.json.gz",
+      "report_sha256": "e9a00a453b04560b22551b90fe845bde99672481f4319c50fc2dfe514da021bf",
+      "packets_sha256": "86295edf98605da9713fdd79b7edd1e3fc429142327eacc7984ab7e7dfc50642",
+      "checks": [
+        {
+          "name": "partial_edge_support",
+          "result_status": "accepted",
+          "native_before": [
+            1.05,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            -0.3061945842893321,
+            65.0,
+            0.5
+          ],
+          "owner": 1,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "slabs_stairs",
+          "result_status": "accepted",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            66.0,
+            7.033816666371718
+          ],
+          "owner": 2,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 32,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "drop_from_known_shapes",
+          "result_status": "accepted",
+          "native_before": [
+            0.5,
+            66.0,
+            7.033816666371718
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            0.8173245287923496
+          ],
+          "owner": 3,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 32,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "walking_beside_fences",
+          "result_status": "accepted",
+          "native_before": [
+            2.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            2.5,
+            65.0,
+            2.716901521813536
+          ],
+          "owner": 4,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 12,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "unprovable_shape_body",
+          "result_status": "accepted",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            1.3
+          ],
+          "owner": 5,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "context-dependent collision shape: minecraft:moving_piston: context-dependent collision shape: minecraft:moving_piston",
+            "unproven_ticks": 8,
+            "waiting_for_evidence": false
+          },
+          "path": null,
+          "strict_refusal": {
+            "error": "unsupported dry terrain state minecraft:moving_piston {\"facing\": \"north\", \"type\": \"normal\"} (Java1_16_1)"
+          }
+        },
+        {
+          "name": "unprovable_shape_route",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            0.5,
+            65.0,
+            1.3
+          ],
+          "owner": 6,
+          "status": {
+            "reason": "best-effort path fully dispatched; acceptance is separate",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "context-dependent collision shape: minecraft:moving_piston: context-dependent collision shape: minecraft:moving_piston",
+            "unproven_ticks": 8,
+            "waiting_for_evidence": false
+          },
+          "path": {
+            "dispatched_ticks": 8,
+            "total_ticks": 8
+          }
+        },
+        {
+          "name": "finite_route_correction_reanchors_without_replay",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            4.5,
+            65.0,
+            2.74715846521715
+          ],
+          "owner": 7,
+          "status": {
+            "reason": "best-effort path fully dispatched; acceptance is separate",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 16,
+          "corrections": 1,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "context-dependent collision shape: minecraft:moving_piston: context-dependent collision shape: minecraft:moving_piston",
+            "unproven_ticks": 0,
+            "waiting_for_evidence": false
+          },
+          "path": {
+            "dispatched_ticks": 16,
+            "total_ticks": 16
+          }
+        },
+        {
+          "name": "continuous_correction_reanchors_same_owner",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            4.5,
+            65.0,
+            1.2523105449838488
+          ],
+          "owner": 8,
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 11,
+          "corrections": 1,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "context-dependent collision shape: minecraft:moving_piston: context-dependent collision shape: minecraft:moving_piston",
+            "unproven_ticks": 0,
+            "waiting_for_evidence": false
+          },
+          "path": null
+        },
+        {
+          "name": "body_pose_corrected",
+          "result_status": "corrected",
+          "native_before": null,
+          "native_after": null,
+          "owner": null,
+          "status": null,
+          "dispatched_ticks": null,
+          "corrections": null,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "body_after_correction",
+          "result_status": "accepted",
+          "native_before": [
+            4.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            1.6725157903325687
+          ],
+          "owner": 10,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "unloaded_chunk_body",
+          "result_status": "accepted",
+          "native_before": [
+            1024.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            1024.5,
+            65.0,
+            0.9999999999999999
+          ],
+          "owner": 11,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 0]) chunk=Some([64, 0])]: motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 0]) chunk=Some([64, 0])]",
+            "unproven_ticks": 5,
+            "waiting_for_evidence": false
+          },
+          "path": null
+        },
+        {
+          "name": "unloaded_chunk_route",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            1024.5,
+            65.0,
+            1.8000000000000005
+          ],
+          "owner": 12,
+          "status": {
+            "reason": "best-effort path fully dispatched; acceptance is separate",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 1]) chunk=Some([64, 0])]: motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 1]) chunk=Some([64, 0])]",
+            "unproven_ticks": 13,
+            "waiting_for_evidence": false
+          },
+          "path": {
+            "dispatched_ticks": 8,
+            "total_ticks": 8
+          }
+        },
+        {
+          "name": "no_fresh_evidence_bounded_across_owners",
+          "result_status": null,
+          "native_before": null,
+          "native_after": null,
+          "owner": 13,
+          "status": {
+            "reason": "bounded walking awaits fresh pose or usable terrain",
+            "status": "paused"
+          },
+          "dispatched_ticks": 7,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 2]) chunk=Some([64, 0])]: motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 2]) chunk=Some([64, 0])]",
+            "unproven_ticks": 20,
+            "waiting_for_evidence": true
+          },
+          "path": null
+        },
+        {
+          "name": "fresh_chunk_resumes_same_owner",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            1024.5,
+            65.0,
+            3.60950091316334
+          ],
+          "owner": 13,
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 13,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 2]) chunk=Some([64, 0])]: motion geometry is not loaded [entity=None type=None position=None block=Some([1024, 65, 2]) chunk=Some([64, 0])]",
+            "unproven_ticks": 0,
+            "waiting_for_evidence": false
+          },
+          "path": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "report_artifact": "docs/evidence/walk-unknown-live-1.21.11-20261025.json.gz",
+      "report_sha256": "fc604164bdfb0dc1d644e2aec87dd221934fc3e71d961d6ff2ddb07c25dd97a3",
+      "packets_sha256": "f1eb0c4e62ad17fdda66acd5508e87e9b0b02d27051cf2fbe1135c267a1f01fb",
+      "checks": [
+        {
+          "name": "partial_edge_support",
+          "result_status": "accepted",
+          "native_before": [
+            1.05,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            -0.12251579033256868,
+            65.0,
+            0.5
+          ],
+          "owner": 1,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "slabs_stairs",
+          "result_status": "accepted",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            66.0,
+            7.0338166663717185
+          ],
+          "owner": 2,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 32,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "drop_from_known_shapes",
+          "result_status": "accepted",
+          "native_before": [
+            0.5,
+            66.0,
+            7.0338166663717185
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            1.0302338340425043
+          ],
+          "owner": 3,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 32,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "walking_beside_fences",
+          "result_status": "accepted",
+          "native_before": [
+            2.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            2.5,
+            65.0,
+            2.7169015218135364
+          ],
+          "owner": 4,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 12,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "unprovable_shape_body",
+          "result_status": "accepted",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            1.3
+          ],
+          "owner": 5,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "context-dependent collision shape: minecraft:moving_piston: context-dependent collision shape: minecraft:moving_piston",
+            "unproven_ticks": 8,
+            "waiting_for_evidence": false
+          },
+          "path": null,
+          "strict_refusal": {
+            "error": "client reconstruction incomplete"
+          }
+        },
+        {
+          "name": "unprovable_shape_route",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            0.5,
+            65.0,
+            1.3
+          ],
+          "owner": 6,
+          "status": {
+            "reason": "best-effort path fully dispatched; acceptance is separate",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "context-dependent collision shape: minecraft:moving_piston: context-dependent collision shape: minecraft:moving_piston",
+            "unproven_ticks": 8,
+            "waiting_for_evidence": false
+          },
+          "path": {
+            "dispatched_ticks": 8,
+            "total_ticks": 8
+          }
+        },
+        {
+          "name": "finite_route_correction_reanchors_without_replay",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            4.5,
+            65.0,
+            2.74715846521715
+          ],
+          "owner": 7,
+          "status": {
+            "reason": "best-effort path fully dispatched; acceptance is separate",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 16,
+          "corrections": 1,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "incomplete piston reconstruction omitted; using received static block cache",
+            "unproven_ticks": 0,
+            "waiting_for_evidence": false
+          },
+          "path": {
+            "dispatched_ticks": 16,
+            "total_ticks": 16
+          }
+        },
+        {
+          "name": "continuous_correction_reanchors_same_owner",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            4.5,
+            65.0,
+            1.6725157903325687
+          ],
+          "owner": 8,
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 11,
+          "corrections": 1,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "incomplete piston reconstruction omitted; using received static block cache",
+            "unproven_ticks": 0,
+            "waiting_for_evidence": false
+          },
+          "path": null
+        },
+        {
+          "name": "body_pose_corrected",
+          "result_status": "corrected",
+          "native_before": null,
+          "native_after": null,
+          "owner": null,
+          "status": null,
+          "dispatched_ticks": null,
+          "corrections": null,
+          "movement_refusal": null,
+          "terrain": null,
+          "path": null
+        },
+        {
+          "name": "body_after_correction",
+          "result_status": "accepted",
+          "native_before": [
+            4.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            1.6725157903325687
+          ],
+          "owner": 10,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "incomplete piston reconstruction omitted; using received static block cache",
+            "unproven_ticks": 0,
+            "waiting_for_evidence": false
+          },
+          "path": null
+        },
+        {
+          "name": "unloaded_chunk_body",
+          "result_status": "accepted",
+          "native_before": [
+            1024.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            1024.5,
+            65.0,
+            0.9999999999999999
+          ],
+          "owner": 11,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "received terrain is not loaded [entity=None type=None position=None block=Some([1024, 65, 0]) chunk=Some([64, 0])]: received terrain is not loaded [entity=None type=None position=None block=Some([1024, 65, 0]) chunk=Some([64, 0])]",
+            "unproven_ticks": 5,
+            "waiting_for_evidence": false
+          },
+          "path": null
+        },
+        {
+          "name": "unloaded_chunk_route",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            1024.5,
+            65.0,
+            1.8000000000000005
+          ],
+          "owner": 12,
+          "status": {
+            "reason": "best-effort path fully dispatched; acceptance is separate",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 8,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "received terrain is not loaded [entity=None type=None position=None block=Some([1024, 65, 1]) chunk=Some([64, 0])]: received terrain is not loaded [entity=None type=None position=None block=Some([1024, 65, 1]) chunk=Some([64, 0])]",
+            "unproven_ticks": 13,
+            "waiting_for_evidence": false
+          },
+          "path": {
+            "dispatched_ticks": 8,
+            "total_ticks": 8
+          }
+        },
+        {
+          "name": "no_fresh_evidence_bounded_across_owners",
+          "result_status": null,
+          "native_before": null,
+          "native_after": null,
+          "owner": 13,
+          "status": {
+            "reason": "bounded walking awaits fresh pose or usable terrain",
+            "status": "paused"
+          },
+          "dispatched_ticks": 7,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "received terrain is not loaded [entity=None type=None position=None block=Some([1024, 65, 2]) chunk=Some([64, 0])]: received terrain is not loaded [entity=None type=None position=None block=Some([1024, 65, 2]) chunk=Some([64, 0])]",
+            "unproven_ticks": 20,
+            "waiting_for_evidence": true
+          },
+          "path": null
+        },
+        {
+          "name": "fresh_chunk_resumes_same_owner",
+          "result_status": null,
+          "native_before": null,
+          "native_after": [
+            1024.5,
+            65.0,
+            3.393801734917842
+          ],
+          "owner": 13,
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 12,
+          "corrections": 0,
+          "movement_refusal": null,
+          "terrain": {
+            "reason": "incomplete piston reconstruction omitted; using received static block cache",
+            "unproven_ticks": 0,
+            "waiting_for_evidence": false
+          },
+          "path": null
+        }
+      ]
+    }
+  ],
+  "local_checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 2.8
+    },
+    {
+      "name": "clippy-default",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "-j2",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 8.9
+    },
+    {
+      "name": "clippy-native",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "-j2",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 8.4
+    },
+    {
+      "name": "test-default",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--all-targets",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 277.1
+    },
+    {
+      "name": "test-native",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 366.1
+    },
+    {
+      "name": "doc",
+      "command": [
+        "cargo",
+        "test",
+        "--doc"
+      ],
+      "exit_code": 0,
+      "seconds": 2.9
+    }
+  ],
+  "public_api": {
+    "classification": "additive",
+    "existing_control_record_layout_unchanged": true,
+    "new_methods": [
+      "PlayerControl::start_path_best_effort",
+      "PlayerControl::walking_diagnostics_for"
+    ]
+  },
+  "existing_audit_payloads_unchanged_except_source_bindings": true
+}

@@ -1516,15 +1516,16 @@ mod tests {
             assert!(session.entity_contacts.is_none());
             assert!(session.contact_diagnostic.is_some());
             assert!(session.running());
-            // Own terrain remains a real prediction prerequisite (step 5 later).
+            // Missing own terrain uses a bounded coordinate probe as well.
             let result = session
                 .step(&received, &mut |_| Err(permanent("missing own terrain")))
                 .unwrap();
-            assert!(result.is_none());
-            assert!(matches!(
+            assert!(result.is_some());
+            assert_eq!(
                 session.status,
-                crate::client::control::ControlStatus::Paused { .. }
-            ));
+                crate::client::control::ControlStatus::Running
+            );
+            assert!(session.walking_diagnostics().terrain.is_some());
         }
     }
 
