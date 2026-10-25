@@ -1395,6 +1395,131 @@ mod tests {
             )
             .map(|_| ())
     }
+    fn controller(
+        version: V,
+    ) -> (
+        crate::client::control::ControlSession,
+        crate::client::control::Received,
+    ) {
+        let received = crate::client::control::Received {
+            abilities_sequence: None,
+            environment: Environment::defaults(version),
+            pose: None,
+            velocity: None,
+            using_item: None,
+        };
+        (
+            crate::client::control::ControlSession::from_model(
+                version,
+                10,
+                body(),
+                [0.; 2],
+                &received,
+            ),
+            received,
+        )
+    }
+    fn walk(
+        session: &mut crate::client::control::ControlSession,
+        received: &crate::client::control::Received,
+    ) {
+        session.controls.forward = 1;
+        let version = session.version;
+        let output = session
+            .step(received, &mut |p| {
+                Ok(state(
+                    version,
+                    if p[1] < 65 {
+                        "minecraft:stone"
+                    } else {
+                        "minecraft:air"
+                    },
+                ))
+            })
+            .unwrap()
+            .unwrap();
+        session.dispatched(&output);
+    }
+
+    #[test]
+    fn best_effort_near_contacts_are_diagnostics_and_same_owner_keeps_walking() {
+        for version in VERSIONS {
+            for name in ["fox", "skeleton", "horse", "witch"] {
+                let mut ledger = SpawnLedger::default();
+                spawn(&mut ledger, version, 7, name, 1.5, 1);
+                let error = owner(version, &ledger, 1, 256).unwrap_err();
+                let (mut session, received) = controller(version);
+                assert!(!session.omit_contacts(&error)); // strict remains strict
+                session.best_effort_contacts = true;
+                assert!(session.omit_contacts(&error));
+                let original = error.movement_refusal().unwrap();
+                assert_eq!(session.contact_diagnostic.as_ref(), Some(original));
+                let start = session.body.position;
+                for _ in 0..8 {
+                    walk(&mut session, &received);
+                }
+                assert!(session.body.position[2] > start[2] + 0.5);
+                assert_eq!(session.id, 10);
+                assert_eq!(session.dispatched_ticks, 8);
+                assert!(session.running());
+                assert!(session.movement_refusal.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn best_effort_refresh_and_staged_sweep_failures_discard_remote_state_only() {
+        for version in VERSIONS {
+            // A new near spawn can invalidate an already running strict model.
+            let mut ledger = SpawnLedger::default();
+            ledger.contact_local_player(99);
+            ledger.history_context(version, 3, 1);
+            let (mut session, received) = controller(version);
+            session.best_effort_contacts = true;
+            session.contacts = Some(owner(version, &ledger, 1, 256).unwrap());
+            walk(&mut session, &received);
+            spawn(&mut ledger, version, 7, "horse", 1.5, 2);
+            let error = session
+                .contacts
+                .as_mut()
+                .unwrap()
+                .refresh_player(10, &ledger, 2, (&session.body, &received.environment))
+                .unwrap_err();
+            assert!(session.omit_contacts(&error));
+            walk(&mut session, &received);
+            assert_eq!(session.dispatched_ticks, 2);
+            assert!(session.contacts.is_none());
+
+            // A staged tick fails after admission: retry from the untouched own
+            // body exactly once, producing the same frame as terrain-only physics.
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "fox", 100., 1);
+            let (mut session, received) = controller(version);
+            session.best_effort_contacts = true;
+            session.contacts = Some(owner(version, &ledger, 1, 256).unwrap());
+            session.body.teleport(version, [100., 65., 0.5]);
+            let (mut expected, _) = controller(version);
+            expected.body = session.body.clone();
+            walk(&mut expected, &received);
+            walk(&mut session, &received);
+            assert_eq!(session.body.position, expected.body.position);
+            assert_eq!(session.body.velocity, expected.body.velocity);
+            assert!(session.contacts.is_none());
+            assert!(session.entity_contacts.is_none());
+            assert!(session.contact_diagnostic.is_some());
+            assert!(session.running());
+            // Own terrain remains a real prediction prerequisite (step 5 later).
+            let result = session
+                .step(&received, &mut |_| Err(permanent("missing own terrain")))
+                .unwrap();
+            assert!(result.is_none());
+            assert!(matches!(
+                session.status,
+                crate::client::control::ControlStatus::Paused { .. }
+            ));
+        }
+    }
+
     #[test]
     fn proven_no_contact_classes_need_no_geometry_and_cannot_hide_a_rider() {
         for version in VERSIONS {

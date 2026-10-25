@@ -1,0 +1,447 @@
+{
+  "base": "9835582e7190981aa5190e45619b8c655d31a577",
+  "source_sha256": {
+    "src/client/control.rs": "168e6e8bacbe7a4dd252a1835e27af1dda7794a87cc2511fc2b71a1075a42c18",
+    "src/client/adapter.rs": "540e0909b3ec07739d38030c7d3f784e48fcfab72c946c1592d9f90dc2bbe1a4",
+    "src/client/player_control.rs": "96fa9eb55c1c81a07a7f4970bed49a4c057755811d3724aacd971c752fd2cf49",
+    "src/body/headless.rs": "cef6e05c37fc857e9a9a39fb006752d94d2a6f323b6ec8a7aeac8949c0aa99e0",
+    "src/client/entity/scope.rs": "343c05079b5208edc08e676d4792214d4beccf943743cc4df21f16190ed8aeda",
+    "src/versions/java_1_16_1/client/common_control.rs": "572b1ecf16323159b80d4e508f327888afd3b5289465ec7632fe33e7b15cc2c2",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "2d2ace9a10b54ebdd6ef7a7433fbe557d0a67fa7c8f36e637f2f8f341aef1072",
+    "examples/body_probe.rs": "0ce57fc53c954066623388359fc455c81d28b26a211f1816ae3217a06d1972ab",
+    "scripts/run_contact_best_effort_live.py": "75e9c3bf2573ec2580cdf241acb8f62918f4bb33a3ce573239bdcb88f0b7e3d4"
+  },
+  "correction_method": "Original server teleport via loopback RCON during movement; not a spontaneous contact rejection.",
+  "native_contract": "Explicit PlayerControl opt-in; complete writes and received corrections are diagnostics, not body acceptance.",
+  "reports": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "sdk": {
+        "binary_sha256": "f451b8609e1697c6278ae715f0fe9ce33853e9d1459b5a9bd30e0f2ee97c134c"
+      },
+      "raw_report": "/home/dev/work/Voxrig-rx1/.local/climbing/live/1.16.1-20261025-070802/report.json",
+      "raw_report_sha256": "395f364c7eb1019fa59cb4d316caebb6db97409a838c1e1c91fdb68af4d9ab31",
+      "checks": [
+        {
+          "name": "strict_near_fox_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(37) type=Some(\"minecraft:fox\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_fox",
+          "owner": 2,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 11,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.242966584937299
+          ],
+          "correction": null,
+          "frames": 18
+        },
+        {
+          "name": "strict_near_skeleton_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(38) type=Some(\"minecraft:skeleton\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_skeleton",
+          "owner": 4,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 10,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432373
+          ],
+          "correction": null,
+          "frames": 26
+        },
+        {
+          "name": "strict_near_horse_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(40) type=Some(\"minecraft:horse\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_horse",
+          "owner": 6,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 11,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.501263819991173
+          ],
+          "correction": null,
+          "frames": 24
+        },
+        {
+          "name": "near_horse_server_correction",
+          "owner": 7,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 13,
+          "corrections": 1,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            0.6711080113648775
+          ],
+          "correction": null,
+          "frames": 38
+        },
+        {
+          "name": "drops_after_kill",
+          "owner": 8,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 11,
+          "corrections": 0,
+          "diagnostic": null,
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.242966584937299
+          ],
+          "correction": null,
+          "frames": 13
+        },
+        {
+          "name": "near_spawn_during_same_owner",
+          "owner": 9,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 11,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.242966584937299
+          ],
+          "correction": null,
+          "frames": 24
+        },
+        {
+          "name": "near_living_passenger",
+          "owner": 10,
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 11,
+          "corrections": 0,
+          "diagnostic": "living passenger group reaches player contact scope; separate contact origin required",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.242966584937299
+          ],
+          "correction": null,
+          "frames": 34
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "sdk": {
+        "binary_sha256": "f451b8609e1697c6278ae715f0fe9ce33853e9d1459b5a9bd30e0f2ee97c134c"
+      },
+      "raw_report": "/home/dev/work/Voxrig-rx1/.local/climbing/live/1.21.11-20261025-070803/report.json",
+      "raw_report_sha256": "6849d44dbfd777e919ab83919da77c13077cf57f1a869596fd5db9477169849d",
+      "checks": [
+        {
+          "name": "strict_near_fox_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(2) type=Some(\"minecraft:fox\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_fox",
+          "owner": 1,
+          "status": "accepted",
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 3,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.1008017491988142
+          ],
+          "correction": null,
+          "frames": 14
+        },
+        {
+          "name": "strict_near_skeleton_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(3) type=Some(\"minecraft:skeleton\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_skeleton",
+          "owner": 2,
+          "status": "accepted",
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "correction": null,
+          "frames": 14
+        },
+        {
+          "name": "strict_near_horse_remains_available",
+          "strict_refusal": {
+            "error": "finite exclusion proof does not qualify nearby numerical contact [entity=Some(5) type=Some(\"minecraft:horse\") position=Some([1.5, 65.0, 1.5]) block=Some([1, 65, 1]) chunk=Some([0, 0])]"
+          }
+        },
+        {
+          "name": "near_horse",
+          "owner": 3,
+          "status": "accepted",
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 3,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "correction": null,
+          "frames": 14
+        },
+        {
+          "name": "near_horse_server_correction",
+          "owner": 4,
+          "status": "corrected",
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            4.5,
+            65.0,
+            0.5
+          ],
+          "correction": {
+            "Pose": {
+              "position": {
+                "source": {
+                  "Received": {
+                    "sequence": 233
+                  }
+                },
+                "value": [
+                  4.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "rotation": {
+                "source": {
+                  "Received": {
+                    "sequence": 233
+                  }
+                },
+                "value": [
+                  0.0,
+                  0.0
+                ]
+              }
+            }
+          },
+          "frames": 12
+        },
+        {
+          "name": "drops_after_kill",
+          "owner": 5,
+          "status": "accepted",
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 3,
+          "corrections": 0,
+          "diagnostic": null,
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "correction": null,
+          "frames": 18
+        },
+        {
+          "name": "near_spawn_during_same_owner",
+          "owner": 6,
+          "status": "accepted",
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 5,
+          "corrections": 0,
+          "diagnostic": "finite exclusion proof does not qualify nearby numerical contact",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            6.602098533030632
+          ],
+          "correction": null,
+          "frames": 41
+        },
+        {
+          "name": "near_living_passenger",
+          "owner": 7,
+          "status": "accepted",
+          "running_record": {
+            "status": "running"
+          },
+          "dispatched_ticks": 3,
+          "corrections": 0,
+          "diagnostic": "living passenger group reaches player contact scope; separate contact origin required",
+          "native_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "native_after": [
+            0.5,
+            65.0,
+            2.2858101848432377
+          ],
+          "correction": null,
+          "frames": 13
+        }
+      ]
+    }
+  ]
+}

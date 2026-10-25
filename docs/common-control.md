@@ -372,3 +372,34 @@ python3 -B scripts/run_climbing_control.py --accept-eula
 操作・終端停止・未対応boostと証拠は[Elytra滑空](common-glide-control.md)を参照。
 
 追加姿勢の有限な一覧と未対応のsleep/Riptide操作は[姿勢の対応範囲](common-posture-coverage.md)を参照。
+
+## 接触を証明できない場合の best-effort 地上移動
+
+1.21.11 の `body::Action::Move` は接触予測を best-effort で扱う。
+両版の `Client::player_control(mode).start_control_best_effort()` でも明示的に選べる。
+従来の `start_control()` は厳密な receipt/model API として残す。
+1.16.1 の body Move 接続は後続の変更であり、今回は ground control の opt-in を使う。
+
+近傍の未監査種・騎乗 group・接触履歴や遠隔地形の不足などで、接触モデルの作成、
+更新または staged tick に失敗すると、その owner の遠隔接触モデル全体を破棄する。
+同じ自分の身体状態から接触抜きで予測して送信し、その理由だけでは owner を停止しない。
+部分的な接触状態や途中まで計算した tick を再利用せず、この owner では再構築しない。
+`contact_diagnostic_for(session_id)` は破棄の原因を元の `MovementRefusal` として保持する。
+その context の `NotAdmitted/Invalidated` は厳密な接触モデルの状態であり、
+best-effort control owner の停止を意味しない。実際の状態は `ControlRecord.status` にある。
+既存の公開 record に field を足さず、診断用メソッドだけを追加した。
+
+world/spawn/owner identity と自分の受信 mode・生存・乗車等の照合は維持する。
+自分の移動を計算する地形や再構築の不足、在庫等の未解決 gate はこの変更で緩和しない。
+接触抜きの予測は server の結果と異なり得る。通常の control API の dispatch は受理ではなく、
+`corrections` が実受信補正を数え、補正を自分のモデルへ適用する。
+body Move は移動送信中と bounded settle window の補正を `Corrected` として返し、
+補正が無い場合は `Accepted`、期限まで送信できない場合は `Unknown` で終わる。
+
+検証用の `scripts/run_contact_best_effort_live.py` は既存の公式 server runner、
+original-byte proxy と RCON を使う。native feature で `body_probe` をビルドし、
+`--accept-eula --binary target/debug/examples/body_probe --jars <official-jars> --version <version>`
+で実行する。近傍 fox/skeleton/horse、kill 後の item、実行中の spawn、living passenger、
+移動中の RCON teleport 補正を確認する。
+[2026-10-25 の両版の実測](evidence/contact-best-effort-live-20261025.json)には source/binary/JAR の
+fingerprint と独立した server 座標を保存した。補正検証は RCON teleport によるものである。

@@ -494,6 +494,14 @@ pub(crate) trait ControlOps {
         controls: super::control::Controls,
     ) -> Result<super::control::ControlRecord>;
     async fn start_control(&self, mode: GameMode) -> Result<super::control::ControlRecord>;
+    async fn start_control_best_effort(
+        &self,
+        mode: GameMode,
+    ) -> Result<super::control::ControlRecord>;
+    async fn contact_diagnostic_for(
+        &self,
+        session_id: u64,
+    ) -> Result<Option<crate::MovementRefusal>>;
     async fn start_flight_control(
         &self,
         mode: GameMode,

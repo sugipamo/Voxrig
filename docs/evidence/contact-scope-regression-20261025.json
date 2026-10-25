@@ -8897,7 +8897,7 @@
   },
   "source_sha256": {
     "src/client/entity.rs": "e753085d5fc3d48f00a55dd3a009f9f1af688ba9bedde7005db83968ff6427eb",
-    "src/client/entity/scope.rs": "c24b212e134c21c021ff2db90ac23c87067a58755cf6e8e16f4cbf2d3f50f5f4",
+    "src/client/entity/scope.rs": "343c05079b5208edc08e676d4792214d4beccf943743cc4df21f16190ed8aeda",
     "src/client/entity/owned_contacts.rs": "42e6a596afb6c7841f22dc1247db1245a5b5b983ff43f46bf0e7c00e445dfd7d",
     "src/versions/java_1_16_1/client/play_player.rs": "b28fa735cdc80f206fd6c75a6f7b2342f22ba8b36f62a6ff4675376dffcd4f76",
     "src/versions/java_1_21_11/client.rs": "82a2c458971e236fa16d0337e0a09be64878da7bc76cb72ed142a13bc6b748f6",
