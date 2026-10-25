@@ -186,6 +186,8 @@ impl Survival {
     /// Activate one received first-outline storage or crafting-table target with empty hands/cursor.
     /// Retains intent before I/O; complete dispatch and received screen/content facts
     /// are separate. OPEN packets contain no causal target-block identity.
+    /// Strict receipt diagnostics; use `crate::body::Action::ActivateBlock` for an
+    /// explicit off-axis/moving hit with bounded acceptance instead.
     pub async fn open_container(
         &self,
         target: [i32; 3],
@@ -433,6 +435,9 @@ impl Survival {
         crate::client::dispatch!(&self.client.adapter, a => PlacementOps::replaceable_cube_placement_record(a).await)
     }
 
+    /// Strict diagnostic placement. For explicit hits while moving/airborne or
+    /// with other materials, opt into `crate::body::Body::place_cube` or
+    /// `crate::body::Action::PlaceBlock`; their acceptance has no receipt proof.
     /// Submit one stationary default passive-cube placement into received air.
     /// Derives the native first-outline cursor and retains the attempt before I/O.
     /// No prediction, retry, mode change or edit permission is supplied.
@@ -711,6 +716,8 @@ impl Creative {
     /// Activate one received first-outline storage or crafting-table target with empty hands/cursor.
     /// Retains intent before I/O; complete dispatch and received screen/content facts
     /// are separate. OPEN packets contain no causal target-block identity.
+    /// Strict receipt diagnostics; use `crate::body::Action::ActivateBlock` for an
+    /// explicit off-axis/moving hit with bounded acceptance instead.
     pub async fn open_container(
         &self,
         target: [i32; 3],
@@ -968,9 +975,9 @@ impl Creative {
     }
 }
 impl Creative {
-    /// Use the item in `hand` on a loaded block face within 4.5 blocks of the eye
-    /// (place, open, press, light...). `cursor` is the hit point inside the target cell,
-    /// each axis within 0..1. Reach is measured to that exact hit point, not the block center.
+    /// Send an explicit block hit (place, open, press, light...), independent of
+    /// the view ray or grounded pose. `cursor` is block-relative, each axis 0..1.
+    /// Uses the official server distance limit; see docs/explicit-block-interactions.md.
     /// Dispatch only: the server's result arrives as received block,
     /// inventory and screen updates. See `docs/common-item-use.md`.
     pub async fn use_on_block(
@@ -1030,9 +1037,9 @@ impl Creative {
     }
 }
 impl Survival {
-    /// Use the item in `hand` on a loaded block face within 4.5 blocks of the eye
-    /// (place, open, press, light...). `cursor` is the hit point inside the target cell,
-    /// each axis within 0..1. Reach is measured to that exact hit point, not the block center.
+    /// Send an explicit block hit (place, open, press, light...), independent of
+    /// the view ray or grounded pose. `cursor` is block-relative, each axis 0..1.
+    /// Uses the official server distance limit; see docs/explicit-block-interactions.md.
     /// Dispatch only: the server's result arrives as received block,
     /// inventory and screen updates. See `docs/common-item-use.md`.
     pub async fn use_on_block(

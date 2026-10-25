@@ -789,7 +789,7 @@ impl Operations {
         self.use_on_block_in(None, crate::client::Hand::Main, position, face, cursor)
             .await
     }
-    /// `mode` None is the native API, which keeps survival on the checked placement path.
+    /// Explicit hit dispatch; strict material receipts remain in place_survival_cube.
     async fn use_on_block_in(
         &self,
         mode: Option<GameMode>,
@@ -799,39 +799,36 @@ impl Operations {
         cursor: [f32; 3],
     ) -> Result<i32> {
         let admission = self.bot.session.ledger.try_work()?;
-        admission.run_scoped(async {
-            crate::client::item_use::validate_cursor(cursor)?;
-            let state = self.bot.session.state.lock().await;
-            self.mutable(&state)?;
-            self.require_mode(&state, mode)?;
-            if state.operations.inventory.pending_swap.is_some() {
-                return Err(Error::new(
-                    ErrorKind::State,
-                    anyhow::anyhow!("inventory swap needs inspection"),
-                ));
-            }
-            if mode.is_none() && state.operations.game_mode == Some(GameMode::Survival) {
-                return Err(invalid(
-                    "survival placement requires place_survival_cube and received material accounting",
-                ));
-            }
-            check_hit_reach(&state, position, cursor)?;
-            let seq = self.next_sequence()?;
-            let mut payload = Vec::new();
-            put_varint(&mut payload, hand as i32);
-            payload.extend(pack_position(position).to_be_bytes());
-            put_varint(&mut payload, face as i32);
-            for v in cursor {
-                payload.extend(v.to_be_bytes());
-            }
-            payload.extend([0, 0]);
-            put_varint(&mut payload, seq);
-            self.bot
-                .session
-                .send(ids::play_serverbound::BLOCK_PLACE, &payload)
-                .await?;
-            Ok(seq)
-        }).await
+        admission
+            .run_scoped(async {
+                crate::client::item_use::validate_cursor(cursor)?;
+                let state = self.bot.session.state.lock().await;
+                self.mutable_with_ground_requirement(&state, false)?;
+                self.require_mode(&state, mode)?;
+                if state.operations.inventory.pending_swap.is_some() {
+                    return Err(Error::new(
+                        ErrorKind::State,
+                        anyhow::anyhow!("inventory swap needs inspection"),
+                    ));
+                }
+                self.check_server_block_range(&state, position)?;
+                let seq = self.next_sequence()?;
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                payload.extend(pack_position(position).to_be_bytes());
+                put_varint(&mut payload, face as i32);
+                for v in cursor {
+                    payload.extend(v.to_be_bytes());
+                }
+                payload.extend([0, 0]);
+                put_varint(&mut payload, seq);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::BLOCK_PLACE, &payload)
+                    .await?;
+                Ok(seq)
+            })
+            .await
     }
     /// PLAYER_ACTION START (0) or STOP (2) _DESTROY_BLOCK with its interaction sequence.
     async fn dig_survival(

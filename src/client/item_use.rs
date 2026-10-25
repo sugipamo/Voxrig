@@ -93,7 +93,8 @@ pub(crate) fn hand_from_living_flags(flags: u8) -> Option<Hand> {
     })
 }
 
-/// Hit point local to the clicked cell. Both servers reject points outside the cell.
+/// Compatibility API hit point local to the clicked cell (0..1). This is a
+/// local packet-construction contract, narrower than either server handler.
 pub(crate) fn validate_cursor(cursor: [f32; 3]) -> Result<()> {
     if cursor
         .iter()

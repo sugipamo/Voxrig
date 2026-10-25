@@ -146,13 +146,19 @@ impl Bot {
                         "body world changed before placement dispatch",
                     ));
                 }
-                let Action::PlaceBlock {
+                let (Action::PlaceBlock {
                     pos,
                     face,
                     cursor,
                     hand,
                     ..
-                } = action
+                }
+                | Action::ActivateBlock {
+                    pos,
+                    face,
+                    cursor,
+                    hand,
+                }) = action
                 else {
                     return Err(crate::Error::new(
                         crate::ErrorKind::Unsupported,
@@ -160,6 +166,8 @@ impl Bot {
                     ));
                 };
                 crate::client::item_use::validate_cursor(*cursor)?;
+                let player = self.common_player_unlocked().await?;
+                crate::body::interaction::validate_server_range(&player, None, *pos)?;
                 if !(-33_554_432..=33_554_431).contains(&pos[0])
                     || !(-2048..=2047).contains(&pos[1])
                     || !(-33_554_432..=33_554_431).contains(&pos[2])
@@ -402,6 +410,42 @@ mod tests {
                 .unwrap();
         }
     }
+    #[tokio::test]
+    async fn legacy_body_activation_is_bounded_without_block_ack_and_keeps_exact_hit() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.on_ground = false;
+        let body = body(&bot);
+        let id = body
+            .submit(Action::ActivateBlock {
+                pos: [10, 64, 8],
+                face: crate::BlockFace::East,
+                cursor: [1., 0.17, 0.83],
+                hand: crate::Hand::Off,
+            })
+            .await
+            .unwrap();
+        let (packet, payload) = timeout(Duration::from_secs(1), packets.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(packet, 0x2d);
+        assert_eq!(payload[0], 1);
+        assert_eq!(payload[9], crate::BlockFace::East as u8);
+        assert_eq!(&payload[10..14], &1f32.to_be_bytes());
+        assert_eq!(&payload[14..18], &0.17f32.to_be_bytes());
+        assert_eq!(&payload[18..22], &0.83f32.to_be_bytes());
+        assert!(matches!(complete(&body, id).await, ActionStatus::Accepted));
+        drop(release);
+        drop(body);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
     #[tokio::test]
     async fn legacy_body_dispatch_fences_world_and_wire_bounds_before_send() {
         let (bot, mut packets, release, server) =

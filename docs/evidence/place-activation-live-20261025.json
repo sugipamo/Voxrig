@@ -1,0 +1,752 @@
+{
+  "base_revision": "83a90acc37779aa7dc9bfc3f3558d17c148a59fe",
+  "binary_sha256": "baad85e6cb3ebb3f1825b941c387cf4db547e38d44be47f6288676582e2409e5",
+  "sdk_sha256": "a4bd98889e4872070949e8bafa29a3a4dc517026e01cdce6bb853c6e4b25455f",
+  "build_command": "cargo build --locked --features native -j2 --example body_probe",
+  "versions": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "native_feature": true,
+      "official_server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "report": "place-activation-live-1.16.1-20261025.json.gz",
+      "report_sha256": "8b6e9d763012e8c2ab5b4f9fc3324958a9fbec5bd60b352a63b8adc4d7ba5dc1",
+      "checks": [
+        {
+          "name": "optional_diagnostics_are_warnings",
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "explicit support/face differs from the first outline diagnostic"
+          ],
+          "status": null,
+          "owner": null,
+          "packet_count": 0
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            1
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            0.9206257339395469
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 22
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            2
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.9206257339395469
+          ],
+          "after": [
+            0.5,
+            65.0,
+            1.5683749954992234
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 18
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            3
+          ],
+          "before": [
+            0.5,
+            65.0,
+            1.5683749954992234
+          ],
+          "after": [
+            0.5,
+            65.0,
+            2.2159526582481295
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 22
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            4
+          ],
+          "before": [
+            0.5,
+            65.0,
+            2.2159526582481295
+          ],
+          "after": [
+            0.5,
+            65.0,
+            2.7987721911655363
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 16
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            5
+          ],
+          "before": [
+            0.5,
+            65.0,
+            2.8635299169413657
+          ],
+          "after": [
+            0.5,
+            65.0,
+            3.446349448909228
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 25
+        },
+        {
+          "name": "five_block_bridge_same_walking_owner",
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            3.5758649004571508
+          ],
+          "status": null,
+          "owner": 1,
+          "packet_count": 0
+        },
+        {
+          "name": "pillar_while_walking_airborne_0",
+          "target": [
+            0,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            66.16610926093821,
+            0.3277211153635524
+          ],
+          "after": [
+            0.5,
+            67.16610926093821,
+            0.9455272661560985
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 2,
+          "packet_count": 15
+        },
+        {
+          "name": "pillar_while_walking_airborne_1",
+          "target": [
+            0,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            66.24918707874468,
+            0.3885742298905348
+          ],
+          "after": [
+            0.5,
+            67.16610926093821,
+            0.9455272661560985
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 3,
+          "packet_count": 15
+        },
+        {
+          "name": "off_axis_moving_crafting_table",
+          "warnings": [
+            "requested storage is not the native first outline"
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            2.0996004544472493
+          ],
+          "status": "accepted",
+          "owner": 4,
+          "packet_count": 17
+        },
+        {
+          "name": "off_axis_moving_furnace",
+          "warnings": [
+            "requested storage is not the native first outline"
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            1.6693214940821297
+          ],
+          "status": "accepted",
+          "owner": 5,
+          "packet_count": 13
+        },
+        {
+          "name": "off_axis_moving_chest",
+          "warnings": [
+            "requested storage is not the native first outline"
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            1.4551673764449466
+          ],
+          "status": "accepted",
+          "owner": 6,
+          "packet_count": 15
+        },
+        {
+          "name": "beyond_fixed_client_reach_accepted",
+          "target": [
+            5,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 7,
+          "packet_count": 15
+        },
+        {
+          "name": "server_rollback_while_owner_keeps_running",
+          "target": [
+            2,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "corrected",
+          "owner": 7,
+          "packet_count": 7
+        },
+        {
+          "name": "official_server_hard_distance_limit",
+          "status": "rejected",
+          "owner": null,
+          "packet_count": 0
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "native_feature": true,
+      "official_server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "report": "place-activation-live-1.21.11-20261025.json.gz",
+      "report_sha256": "b2df29db6c207d046c493fa05ba393a5fd5fe4e5d3b249540d30981bd9fe0912",
+      "checks": [
+        {
+          "name": "optional_diagnostics_are_warnings",
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "explicit support/face differs from the first outline diagnostic"
+          ],
+          "status": null,
+          "owner": null,
+          "packet_count": 0
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            1
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.24331600086572763
+          ],
+          "after": [
+            0.5,
+            65.0,
+            0.9900860393859553
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 18
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            2
+          ],
+          "before": [
+            0.5,
+            65.0,
+            1.0548340948470531
+          ],
+          "after": [
+            0.5,
+            65.0,
+            1.6376420470286719
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 16
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            3
+          ],
+          "before": [
+            0.5,
+            65.0,
+            1.6376420470286719
+          ],
+          "after": [
+            0.5,
+            65.0,
+            2.285219254731645
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 16
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            4
+          ],
+          "before": [
+            0.5,
+            65.0,
+            2.285219254731645
+          ],
+          "after": [
+            0.5,
+            65.0,
+            2.8680387865796786
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 17
+        },
+        {
+          "name": "explicit_South",
+          "target": [
+            0,
+            64,
+            5
+          ],
+          "before": [
+            0.5,
+            65.0,
+            2.932796512353405
+          ],
+          "after": [
+            0.5,
+            65.0,
+            3.5156160443187505
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 1,
+          "packet_count": 15
+        },
+        {
+          "name": "five_block_bridge_same_walking_owner",
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            3.580373770092708
+          ],
+          "status": null,
+          "owner": 1,
+          "packet_count": 0
+        },
+        {
+          "name": "pillar_while_walking_airborne_0",
+          "target": [
+            0,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            66.24918707874468,
+            0.1891915772596645
+          ],
+          "after": [
+            0.5,
+            67.16610926093821,
+            0.6148523492687067
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 2,
+          "packet_count": 16
+        },
+        {
+          "name": "pillar_while_walking_airborne_1",
+          "target": [
+            0,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            66.16610926093821,
+            0.2206647936764118
+          ],
+          "after": [
+            0.5,
+            67.16610926093821,
+            0.7204278298658353
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 3,
+          "packet_count": 15
+        },
+        {
+          "name": "off_axis_moving_crafting_table",
+          "warnings": [
+            "requested storage is not the native first outline"
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            1.7497688067080381
+          ],
+          "status": "accepted",
+          "owner": 4,
+          "packet_count": 16
+        },
+        {
+          "name": "off_axis_moving_furnace",
+          "warnings": [
+            "requested storage is not the native first outline"
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            1.9858101848432377
+          ],
+          "status": "accepted",
+          "owner": 5,
+          "packet_count": 22
+        },
+        {
+          "name": "off_axis_moving_chest",
+          "warnings": [
+            "requested storage is not the native first outline"
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            1.7278975431067847
+          ],
+          "status": "accepted",
+          "owner": 6,
+          "packet_count": 19
+        },
+        {
+          "name": "beyond_fixed_client_reach_accepted",
+          "target": [
+            5,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "accepted",
+          "owner": 7,
+          "packet_count": 16
+        },
+        {
+          "name": "server_rollback_while_owner_keeps_running",
+          "target": [
+            2,
+            65,
+            0
+          ],
+          "before": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "after": [
+            0.5,
+            65.0,
+            0.2
+          ],
+          "warnings": [
+            "placement admits default passive cube stacks only",
+            "continuous control owns the player's movement; stop it before standing operations"
+          ],
+          "status": "corrected",
+          "owner": 7,
+          "packet_count": 7
+        },
+        {
+          "name": "official_server_hard_distance_limit",
+          "status": "rejected",
+          "owner": null,
+          "packet_count": 0
+        }
+      ]
+    }
+  ],
+  "local_validation": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 5.4
+    },
+    {
+      "name": "clippy-default-final",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "-j2",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 69.1
+    },
+    {
+      "name": "clippy-native-final",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "-j2",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 22.5
+    },
+    {
+      "name": "test-default",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--all-targets",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 547.3
+    },
+    {
+      "name": "test-native",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "-j2",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 604.9
+    },
+    {
+      "name": "doc",
+      "command": [
+        "cargo",
+        "test",
+        "--doc"
+      ],
+      "exit_code": 0,
+      "seconds": 6.0
+    }
+  ],
+  "test_totals": {
+    "default": {
+      "passed": 1639,
+      "failed": 0,
+      "ignored": 8
+    },
+    "native": {
+      "passed": 1639,
+      "failed": 0,
+      "ignored": 8
+    }
+  }
+}

@@ -290,7 +290,8 @@ impl Bot {
             }
             Action::UseOnBlock(position, face, cursor, hand) => {
                 api::item_use::validate_cursor(cursor)?;
-                self.common_reach(position, cursor).await?;
+                let player = self.common_player_unlocked().await?;
+                crate::body::interaction::validate_server_range(&player, None, position)?;
                 let mut payload = Vec::new();
                 put_varint(&mut payload, hand as i32);
                 payload.extend(
@@ -902,19 +903,25 @@ mod tests {
                 .flat_map(f32::to_be_bytes)
                 .collect::<Vec<_>>()
         );
+        client
+            .survival()
+            .use_on_block(
+                support,
+                api::BlockFace::East,
+                [1., 0.5, 0.5],
+                api::Hand::Main,
+            )
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x2d);
         assert!(
             client
                 .survival()
-                .use_on_block(
-                    support,
-                    api::BlockFace::East,
-                    [1., 0.5, 0.5],
-                    api::Hand::Main
-                )
+                .use_on_block([20, 66, 4], api::BlockFace::West, [0.; 3], api::Hand::Main)
                 .await
                 .unwrap_err()
                 .to_string()
-                .contains("out of reach")
+                .contains("official server distance")
         );
         assert!(
             timeout(Duration::from_millis(30), packets.recv())
