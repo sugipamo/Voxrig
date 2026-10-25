@@ -76,6 +76,25 @@ async fn main() -> anyhow::Result<()> {
                     serde_json::to_value(client.survival().start_predicted_path(&controls).await?)?
                 }
                 "path_record" => serde_json::to_value(client.survival().motion_record().await?)?,
+                "best_effort_start" => {
+                    let mode = client.player_state().await?.game_mode.unwrap();
+                    serde_json::to_value(
+                        client
+                            .player_control(mode)
+                            .start_control_best_effort()
+                            .await?,
+                    )?
+                }
+                "contact_diagnostic" => {
+                    let mode = client.player_state().await?.game_mode.unwrap();
+                    serde_json::to_value(
+                        client
+                            .player_control(mode)
+                            .contact_diagnostic_for(v["session_id"].as_u64().unwrap())
+                            .await?,
+                    )?
+                }
+                "entities" => serde_json::to_value(client.entities().await?)?,
                 "control_start" => serde_json::to_value(client.survival().start_control().await?)?,
                 "control_set" => serde_json::to_value(
                     client

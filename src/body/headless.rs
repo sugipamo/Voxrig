@@ -708,6 +708,24 @@ async fn run(
                 if record.session_id != cleanup.control.unwrap().1 {
                     return Err(invalid("movement owner replaced"));
                 }
+                let batch = ops
+                    .body_evidence(inner.id, &selection, Some(cursor))
+                    .await?;
+                if batch.gap || batch.snapshot.world != world {
+                    inner.finish(
+                        id,
+                        ActionStatus::Unknown {
+                            reason: "movement evidence history gap or world lifetime changed"
+                                .into(),
+                        },
+                    );
+                    return Ok(());
+                }
+                if let Some(status) = correction(&batch, None, &request.action)? {
+                    inner.finish(id, status);
+                    return Ok(());
+                }
+                cursor = batch.cursor;
                 if record.dispatched_ticks >= count {
                     break;
                 }

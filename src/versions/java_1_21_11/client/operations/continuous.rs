@@ -628,7 +628,9 @@ impl Operations {
                 }
                 Ok(())
             })();
-            if let Err(error) = contacts_ready {
+            if let Err(error) = contacts_ready.or_else(|error| {
+                if session.omit_contacts(&error) { Ok(()) } else { Err(error) }
+            }) {
                 session.movement_refusal = error.movement_refusal().cloned();
                 session.contacts = None;
                 let release = self
@@ -851,7 +853,7 @@ impl Operations {
         mode: GameMode,
         world: crate::body::BodyWorld,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, Some(world))
+        self.start_control_inner(mode, None, false, Some(world), true)
             .await
     }
     async fn start_control_inner(
@@ -860,6 +862,7 @@ impl Operations {
         initial_flight_controls: Option<Controls>,
         glide: bool,
         world: Option<crate::body::BodyWorld>,
+        best_effort_contacts: bool,
     ) -> Result<ControlRecord> {
         let admission = self.bot.session.ledger.try_work()?;
         admission.run_scoped(async {
@@ -1004,6 +1007,7 @@ impl Operations {
             }
             session.mode = mode;
             session.kind = kind;
+            session.best_effort_contacts = best_effort_contacts;
             if let Some(controls) = initial_flight_controls {
                 session.controls = controls;
             }
@@ -1018,6 +1022,9 @@ impl Operations {
                     .local_player
                     .entity_id
                     .ok_or_else(|| invalid("contact model requires own login entity"))?;
+                let name = &state.identity.as_ref()
+                    .ok_or_else(|| invalid("contact login identity missing"))?.name;
+                let admission: Result<()> = (|| {
                 let mut contacts = crate::client::entity::owned_contacts::OwnedContacts::for_player(
                             (stamp, id, own), &state.entities, state.sequence, (&session.body, &received.environment),
                             self.bot.session.limits.max_contact_bodies, glide,
@@ -1027,13 +1034,16 @@ impl Operations {
                 contacts.teams(&teams, &profiles, crate::MovementOwnerState::NotAdmitted)?;
                 session.contact_team = crate::client::entity::owned_contacts::team(
                     &teams,
-                    &state
-                        .identity
-                        .as_ref()
-                        .ok_or_else(|| invalid("contact login identity missing"))?
-                        .name,
+                    name,
                 );
                 session.contacts = Some(contacts);
+                Ok(())
+                })();
+                if let Err(error) = admission {
+                    if !session.omit_contacts(&error) {
+                        return Err(error);
+                    }
+                }
             }
             state.control.next_id = id;
             state.control.generation = Some(generation);
@@ -1087,12 +1097,13 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), true, None)
+        self.start_control_inner(mode, Some(controls), true, None, false)
             .await
     }
 
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, None).await
+        self.start_control_inner(mode, None, false, None, false)
+            .await
     }
 
     async fn start_flight_control(
@@ -1100,8 +1111,27 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), false, None)
+        self.start_control_inner(mode, Some(controls), false, None, false)
             .await
+    }
+
+    async fn start_control_best_effort(&self, mode: GameMode) -> Result<ControlRecord> {
+        self.start_control_inner(mode, None, false, None, true)
+            .await
+    }
+
+    async fn contact_diagnostic_for(
+        &self,
+        session_id: u64,
+    ) -> Result<Option<crate::MovementRefusal>> {
+        let state = self.bot.session.state.lock().await;
+        let session = state
+            .control
+            .session
+            .as_ref()
+            .filter(|s| s.id == session_id)
+            .ok_or_else(|| invalid("selected control session is missing or was replaced"))?;
+        Ok(session.contact_diagnostic.clone())
     }
 
     async fn set_controls(

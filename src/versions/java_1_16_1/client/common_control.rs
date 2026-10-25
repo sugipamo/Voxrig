@@ -428,7 +428,13 @@ impl Bot {
                         Ok(())
                     }
                     .await;
-                    if let Err(error) = contacts_ready {
+                    if let Err(error) = contacts_ready.or_else(|error| {
+                        if session.omit_contacts(&error) {
+                            Ok(())
+                        } else {
+                            Err(error)
+                        }
+                    }) {
                         session.movement_refusal = error.movement_refusal().cloned();
                         session.contacts = None;
                         session.status = ControlStatus::Stopped {
@@ -625,6 +631,7 @@ impl Bot {
         mode: GameMode,
         initial_flight_controls: Option<Controls>,
         glide: bool,
+        best_effort_contacts: bool,
     ) -> Result<ControlRecord> {
         let admission = self.connection.ledger().try_work()?;
         admission
@@ -767,6 +774,7 @@ impl Bot {
                 }
                 session.mode = mode;
                 session.kind = kind;
+                session.best_effort_contacts = best_effort_contacts;
                 if let Some(controls) = initial_flight_controls {
                     session.controls = controls;
                 }
@@ -779,31 +787,40 @@ impl Bot {
                         world_generation: generation,
                     };
                     if let Some(own) = player.entity_id {
-                        let mut contacts =
-                            crate::client::entity::owned_contacts::OwnedContacts::for_player(
-                                (stamp, id, own),
-                                &receipts.entities,
-                                sequence,
-                                (&session.body, &received.environment),
-                                self.connection_options.max_contact_bodies,
-                                glide,
+                        let admission: Result<()> = async {
+                            let mut contacts =
+                                crate::client::entity::owned_contacts::OwnedContacts::for_player(
+                                    (stamp, id, own),
+                                    &receipts.entities,
+                                    sequence,
+                                    (&session.body, &received.environment),
+                                    self.connection_options.max_contact_bodies,
+                                    glide,
+                                )?;
+                            let teams = self.common_teams.lock().await.capture(stamp, sequence);
+                            let profiles = self
+                                .common_player_list
+                                .lock()
+                                .await
+                                .capture(stamp, sequence);
+                            contacts.teams(
+                                &teams,
+                                &profiles,
+                                crate::MovementOwnerState::NotAdmitted,
                             )?;
-                        let teams = self.common_teams.lock().await.capture(stamp, sequence);
-                        let profiles = self
-                            .common_player_list
-                            .lock()
-                            .await
-                            .capture(stamp, sequence);
-                        contacts.teams(
-                            &teams,
-                            &profiles,
-                            crate::MovementOwnerState::NotAdmitted,
-                        )?;
-                        session.contact_team = crate::client::entity::owned_contacts::team(
-                            &teams,
-                            &self.login_profile.name,
-                        );
-                        session.contacts = Some(contacts);
+                            session.contact_team = crate::client::entity::owned_contacts::team(
+                                &teams,
+                                &self.login_profile.name,
+                            );
+                            session.contacts = Some(contacts);
+                            Ok(())
+                        }
+                        .await;
+                        if let Err(error) = admission {
+                            if !session.omit_contacts(&error) {
+                                return Err(error);
+                            }
+                        }
                     } else if !receipts
                         .entities
                         .capture(stamp, sequence)
@@ -874,11 +891,12 @@ impl crate::client::adapter::ControlOps for Bot {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), true).await
+        self.start_control_inner(mode, Some(controls), true, false)
+            .await
     }
 
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false).await
+        self.start_control_inner(mode, None, false, false).await
     }
 
     async fn start_flight_control(
@@ -886,7 +904,25 @@ impl crate::client::adapter::ControlOps for Bot {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), false).await
+        self.start_control_inner(mode, Some(controls), false, false)
+            .await
+    }
+
+    async fn start_control_best_effort(&self, mode: GameMode) -> Result<ControlRecord> {
+        self.start_control_inner(mode, None, false, true).await
+    }
+
+    async fn contact_diagnostic_for(
+        &self,
+        session_id: u64,
+    ) -> Result<Option<crate::MovementRefusal>> {
+        let control = self.common_control.lock().await;
+        let session = control
+            .session
+            .as_ref()
+            .filter(|s| s.id == session_id)
+            .ok_or_else(|| state_error("selected control session is missing or was replaced"))?;
+        Ok(session.contact_diagnostic.clone())
     }
 
     async fn set_controls(

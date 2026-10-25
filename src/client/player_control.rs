@@ -66,6 +66,26 @@ impl PlayerControl {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_control(a, self.mode).await)
     }
 
+    /// Start ground movement with best-effort remote entity prediction.
+    /// If contact admission, refresh or prediction fails, retain its diagnostic,
+    /// discard the entire remote contact model for this owner and predict using
+    /// local terrain only. World, owner, own-player and mode checks still apply.
+    /// Dispatch is not acceptance: inspect corrections or use `body::Move` on
+    /// Java 1.21.11 for bounded acceptance. `start_control` remains strict.
+    pub async fn start_control_best_effort(&self) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_control_best_effort(a, self.mode).await)
+    }
+
+    /// Frozen cause of omitted contacts for the selected owner, including after
+    /// it stops. None means no contact failure was omitted. A replaced ID refuses.
+    /// This diagnostic does not establish server acceptance or invalidate control.
+    pub async fn contact_diagnostic_for(
+        &self,
+        session_id: u64,
+    ) -> Result<Option<crate::MovementRefusal>> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::contact_diagnostic_for(a, session_id).await)
+    }
+
     /// Replace keys on the selected running owner in this handle's exact mode.
     /// A stale ID, different mode or world refuses without mutating another owner.
     pub async fn set_controls_for(

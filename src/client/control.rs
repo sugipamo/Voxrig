@@ -299,6 +299,8 @@ pub(crate) struct Output {
 pub(crate) struct ControlSession {
     pub(crate) movement_refusal: Option<crate::MovementRefusal>,
     pub(crate) glide: Option<super::glide::GlideRecord>,
+    pub(crate) best_effort_contacts: bool,
+    pub(crate) contact_diagnostic: Option<crate::MovementRefusal>,
     pub(crate) contacts: Option<super::entity::owned_contacts::OwnedContacts>,
     pub(crate) entity_contacts: Option<super::EntityContactFrame>,
     pub(crate) contact_team: Option<(String, super::ui::TeamCollision)>,
@@ -370,6 +372,8 @@ impl ControlSession {
             body.set_scale(scale as f32);
         }
         Self {
+            best_effort_contacts: false,
+            contact_diagnostic: None,
             contacts: None,
             movement_refusal: None,
             entity_contacts: None,
@@ -678,6 +682,24 @@ impl ControlSession {
         }
     }
 
+    /// Discard an unprovable remote model only for explicitly opted-in ground owners.
+    /// The original local body is retained; staged contact ticks never commit on error.
+    pub(crate) fn omit_contacts(&mut self, error: &crate::Error) -> bool {
+        if !self.best_effort_contacts || self.kind != ControlKind::Ground {
+            return false;
+        }
+        self.contact_diagnostic = Some(
+            error
+                .movement_refusal()
+                .cloned()
+                .unwrap_or_else(|| crate::MovementRefusal::permanent(error.to_string())),
+        );
+        self.contacts = None;
+        self.entity_contacts = None;
+        self.contact_team = None;
+        true
+    }
+
     /// Run one tick. `Ok(None)` while paused (nothing to send).
     pub(crate) fn step(
         &mut self,
@@ -764,6 +786,14 @@ impl ControlSession {
                     self.entity_contacts = Some(frame);
                     Ok(outcome)
                 }
+                Err(error) if self.omit_contacts(&error) => physics::tick_with_ground_jump(
+                    self.version,
+                    &mut self.body,
+                    &environment,
+                    controls,
+                    ground_requested,
+                    block_at,
+                ),
                 Err(error) => Err(error),
             }
         } else {
@@ -783,7 +813,7 @@ impl ControlSession {
             }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
-                if contact_bodies
+                if (contact_bodies && self.contacts.is_some())
                     || self.kind == ControlKind::Glide
                     || error.movement_refusal().is_some_and(|refusal| {
                         refusal.unsupported_kind()
