@@ -25,7 +25,7 @@
 - 対象セルの元の block update が要求結果と違えば、同じ値への更新であっても `Corrected`。元の更新値と receive ordinal を返す。最新 cache だけで判定しないため、訂正直後に期待値へ戻った場合も訂正を失わない。
 - ACK が来なければ、block cache が期待通りでも期限に `Unknown`。unload/履歴欠落は成功の証拠にならない。
 - `PlaceBlock.pos` はクリックするセル、`target` は監視する結果セル。置換可能セル・隣接セル等を controller が明示する。`expected` があれば完全な native state を比較し、省略時は現在の指定 hand の item 名と結果 block 名を比較する。item と block の名称が異なるもの、特定 property を要求する場合は `expected` を渡す。材料の種類による送信制限は設けない。
-- `BreakBlock` は Creative なら START 一回、Survival なら既存 dig estimate に基づき START→保持→STOP を送信する。instant block は START のみ。取消・期限切れで保持中の dig は元 world に ABORT を試みる。結果は air を期待する。見積りより長い採掘は `action_timeout` を適切に設定する必要がある。
+- `BreakBlock` は見積り不明でも START を送る。Creative は START のみ。Survival は START の処理 ACK 後、まだ air の受信がなければ一度だけ STOP を送り、サーバー側の進捗と air 更新を待つ。ACK だけでは Accepted にしない。取消・期限切れは元 world に ABORT を試み、期限切れは Unknown。`action_timeout` は採掘時間と quiet window を含む。
 
 ### 1.16.1 の設置
 
@@ -146,19 +146,65 @@ step 5では両版の未知地形も最大0.1 blockのbounded probe（証拠更�
 同じ接続の既存strict controlと有限path APIは診断用として残し、意味を変更しない。
 未知地形や有限歩行の静止条件の緩和はstep 5、他領域のunresolved gate整理はstep 6の範囲。
 
-BreakBlockは既存のsurvival `dig_estimate` で時間を決め、native START / FINISH /
-取消時ABORTを一度ずつ送信する。1.16.1のSTART ACKは採掘中の元ブロックを返せるので、
-successfulなSTARTのsolid stateだけではrollbackにしない。instant STARTまたはFINISHの
-成功ACKとairの結果、続くquiet windowでAcceptedとする。失敗ACK・矛盾するtarget updateは
-Corrected、ACK欠落・target unload・world喪失は期限内にUnknownとなる。
-FINISH前にworld・mode・選択・手持ちitemのidentityをロック内で再照合する。
+BreakBlock の step 4 時点の見積り必須経路は、step 7 で下記のサーバー証拠ベースへ置き換えた。
+公式serverの採掘距離・world lifetime・既知の手持ち/選択照合と所有者排他は維持する。
 旧worldへのABORTは新worldに送らない。
-
-survival採掘のMissingSelection / MissingSlot / 水中装備等の見積り条件、負hardnessの拒否、
-既存の所有者排他は残る。時間見積りとadmissionの分離はstep 7であり、ここでは行わない。
-wire座標・hotbar 0..8・有限角度・不正文字列・公式serverの採掘距離とworld lifetimeは維持する。
-1.21.11のpacket経路・sequence ACK条件は変更しない。
 
 `scripts/run_legacy_body_live.py` は両版に対して同じHeadlessBodyシナリオを使う。
 look・hotbar・chat・command・通常使用と期待item付き使用での食事・近傍skeletonがいる段差歩行・
 採掘ACK・block置換・pose補正を原本packet traceとRCONで検査する。
+
+
+### 拒否削減 step 7: 採掘の見積りと送信を分離
+
+両版の `HeadlessBody` BreakBlock は `dig_estimate` を admission に呼ばない。
+未知の hardness/tool/enchantment/effect/接地/水中/装備、初期 MissingSelection・MissingSlot は
+それだけでは START を拒否しない。既知の負hardness、公式 reach/座標上限、world/mode、
+既知の選択slot・手持ち品種の変更、同じ手を変更し得る未解決在庫操作は拒否を残す。
+初期未知を空手やslot 0とは解釈しない。START/STOP は同じadapter lock内で再照合する。
+
+Survival は対象のsuccessful START ACK（1.16.1）またはSTARTを覆うsequence ACK（1.21.11）を
+待ち、一度だけSTOPを送る。先に対象airが届けばSTOPは不要。公式serverは早いSTOPを
+受けてもdelayed destroyを継続するため、ローカルの採掘時間計算は不要になる。
+1.16.1のsuccessful solid STOP ACKは進捗中を表せるため、破壊成功にもrollbackにも数えない。
+対象への新しいair block updateまたはsuccessful air break ACKとquiet windowでAccepted。
+失敗ACK・対象への固体更新はCorrected。ACKだけ・cacheのairだけではAcceptedにしない。
+world喪失・履歴欠落・期限はUnknownとなり、一度のABORTを有限budgetで試みる。
+STOP後もair受信まではcleanupと共有dig ownerを保持する。ABORTはrollbackの証明ではなく、
+特に1.16.1のdelayed destroyは後から完了し得る。自動START/STOP再送や自動再接続は行わない。
+
+`Survival::dig_estimate` は引き続き任意のタイミング診断として呼べる。その成功・値をBodyの
+送信やAcceptedの根拠にはしない。`dig` / `begin_dig` / native strict dig / mining と既存receipt、
+時刻・同じ手のnative data・estimate変化の照合、取消契約は変更していない。
+公開型・メソッド・enumの追加/変更はない。既存APIの動作変更はBody BreakBlockのみである。
+
+### 7段階を終えた使い分け
+
+| step | Body / 明示best-effort経路 | strict診断APIに残すもの |
+| --- | --- | --- |
+| 1 (#254) | 未監査の近傍contactでも移動送信 | 厳密contactモデルの適用範囲 |
+| 2 (#255) | passenger/history欠落・再進入を診断へ落とし、補正poseから継続 | remote数値履歴・scopeの完全性 |
+| 3 (#256) | 指定face/cursorで設置・activation、cube診断は任意 | first outline・立位・default materialの証明 |
+| 4 (#257) | 1.16.1 nativeの基本action・Move・Breakを共通Bodyへ接続 | native/receipt固有の診断 |
+| 5 (#258) | 未知地形はbounded probe、有限歩行は静止証明なしで送信 | 完全床支持・dry地形・exact-zeroのpreview |
+| 6 (#259) | receipt未確定を操作領域に限定、bounded watchと遅延Corrected | 元receiptのPending/RequiresInspectionとidentity |
+| 7 | 採掘見積りなしでSTART、処理ACKでSTOP、air受信で完了 | strict digの見積り・同じ手・receipt契約 |
+
+Bodyの完了は有限時間内のserver受理/補正観測で、ローカルモデルの完全再現ではない。
+K1の既知のserver拒否条件とK2のconnection/world/spawn/screen/slot identityは維持する。
+#252は意図的に閉じた方針どおり、全entity型のcontact proof拡張を再導入していない。
+
+既存Bodyの変更を明確にすると、(1) 見積り拒否から送信へ、(2) ローカル時間待ちから
+処理ACKでの一度のSTOPへ、(3) modernのsequence ACK単独からair結果の確認へ、
+(4) legacyのbreak ACKのみから新しいair block updateも許す判定へ、
+(5) STOP後・Creative START後も結果不明ならABORT cleanupを保持する処理へ変更した。
+successful solid STOP ACKとcleanupのABORT ACKをrollback扱いしない。
+modernでも既知の手/選択の再照合、hardnessと公式reach/heightの独立検査を実施する。
+eye height不明時でも、受信済みrangeと水平距離だけで確定する範囲外は拒否する。
+
+公式両版の実機結果・original packet証拠は
+[`dig-estimate-live-20261025.json`](../evidence/dig-estimate-live-20261025.json)。
+各14ケースで、実slot未受信、3種類の道具、空中、水中、実際より遅い見積りでの送信、
+START ACK欠落/STOP後のdeadline、実際のblock置換、K1維持とstrict互換性を検査した。
+再現にはnative featureでbuildした `body_probe` と `scripts/run_dig_estimate_live.py` を使う。
+modded stateは公式serverには存在しないため実機では作らず、未知hardnessの判定はunitで検査する。

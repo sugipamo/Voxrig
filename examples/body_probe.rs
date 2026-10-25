@@ -127,6 +127,18 @@ async fn main() -> anyhow::Result<()> {
                         .action_outcome(serde_json::from_value(v["id"].clone())?)
                         .await?,
                 )?,
+                "dig_estimate" => serde_json::to_value(
+                    client
+                        .survival()
+                        .dig_estimate(serde_json::from_value(v["pos"].clone())?)
+                        .await?,
+                )?,
+                "strict_dig" => serde_json::to_value(
+                    client
+                        .survival()
+                        .dig(serde_json::from_value(v["pos"].clone())?, BlockFace::North)
+                        .await?,
+                )?,
                 "player" => serde_json::to_value(client.player_state().await?)?,
                 "body_use_item_expect" => {
                     let id = body

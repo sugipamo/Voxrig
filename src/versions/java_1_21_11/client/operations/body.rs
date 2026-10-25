@@ -243,6 +243,7 @@ impl Operations {
         world: BodyWorld,
         action: &body::Action,
         dig_status: i32,
+        initial: Option<&BodySnapshot>,
     ) -> Result<i32> {
         self.bot
             .session
@@ -257,6 +258,7 @@ impl Operations {
                 };
                 self.mutable_in_domain(&state, false, false, None, domain)?;
                 if matches!(action, body::Action::BreakBlock { .. })
+                    && dig_status != 1
                     && state.operations.game_mode == Some(GameMode::Survival)
                 {
                     self.body_dig_hand_admission(&state)?;
@@ -299,6 +301,32 @@ impl Operations {
                     }
                     body::Action::BreakBlock { pos, face } => {
                         validate_wire_pos(*pos)?;
+                        if dig_status != 1 {
+                            if state.world.dimension.as_ref().is_some_and(|(_, d)| {
+                                pos[1] < d.min_y || pos[1] >= d.min_y + d.height
+                            }) {
+                                return Err(invalid(
+                                    "body dig position exceeds native world bounds",
+                                ));
+                            }
+                            self.check_server_block_range(&state, *pos)?;
+                            crate::body::dig::horizontal_range(
+                                &self.common_player_unlocked(&state)?,
+                                *pos,
+                            )?;
+                            if state.operations.game_mode == Some(GameMode::Survival) {
+                                crate::body::dig::hardness(
+                                    MinecraftVersion::Java1_21_11,
+                                    state.world.block(*pos),
+                                )?;
+                            }
+                            if let Some(initial) = initial {
+                                crate::body::dig::hand(
+                                    initial,
+                                    &self.common_player_unlocked(&state)?,
+                                )?;
+                            }
+                        }
                         put_varint(&mut payload, dig_status);
                         payload.extend(pack_position(*pos).to_be_bytes());
                         payload.push(*face as u8);
