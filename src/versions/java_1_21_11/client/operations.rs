@@ -865,19 +865,24 @@ impl Operations {
     /// ServerboundUseItemPacket: hand, sequence, then the current rotation, which the
     /// server snaps the player to before using the item.
     async fn use_item_in(&self, mode: GameMode, hand: crate::client::Hand) -> Result<i32> {
-        self.use_item_body(mode, hand, None).await
+        self.use_item_body(mode, hand, None, None).await
     }
     async fn use_item_body(
         &self,
         mode: GameMode,
         hand: crate::client::Hand,
         world: Option<crate::body::BodyWorld>,
+        expected: Option<(u8, crate::client::registry::RegistryId)>,
     ) -> Result<i32> {
         let admission = self.bot.session.ledger.try_work()?;
         admission
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
                 self.check_body_world(&state, world)?;
+                if let Some((selected, item)) = expected {
+                    let player = self.common_player_unlocked(&state)?;
+                    crate::client::item_use::validate_expected(&player, hand, selected, item)?;
+                }
                 self.mutable(&state)?;
                 self.require_mode(&state, Some(mode))?;
                 let seq = self.next_sequence()?;
@@ -1959,6 +1964,12 @@ impl crate::client::adapter::CoreOps for Operations {
                             .map(Some);
                     }
                     Action::UseItem(hand) => return self.use_item_in(mode, hand).await.map(Some),
+                    Action::UseItemExpect(hand, selected, item) => {
+                        return self
+                            .use_item_body(mode, hand, None, Some((selected, item)))
+                            .await
+                            .map(Some);
+                    }
                     Action::ReleaseUseItem => self.release_use_item_in(mode).await?,
                     Action::DigStart(position, face) => {
                         return self.dig_survival(mode, position, face, 0).await.map(Some);

@@ -318,6 +318,38 @@ async fn main() -> anyhow::Result<()> {
                 .map(|entity| serde_json::json!({"entity":entity.motion.entity,"sleeping":entity.sleeping(),"pose":entity.pose()}))
                 .collect::<Vec<_>>()),
             "use_item" => serde_json::to_value(survival.use_item(Hand::Main).await?)?,
+            "use_item_expect" => {
+                let hand = if request["offhand"] == true { Hand::Off } else { Hand::Main };
+                let slot = request["slot"].as_u64().unwrap().try_into()?;
+                let item = client.registry().item(request["item"].as_str().unwrap())?.id;
+                let result = if request["mode"] == "creative" {
+                    client.creative().use_item_expect(hand, slot, item).await
+                } else {
+                    survival.use_item_expect(hand, slot, item).await
+                };
+                match result {
+                    Ok(receipt) => serde_json::json!({"receipt":receipt}),
+                    Err(error) => serde_json::json!({"error":error.to_string(), "kind":format!("{:?}",error.kind()),"refusal":error.use_item_refusal()}),
+                }
+            },
+            "body_use_item_expect" => {
+                use voxrig::body::{Body, BodyConfig, HeadlessBody};
+                let hand = if request["offhand"] == true { Hand::Off } else { Hand::Main };
+                let slot = request["slot"].as_u64().unwrap().try_into()?;
+                let item = client.registry().item(request["item"].as_str().unwrap())?.id;
+                let body = Body::new(HeadlessBody::new(client.clone(), BodyConfig::default())?);
+                let id = body.backend().use_item_expect(hand, slot, item).await?;
+                let status = tokio::time::timeout(Duration::from_secs(5), async {
+                    loop {
+                        let status = body.action_status(id).await?;
+                        if status.is_terminal() { break voxrig::Result::Ok(status); }
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                }).await??;
+                serde_json::json!({"status":status,"refusal":body.backend().use_item_refusal(id)?})
+            },
+            "release_use_item" => serde_json::to_value(survival.release_use_item().await?)?,
+
             "map_context" => {
                 let context = client
                     .map_observation(request["id"].as_i64().unwrap().try_into()?)

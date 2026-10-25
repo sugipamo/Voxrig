@@ -3,6 +3,87 @@ use super::Hand;
 use super::physics::ItemUse;
 use crate::{Error, ErrorKind, MinecraftVersion, Result};
 
+/// Expected held identity was unknown or different at the dispatch boundary.
+/// No use-item packet was sent. Count and item data are not compared.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[non_exhaustive]
+pub struct UseItemRefusal {
+    /// Hand whose player-inventory slot was inspected.
+    pub hand: Hand,
+    /// Required selected hotbar index (0..8), including for offhand use.
+    pub expected_selected_hotbar: u8,
+    /// Known received or fully submitted selection; None means unknown.
+    pub observed_selected_hotbar: Option<u8>,
+    /// Required version-bound item definition.
+    pub expected_item: super::registry::RegistryId,
+    /// Received slot value; None means no received value. Empty is explicit.
+    pub observed_item: Option<super::SlotKnowledge>,
+}
+impl std::fmt::Display for UseItemRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "use item refused for {:?}: expected selected slot {} and item {:?}, observed selected slot {:?} and item {:?}",
+            self.hand,
+            self.expected_selected_hotbar,
+            self.expected_item,
+            self.observed_selected_hotbar,
+            self.observed_item
+        )
+    }
+}
+impl std::error::Error for UseItemRefusal {}
+
+/// Caller holds the native coherent state lock until dispatch completes.
+pub(crate) fn validate_expected(
+    player: &super::PlayerObservation,
+    hand: Hand,
+    selected: u8,
+    item: super::registry::RegistryId,
+) -> Result<()> {
+    if selected > 8 {
+        return Err(crate::error::invalid_input(
+            "expected hotbar slot must be 0..8",
+        ));
+    }
+    super::registry::Registry::for_version(player.session.version).item_definition(item)?;
+    let observed_selected = player
+        .selected_hotbar
+        .as_ref()
+        .filter(|s| {
+            matches!(
+                s.source,
+                super::ValueSource::Received { .. } | super::ValueSource::Submitted
+            )
+        })
+        .map(|s| s.value);
+    let slot = match hand {
+        Hand::Main => observed_selected
+            .filter(|s| *s <= 8)
+            .map(|s| 36 + usize::from(s)),
+        Hand::Off => Some(45),
+    };
+    let observed = slot
+        .and_then(|s| player.inventory.slots.get(s))
+        .and_then(Option::as_ref)
+        .filter(|s| matches!(s.source, super::ValueSource::Received { .. }));
+    if observed_selected == Some(selected)
+        && matches!(observed.map(|s| &s.value), Some(super::SlotKnowledge::Item { item: actual }) if actual.id == item)
+    {
+        return Ok(());
+    }
+    Err(Error::new(
+        ErrorKind::State,
+        UseItemRefusal {
+            hand,
+            expected_selected_hotbar: selected,
+            observed_selected_hotbar: observed_selected,
+            expected_item: item,
+            observed_item: observed.map(|s| s.value.clone()),
+        },
+    ))
+}
+
 /// `LivingEntity.isUsingItem` and `getUsedItemHand` on the received flags byte.
 pub(crate) fn hand_from_living_flags(flags: u8) -> Option<Hand> {
     (flags & 1 != 0).then_some(if flags & 2 != 0 {
@@ -103,6 +184,117 @@ fn decode(bytes: &[u8]) -> Result<ItemUse> {
         speed_multiplier,
         can_sprint: *can_sprint == 1,
     })
+}
+
+#[cfg(test)]
+pub(crate) async fn expect_test_contract(
+    client: &crate::Client,
+    hand: Hand,
+    item: super::registry::RegistryId,
+) {
+    use super::{SlotKnowledge, ValueSource};
+    let original = client.player_state().await.unwrap();
+    let index = if hand == Hand::Main { 36 } else { 45 };
+    let validate = |player: &super::PlayerObservation| validate_expected(player, hand, 0, item);
+    let mut p = original.clone();
+    p.selected_hotbar = None;
+    assert!(validate(&p).unwrap_err().use_item_refusal().is_some());
+    p = original.clone();
+    p.selected_hotbar.as_mut().unwrap().source = ValueSource::Predicted;
+    assert!(validate(&p).unwrap_err().use_item_refusal().is_some());
+    for value in [
+        None,
+        Some(super::received(SlotKnowledge::Unavailable, 90)),
+        Some(super::received(SlotKnowledge::Empty, 90)),
+    ] {
+        p = original.clone();
+        p.inventory.slots[index] = value;
+        assert!(validate(&p).unwrap_err().use_item_refusal().is_some());
+    }
+    p = original.clone();
+    p.inventory.slots[index].as_mut().unwrap().source = ValueSource::LocalCache;
+    assert!(validate(&p).unwrap_err().use_item_refusal().is_some());
+    p = original.clone();
+    if let SlotKnowledge::Item { item } = &mut p.inventory.slots[index].as_mut().unwrap().value {
+        item.count = 2;
+    }
+    validate(&p).unwrap(); // Count is explicitly outside the identity contract.
+    assert_eq!(
+        validate_expected(&original, hand, 9, item)
+            .unwrap_err()
+            .kind(),
+        ErrorKind::InvalidInput
+    );
+    let other_version = if client.version() == MinecraftVersion::Java1_16_1 {
+        MinecraftVersion::Java1_21_11
+    } else {
+        MinecraftVersion::Java1_16_1
+    };
+    let wrong_version = super::registry::Registry::for_version(other_version)
+        .item("minecraft:dirt")
+        .unwrap()
+        .id;
+    assert_eq!(
+        validate_expected(&original, hand, 0, wrong_version)
+            .unwrap_err()
+            .kind(),
+        ErrorKind::InvalidInput
+    );
+    let wrong_item = client.registry().item("minecraft:stone").unwrap().id;
+    let error = validate_expected(&original, hand, 0, wrong_item).unwrap_err();
+    let refusal = error.use_item_refusal().unwrap().clone();
+    let error = Error::from(anyhow::Error::new(refusal.clone()).context("context"));
+    assert_eq!(error.kind(), ErrorKind::State);
+    assert_eq!(error.use_item_refusal(), Some(&refusal));
+    // Body retains typed refusals after its asynchronous action terminates.
+    use crate::body::{ActionStatus, Body, BodyConfig, HeadlessBody};
+    let body = Body::new(
+        HeadlessBody::new(
+            client.clone(),
+            BodyConfig {
+                settle_window: std::time::Duration::from_millis(10),
+                ..Default::default()
+            },
+        )
+        .unwrap(),
+    );
+    for (slot, accepted) in [(1, false), (0, true)] {
+        let id = body
+            .backend()
+            .use_item_expect(hand, slot, item)
+            .await
+            .unwrap();
+        let status = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                let status = body.action_status(id).await.unwrap();
+                if status.is_terminal() {
+                    break status;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        if accepted {
+            assert!(matches!(status, ActionStatus::Accepted), "{status:?}");
+            assert!(body.backend().use_item_refusal(id).unwrap().is_none());
+        } else {
+            assert!(
+                matches!(status, ActionStatus::Rejected { .. }),
+                "{status:?}"
+            );
+            assert_eq!(
+                body.backend()
+                    .use_item_refusal(id)
+                    .unwrap()
+                    .unwrap()
+                    .observed_selected_hotbar,
+                Some(0)
+            );
+        }
+        // Wait until the worker has released its action ownership.
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
 }
 
 #[cfg(test)]

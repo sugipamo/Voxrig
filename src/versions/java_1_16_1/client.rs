@@ -3840,8 +3840,16 @@ impl Bot {
                 let _coherent_state = self.coherent_state_gate.lock().await;
                 let mut payload = Vec::new();
                 payload.write_i16::<BigEndian>(i16::from(slot))?;
+                // An interrupted native selection must not leave an old identity
+                // usable by use_item_expect. Dispatch is submission, never receipt.
+                self.common_receipts.lock().await.selected_hotbar = None;
                 self.send(0x24, &payload).await?;
                 self.inventory.write().await.selected_hotbar = slot;
+                self.common_receipts.lock().await.selected_hotbar =
+                    Some(crate::client::ObservedValue {
+                        value: slot,
+                        source: crate::client::ValueSource::Submitted,
+                    });
                 Ok(())
             })
             .await
@@ -4123,6 +4131,26 @@ impl Bot {
                 let mut payload = Vec::new();
                 put_varint(&mut payload, hand as i32);
                 self.send(0x2e, &payload).await
+            })
+            .await
+    }
+    /// Dispatch only when the selected hotbar index (0..8) and received held item ID
+    /// match under coherent_state_gate. Offhand uses player slot 45 and also checks
+    /// selection. Count/NBT are not compared. Unknown/mismatch sends nothing and
+    /// returns `Error::use_item_refusal()`; success is dispatch, not acceptance.
+    pub async fn use_item_expect(
+        &self,
+        hand: Hand,
+        selected_hotbar: u8,
+        item: crate::client::registry::RegistryId,
+    ) -> Result<()> {
+        let admission = self.connection.ledger().try_work()?;
+        admission
+            .run_scoped(async {
+                let _gate = self.coherent_state_gate.lock().await;
+                self.validate_use_item_expected_unlocked(hand, selected_hotbar, item)
+                    .await?;
+                self.use_item(hand).await
             })
             .await
     }
@@ -11467,3 +11495,6 @@ mod tests {
 
 mod finite_work;
 mod quiesce;
+
+#[cfg(test)]
+mod use_item_expect_tests;

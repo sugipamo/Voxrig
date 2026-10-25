@@ -1,0 +1,693 @@
+{
+  "issue": 251,
+  "date": "2026-10-25",
+  "binary_sha256": "f69f70769e7c7ea1636622d74b98df1233552dfa8284259a22884c24ba9bcea9",
+  "versions": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "trace_errors": [],
+      "evidence": "use-item-expect-live-1.16.1-20261025.json.gz",
+      "checks": [
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 621,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 576,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "use_item_expect",
+          "offhand": false,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {Slot: 0b, id: \"minecraft:bread\", Count: 2b}",
+          "dispatch": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 621,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 576,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "use_item_expect",
+          "offhand": true,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {Slot: -106b, id: \"minecraft:bread\", Count: 2b}",
+          "dispatch": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 621,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 576,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "body_use_item_expect",
+          "offhand": false,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {Slot: 0b, id: \"minecraft:bread\", Count: 2b}",
+          "dispatch": {
+            "refusal": null,
+            "status": {
+              "status": "accepted"
+            }
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 621,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 576,
+              "version": "Java1_16_1"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 621,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "body_use_item_expect",
+          "offhand": true,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {Slot: -106b, id: \"minecraft:bread\", Count: 2b}",
+          "dispatch": {
+            "refusal": null,
+            "status": {
+              "status": "accepted"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "trace_errors": [],
+      "evidence": "use-item-expect-live-1.21.11-20261025.json.gz",
+      "checks": [
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 953,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 893,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "use_item_expect",
+          "offhand": false,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {count: 2, Slot: 0b, id: \"minecraft:bread\"}",
+          "dispatch": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": 1,
+              "version": "Java1_21_11"
+            }
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 953,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 893,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "use_item_expect",
+          "offhand": true,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {count: 2, id: \"minecraft:bread\"}",
+          "dispatch": {
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": 2,
+              "version": "Java1_21_11"
+            }
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 953,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": false,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 893,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Main",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "body_use_item_expect",
+          "offhand": false,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {count: 2, Slot: 0b, id: \"minecraft:bread\"}",
+          "dispatch": {
+            "refusal": null,
+            "status": {
+              "status": "accepted"
+            }
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 1,
+          "expected_item": "minecraft:bread",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 953,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 1,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "refused",
+          "surface": "body_use_item_expect",
+          "offhand": true,
+          "use_item_packets": 0,
+          "expected_slot": 0,
+          "expected_item": "minecraft:apple",
+          "refusal": {
+            "expected_item": {
+              "kind": "Item",
+              "value": 893,
+              "version": "Java1_21_11"
+            },
+            "expected_selected_hotbar": 0,
+            "hand": "Off",
+            "observed_item": {
+              "item": {
+                "count": 3,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 953,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:bread"
+              },
+              "kind": "item"
+            },
+            "observed_selected_hotbar": 0
+          }
+        },
+        {
+          "name": "consumed",
+          "surface": "body_use_item_expect",
+          "offhand": true,
+          "use_item_packets": 1,
+          "count_before": 3,
+          "count_after": 2,
+          "food_before": 14,
+          "food_after": 19,
+          "native": "ClimbingProbe has the following entity data: {count: 2, id: \"minecraft:bread\"}",
+          "dispatch": {
+            "refusal": null,
+            "status": {
+              "status": "accepted"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

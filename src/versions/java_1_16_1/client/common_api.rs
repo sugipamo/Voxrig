@@ -4,6 +4,25 @@ use crate::client::adapter::FlightOps;
 use crate::client::{self as api, operations::Action};
 
 impl Bot {
+    // Caller owns coherent_state_gate. Native equipment operations may update the
+    // compatibility selection without a common receipt; that disagreement is unknown.
+    pub(super) async fn validate_use_item_expected_unlocked(
+        &self,
+        hand: api::Hand,
+        selected: u8,
+        item: api::registry::RegistryId,
+    ) -> Result<()> {
+        let mut player = self.common_player_unlocked().await?;
+        let actual = self.inventory.read().await.selected_hotbar;
+        if player
+            .selected_hotbar
+            .as_ref()
+            .is_some_and(|s| s.value != actual)
+        {
+            player.selected_hotbar = None;
+        }
+        api::item_use::validate_expected(&player, hand, selected, item)
+    }
     pub(super) async fn common_player_unlocked(&self) -> Result<api::PlayerObservation> {
         if self.is_stopped() {
             return Err(crate::Error::new(
@@ -290,7 +309,11 @@ impl Bot {
                 payload.push(0);
                 (0x2d, payload)
             }
-            Action::UseItem(hand) => {
+            Action::UseItem(hand) | Action::UseItemExpect(hand, ..) => {
+                if let Action::UseItemExpect(_, selected, item) = action {
+                    self.validate_use_item_expected_unlocked(hand, selected, item)
+                        .await?;
+                }
                 let mut payload = Vec::new();
                 put_varint(&mut payload, hand as i32);
                 (0x2e, payload)
