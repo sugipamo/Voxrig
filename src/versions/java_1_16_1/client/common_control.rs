@@ -237,6 +237,14 @@ impl Bot {
     }
 
     async fn control_entity_action(&self, action: i32) -> Result<()> {
+        self.control_entity_action_in(action, crate::client::domain::Domain::Strict)
+            .await
+    }
+    async fn control_entity_action_in(
+        &self,
+        action: i32,
+        domain: crate::client::domain::Domain,
+    ) -> Result<()> {
         let entity = self
             .player
             .lock()
@@ -247,16 +255,21 @@ impl Bot {
         put_varint(&mut payload, entity);
         put_varint(&mut payload, action);
         put_varint(&mut payload, 0);
-        self.send(0x1c, &payload).await
+        self.send_in_domain(domain, 0x1c, &payload).await
     }
 
     async fn release_control(&self, session: &ControlSession) -> Result<()> {
+        let domain = if session.best_effort_contacts {
+            crate::client::domain::Domain::Motion
+        } else {
+            crate::client::domain::Domain::Strict
+        };
         let (sneak, sprint, _) = session.release();
         if sprint.is_some() {
-            self.control_entity_action(4).await?;
+            self.control_entity_action_in(4, domain).await?;
         }
         if sneak.is_some() {
-            self.control_entity_action(1).await?;
+            self.control_entity_action_in(1, domain).await?;
         }
         Ok(())
     }
@@ -479,6 +492,11 @@ impl Bot {
                     }
                     let glide_ended = kind == crate::client::control::ControlKind::Glide
                         && session.body.glide_ended;
+                    let domain = if session.best_effort_contacts {
+                        crate::client::domain::Domain::Motion
+                    } else {
+                        crate::client::domain::Domain::Strict
+                    };
                     let written: Result<()> = async {
                         if landed {
                             self.send(0x1a, &[0]).await?;
@@ -488,11 +506,11 @@ impl Bot {
                         }
                         // LocalPlayer.sendPosition: sprint, then sneak, then movement.
                         if let Some(start) = output.sprint {
-                            self.control_entity_action(if start { 3 } else { 4 })
+                            self.control_entity_action_in(if start { 3 } else { 4 }, domain)
                                 .await?;
                         }
                         if let Some(press) = output.sneak {
-                            self.control_entity_action(if press { 0 } else { 1 })
+                            self.control_entity_action_in(if press { 0 } else { 1 }, domain)
                                 .await?;
                         }
                         let mut payload = Vec::with_capacity(33);
@@ -503,7 +521,7 @@ impl Bot {
                             payload.extend(v.to_be_bytes());
                         }
                         payload.push(u8::from(output.on_ground));
-                        self.send(0x13, &payload).await
+                        self.send_in_domain(domain, 0x13, &payload).await
                     }
                     .await;
                     if let Err(error) = written {
@@ -714,7 +732,14 @@ impl Bot {
                 if self.common_control.lock().await.active() {
                     return Err(state_error("a control session is already running"));
                 }
-                if self.common_motion_pauses_physics().await
+                if best_effort_contacts {
+                    self.common_domain_admission(
+                        false,
+                        None,
+                        crate::client::domain::Domain::Motion,
+                    )
+                    .await?;
+                } else if self.common_motion_pauses_physics().await
                     || self.common_native_physics_paused().await
                 {
                     return Err(state_error("another movement operation is unresolved"));

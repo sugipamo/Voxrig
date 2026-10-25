@@ -455,3 +455,6 @@ impl<B: BodyBackend> Body<B> {
         self.backend.release_control().await
     }
 }
+
+mod receipt;
+pub use receipt::{InventoryClickWatch, ReceiptStatus};

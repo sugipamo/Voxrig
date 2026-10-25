@@ -350,6 +350,7 @@ enum Command {
         reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
     },
     Dispatch {
+        domain: crate::client::domain::Domain,
         context: OperationContext,
         class: OperationClass,
         packet_id: i32,
@@ -931,18 +932,19 @@ impl ConnectionActor {
                         let _ = reply.send(result);
                     }
                     Command::Dispatch {
+                        domain,
                         context,
                         class,
                         packet_id,
                         payload,
                         reply,
                     } => {
-                        let admission = motion_gate.admit(
+                        let admission = motion_gate.admit_domain(
                             generation,
                             state,
                             active_output_sequence,
                             context,
-                            class,
+                            (class, domain),
                         );
                         let result = match admission {
                             Ok(()) => {
@@ -1778,9 +1780,27 @@ impl ConnectionActor {
         packet_id: i32,
         payload: &[u8],
     ) -> crate::Result<()> {
+        self.dispatch_domain(
+            context,
+            class,
+            packet_id,
+            payload,
+            crate::client::domain::Domain::Strict,
+        )
+        .await
+    }
+    pub(crate) async fn dispatch_domain(
+        &self,
+        context: OperationContext,
+        class: OperationClass,
+        packet_id: i32,
+        payload: &[u8],
+        domain: crate::client::domain::Domain,
+    ) -> crate::Result<()> {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::Dispatch {
+                domain,
                 context,
                 class,
                 packet_id,

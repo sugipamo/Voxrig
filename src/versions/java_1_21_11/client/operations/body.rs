@@ -187,6 +187,55 @@ impl Operations {
             pos,
         )
     }
+    pub(super) fn body_dig_hand_admission(&self, state: &State) -> Result<()> {
+        use crate::client::domain;
+        let selected = state.operations.selected_hotbar.as_ref().map(|s| s.slot);
+        let hand = selected.map(|s| 36 + u16::from(s));
+        let conflict = state
+            .common_inventory_click
+            .as_ref()
+            .is_some_and(|r| r.unresolved() && domain::click_changes_hand(r, selected))
+            || state.common_inventory_swap.as_ref().is_some_and(|r| {
+                r.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+                    && domain::swap_changes_hand(&r.record, selected)
+            })
+            || state
+                .common_inventory_transfer
+                .as_ref()
+                .is_some_and(|r| r.unresolved() && domain::transfer_changes_hand(r, selected))
+            || state
+                .common_selected_drop
+                .as_ref()
+                .is_some_and(|r| r.unresolved() && Some(r.main_slot) == hand)
+            || state
+                .common_hand_swap
+                .as_ref()
+                .is_some_and(|r| r.unresolved() && Some(r.main_slot) == hand)
+            || state
+                .common_recipe_placement
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_crafting_take
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_container_close
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_container_open
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state.operations.inventory.pending_swap.is_some()
+            || !state.operations.inventory.pending_creative.is_empty();
+        if conflict {
+            return Err(crate::client::inventory::unavailable(
+                "pending inventory mutation can change the retained dig hand",
+            ));
+        }
+        Ok(())
+    }
     /// Body block dispatch omits client pick/standing/material filters.
     /// Existing strict operations and their records are untouched.
     pub(crate) async fn body_block_send(
@@ -201,13 +250,17 @@ impl Operations {
             .try_work()?
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
-                self.mutable_with_ground_requirement(
-                    &state,
-                    !matches!(
-                        action,
-                        body::Action::PlaceBlock { .. } | body::Action::ActivateBlock { .. }
-                    ),
-                )?;
+                let domain = match action {
+                    body::Action::BreakBlock { .. } => crate::client::domain::Domain::Dig,
+                    body::Action::ActivateBlock { .. } => crate::client::domain::Domain::Screen,
+                    _ => crate::client::domain::Domain::ItemUse,
+                };
+                self.mutable_in_domain(&state, false, false, None, domain)?;
+                if matches!(action, body::Action::BreakBlock { .. })
+                    && state.operations.game_mode == Some(GameMode::Survival)
+                {
+                    self.body_dig_hand_admission(&state)?;
+                }
                 if world
                     != (BodyWorld {
                         connection: self.bot.session.id,

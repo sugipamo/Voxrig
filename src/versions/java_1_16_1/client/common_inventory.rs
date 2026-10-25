@@ -1230,6 +1230,104 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn domain_gates_pending_selected_slot_keeps_legacy_dig_identity() {
+        use contract::{InventoryClickButton as Button, InventoryClickSource as Source};
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let record = client
+            .survival()
+            .click_inventory(Source::Player, 36, Button::Left)
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x09);
+        assert!(bot.body_dig_hand_admission(Some(0)).await.is_err());
+        bot.body_dig_hand_admission(Some(1)).await.unwrap();
+        assert!(api::domain::click_changes_hand(&record, Some(0)));
+        assert!(!api::domain::click_changes_hand(&record, Some(1)));
+        assert!(packets.try_recv().is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn domain_gates_leave_legacy_strict_click_and_cursor_ownership_intact() {
+        use crate::body::*;
+        use api::domain::Domain;
+        use contract::{InventoryClickButton as Button, InventoryClickSource as Source};
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let record = client
+            .survival()
+            .click_inventory(Source::Player, 9, Button::Left)
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x09);
+        assert!(bot.common_motion_admission().await.is_err());
+        assert!(
+            bot.common_domain_admission(false, None, Domain::Screen)
+                .await
+                .is_err()
+        );
+        for domain in [
+            Domain::Motion,
+            Domain::Dig,
+            Domain::Selection,
+            Domain::Chat,
+            Domain::ItemUse,
+        ] {
+            bot.common_domain_admission(false, None, domain)
+                .await
+                .unwrap();
+        }
+        assert!(
+            client
+                .survival()
+                .click_inventory(Source::Player, 10, Button::Left)
+                .await
+                .is_err()
+        );
+        bot.body_dig_hand_admission(Some(0)).await.unwrap();
+        let backend = HeadlessBody::new(
+            client.clone(),
+            BodyConfig {
+                settle_window: Duration::from_millis(20),
+                action_timeout: Duration::from_millis(100),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let watch = backend.watch_inventory_click(record.id).await.unwrap();
+        assert_eq!(watch.status().await, ReceiptStatus::Pending);
+        tokio::time::sleep(Duration::from_millis(110)).await;
+        assert_eq!(watch.status().await, ReceiptStatus::Unknown);
+        slot(&bot, 9, &api::SlotKnowledge::Empty, false).await;
+        let mut cursor = vec![255, 255, 255];
+        write_slot(&mut cursor, None);
+        bot.apply_packet(0x16, cursor).await.unwrap();
+        ack(&bot, record.send.legacy_action.unwrap(), false).await;
+        assert_eq!(watch.status().await, ReceiptStatus::Corrected);
+        assert!(
+            client
+                .survival()
+                .click_inventory(Source::Player, 10, Button::Left)
+                .await
+                .is_err()
+        );
+        drop(release);
+        drop(watch);
+        drop(backend);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn pickup_receipt_deadline_is_configurable_without_resending() {
         use contract::{
             InventoryClickButton as Button, InventoryClickSource as Source,

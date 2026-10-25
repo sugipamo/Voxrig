@@ -5556,3 +5556,160 @@ async fn crafting_input_transfer_packets_bound_table_inputs_are_not_player_armor
         }
     }
 }
+
+#[tokio::test]
+async fn domain_gates_keep_strict_cursor_conflicts_and_bound_the_additive_watch() {
+    use crate::{
+        body::*,
+        client::{
+            domain::Domain,
+            inventory::{InventoryClickButton as Button, InventoryClickSource as Source},
+        },
+    };
+    for outcome in ["accepted", "late_correction", "late_agreement"] {
+        let mut f = CommonFixture::new().await;
+        let client = f.client();
+        let record = client
+            .survival()
+            .click_inventory(Source::Player, 9, Button::Left)
+            .await
+            .unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::WINDOW_CLICK
+        );
+        let backend = HeadlessBody::new(
+            client.clone(),
+            BodyConfig {
+                settle_window: Duration::from_millis(20),
+                action_timeout: Duration::from_millis(120),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let watch = backend.watch_inventory_click(record.id).await.unwrap();
+        assert_eq!(watch.status().await, ReceiptStatus::Pending);
+        assert!(
+            client
+                .survival()
+                .click_inventory(Source::Player, 10, Button::Left)
+                .await
+                .is_err()
+        );
+        {
+            let state = f.api.bot.session.state.lock().await;
+            assert!(f.api.mutable(&state).is_err());
+            assert!(
+                f.api
+                    .mutable_in_domain(&state, false, false, None, Domain::Screen)
+                    .is_err()
+            );
+            for domain in [
+                Domain::Motion,
+                Domain::Dig,
+                Domain::Chat,
+                Domain::Selection,
+                Domain::ItemUse,
+            ] {
+                f.api
+                    .mutable_in_domain(&state, false, false, None, domain)
+                    .unwrap();
+            }
+        }
+        // Actual send path, preserving strict refusal for the same command.
+        assert!(f.api.send_chat("strict").await.is_err());
+        let world = BodyWorld {
+            connection: record.id.session().connection_id,
+            generation: record.id.session().world_generation,
+        };
+        f.api
+            .body_simple_send(
+                world,
+                GameMode::Survival,
+                &Action::Chat("independent".into()),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::CHAT_MESSAGE
+        );
+        if outcome != "accepted" {
+            tokio::time::sleep(Duration::from_millis(130)).await;
+            assert_eq!(watch.status().await, ReceiptStatus::Unknown);
+        }
+        let source = if outcome == "late_correction" {
+            plain("stone", 7)
+        } else {
+            InventorySlot::Empty
+        };
+        f.slot(9, source).await;
+        if outcome == "late_correction" {
+            assert_eq!(watch.status().await, ReceiptStatus::Corrected);
+        }
+        let mut cursor = Vec::new();
+        put_slot(&mut cursor, &plain("stone", 32));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        assert_eq!(
+            watch.status().await,
+            match outcome {
+                "accepted" => ReceiptStatus::Accepted,
+                "late_correction" => ReceiptStatus::Corrected,
+                _ => ReceiptStatus::Unknown,
+            }
+        );
+        if outcome == "late_correction" {
+            assert!(
+                client
+                    .survival()
+                    .click_inventory(Source::Player, 10, Button::Left)
+                    .await
+                    .is_err()
+            );
+        }
+        // A watch created for an old connection cannot attach to this connection.
+        let foreign = CommonFixture::new().await;
+        let foreign_body = HeadlessBody::new(foreign.client(), BodyConfig::default()).unwrap();
+        assert!(foreign_body.watch_inventory_click(record.id).await.is_err());
+        foreign.stop().await;
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn domain_gates_pending_selected_slot_keeps_modern_dig_identity() {
+    use crate::client::inventory::{
+        InventoryClickButton as Button, InventoryClickSource as Source,
+    };
+    let mut f = CommonFixture::new().await;
+    {
+        let mut state = f.api.bot.session.state.lock().await;
+        state.operations.selected_hotbar = Some(HotbarSelection {
+            slot: 0,
+            sequence: state.sequence,
+            dispatched: true,
+            from_server: false,
+        });
+    }
+    let client = f.client();
+    let record = client
+        .survival()
+        .click_inventory(Source::Player, 36, Button::Left)
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::WINDOW_CLICK
+    );
+    {
+        let mut state = f.api.bot.session.state.lock().await;
+        assert!(f.api.body_dig_hand_admission(&state).is_err());
+        state.operations.selected_hotbar.as_mut().unwrap().slot = 1;
+        f.api.body_dig_hand_admission(&state).unwrap();
+        assert!(crate::client::domain::click_changes_hand(&record, Some(0)));
+        assert!(!crate::client::domain::click_changes_hand(&record, Some(1)));
+    }
+    f.stop().await;
+}

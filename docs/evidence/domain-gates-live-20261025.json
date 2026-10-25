@@ -1,0 +1,174 @@
+{
+  "base_revision": "6ee0374951540d8faebba465054fee7e50ad419f",
+  "binary_sha256": "4f6b8b751a488a3dca70efcb803c1e34be3119ba608e893e141bf048f1ee218a",
+  "build_command": "cargo build --locked --example body_probe --features native -j2",
+  "sdk_sha256": "2c93a8cdd01885a79fff620cd8a688b8ab330970943bda05074df566a420a84c",
+  "versions": [
+    {
+      "version": "1.16.1",
+      "native_feature": true,
+      "mode": "survival",
+      "passed": true,
+      "official_server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "report": "domain-gates-live-1.16.1-20261025.json.gz",
+      "report_sha256": "3f4163bb7ed881961be120b2c67415bd1628b17f67ccfa1a4f2530e17daa4cbf",
+      "checks": [
+        {
+          "name": "initial_selection",
+          "status": "accepted",
+          "seconds": 0.49,
+          "packet_count": 4
+        },
+        {
+          "name": "fresh_exact_pickup_receipts",
+          "status": "accepted",
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "open_real_container",
+          "status": "accepted",
+          "seconds": 0.489,
+          "packet_count": 26
+        },
+        {
+          "name": "same_screen_conflict_refused",
+          "status": null,
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "pending_click_look",
+          "status": "accepted",
+          "seconds": 0.484,
+          "packet_count": 1
+        },
+        {
+          "name": "pending_click_dig",
+          "status": "unknown",
+          "seconds": 2.097,
+          "packet_count": 2
+        },
+        {
+          "name": "pending_click_move",
+          "status": "accepted",
+          "seconds": 0.585,
+          "packet_count": 4
+        },
+        {
+          "name": "pending_click_chat",
+          "status": "accepted",
+          "seconds": 0.485,
+          "packet_count": 1
+        },
+        {
+          "name": "pending_click_hotbar",
+          "status": "accepted",
+          "seconds": 0.484,
+          "packet_count": 1
+        },
+        {
+          "name": "receipt_deadline_unknown_without_replay",
+          "status": null,
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "late_dig_correction_after_unknown",
+          "status": "corrected",
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "late_inventory_correction_after_unknown",
+          "status": "corrected",
+          "seconds": 0,
+          "packet_count": 0
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "native_feature": true,
+      "mode": "survival",
+      "passed": true,
+      "official_server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "report": "domain-gates-live-1.21.11-20261025.json.gz",
+      "report_sha256": "1c8584beef8131b2560ec73ebaca3a295abcac740441457c746b28070300e1b8",
+      "checks": [
+        {
+          "name": "initial_selection",
+          "status": "accepted",
+          "seconds": 0.491,
+          "packet_count": 4
+        },
+        {
+          "name": "fresh_exact_pickup_receipts",
+          "status": "accepted",
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "open_real_container",
+          "status": "accepted",
+          "seconds": 0.585,
+          "packet_count": 13
+        },
+        {
+          "name": "same_screen_conflict_refused",
+          "status": null,
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "pending_click_look",
+          "status": "accepted",
+          "seconds": 0.389,
+          "packet_count": 1
+        },
+        {
+          "name": "pending_click_dig",
+          "status": "unknown",
+          "seconds": 2.109,
+          "packet_count": 2
+        },
+        {
+          "name": "pending_click_move",
+          "status": "accepted",
+          "seconds": 0.594,
+          "packet_count": 6
+        },
+        {
+          "name": "pending_click_chat",
+          "status": "accepted",
+          "seconds": 0.487,
+          "packet_count": 1
+        },
+        {
+          "name": "pending_click_hotbar",
+          "status": "accepted",
+          "seconds": 0.484,
+          "packet_count": 1
+        },
+        {
+          "name": "receipt_deadline_unknown_without_replay",
+          "status": null,
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "late_dig_correction_after_unknown",
+          "status": "corrected",
+          "seconds": 0,
+          "packet_count": 0
+        },
+        {
+          "name": "late_inventory_correction_after_unknown",
+          "status": "corrected",
+          "seconds": 0,
+          "packet_count": 0
+        }
+      ]
+    }
+  ]
+}

@@ -33,6 +33,34 @@ impl Coordinator {
                 )
             })
     }
+    pub(crate) fn reserve_body(
+        &self,
+        session: super::SessionStamp,
+    ) -> Result<tokio::sync::OwnedMutexGuard<()>> {
+        let guard = self
+            .operation
+            .clone()
+            .try_lock_owned()
+            .map_err(|_| unavailable("another dig owns this connection"))?;
+        if self
+            .cleanup
+            .lock()
+            .expect("dig cleanup")
+            .as_ref()
+            .is_some_and(|r| {
+                r.session == session
+                    && matches!(
+                        r.status,
+                        DigCleanupStatus::Pending | DigCleanupStatus::Failed
+                    )
+            })
+        {
+            return Err(unavailable(
+                "prior dig cleanup is unresolved; inspect without replay",
+            ));
+        }
+        Ok(guard)
+    }
     pub(crate) fn active(&self) -> bool {
         self.operation.try_lock().is_err()
     }
@@ -667,6 +695,25 @@ mod tests {
     use super::*;
     use crate::MinecraftVersion;
     use crate::client::{InventoryObservation, ItemData, ItemStack, SlotKnowledge, received};
+
+    #[test]
+    fn domain_gates_body_dig_shares_the_strict_owner_and_retains_cleanup() {
+        let coordinator = Coordinator::default();
+        let session = fixture(MinecraftVersion::Java1_21_11).player.session;
+        let owner = coordinator.reserve_body(session).unwrap();
+        assert!(coordinator.active());
+        assert!(coordinator.reserve_body(session).is_err());
+        drop(owner);
+        assert!(!coordinator.active());
+        *coordinator.cleanup.lock().unwrap() = Some(DigCleanupRecord {
+            session,
+            target: [0, 64, 0],
+            status: DigCleanupStatus::Failed,
+            reason: "uncertain ABORT".into(),
+            interaction_sequence: None,
+        });
+        assert!(coordinator.reserve_body(session).is_err());
+    }
 
     #[test]
     fn dig_ids_survive_world_resets_and_exhaustion_never_wraps() {
