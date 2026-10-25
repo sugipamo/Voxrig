@@ -20,6 +20,7 @@ include = [
     "/scripts/run_hand_swap_live.py",
     "/scripts/run_use_item_expect_live.py",
     "/scripts/run_body_live.py",
+    "/scripts/run_legacy_body_live.py",
     "/scripts/run_place_activation_live.py",
     "/scripts/run_contact_best_effort_live.py",
     "/scripts/run_contact_history_live.py",

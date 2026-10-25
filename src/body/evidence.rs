@@ -4,6 +4,12 @@ use std::collections::VecDeque;
 #[derive(Clone)]
 pub(crate) enum Update {
     Block([i32; 3], i32),
+    DigAck {
+        pos: [i32; 3],
+        state: i32,
+        status: i32,
+        successful: bool,
+    },
     Pose {
         position: [f64; 3],
         rotation: [f32; 2],
