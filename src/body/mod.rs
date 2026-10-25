@@ -241,7 +241,8 @@ pub enum ServerCorrection {
     /// Full inventory resynchronization; contents are in the accompanying snapshot.
     InventoryResync,
 }
-/// Acceptance outcome. Terminal values are immutable; later changes are ordinary observations.
+/// Acceptance outcome. Ordinary submit results are immutable; send-and-trust
+/// IDs can additionally expose a later Corrected rollback notice.
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum ActionStatus {
@@ -272,10 +273,34 @@ pub enum ActionStatus {
     Cancelled,
 }
 impl ActionStatus {
-    /// Whether this action has reached its immutable result.
+    /// Whether acceptance work has reached a result. A late rollback notice
+    /// on a send-and-trust ID does not reopen work or ownership.
     pub fn is_terminal(&self) -> bool {
         !matches!(self, Self::Pending)
     }
+}
+/// Result of waiting only for the first complete dispatch boundary.
+/// This is separate from `ActionStatus`: Sent never asserts server acceptance.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum SendStatus {
+    /// All packets at the action's initial dispatch boundary were fully written.
+    /// Move: first configured client tick; BreakBlock: START; others: full action.
+    Sent,
+    /// The action terminated before a complete dispatch was established.
+    NotSent {
+        /// Refusal, uncertainty, cancellation or deadline result; never success.
+        outcome: ActionStatus,
+    },
+}
+/// An owned action and its initial dispatch result. Continue observing this ID
+/// through status/events for acceptance or later server corrections.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ActionDispatch {
+    /// Retained action identity, also available for NotSent results.
+    pub id: ActionId,
+    /// Dispatch result, independent of the eventual acceptance outcome.
+    pub dispatch: SendStatus,
 }
 /// Supported action families.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
@@ -462,3 +487,15 @@ impl<B: BodyBackend> Body<B> {
 
 mod receipt;
 pub use receipt::{InventoryClickWatch, ReceiptStatus};
+
+impl Body<HeadlessBody> {
+    /// Submit once and return at full initial dispatch, without ACK/settle waits.
+    /// The backend keeps ownership, deadlines and cleanup. For this opt-in ID,
+    /// status/events also expose late Corrected notices within retained evidence.
+    pub async fn send_and_trust(
+        &self,
+        request: impl Into<ActionRequest>,
+    ) -> Result<ActionDispatch> {
+        self.backend.send_and_trust(request).await
+    }
+}

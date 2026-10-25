@@ -98,6 +98,8 @@ fn invalid(message: &str) -> Error {
     error(ErrorKind::InvalidInput, message)
 }
 struct Job {
+    trust_sent: bool,
+    changed: watch::Sender<u64>,
     acceptance: Mutex<Acceptance>,
     cancel: watch::Sender<bool>,
     release: Mutex<Option<ReleaseStatus>>,
@@ -157,8 +159,41 @@ impl HeadlessBody {
         self.submit_inner(
             Action::UseItem { hand }.into(),
             Some((selected_hotbar, item)),
+            false,
         )
         .await
+    }
+
+    /// Send once and wait only for the initial complete write. All existing
+    /// admission checks still run. Dropping this future does not cancel owned work.
+    /// Move returns after its first full configured tick (even Some(N)); Break
+    /// returns after START. Finite ticks, STOP/ABORT, leases and deadlines continue.
+    /// Sent is not terminal: inspect the returned ID's status/events for outcomes.
+    /// Late corrections are refreshed on status/events reads, bounded by retention.
+    pub async fn send_and_trust(
+        &self,
+        request: impl Into<ActionRequest>,
+    ) -> Result<ActionDispatch> {
+        let id = self.submit_inner(request.into(), None, true).await?;
+        let job = self.inner.job(id)?;
+        let mut changed = job.changed.subscribe();
+        let deadline = job.acceptance.lock().unwrap().deadline();
+        loop {
+            self.inner.update(id, |m| m.expire(Instant::now()));
+            if let Some(dispatch) = job.acceptance.lock().unwrap().dispatch_status() {
+                return Ok(ActionDispatch { id, dispatch });
+            }
+            // A delayed worker cannot extend the wait beyond submit's deadline.
+            let _ = timeout_at(deadline, changed.changed()).await;
+        }
+    }
+
+    fn retained_status(&self, id: ActionId) -> Result<ActionStatus> {
+        let job = self.inner.job(id)?;
+        self.inner.update(id, |m| m.expire(Instant::now()));
+        let status = job.acceptance.lock().unwrap().status.clone();
+        let late = job.late_correction.lock().unwrap().clone();
+        Ok(late.filter(|_| job.trust_sent).unwrap_or(status))
     }
 
     /// Refresh an Accepted/Unknown outcome from retained original server evidence.
@@ -167,7 +202,7 @@ impl HeadlessBody {
     /// Does not replay, reopen ownership, or infer acceptance from late agreement.
     /// Evidence gaps/world changes leave Unknown; retention bounds this facility.
     pub async fn action_outcome(&self, id: ActionId) -> Result<ActionStatus> {
-        let status = self.action_status(id).await?;
+        let status = self.retained_status(id)?;
         if !matches!(
             status,
             ActionStatus::Unknown { .. } | ActionStatus::Accepted
@@ -175,6 +210,14 @@ impl HeadlessBody {
             return Ok(status);
         }
         let job = self.inner.job(id)?;
+        if job.trust_sent
+            && !matches!(
+                job.acceptance.lock().unwrap().dispatch_status(),
+                Some(SendStatus::Sent)
+            )
+        {
+            return Ok(status);
+        }
         if let Some(corrected) = job.late_correction.lock().unwrap().clone() {
             return Ok(corrected);
         }
@@ -194,13 +237,79 @@ impl HeadlessBody {
                     if let Some(corrected @ ActionStatus::Corrected { .. }) =
                         correction(&batch, monitor.expected.as_ref(), &monitor.action)?
                     {
-                        *job.late_correction.lock().unwrap() = Some(corrected.clone());
+                        self.inner.record_late(id, corrected.clone());
                         return Ok(corrected);
                     }
                 }
             }
         }
         Ok(status)
+    }
+
+    async fn refresh_trusted(&self) -> Result<()> {
+        let monitors: Vec<_> = {
+            let records = self.inner.records.lock().unwrap();
+            records
+                .jobs
+                .iter()
+                .filter_map(|(id, job)| {
+                    if !job.trust_sent
+                        || !matches!(
+                            job.acceptance.lock().unwrap().dispatch_status(),
+                            Some(SendStatus::Sent)
+                        )
+                        || job.late_correction.lock().unwrap().is_some()
+                        || !matches!(
+                            job.acceptance.lock().unwrap().status,
+                            ActionStatus::Accepted | ActionStatus::Unknown { .. }
+                        )
+                    {
+                        return None;
+                    }
+                    job.monitor.lock().unwrap().clone().map(|m| (*id, m))
+                })
+                .collect()
+        };
+        let Some(cursor) = monitors.iter().map(|(_, m)| m.cursor).min() else {
+            return Ok(());
+        };
+        let mut blocks: Vec<_> = monitors
+            .iter()
+            .flat_map(|(_, m)| m.selection.blocks.iter().copied())
+            .collect();
+        blocks.sort_unstable();
+        blocks.dedup();
+        let ops = self.operations()?;
+        if let Ok(Ok(batch)) = timeout(
+            self.inner.config.settle_window,
+            ops.body_evidence(
+                self.inner.id,
+                &ObserveRequest {
+                    blocks,
+                    region: None,
+                },
+                Some(cursor),
+            ),
+        )
+        .await
+        {
+            let retained_from = batch.events.first().map_or(batch.cursor, |e| e.ordinal - 1);
+            for (id, monitor) in monitors {
+                if (batch.gap && monitor.cursor < retained_from)
+                    || batch.snapshot.world != monitor.world
+                {
+                    continue;
+                }
+                let mut own = batch.clone();
+                own.events.retain(|e| e.ordinal > monitor.cursor);
+                if let Some(corrected @ ActionStatus::Corrected { .. }) =
+                    correction(&own, monitor.expected.as_ref(), &monitor.action)?
+                {
+                    self.inner.record_late(id, corrected);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Watch one existing strict PICKUP with a shared absolute deadline. Does
@@ -319,8 +428,23 @@ impl Inner {
             let mut machine = job.acceptance.lock().unwrap();
             let pending = !machine.status.is_terminal();
             update(&mut machine);
+            if machine.dispatch_status().is_some() {
+                job.changed.send_modify(|n| *n += 1);
+            }
             if pending && machine.status.is_terminal() {
                 self.event(&mut records, id, machine.status.clone());
+            }
+        }
+    }
+    fn record_late(&self, id: ActionId, corrected: ActionStatus) {
+        let mut records = self.records.lock().unwrap();
+        if let Some(job) = records.jobs.get(&id).cloned() {
+            let mut late = job.late_correction.lock().unwrap();
+            if late.is_none() {
+                *late = Some(corrected.clone());
+                if job.trust_sent {
+                    self.event(&mut records, id, corrected);
+                }
             }
         }
     }
@@ -342,6 +466,7 @@ impl HeadlessBody {
         &self,
         request: ActionRequest,
         expected_use: Option<(u8, crate::client::registry::RegistryId)>,
+        trust_sent: bool,
     ) -> Result<ActionId> {
         let ops = self.operations()?;
         let deadline = Instant::now() + self.inner.config.action_timeout;
@@ -351,6 +476,8 @@ impl HeadlessBody {
         ) || (matches!(request.action, Action::ActivateBlock { .. })
             && self.inner.client.version() == MinecraftVersion::Java1_21_11);
         let job = Arc::new(Job {
+            trust_sent,
+            changed: watch::channel(0).0,
             acceptance: Mutex::new(Acceptance::new(
                 deadline,
                 self.inner.config.settle_window,
@@ -489,14 +616,14 @@ impl BodyBackend for HeadlessBody {
         .map(|b| b.snapshot)
     }
     async fn submit(&self, request: ActionRequest) -> Result<ActionId> {
-        self.submit_inner(request, None).await
+        self.submit_inner(request, None, false).await
     }
     async fn action_status(&self, id: ActionId) -> Result<ActionStatus> {
-        let job = self.inner.job(id)?;
-        // Also enforces the deadline if the worker/runtime was delayed.
-        self.inner.update(id, |m| m.expire(Instant::now()));
-        let status = job.acceptance.lock().unwrap().status.clone();
-        Ok(status)
+        if self.inner.job(id)?.trust_sent {
+            self.action_outcome(id).await
+        } else {
+            self.retained_status(id)
+        }
     }
     async fn cancel(&self, id: ActionId) -> Result<CancelStatus> {
         let job = self.inner.job(id)?;
@@ -518,6 +645,7 @@ impl BodyBackend for HeadlessBody {
         {
             return Err(invalid("invalid body event cursor or maximum (1..4096)"));
         }
+        self.refresh_trusted().await?;
         let records = self.inner.records.lock().unwrap();
         if cursor.ordinal > records.ordinal {
             return Err(invalid("body event cursor is ahead of this backend"));
@@ -740,6 +868,7 @@ async fn run(
             ops.body_simple_send(world, mode()?, &request.action, expected_use)
                 .await?;
             cleanup.dispatched = true;
+            inner.update(id, |m| m.dispatched(Instant::now()));
         }
         Action::PlaceBlock { .. } | Action::ActivateBlock { .. } => {
             cleanup.attempted = true;
@@ -747,8 +876,15 @@ async fn run(
             sequence = sent_sequence;
             if let Some(sent_cursor) = sent_cursor {
                 cursor = sent_cursor;
+                let job = inner.job(id)?;
+                if job.trust_sent {
+                    if let Some(monitor) = job.monitor.lock().unwrap().as_mut() {
+                        monitor.cursor = sent_cursor;
+                    }
+                }
             }
             cleanup.dispatched = true;
+            inner.update(id, |m| m.dispatched(Instant::now()));
         }
         Action::BreakBlock { pos, .. } => {
             use crate::client::adapter::DigOps;
@@ -787,6 +923,7 @@ async fn run(
                 }
             };
             cleanup.dispatched = true;
+            inner.update(id, |m| m.dispatched(Instant::now()));
             let start_sequence = sequence;
             let mut stopped = !survival;
             let mut removed = false;
@@ -845,6 +982,7 @@ async fn run(
                 .set_controls_for(record.session_id, *controls)
                 .await?;
             cleanup.dispatched = true;
+            let first_tick = configured.dispatched_ticks + 1;
             let count = configured.dispatched_ticks + u64::from(ticks.unwrap_or(1));
             loop {
                 let record = control
@@ -853,6 +991,9 @@ async fn run(
                     .ok_or_else(|| invalid("movement owner lost"))?;
                 if record.session_id != cleanup.control.unwrap().1 {
                     return Err(invalid("movement owner replaced"));
+                }
+                if record.dispatched_ticks >= first_tick {
+                    inner.update(id, |m| m.dispatched(Instant::now()));
                 }
                 let batch = ops
                     .body_evidence(inner.id, &selection, Some(cursor))
@@ -1193,6 +1334,8 @@ mod tests {
             Duration::from_millis(10),
             true,
         );
+        machine.dispatched(now);
+        assert!(matches!(machine.dispatch_status(), Some(SendStatus::Sent)));
         machine.finish(outcome);
         machine.sent(now);
         machine.ack(now);

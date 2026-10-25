@@ -1,4 +1,4 @@
-use super::ActionStatus;
+use super::{ActionStatus, SendStatus};
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -8,6 +8,7 @@ pub(super) struct Acceptance {
     deadline: Instant,
     quiet: Duration,
     sent: Option<Instant>,
+    dispatched: bool,
     needs_ack: bool,
     ack: Option<Instant>,
 }
@@ -18,8 +19,29 @@ impl Acceptance {
             deadline,
             quiet,
             sent: None,
+            dispatched: false,
             needs_ack,
             ack: None,
+        }
+    }
+    pub fn deadline(&self) -> Instant {
+        self.deadline
+    }
+    /// Initial complete write; independent of finite movement's later settle boundary.
+    pub fn dispatched(&mut self, now: Instant) {
+        if now < self.deadline && !self.status.is_terminal() {
+            self.dispatched = true;
+        }
+    }
+    pub fn dispatch_status(&self) -> Option<SendStatus> {
+        if self.dispatched {
+            Some(SendStatus::Sent)
+        } else if self.status.is_terminal() {
+            Some(SendStatus::NotSent {
+                outcome: self.status.clone(),
+            })
+        } else {
+            None
         }
     }
     pub fn sent(&mut self, now: Instant) {
@@ -70,6 +92,44 @@ mod tests {
                 ack,
             ),
         )
+    }
+    #[test]
+    fn dispatch_returns_before_ack_and_settle_without_finishing_acceptance() {
+        let (now, mut m) = machine(true);
+        assert!(m.dispatch_status().is_none());
+        m.dispatched(now);
+        assert!(matches!(m.dispatch_status(), Some(SendStatus::Sent)));
+        // A long move has not reached its acceptance send boundary yet.
+        m.advance(now + Duration::from_millis(500));
+        assert!(matches!(m.status, ActionStatus::Pending));
+        m.expire(now + Duration::from_secs(1));
+        assert!(matches!(m.status, ActionStatus::Unknown { .. }));
+        assert!(matches!(m.dispatch_status(), Some(SendStatus::Sent)));
+    }
+    #[test]
+    fn incomplete_write_and_local_refusals_never_report_sent() {
+        let (now, mut m) = machine(false);
+        m.expire(now + Duration::from_secs(1));
+        m.dispatched(now + Duration::from_secs(1));
+        assert!(matches!(
+            m.dispatch_status(),
+            Some(SendStatus::NotSent {
+                outcome: ActionStatus::Unknown { .. }
+            })
+        ));
+        for reason in ["K1 protocol bounds", "K2 stale world/slot identity"] {
+            let (now, mut m) = machine(false);
+            m.finish(ActionStatus::Rejected {
+                reason: reason.into(),
+            });
+            m.dispatched(now);
+            assert!(matches!(
+                m.dispatch_status(),
+                Some(SendStatus::NotSent {
+                    outcome: ActionStatus::Rejected { .. }
+                })
+            ));
+        }
     }
     #[test]
     fn accepts_only_complete_send_and_covering_ack_then_quiet_window() {

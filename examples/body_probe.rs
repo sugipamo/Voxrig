@@ -266,6 +266,21 @@ async fn main() -> anyhow::Result<()> {
                         .place_cube(serde_json::from_value(v["pos"].clone())?, BlockFace::South)
                         .await?,
                 )?,
+                "send_and_trust" => serde_json::to_value(
+                    body.send_and_trust(ActionRequest {
+                        action: parse_action(&v)?,
+                        world: v
+                            .get("world")
+                            .map(|w| {
+                                Ok::<_, anyhow::Error>(BodyWorld {
+                                    connection: w["connection"].as_u64().unwrap(),
+                                    generation: w["generation"].as_u64().unwrap(),
+                                })
+                            })
+                            .transpose()?,
+                    })
+                    .await?,
+                )?,
                 "submit" => serde_json::to_value(
                     body.submit(ActionRequest {
                         action: parse_action(&v)?,

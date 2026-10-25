@@ -76,6 +76,7 @@ pub(crate) fn slot(
         },
     }
 }
+#[derive(Clone)]
 pub(crate) struct EvidenceBatch {
     pub cursor: u64,
     pub gap: bool,
