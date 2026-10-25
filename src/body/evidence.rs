@@ -1,5 +1,6 @@
 //! Private version-neutral evidence; never synthesized from cache equality.
-use super::{self as body, *};
+use super::*;
+use crate::body;
 use std::collections::VecDeque;
 #[derive(Clone)]
 pub(crate) enum Update {
