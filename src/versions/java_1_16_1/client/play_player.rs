@@ -261,6 +261,14 @@ impl Bot {
 
     pub(super) async fn receive_respawn(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
         let respawn = parse_respawn(p)?;
+        let selection = self
+            .common_receipts
+            .lock()
+            .await
+            .selected_hotbar
+            .as_ref()
+            .map(|selection| selection.value);
+
         {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
@@ -345,6 +353,18 @@ impl Bot {
             self.inventory.write().await.last_transaction = None;
         }
         crate::client::respawn::received(&self.respawn_history, packet_sequence, packet_sequence);
+        if let Some(slot) = selection {
+            // Inventory.selected is copied only on some server respawn paths.
+            // Reassert the client's held input instead of inventing an ACK.
+            self.common_receipts.lock().await.selected_hotbar = None;
+            self.send(0x24, &i16::from(slot).to_be_bytes()).await?;
+            self.inventory.write().await.selected_hotbar = slot;
+            self.common_receipts.lock().await.selected_hotbar =
+                Some(crate::client::ObservedValue {
+                    value: slot,
+                    source: crate::client::ValueSource::Submitted,
+                });
+        }
         self.emit(Event::Respawn(respawn));
         Ok(())
     }

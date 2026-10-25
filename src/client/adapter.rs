@@ -71,6 +71,13 @@ pub(crate) trait SessionOps {
     async fn stop_packet_trace(&self) -> Result<PacketTrace>;
 }
 
+/// Constituents captured under one native receive lock.
+pub(crate) type InventoryMoveCapture = (
+    PlayerObservation,
+    ScreenObservation,
+    ServerRegistryObservation,
+);
+
 /// Connection identity, received-state observation and the basic one-shot actions.
 pub(crate) trait CoreOps {
     async fn connection_identity(&self) -> Result<ConnectionIdentity>;
@@ -102,6 +109,7 @@ pub(crate) trait CoreOps {
             anyhow::anyhow!("screen property observation is only supported for Java 1.21.11"),
         ))
     }
+    async fn inventory_move_capture(&self) -> Result<InventoryMoveCapture>;
     async fn capture(&self, region: Region) -> Result<Capture>;
     async fn received_recipes(&self) -> Result<ReceivedRecipes>;
     async fn received_recipe_ghost(&self) -> Result<Option<ReceivedRecipeGhost>>;

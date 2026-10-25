@@ -119,7 +119,9 @@ impl super::Client {
     /// Request one native respawn after actual nonpositive health on this world.
     /// The connection owns the send after admission, including caller cancellation.
     /// Completion is dispatch evidence; wait for new RESPawn, pose, health and
-    /// inventory before continuing. Same-world repeat requests are refused.
+    /// inventory before continuing. A previously known held-slot input is re-sent
+    /// after RESPawn; its completed dispatch remains Submitted, not a receipt.
+    /// Same-world repeat requests are refused.
     pub async fn respawn(&self) -> Result<RespawnRecord> {
         crate::client::dispatch!(&self.adapter, a => CoreOps::respawn(a).await)
     }

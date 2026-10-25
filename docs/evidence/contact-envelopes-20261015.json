@@ -2788,7 +2788,7 @@
     "docs/contact-envelope-audit.md": "a13f40e424a30c92467eec00095405f5c112ef3cbea1f904a0961f09a5c2926b",
     "docs/evidence/contact-capabilities-20261014.json": "5351aa666739f9037172230b0e878250b83f9c0100bf07cbcd573f968925123c",
     "src/client/entity/contact_capabilities.rs": "4858d4b661f1c5b7ef85049c2e8230e650b9c0e7e2d4e12087381d30aa185284",
-    "src/client/entity/owned_contacts.rs": "1b72d41dda8912118388ff4f5d64b1af556678d0cbfb1cb6901d1b995b6839ee",
+    "src/client/entity/owned_contacts.rs": "42e6a596afb6c7841f22dc1247db1245a5b5b983ff43f46bf0e7c00e445dfd7d",
     "src/client/entity/interpolation.rs": "544b89eb52f6937ba0c32e50b91f2f513eebfb143b6b734ace1f168c88d489ed",
     "src/client/entity/packet_model.rs": "e7a20e77971f4b62f5e4cf01f9182acf8727c23f03c4b09de088c7161bbdb2e9",
     "src/client/entity/contact_tick.rs": "08762328a8f4e763952e6f4d6e1cfc389fe8535d8fd88dc9e4ae47fcaef87038",

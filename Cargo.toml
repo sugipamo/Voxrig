@@ -115,6 +115,8 @@ include = [
     "/scripts/audit_contact_envelopes.py",
     "/scripts/audit_player_contact_scope.py",
     "/scripts/run_contact_scope_live.py",
+    "/scripts/audit_contact_scope_regression.py",
+    "/scripts/run_contact_scope_regression_live.py",
     "/scripts/run_entity_owner_live.py",
     "/scripts/entity_owner_oracle/**",
     "/scripts/run_reader_multiclient.py",

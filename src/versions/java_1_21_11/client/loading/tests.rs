@@ -172,6 +172,18 @@ async fn received_terrain_and_initial_chunks_gate_ordered_notification_once_per_
     respawn.extend([0; 8]);
     respawn.extend([0, 255, 0, 1, 0, 0, 63, 0]);
     receive(&mut peer, ids::play_clientbound::RESPAWN, &respawn).await;
+    // Reasserted held input is ordered after RESPawn and before the new pose;
+    // its dispatch does not make the world ready or invent a held-slot receipt.
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::HELD_ITEM_SLOT, vec![0, 0])
+    );
+    {
+        let state = bot.session.state.lock().await;
+        let selection = state.operations.selected_hotbar.as_ref().unwrap();
+        assert!(selection.dispatched && !selection.from_server);
+        assert!(!state.ready);
+    }
     position(&mut peer).await;
     receive(&mut peer, ids::play_clientbound::MAP_CHUNK, &chunk()).await;
     no_packet(&mut peer).await;

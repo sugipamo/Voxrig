@@ -20,6 +20,16 @@ I/Oが失敗・不確実なら理由を保持し、同じworldへ要求を再送
 新しいpose・正のhealth・必要なinventoryを確認し、`wait_until_ready()`を経て操作する。
 旧screen／entity／vehicleのIDを再利用せず、新しい観測から取得する。
 
+選択中のhotbarも確認する。両版の通常死亡では、RESPAWNのcopy-dataフラグから
+serverの選択保持を断定できず、held-slotの再受信も保証されない。Voxrigは直前に
+既知だった選択入力を新worldで実held-slot packetとして再送する。完全dispatch後だけ
+`selected_hotbar.source = Submitted`となり、受理や実受信に格上げしない。
+後続の実clientbound held-slotがあれば、その値と受信ordinalを優先する。
+前の選択自体が不明・送信未完なら推測しないので、`select_hotbar`で明示的に選択する。
+新worldの必要なhand slotの実受信は別に待つ。選択の再送は在庫や操作IDを復元しない。
+keep-inventoryの有無を問わないこの処理の公式実装根拠は
+[regression audit](contact-scope-regression-audit.md#respawn-and-selected-slot)を参照。
+
 原spawn位置は床より0.1高い場合がある。両modeの`preview_path()`／`start_predicted_path()`で
 ゼロ入力を有限回送って接地へ進める。新版の空中開始は、同じ接続の所有された実RESPAWN、
 そのworldのfreshな実position／ゼロvelocity／正のhealth、通常姿勢・native default属性・

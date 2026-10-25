@@ -712,6 +712,26 @@ impl crate::client::adapter::CoreOps for Bot {
             .capture(player.session, player.receive_sequence);
         api::ReceivedCrafting::capture(&player, &screen, registries)
     }
+    async fn inventory_move_capture(&self) -> Result<crate::client::adapter::InventoryMoveCapture> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        let screen = api::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: receipts.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: receipts
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: receipts.inventory.cursor.clone(),
+        };
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        Ok((player, screen, registries))
+    }
     async fn received_inventory(&self) -> Result<api::ReceivedInventory> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
@@ -3160,6 +3180,75 @@ mod tests {
         client.disconnect().await.unwrap();
         assert!(client.teams().await.is_err() && client.player_list().await.is_err());
         let _ = release.send(());
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn respawn_reasserts_known_selection_as_submitted_for_both_copy_flags() {
+        for keep in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            bot.common_receipts.lock().await.selected_hotbar = Some(api::received(5, 1));
+            let mut spawn = Vec::new();
+            put_string(&mut spawn, "minecraft:overworld");
+            put_string(&mut spawn, "world");
+            spawn.extend([0; 8]);
+            spawn.extend([0, 255, 0, 0, u8::from(keep)]);
+            bot.apply_packet(0x3a, spawn).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap(), (0x24, vec![0, 5]));
+            let selection = client
+                .player_state()
+                .await
+                .unwrap()
+                .selected_hotbar
+                .unwrap();
+            assert_eq!(selection.value, 5);
+            assert_eq!(selection.source, api::ValueSource::Submitted);
+            // The next actual held-slot packet replaces submission provenance.
+            bot.apply_packet(0x3f, vec![3]).await.unwrap();
+            let selection = client
+                .player_state()
+                .await
+                .unwrap()
+                .selected_hotbar
+                .unwrap();
+            assert_eq!(selection.value, 3);
+            assert!(matches!(
+                selection.source,
+                api::ValueSource::Received { .. }
+            ));
+            let _ = client.revoke_connection();
+            drop(release);
+            server.await.unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn inventory_move_capture_is_coherent_during_received_traffic() {
+        use crate::client::adapter::CoreOps;
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let writes = async {
+            for _ in 0..100 {
+                let mut health = 20f32.to_be_bytes().to_vec();
+                health.push(20);
+                health.extend(5f32.to_be_bytes());
+                bot.apply_packet(0x49, health).await.unwrap();
+                tokio::task::yield_now().await;
+            }
+        };
+        let reads = async {
+            for _ in 0..100 {
+                let (p, s, r) = CoreOps::inventory_move_capture(&bot).await.unwrap();
+                assert_eq!(p.session, s.session);
+                assert_eq!(p.session, r.session());
+                assert_eq!(p.receive_sequence, s.receive_sequence);
+                assert_eq!(p.receive_sequence, r.receive_sequence());
+                tokio::task::yield_now().await;
+            }
+        };
+        tokio::join!(writes, reads);
+        bot.disconnect().await.unwrap();
+        drop(release);
         server.await.unwrap();
     }
     #[tokio::test]

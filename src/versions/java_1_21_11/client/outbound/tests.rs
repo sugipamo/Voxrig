@@ -6530,3 +6530,35 @@ async fn entity_target_passenger_packets_retire_edges_without_rebinding_reused_i
     );
     session.stop();
 }
+
+#[tokio::test]
+async fn inventory_move_capture_is_coherent_during_received_traffic() {
+    use crate::client::adapter::CoreOps;
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let writes = async {
+        for _ in 0..100 {
+            let mut health = 20f32.to_be_bytes().to_vec();
+            health.push(20);
+            health.extend(5f32.to_be_bytes());
+            session
+                .state
+                .lock()
+                .await
+                .receive(ids::play_clientbound::UPDATE_HEALTH, &health, 256)
+                .unwrap();
+            tokio::task::yield_now().await;
+        }
+    };
+    let reads = async {
+        for _ in 0..100 {
+            let (p, s, r) = CoreOps::inventory_move_capture(&api).await.unwrap();
+            assert_eq!(p.session, s.session);
+            assert_eq!(p.session, r.session());
+            assert_eq!(p.receive_sequence, s.receive_sequence);
+            assert_eq!(p.receive_sequence, r.receive_sequence());
+            tokio::task::yield_now().await;
+        }
+    };
+    tokio::join!(writes, reads);
+    session.stop();
+}

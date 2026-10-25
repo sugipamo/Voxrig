@@ -821,7 +821,10 @@ impl Session {
                 if response_work.is_none() {
                     responses.clear();
                 }
-                if packet.0 == ids::play_clientbound::POSITION && matches!(state.phase, Phase::Play)
+                if matches!(
+                    packet.0,
+                    ids::play_clientbound::POSITION | ids::play_clientbound::RESPAWN
+                ) && matches!(state.phase, Phase::Play)
                 {
                     // Publish a received correction only after its original
                     // teleport confirmation/position response frames complete.
@@ -834,6 +837,11 @@ impl Session {
                             response_work.as_ref().expect("admitted response").guard(),
                         )
                         .await?;
+                        if id == ids::play_serverbound::HELD_ITEM_SLOT {
+                            if let Some(selection) = &mut state.operations.selected_hotbar {
+                                selection.dispatched = true;
+                            }
+                        }
                     }
                 }
                 responses
@@ -1177,7 +1185,25 @@ fn apply_play(
             let mut entry = read_spawn_info(&mut r)?;
             entry.respawn_keep_data = Some(r.u8()?);
             r.end()?;
+            let selection = state
+                .operations
+                .selected_hotbar
+                .as_ref()
+                .filter(|selection| selection.dispatched)
+                .map(|selection| selection.slot);
             apply_spawn_info(state, entry)?;
+            if let Some(slot) = selection {
+                state.operations.selected_hotbar = Some(operations::HotbarSelection {
+                    slot,
+                    sequence: state.sequence,
+                    dispatched: false,
+                    from_server: false,
+                });
+                responses.push((
+                    output::HELD_ITEM_SLOT,
+                    i16::from(slot).to_be_bytes().to_vec(),
+                ));
+            }
         }
         input::KEEP_ALIVE => {
             r.take(8)?;

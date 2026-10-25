@@ -27,10 +27,12 @@ serializer, scale, callback, nonfinite input or incomplete history cannot establ
 exclusion. Velocity is validated even though
 the qualified remote nonauthoritative client lane does not travel using it.
 Its position acceleration from input/AI and pair impulses is zero in this declared
-lane; this does not describe authoritative server travel. Existing qualified
-living species provide this proof. Unqualified species have no new distance
-exemption: this stricter player admission refuses them when no finite audited
-proof exists. Only callbacks with finite packet-audit evidence retain the proof;
+lane; this does not describe authoritative server travel. Existing qualified living species provide this proof. The
+[regression review](contact-scope-regression-audit.md) additionally qualifies
+finite exclusion for the reported remote species and ordinary chest minecarts,
+and positive noncontact for drops, experience orbs and arrows. These exclusions
+do not qualify nearby numerical contact. Other unreviewed species still refuse
+when no finite audited proof exists. Only callbacks with finite packet-audit evidence retain the proof;
 policy pass-through is never reused as exclusion evidence. The previous
 pass-through policy remains in independent/boat APIs.
 
@@ -160,3 +162,9 @@ The `--features native` live [summary](evidence/player-contact-scope-live-202610
 links the compressed complete report and original packet trace, source manifest,
 server hash and pinned binary hash. Java 1.21.11 has unit/receipt and original-jar
 coverage here; no 1.21.11 live-server result is claimed.
+
+The 2026-10-25 [regression review](contact-scope-regression-audit.md) documents
+carrier-scoped history recovery, terrain-footprint closure, retention of nearby
+active states and exact stationary re-entry within the same owner. It supersedes
+the blanket new-owner requirement only for those proved identity steps; omitted
+interpolation/motion and final sweep failures remain typed refusals before I/O.
