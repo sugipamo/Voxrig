@@ -105,5 +105,5 @@ explicit opt-in for late rollback notices; it does not change existing terminal
 events or `action_status` values. Body's single active action/control
 lease contract remains unchanged; a receipt watch owns no movement lease.
 
-Dig timing/selection estimates are unchanged (step 7 is outside this change).
+Step 7 separates Body dig admission from timing estimates; see [Body dig](design/body-api.md#拒否削減-step-7-採掘の見積りと送信を分離). Strict timing/receipt APIs remain unchanged.
 No entity contact proof types are added.

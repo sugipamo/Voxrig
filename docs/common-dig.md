@@ -3,6 +3,11 @@
 `client.survival().dig(target, face)`は、手に持っているもので任意のblockを掘る。両版で同じ型。
 `dig_estimate(target)`は、送らずに掘る時間だけを返す。
 
+このページの `dig` / `begin_dig` はstrict診断APIで、見積り条件・receipt・取消の意味は変更していない。
+見積り不明でも送る場合は [`HeadlessBody` BreakBlock](design/body-api.md#拒否削減-step-7-採掘の見積りと送信を分離) を使う。
+Bodyは処理ACKでSTOPを送り、実際のair受信を待つ。見積りは任意の診断にとどまり、
+期限でABORT・Unknown、serverの矛盾更新でCorrectedとなる。
+
 ```rust,no_run
 use voxrig::client::prelude::*;
 # async fn run(client: &Client) -> Result<()> {

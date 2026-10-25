@@ -367,35 +367,15 @@ impl Bot {
                             ));
                         }
                     }
+                    if player.game_mode == Some(api::GameMode::Survival) {
+                        let world = self.world.lock().await;
+                        crate::body::dig::hardness(
+                            crate::MinecraftVersion::Java1_16_1,
+                            world.block(pos[0], pos[1], pos[2]),
+                        )?;
+                    }
                     if let Some(initial) = initial {
-                        if player.game_mode != initial.player.game_mode {
-                            return Err(crate::error::state_error("body dig mode changed"));
-                        }
-                        if player.game_mode == Some(api::GameMode::Survival) {
-                            let selected = initial.player.selected_hotbar.as_ref().map(|s| s.value);
-                            let current = player.selected_hotbar.as_ref().map(|s| s.value);
-                            let name = selected
-                                .and_then(|s| initial.player.inventory.get(36 + usize::from(s)))
-                                .and_then(Option::as_ref)
-                                .and_then(|slot| match &slot.value {
-                                    BodySlot::Item(item) => Some(item.name.as_str()),
-                                    BodySlot::Empty => Some(""),
-                                    _ => None,
-                                });
-                            let now = current
-                                .and_then(|s| player.inventory.slots.get(36 + usize::from(s)))
-                                .and_then(Option::as_ref)
-                                .and_then(|slot| match &slot.value {
-                                    api::SlotKnowledge::Item { item } => Some(item.name.as_str()),
-                                    api::SlotKnowledge::Empty => Some(""),
-                                    _ => None,
-                                });
-                            if selected != current || name.is_none() || name != now {
-                                return Err(crate::error::state_error(
-                                    "body dig held item identity changed",
-                                ));
-                            }
-                        }
+                        crate::body::dig::hand(initial, &player)?;
                     }
                 }
                 let status = match status {
@@ -869,7 +849,7 @@ mod tests {
     }
     #[tokio::test]
     async fn legacy_body_break_requires_result_ack_and_reports_rollback_world_loss_or_timeout() {
-        for scenario in ["accepted", "rollback", "world", "timeout"] {
+        for scenario in ["accepted", "block", "rollback", "world", "timeout"] {
             let (bot, mut packets, release, server) =
                 super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
             super::super::common_motion::tests::seed_motion(&bot).await;
@@ -892,12 +872,15 @@ mod tests {
             match scenario {
                 "accepted" => ack(&bot, "air", 0, true).await,
                 "rollback" => ack(&bot, "stone", 0, false).await,
+                "block" => change(&bot, "air").await,
                 "world" => bot.common_receipts.lock().await.generation += 1,
-                _ => change(&bot, "air").await, // cache update alone is not a protocol ACK
+                _ => {} // no server evidence
             }
             let status = complete(&body, id).await;
             match scenario {
-                "accepted" => assert!(matches!(status, ActionStatus::Accepted), "{status:?}"),
+                "accepted" | "block" => {
+                    assert!(matches!(status, ActionStatus::Accepted), "{status:?}")
+                }
                 "rollback" => assert!(
                     matches!(status, ActionStatus::Corrected { .. }),
                     "{status:?}"
@@ -963,7 +946,9 @@ mod tests {
                 .unwrap()
                 .unwrap();
             assert_eq!((packet, payload[0]), (0x1b, 0));
-            ack(&bot, "dirt", 0, true).await;
+            if !cancel {
+                ack(&bot, "dirt", 0, true).await;
+            }
             tokio::time::sleep(Duration::from_millis(30)).await;
             assert!(matches!(
                 body.action_status(id).await.unwrap(),
@@ -996,6 +981,90 @@ mod tests {
                     .is_err()
             );
             drop(release);
+            drop(body);
+            drop(bot);
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn legacy_body_dig_unknown_selection_or_slot_and_delayed_stop_are_not_refusals() {
+        for scenario in ["selection", "slot", "timeout"] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            change(&bot, "dirt").await;
+            {
+                let mut r = bot.common_receipts.lock().await;
+                r.selected_hotbar = if scenario == "selection" {
+                    None
+                } else {
+                    Some(api::received(0, 1))
+                };
+                r.inventory.slots[36] = None;
+            }
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            assert!(client.survival().dig_estimate([10, 65, 8]).await.is_err());
+            let body = body(&bot);
+            let id = body
+                .submit(Action::BreakBlock {
+                    pos: [10, 65, 8],
+                    face: crate::BlockFace::Up,
+                })
+                .await
+                .unwrap();
+            let (packet, payload) = timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!((packet, payload[0]), (0x1b, 0));
+            // No STOP without a START processing ACK.
+            assert!(
+                timeout(Duration::from_millis(20), packets.recv())
+                    .await
+                    .is_err()
+            );
+            ack(&bot, "dirt", 0, true).await;
+            let (packet, payload) = timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!((packet, payload[0]), (0x1b, 2));
+            ack(&bot, "dirt", 2, true).await; // official delayed destroy, not a rollback
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            assert!(matches!(
+                body.action_status(id).await.unwrap(),
+                ActionStatus::Pending
+            ));
+            if scenario != "timeout" {
+                change(&bot, "air").await;
+            }
+            let result = complete(&body, id).await;
+            if scenario == "timeout" {
+                assert!(matches!(result, ActionStatus::Unknown { .. }), "{result:?}");
+                let (packet, payload) = timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!((packet, payload[0]), (0x1b, 1));
+                ack(&bot, "dirt", 1, true).await;
+                assert!(matches!(
+                    body.backend().action_outcome(id).await.unwrap(),
+                    ActionStatus::Unknown { .. }
+                ));
+            } else {
+                assert!(matches!(result, ActionStatus::Accepted), "{result:?}");
+            }
+            wait_release(&body).await;
+            assert!(
+                timeout(Duration::from_millis(20), packets.recv())
+                    .await
+                    .is_err()
+            );
+            drop(release);
+            drop(client);
             drop(body);
             drop(bot);
             timeout(Duration::from_secs(2), server)

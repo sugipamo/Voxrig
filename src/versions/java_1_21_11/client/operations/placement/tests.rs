@@ -2017,3 +2017,173 @@ async fn explicit_body_activation_ignores_outline_ground_and_default_item_and_wa
     drop(body);
     f.stop().await;
 }
+
+#[tokio::test]
+async fn body_dig_unknown_estimate_uses_start_ack_once_and_waits_for_actual_air() {
+    use crate::body::{Action, ActionStatus, Body, BodyConfig, HeadlessBody};
+    for scenario in ["selection", "slot", "revert", "no_ack", "no_result"] {
+        let mut f = Fixture::new().await;
+        {
+            let mut s = f.api.bot.session.state.lock().await;
+            s.operations.game_mode = Some(GameMode::Survival);
+            if scenario == "selection" {
+                s.operations.selected_hotbar = None;
+            }
+            // No tool observation: this prevents the strict estimator, not START.
+            s.operations.inventory.slots.clear();
+        }
+        let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+        assert!(client.survival().dig_estimate(SUPPORT).await.is_err());
+        let body = Body::new(
+            HeadlessBody::new(
+                client,
+                BodyConfig {
+                    settle_window: Duration::from_millis(20),
+                    action_timeout: Duration::from_millis(240),
+                    ..Default::default()
+                },
+            )
+            .unwrap(),
+        );
+        let id = body
+            .submit(Action::BreakBlock {
+                pos: SUPPORT,
+                face: crate::BlockFace::West,
+            })
+            .await
+            .unwrap();
+        let (packet, payload) = f.expected_packet("body START without estimate").await;
+        assert_eq!(packet, ids::play_serverbound::BLOCK_DIG);
+        let mut r = Reader::new(&payload);
+        assert_eq!(r.varint().unwrap(), 0);
+        r.u64().unwrap();
+        r.u8().unwrap();
+        let sequence = r.varint().unwrap();
+        if scenario != "no_ack" {
+            let mut ack = Vec::new();
+            put_varint(&mut ack, sequence);
+            f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+                .await;
+            let (packet, payload) = f.expected_packet("one evidence-driven STOP").await;
+            assert_eq!(packet, ids::play_serverbound::BLOCK_DIG);
+            assert_eq!(payload[0], 2);
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            assert!(matches!(
+                body.action_status(id).await.unwrap(),
+                ActionStatus::Pending
+            ));
+            if scenario != "no_result" {
+                let mut update = pack_position(SUPPORT).to_be_bytes().to_vec();
+                put_varint(
+                    &mut update,
+                    if scenario == "revert" {
+                        state_id(&native("stone")).unwrap()
+                    } else {
+                        0
+                    },
+                );
+                f.receive(ids::play_clientbound::BLOCK_CHANGE, &update)
+                    .await;
+            }
+        }
+        let status = timeout(Duration::from_secs(2), async {
+            loop {
+                let status = body.action_status(id).await.unwrap();
+                if status.is_terminal() {
+                    break status;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        match scenario {
+            "selection" | "slot" => assert!(matches!(status, ActionStatus::Accepted), "{status:?}"),
+            "revert" => assert!(
+                matches!(status, ActionStatus::Corrected { .. }),
+                "{status:?}"
+            ),
+            _ => assert!(matches!(status, ActionStatus::Unknown { .. }), "{status:?}"),
+        }
+        if !matches!(scenario, "selection" | "slot") {
+            let (packet, payload) = f.expected_packet("bounded ABORT").await;
+            assert_eq!((packet, payload[0]), (ids::play_serverbound::BLOCK_DIG, 1));
+        }
+        tokio::time::sleep(Duration::from_millis(15)).await;
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        drop(body);
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn body_dig_keeps_known_hardness_range_and_hand_fences_without_estimation() {
+    use crate::body::{Action, ObserveRequest};
+    let mut f = Fixture::new().await;
+    {
+        let mut s = f.api.bot.session.state.lock().await;
+        s.operations.game_mode = Some(GameMode::Survival);
+    }
+    let initial = f
+        .api
+        .body_evidence(1, &ObserveRequest::default(), None)
+        .await
+        .unwrap()
+        .snapshot;
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .selected_hotbar
+        .as_mut()
+        .unwrap()
+        .slot = 1;
+    let action = Action::BreakBlock {
+        pos: SUPPORT,
+        face: crate::BlockFace::Up,
+    };
+    assert!(
+        f.api
+            .body_block_send(initial.world, &action, 2, Some(&initial))
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("identity changed")
+    );
+    {
+        let mut s = f.api.bot.session.state.lock().await;
+        s.operations.selected_hotbar.as_mut().unwrap().slot = 0;
+        s.world
+            .seed_replay_cell(SUPPORT, state_id(&native("bedrock")).unwrap());
+    }
+    assert!(
+        f.api
+            .body_block_send(initial.world, &action, 0, Some(&initial))
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("cannot be broken")
+    );
+    // Losing a known selection remains an identity error.
+    {
+        let mut s = f.api.bot.session.state.lock().await;
+        s.position = Some([100., 1., 0.]);
+        s.operations.selected_hotbar = None;
+        let player = f.api.common_player_unlocked(&s).unwrap();
+        assert!(crate::body::dig::hand(&initial, &player).is_err());
+    }
+    // No START, STOP or cleanup packet on these pre-send refusals.
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}

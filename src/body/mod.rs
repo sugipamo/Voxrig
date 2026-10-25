@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use crate::client::control::Controls;
 
+pub(crate) mod dig;
 pub(crate) mod evidence;
 mod headless;
 pub(crate) mod interaction;
@@ -175,7 +176,10 @@ pub enum Action {
         /// Explicit hand; the held item may affect the server's result.
         hand: Hand,
     },
-    /// Creative instant START or survival timed START/STOP continuation.
+    /// Send START without requiring a dig estimate. Survival sends STOP once
+    /// START processing is acknowledged, then awaits a received air result.
+    /// Timeout sends ABORT and ends Unknown; server rollback ends Corrected.
+    /// Strict `Survival::dig` / `begin_dig` keep their timing/receipt contract.
     BreakBlock {
         /// Block to break.
         pos: [i32; 3],

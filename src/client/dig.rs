@@ -70,6 +70,16 @@ pub(crate) struct DigContext<'a> {
     pub eye_in_water: bool,
 }
 
+/// A known negative hardness is a server impossibility, independent of timing.
+/// Missing profiles are deliberately not interpreted as unbreakable.
+pub(crate) fn known_hardness(version: MinecraftVersion, state_id: i32) -> Option<f32> {
+    let data = profiles(version);
+    let row = usize::try_from(state_id)
+        .ok()
+        .and_then(|i| data.states.get(i))?;
+    (row[0] == state_id).then(|| data.profiles[row[2] as usize].hardness)
+}
+
 /// `BlockStateBase.getDestroyProgress` for the player and held item.
 pub(crate) fn estimate(
     version: MinecraftVersion,

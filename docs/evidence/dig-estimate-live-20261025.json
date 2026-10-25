@@ -1,0 +1,339 @@
+{
+  "date": "2026-10-25",
+  "base": "24648cd91b0a31e58739e74e060854c46185c6a9",
+  "binary_sha256": "ac1730c85e2cb8552039cf1f600c6cc6529bd2297d125593802ca4cf2adc1cc5",
+  "public_api": "none",
+  "strict_api": "dig, begin_dig, dig_estimate and their receipts unchanged",
+  "runner": "scripts/run_dig_estimate_live.py",
+  "command": "python3 scripts/run_dig_estimate_live.py --accept-eula --version <version> --binary <native body_probe> --jars <official jar directory> --output <output directory>",
+  "authority_limits": [
+    "SHA-1 checked official local servers, exact original proxy bytes, independent RCON.",
+    "Initial inventory frames are withheld selectively; world/pose/ACK frames pass. Original inventory frames are released in original relative order. No SDK state edits or invented ACK.",
+    "For a provably wrong estimate, the actual fatigue-removal packet is withheld while the server mines at normal speed. Original removal is then released.",
+    "Rollback case is an explicit RCON server replacement, distinct from spontaneous rejection.",
+    "ABORT does not certify rollback of server delayed destruction.",
+    "Modded block states are not available on the official servers; unknown hardness admission is covered by units."
+  ],
+  "runs": {
+    "1.16.1": {
+      "passed": true,
+      "native": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "timeout_ms": 2000,
+      "quiet_ms": 300,
+      "artifact": "dig-estimate-live-1.16.1-20261025.json.gz",
+      "artifact_sha256": "0781c4643b85951870316c2bce1a44112d25dd41ff3bdb8c80331524940cc491",
+      "checks": [
+        {
+          "name": "strict_unknown_estimate_unchanged",
+          "status": "strict_refusal",
+          "reason": "dig required received inventory slot 36 is not known"
+        },
+        {
+          "name": "unknown_initial_estimate_sent",
+          "seconds": 1.3121934299706481,
+          "statuses": [
+            0,
+            2
+          ],
+          "initial_estimate": {
+            "error": "dig required received inventory slot 36 is not known"
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "tool_wooden_shovel",
+          "seconds": 0.8208847120404243,
+          "statuses": [
+            0,
+            2
+          ],
+          "before_estimate": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.13333334028720856,
+            "speed": 2.0,
+            "ticks": 8
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "tool_diamond_shovel",
+          "seconds": 0.5106899969978258,
+          "statuses": [
+            0,
+            2
+          ],
+          "before_estimate": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.5333333611488342,
+            "speed": 8.0,
+            "ticks": 2
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "tool_diamond_pickaxe",
+          "seconds": 1.2330253809923306,
+          "statuses": [
+            0,
+            2
+          ],
+          "before_estimate": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.06666667014360428,
+            "speed": 1.0,
+            "ticks": 15
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "airborne",
+          "seconds": 0.9196009049774148,
+          "statuses": [
+            0,
+            2
+          ],
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "in_water",
+          "seconds": 0.9345144539838657,
+          "statuses": [
+            0,
+            2
+          ],
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "wrong_live_timing_estimate_ignored",
+          "seconds": 0.5155555850360543,
+          "statuses": [
+            0,
+            2
+          ],
+          "estimate_at_submit": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.0014400000218302011,
+            "speed": 0.02160000056028366,
+            "ticks": 695
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "strict_known_estimate_unchanged",
+          "status": "strict_removed"
+        },
+        {
+          "name": "known_unbreakable_kept",
+          "seconds": 0.10765221598558128,
+          "statuses": [],
+          "status": "rejected"
+        },
+        {
+          "name": "official_far_reach_kept",
+          "seconds": 0.10318395600188524,
+          "statuses": [],
+          "status": "rejected"
+        },
+        {
+          "name": "start_ack_missing_deadline",
+          "seconds": 2.1239248589845374,
+          "statuses": [
+            0,
+            1
+          ],
+          "status": "unknown"
+        },
+        {
+          "name": "server_progress_exceeds_deadline",
+          "seconds": 2.12628034199588,
+          "statuses": [
+            0,
+            2,
+            1
+          ],
+          "status": "unknown"
+        },
+        {
+          "name": "actual_server_replacement_corrected",
+          "status": "corrected"
+        }
+      ],
+      "airborne_native": "ClimbingProbe has the following entity data: 0b",
+      "water_native": "Test passed",
+      "released_inventory_frames": 2,
+      "released_effect_removal_frames": 1
+    },
+    "1.21.11": {
+      "passed": true,
+      "native": false,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "timeout_ms": 2000,
+      "quiet_ms": 300,
+      "artifact": "dig-estimate-live-1.21.11-20261025.json.gz",
+      "artifact_sha256": "f498a299d95902214dd8a71018de240170b268f11e74a6e6d7fefa0ba51a9469",
+      "checks": [
+        {
+          "name": "strict_unknown_estimate_unchanged",
+          "status": "strict_refusal",
+          "reason": "dig required received inventory slot 36 is not known"
+        },
+        {
+          "name": "unknown_initial_estimate_sent",
+          "seconds": 1.2226838589995168,
+          "statuses": [
+            0,
+            2
+          ],
+          "initial_estimate": {
+            "error": "dig required received inventory slot 36 is not known"
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "tool_wooden_shovel",
+          "seconds": 0.9311233850312419,
+          "statuses": [
+            0,
+            2
+          ],
+          "before_estimate": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.13333334028720856,
+            "speed": 2.0,
+            "ticks": 8
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "tool_diamond_shovel",
+          "seconds": 0.5379860809771344,
+          "statuses": [
+            0,
+            2
+          ],
+          "before_estimate": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.5333333611488342,
+            "speed": 8.0,
+            "ticks": 2
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "tool_diamond_pickaxe",
+          "seconds": 1.235332390991971,
+          "statuses": [
+            0,
+            2
+          ],
+          "before_estimate": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.06666667014360428,
+            "speed": 1.0,
+            "ticks": 15
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "airborne",
+          "seconds": 0.9448534759576432,
+          "statuses": [
+            0,
+            2
+          ],
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "in_water",
+          "seconds": 0.9628151020151563,
+          "statuses": [
+            0,
+            2
+          ],
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "wrong_live_timing_estimate_ignored",
+          "seconds": 0.53904240304837,
+          "statuses": [
+            0,
+            2
+          ],
+          "estimate_at_submit": {
+            "hardness": 0.5,
+            "harvestable": true,
+            "progress_per_tick": 0.0014400000218302011,
+            "speed": 0.02160000056028366,
+            "ticks": 695
+          },
+          "native_air": "Test passed",
+          "status": "accepted"
+        },
+        {
+          "name": "strict_known_estimate_unchanged",
+          "status": "strict_removed"
+        },
+        {
+          "name": "known_unbreakable_kept",
+          "seconds": 0.2162399830413051,
+          "statuses": [],
+          "status": "rejected"
+        },
+        {
+          "name": "official_far_reach_kept",
+          "seconds": 0.2092696190229617,
+          "statuses": [],
+          "status": "rejected"
+        },
+        {
+          "name": "start_ack_missing_deadline",
+          "seconds": 2.129159207979683,
+          "statuses": [
+            0,
+            1
+          ],
+          "status": "unknown"
+        },
+        {
+          "name": "server_progress_exceeds_deadline",
+          "seconds": 2.160539259959478,
+          "statuses": [
+            0,
+            2,
+            1
+          ],
+          "status": "unknown"
+        },
+        {
+          "name": "actual_server_replacement_corrected",
+          "status": "corrected"
+        }
+      ],
+      "airborne_native": "ClimbingProbe has the following entity data: 0b",
+      "water_native": "Test passed",
+      "released_inventory_frames": 1,
+      "released_effect_removal_frames": 1
+    }
+  }
+}

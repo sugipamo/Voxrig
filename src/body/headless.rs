@@ -30,7 +30,10 @@ impl Operations {
         initial: Option<&BodySnapshot>,
     ) -> Result<Option<i32>> {
         match self {
-            Self::Modern(ops) => ops.body_block_send(world, action, status).await.map(Some),
+            Self::Modern(ops) => ops
+                .body_block_send(world, action, status, initial)
+                .await
+                .map(Some),
             Self::Legacy(bot) => bot
                 .body_break_send(world, action, status, initial)
                 .await
@@ -44,7 +47,7 @@ impl Operations {
     ) -> Result<(Option<i32>, Option<u64>)> {
         match self {
             Self::Modern(ops) => ops
-                .body_block_send(world, action, 0)
+                .body_block_send(world, action, 0, None)
                 .await
                 .map(|s| (Some(s), None)),
             Self::Legacy(bot) => bot
@@ -225,7 +228,7 @@ impl HeadlessBody {
 
     /// Wrap without reconnecting or changing the existing strict API.
     /// Both native versions support all body actions, including atomic item use.
-    /// Break retains the existing survival timing estimate prerequisites.
+    /// Break uses server evidence without requiring a timing estimate.
     pub fn new(client: Client, config: BodyConfig) -> Result<Self> {
         if config.settle_window.is_zero()
             || config.action_timeout <= config.settle_window
@@ -756,71 +759,82 @@ async fn run(
                 connection_id: world.connection,
                 world_generation: world.generation,
             })?);
-            let ticks = match mode()? {
-                GameMode::Creative => 0,
-                GameMode::Survival => inner.client.survival().dig_estimate(*pos).await?.ticks,
+            let survival = match mode()? {
+                GameMode::Creative => false,
+                GameMode::Survival => true,
                 _ => return Err(invalid("break requires survival or creative mode")),
             };
             cleanup.attempted = true;
-            // Register cleanup before awaiting a potentially interrupted START.
-            if ticks > 0 {
-                cleanup.dig = Some((world, request.action.clone()));
-            }
-            sequence = ops
+            // Retain ownership/cleanup even after STOP: an early STOP can leave
+            // the official server's delayed destroy running until its own time.
+            cleanup.dig = Some((world, request.action.clone()));
+            sequence = match ops
                 .body_block_send(world, &request.action, 0, Some(&baseline.snapshot))
-                .await?;
+                .await
+            {
+                Ok(sequence) => sequence,
+                Err(error) => {
+                    if matches!(
+                        error.kind(),
+                        ErrorKind::InvalidInput
+                            | ErrorKind::Unsupported
+                            | ErrorKind::State
+                            | ErrorKind::Rejected
+                    ) {
+                        cleanup.dig = None;
+                    }
+                    return Err(error);
+                }
+            };
             cleanup.dispatched = true;
-            if ticks > 0 {
-                sleep(
-                    Duration::from_millis(50).saturating_mul(ticks.min(u64::from(u32::MAX)) as u32),
-                )
-                .await;
-                let current = ops
+            let start_sequence = sequence;
+            let mut stopped = !survival;
+            let mut removed = false;
+            inner.update(id, |m| m.sent(Instant::now()));
+            loop {
+                let batch = ops
                     .body_evidence(inner.id, &selection, Some(cursor))
                     .await?;
-                if current.snapshot.world != world {
-                    return Err(invalid("world changed during dig"));
+                cursor = batch.cursor;
+                if batch.gap || batch.snapshot.world != world {
+                    inner.finish(
+                        id,
+                        ActionStatus::Unknown {
+                            reason: "dig evidence history gap or world lifetime changed".into(),
+                        },
+                    );
+                    return Ok(());
                 }
-                if current.snapshot.version == MinecraftVersion::Java1_16_1 {
-                    if current.gap {
-                        inner.finish(
-                            id,
-                            ActionStatus::Unknown {
-                                reason: "dig evidence history gap".into(),
-                            },
-                        );
-                        return Ok(());
-                    }
-                    if let Some(status) = correction(&current, expected.as_ref(), &request.action)?
-                    {
-                        inner.finish(id, status);
-                        return Ok(());
-                    }
+                if let Some(status) = correction(&batch, expected.as_ref(), &request.action)? {
+                    inner.finish(id, status);
+                    return Ok(());
                 }
-                let before = baseline
-                    .snapshot
-                    .blocks
-                    .iter()
-                    .find(|b| b.position == *pos)
-                    .and_then(|b| b.state.as_ref())
-                    .map(|s| &s.value);
-                let after = current
-                    .snapshot
-                    .blocks
-                    .iter()
-                    .find(|b| b.position == *pos)
-                    .and_then(|b| b.state.as_ref())
-                    .map(|s| &s.value);
-                if before == after {
-                    sequence = ops
-                        .body_block_send(world, &request.action, 2, Some(&baseline.snapshot))
-                        .await?;
-                }
-                if after.is_some_and(|state| state.name == "minecraft:air") || before == after {
+                removed |= super::dig::removed(&batch, *pos);
+                if removed {
                     cleanup.dig = None;
+                    inner.update(id, |m| m.ack(Instant::now()));
+                } else if !stopped && super::dig::started(&batch, *pos, start_sequence) {
+                    // ACK proves processing, not destruction. The server owns
+                    // progress after this one STOP; no estimate or retry is needed.
+                    ops.body_block_send(world, &request.action, 2, Some(&baseline.snapshot))
+                        .await?;
+                    stopped = true;
                 }
+                inner.update(id, |m| m.advance(Instant::now()));
+                if inner
+                    .job(id)?
+                    .acceptance
+                    .lock()
+                    .unwrap()
+                    .status
+                    .is_terminal()
+                {
+                    return Ok(());
+                }
+                sleep(Duration::from_millis(10)).await;
             }
         }
+
         Action::Move { controls, ticks } => {
             let mode = mode()?;
             let control = inner.client.player_control(mode);
@@ -977,12 +991,13 @@ fn correction(
                 status,
                 successful,
             } if matches!(action, Action::BreakBlock { .. })
+                && matches!(status, 0 | 2)
                 && expected.is_some_and(|(target, _)| target == pos) =>
             {
                 let state = (batch.snapshot.version.table().registry.native_state)(*state)?;
-                // START normally acknowledges the original, still-solid block.
-                // FINISH (or an instant START) supplies the actual result.
-                if *successful && (*status == 0 || expected.unwrap().1.matches(&state)) {
+                // Successful solid START/STOP ACKs can mean delayed destroy.
+                // Only an unsuccessful ACK is an explicit rejection/revert.
+                if *successful {
                     continue;
                 }
                 (
