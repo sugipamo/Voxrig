@@ -1,5 +1,10 @@
 # 共通Survivalの移動
 
+このページのpreview/receipt契約はstrict診断として維持している。完全床支持・静止の証明を
+必要としない送信には、両版の`body::Move`または
+`client.player_control(mode).start_path_best_effort(&controls)`を使う。
+未知地形での歩幅・tick上限・補正・期限は[best-effort歩行](common-control.md#未証明地形でのbest-effort歩行step-5)を参照。
+
 `Client::survival().preview_path(&controls)`は両版で同じ`MotionPreview`を返す。
 版は接続時の`ConnectionConfig.version`に固定され、利用側が版別の操作型を選ぶ必要はない。
 `Survival::start_predicted_path(&controls)`は両版で有限入力列を実行し、

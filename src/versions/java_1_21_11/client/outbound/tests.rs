@@ -1904,6 +1904,64 @@ async fn common_ground_transport(
 }
 
 #[tokio::test]
+async fn best_effort_walk_uses_received_cells_after_unrelated_reconstruction_gap() {
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    session.state.lock().await.reconstruction.issue = Some(
+        crate::versions::java_1_21_11::reconstruction::ReconstructionIssue::MissingCarrier {
+            position: [100, 65, 0],
+        },
+    );
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let control = client.player_control(crate::client::GameMode::Survival);
+    let path = [crate::client::survival::SurvivalControl {
+        yaw: 0.0,
+        input: crate::client::survival::SurvivalInput {
+            forward: 1,
+            ..Default::default()
+        },
+    }; 3];
+    let started = control.start_path_best_effort(&path).await.unwrap();
+    let ended = timeout(Duration::from_secs(2), async {
+        loop {
+            let record = control.control_record().await.unwrap().unwrap();
+            if matches!(
+                record.status,
+                crate::client::control::ControlStatus::Stopped { .. }
+            ) {
+                break record;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(ended.session_id, started.session_id);
+    let diagnostics = control
+        .walking_diagnostics_for(ended.session_id)
+        .await
+        .unwrap();
+    let terrain = diagnostics.terrain.unwrap();
+    assert!(terrain.reason.contains("received static block cache"));
+    assert_eq!(terrain.unproven_ticks, 0);
+    assert_eq!(diagnostics.path.unwrap().dispatched_ticks, 3);
+    assert!(ended.frame.unwrap().position[2] > 8.5);
+    let state = session.state.lock().await;
+    assert!(operations::continuous::ground_velocity(&state).is_some());
+    assert!(state.reconstruction.issue.is_some()); // Strict diagnostics are retained.
+    drop(state);
+    let _ = client.revoke_connection();
+}
+
+#[tokio::test]
+async fn best_effort_unknown_body_and_route_use_owned_modern_ticks() {
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    session.state.lock().await.world.unload(&[0; 8]).unwrap();
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    crate::client::tests::best_effort_unknown_body_and_route_scenario(&client).await;
+    let _ = client.revoke_connection();
+}
+
+#[tokio::test]
 async fn restart_does_not_replay_modern_received_tcp_velocity_or_reset_rotation() {
     use crate::client::adapter::ControlOps;
     let (session, api, mut peer, reader) =

@@ -22,6 +22,17 @@ mod oracle_tests;
 use crate::versions::table::{PhysicsGeneration, PhysicsRules};
 use crate::{MinecraftVersion, NativeBlockState, Result};
 use blocks::{Effect, unsupported};
+
+/// Marks only failures reached while consulting terrain, after input and
+/// own-player environment validation. Best-effort walking must not catch the
+/// admission failures above that boundary or decide recovery from error text.
+#[derive(Debug)]
+pub(crate) struct UnprovenTerrain(String);
+impl std::fmt::Display for UnprovenTerrain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 use collision::Geometry;
 use std::collections::HashMap;
 
@@ -304,6 +315,57 @@ fn floor(v: f64) -> i32 {
 }
 
 impl Body {
+    /// A bounded coordinate probe, not a floor, collision or jump prediction.
+    /// With no vertical momentum it probes at the current height; otherwise it
+    /// retains only a small part of that momentum. The owner bounds its lifetime.
+    pub(crate) fn walk_unproven(
+        &mut self,
+        version: MinecraftVersion,
+        controls: Controls,
+        env: &Environment,
+    ) -> Result<()> {
+        if self
+            .position
+            .iter()
+            .chain(self.velocity.iter())
+            .any(|v| !v.is_finite())
+        {
+            return Err(crate::error::invalid_input("nonfinite walking model"));
+        }
+        let speed = movement_speed(version, env, false).clamp(0.0, 0.1)
+            * if controls.sneak { 0.3 } else { 1.0 }
+            * if env.using_item.is_some() { 0.2 } else { 1.0 };
+        if !speed.is_finite() {
+            return Err(crate::error::invalid_input("nonfinite walking speed"));
+        }
+        let forward = f64::from(controls.forward);
+        let strafe = f64::from(controls.strafe);
+        let length = forward.hypot(strafe).max(1.0);
+        let yaw = f64::from(controls.yaw).to_radians();
+        let delta = [
+            (strafe * yaw.cos() - forward * yaw.sin()) * speed / length,
+            if self.on_ground {
+                0.0
+            } else {
+                self.velocity[1].clamp(-0.1, 0.1)
+            },
+            (forward * yaw.cos() + strafe * yaw.sin()) * speed / length,
+        ];
+        let position = std::array::from_fn(|i| self.position[i] + delta[i]);
+        let mut next = Self::new(position);
+        next.pose = self.pose;
+        next.set_scale(self.scale);
+        next.bounds = make_box(position, next.pose, next.scale);
+        next.velocity = delta;
+        next.on_ground = false;
+        next.crouching = controls.sneak;
+        next.keys = controls;
+        next.yaw = controls.yaw;
+        next.pitch = controls.pitch;
+        *self = next;
+        Ok(())
+    }
+
     pub(crate) fn admit_glide_pose(&mut self) {
         self.pose = Pose::FallFlying;
         self.bounds = make_box(self.position, self.pose, self.scale);
@@ -713,7 +775,11 @@ pub(crate) fn tick_with_ground_jump(
         level: &mut level,
         movement_order: [1, 0, 2],
     }
-    .run(controls, ground_requested)?;
+    .run(controls, ground_requested)
+    .map_err(|error| {
+        let reason = error.to_string();
+        error.context(UnprovenTerrain(reason))
+    })?;
     *body = next;
     Ok(outcome)
 }

@@ -10,6 +10,39 @@ use crate::{MinecraftVersion, NativeBlockState, Result};
 
 pub use crate::client::physics::{Controls, ItemUse, Modifier, ModifierOperation, Pose};
 
+/// Maximum speculative walking ticks before a new pose or usable terrain is required.
+pub const MAX_UNPROVEN_WALK_TICKS: u16 = 20;
+
+/// Warning retained by best-effort walking, never a support proof or server ACK.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct TerrainDiagnostic {
+    /// Original terrain prediction failure, including its diagnostic chain.
+    pub reason: String,
+    /// Speculative ticks since the last received correction or usable terrain tick.
+    pub unproven_ticks: u16,
+    /// No more speculative frames until fresh evidence re-anchors this owner.
+    pub waiting_for_evidence: bool,
+}
+
+/// Additional walking diagnostics for a selected owner, without changing the
+/// existing ControlRecord layout. Never establishes server acceptance.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct WalkingDiagnostics {
+    /// Latest terrain warning, retained after recovery and stopping.
+    pub terrain: Option<TerrainDiagnostic>,
+    /// Present for a connection-owned finite best-effort route.
+    pub path: Option<ControlPathProgress>,
+}
+
+/// Connection-owned finite best-effort path progress; dispatch is not acceptance.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct ControlPathProgress {
+    /// Original number of inputs, at most 120.
+    pub total_ticks: u16,
+    /// Inputs completely written, each exactly once.
+    pub dispatched_ticks: u16,
+}
+
 pub(crate) fn validate_ground_mode(mode: super::GameMode) -> Result<()> {
     if mode == super::GameMode::Spectator {
         return Err(crate::Error::new(
@@ -297,6 +330,11 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    terrain_diagnostic: Option<TerrainDiagnostic>,
+    unproven_ticks: u16,
+    path: Option<Vec<Controls>>,
+    path_dispatched: usize,
+    path_deadline: Option<std::time::Instant>,
     pub(crate) movement_refusal: Option<crate::MovementRefusal>,
     pub(crate) glide: Option<super::glide::GlideRecord>,
     pub(crate) best_effort_contacts: bool,
@@ -372,6 +410,11 @@ impl ControlSession {
             body.set_scale(scale as f32);
         }
         Self {
+            terrain_diagnostic: None,
+            unproven_ticks: 0,
+            path: None,
+            path_dispatched: 0,
+            path_deadline: None,
             best_effort_contacts: false,
             contact_diagnostic: None,
             contacts: None,
@@ -665,6 +708,7 @@ impl ControlSession {
 
     fn apply_pose(&mut self, pose: Option<(u64, [f64; 3], Option<[f64; 3]>)>) {
         if let Some((sequence, position, velocity)) = pose {
+            self.terrain_evidence();
             // A corrected local origin cannot reuse remote numerical state
             // advanced against the old origin. Strict owners retain their
             // receipt-based behavior; opted-in owners keep their held input.
@@ -724,6 +768,18 @@ impl ControlSession {
     ) -> Result<Option<Output>> {
         if !self.running() {
             return Ok(None);
+        }
+        if self
+            .path_deadline
+            .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+        {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Timeout,
+                anyhow::anyhow!("best-effort path evidence deadline expired"),
+            ));
+        }
+        if let Some(path) = &self.path {
+            self.controls = path[self.path_dispatched];
         }
         // Adapter reconstruction may pause outside step(). A queued request
         // must never survive that gap and trigger after terrain becomes usable.
@@ -824,8 +880,36 @@ impl ControlSession {
         };
         let ground_outcome = match physics_result {
             Ok(outcome) => {
+                self.terrain_evidence();
                 self.status = ControlStatus::Running;
                 outcome
+            }
+            Err(error)
+                if self.best_effort_contacts
+                    && self.kind == ControlKind::Ground
+                    && error
+                        .diagnostic()
+                        .downcast_ref::<physics::UnprovenTerrain>()
+                        .is_some() =>
+            {
+                self.terrain_diagnostic = Some(TerrainDiagnostic {
+                    reason: format!("{:#}", error.diagnostic()),
+                    unproven_ticks: self.unproven_ticks,
+                    waiting_for_evidence: self.unproven_ticks >= MAX_UNPROVEN_WALK_TICKS,
+                });
+                if self.unproven_ticks >= MAX_UNPROVEN_WALK_TICKS {
+                    self.status = ControlStatus::Paused {
+                        reason: "bounded walking awaits fresh pose or usable terrain".into(),
+                    };
+                    return Ok(None);
+                }
+                self.omit_contacts(&error);
+                self.body
+                    .walk_unproven(self.version, controls, &environment)?;
+                self.unproven_ticks += 1;
+                self.terrain_diagnostic.as_mut().unwrap().unproven_ticks = self.unproven_ticks;
+                self.status = ControlStatus::Running;
+                None
             }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
@@ -912,7 +996,10 @@ impl ControlSession {
         if let Some(bits) = output.input {
             self.sent_input = Some(bits);
         }
-        self.dispatched_ticks = self.tick;
+        self.dispatched_ticks += 1;
+        if self.path.is_some() {
+            self.path_dispatched += 1;
+        }
         if let Some(request) = self.ground_jump.as_mut() {
             if let GroundJumpStatus::Evaluated {
                 tick, dispatched, ..
@@ -923,6 +1010,73 @@ impl ControlSession {
                 }
             }
         }
+    }
+
+    pub(crate) fn walking_diagnostics(&self) -> WalkingDiagnostics {
+        WalkingDiagnostics {
+            terrain: self.terrain_diagnostic.clone(),
+            path: self.path.as_ref().map(|path| ControlPathProgress {
+                total_ticks: path.len() as u16,
+                dispatched_ticks: self.path_dispatched as u16,
+            }),
+        }
+    }
+
+    /// A degraded terrain source is still diagnostic when its received static
+    /// cells suffice for the ordinary physics calculation.
+    pub(crate) fn terrain_warning(&mut self, reason: &str) {
+        self.terrain_diagnostic = Some(TerrainDiagnostic {
+            reason: reason.into(),
+            unproven_ticks: self.unproven_ticks,
+            waiting_for_evidence: false,
+        });
+    }
+
+    fn terrain_evidence(&mut self) {
+        self.unproven_ticks = 0;
+        if let Some(diagnostic) = &mut self.terrain_diagnostic {
+            diagnostic.unproven_ticks = 0;
+            diagnostic.waiting_for_evidence = false;
+        }
+    }
+
+    pub(crate) fn inherit_terrain_budget(&mut self, previous: &Self) {
+        if self.last_pose == previous.last_pose {
+            self.unproven_ticks = previous.unproven_ticks;
+            self.terrain_diagnostic = previous.terrain_diagnostic.clone();
+        }
+    }
+
+    pub(crate) fn set_path(&mut self, path: &[super::survival::SurvivalControl]) {
+        self.path = Some(
+            path.iter()
+                .map(|c| Controls {
+                    forward: c.input.forward,
+                    strafe: c.input.strafe,
+                    jump: c.input.jump,
+                    yaw: c.yaw,
+                    pitch: self.controls.pitch,
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        self.controls = self.path.as_ref().unwrap()[0];
+        self.path_deadline = Some(
+            std::time::Instant::now()
+                + std::time::Duration::from_millis(
+                    (path.len() as u64 + u64::from(MAX_UNPROVEN_WALK_TICKS)) * 50 + 1000,
+                ),
+        );
+    }
+
+    pub(crate) fn path_active(&self) -> bool {
+        self.path.is_some()
+    }
+
+    pub(crate) fn path_complete(&self) -> bool {
+        self.path
+            .as_ref()
+            .is_some_and(|path| self.path_dispatched == path.len())
     }
 
     /// Packets that release held sprint/sneak when the session stops.
@@ -1546,6 +1700,158 @@ mod tests {
             assert!(control.entity_contacts.as_ref().unwrap().bodies.is_empty());
             control.dispatched(&output);
             assert_eq!(control.dispatched_ticks, 3);
+        }
+    }
+
+    #[test]
+    fn best_effort_unknown_walk_is_bounded_and_same_pose_cannot_replenish_it() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 64.0, 0.5], Some([0.0; 3]))), None);
+            let mut session = ControlSession::new(version, 7, [0.5, 64.0, 0.5], &start);
+            session.best_effort_contacts = true;
+            session.controls.forward = 1;
+            session.controls.strafe = 1;
+            session.controls.jump = true;
+            let mut unknown = |_| Err(crate::error::state_error("unloaded section"));
+            for _ in 0..MAX_UNPROVEN_WALK_TICKS {
+                let before = session.body.position;
+                let output = session.step(&start, &mut unknown).unwrap().unwrap();
+                assert!(!output.on_ground);
+                assert!(
+                    (output.position[0] - before[0]).hypot(output.position[2] - before[2])
+                        <= 0.100000001
+                );
+                assert_eq!(output.position[1], before[1]); // No invented floor or jump.
+                session.dispatched(&output);
+            }
+            let position = session.body.position;
+            for _ in 0..30 {
+                assert_eq!(session.step(&start, &mut unknown).unwrap(), None);
+            }
+            assert_eq!(session.body.position, position);
+            assert_eq!(session.dispatched_ticks, 20); // Paused attempts are not writes.
+            assert!(
+                session
+                    .walking_diagnostics()
+                    .terrain
+                    .unwrap()
+                    .waiting_for_evidence
+            );
+            let mut next = session.resume(8, [0.0; 2], &start);
+            next.best_effort_contacts = true;
+            next.inherit_terrain_budget(&session);
+            assert_eq!(next.step(&start, &mut unknown).unwrap(), None);
+            let corrected = received(Some((6, [2.5, 64.0, 0.5], Some([0.0; 3]))), None);
+            let output = session.step(&corrected, &mut unknown).unwrap().unwrap();
+            assert!((output.position[0] - 2.5).abs() <= 0.1);
+            assert!((output.position[2] - 0.5).abs() <= 0.1);
+            assert_eq!(session.id, 7);
+            assert_eq!(session.corrections, 1);
+            session.dispatched(&output);
+            assert_eq!(session.dispatched_ticks, 21);
+            assert_eq!(
+                session
+                    .walking_diagnostics()
+                    .terrain
+                    .unwrap()
+                    .unproven_ticks,
+                1
+            );
+            assert!(
+                session
+                    .step(&corrected, &mut world(false))
+                    .unwrap()
+                    .is_some()
+            );
+            assert_eq!(
+                session
+                    .walking_diagnostics()
+                    .terrain
+                    .unwrap()
+                    .unproven_ticks,
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn best_effort_unmodeled_shape_and_missing_collision_warn_but_inputs_do_not() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for name in ["minecraft:moving_piston", "minecraft:unregistered_shape"] {
+                let start = received(Some((5, [0.5, 64.0, 0.5], Some([0.0; 3]))), None);
+                let mut session = ControlSession::new(version, 1, [0.5, 64.0, 0.5], &start);
+                session.best_effort_contacts = true;
+                session.controls.forward = 1;
+                let mut terrain = |_: [i32; 3]| {
+                    Ok(NativeBlockState {
+                        name: name.into(),
+                        properties: Default::default(),
+                    })
+                };
+                assert!(session.step(&start, &mut terrain).unwrap().is_some());
+                assert_eq!(session.status, ControlStatus::Running);
+                assert!(session.walking_diagnostics().terrain.is_some());
+                assert!(session.movement_refusal.is_none());
+            }
+            for invalid in 0..4 {
+                let mut start = received(Some((5, [0.5, 64.0, 0.5], Some([0.0; 3]))), None);
+                let mut session = ControlSession::new(version, 1, [0.5, 64.0, 0.5], &start);
+                session.best_effort_contacts = true;
+                match invalid {
+                    0 => session.controls.yaw = f32::NAN,
+                    1 => session.controls.forward = 2,
+                    2 => start.environment.equipment_unavailable = true,
+                    _ => start.environment.player_scale = None,
+                }
+                assert_eq!(session.step(&start, &mut world(false)).unwrap(), None);
+                assert!(session.walking_diagnostics().terrain.is_none());
+                assert_eq!(session.dispatched_ticks, 0);
+            }
+        }
+    }
+
+    #[test]
+    fn best_effort_finite_route_retains_progress_across_correction_and_has_deadline() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 64.0, 0.5], Some([0.0; 3]))), None);
+            let mut session = ControlSession::new(version, 7, [0.5, 64.0, 0.5], &start);
+            session.best_effort_contacts = true;
+            let path: Vec<_> = [0.0, 90.0, 180.0]
+                .into_iter()
+                .map(|yaw| super::super::survival::SurvivalControl {
+                    yaw,
+                    input: super::super::survival::SurvivalInput {
+                        forward: 1,
+                        ..Default::default()
+                    },
+                })
+                .collect();
+            session.set_path(&path);
+            let mut unknown = |_| Err(crate::error::state_error("missing collision data"));
+            for (i, control) in path.iter().enumerate() {
+                let r = if i == 1 {
+                    received(Some((6, [2.5, 64.0, 0.5], Some([0.0; 3]))), None)
+                } else {
+                    received(Some((5, [0.5, 64.0, 0.5], Some([0.0; 3]))), None)
+                };
+                let output = session.step(&r, &mut unknown).unwrap().unwrap();
+                assert_eq!(output.rotation[0], control.yaw);
+                session.dispatched(&output);
+                assert_eq!(session.path_complete(), i == 2);
+                assert_eq!(
+                    session.walking_diagnostics().path.unwrap().dispatched_ticks,
+                    (i + 1) as u16
+                );
+            }
+            assert_eq!(session.corrections, 1);
+            let mut expired = ControlSession::new(version, 8, [0.5, 64.0, 0.5], &start);
+            expired.set_path(&path);
+            expired.path_deadline = Some(std::time::Instant::now());
+            assert_eq!(
+                expired.step(&start, &mut unknown).unwrap_err().kind(),
+                crate::ErrorKind::Timeout
+            );
+            assert_eq!(expired.dispatched_ticks, 0);
         }
     }
 

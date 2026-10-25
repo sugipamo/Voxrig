@@ -98,12 +98,32 @@ async fn main() -> anyhow::Result<()> {
                     serde_json::to_value(client.survival().start_predicted_path(&controls).await?)?
                 }
                 "path_record" => serde_json::to_value(client.survival().motion_record().await?)?,
+                "path_best_effort_start" => {
+                    let controls: Vec<voxrig::client::survival::SurvivalControl> =
+                        serde_json::from_value(v["controls"].clone())?;
+                    let mode = client.player_state().await?.game_mode.unwrap();
+                    serde_json::to_value(
+                        client
+                            .player_control(mode)
+                            .start_path_best_effort(&controls)
+                            .await?,
+                    )?
+                }
                 "best_effort_start" => {
                     let mode = client.player_state().await?.game_mode.unwrap();
                     serde_json::to_value(
                         client
                             .player_control(mode)
                             .start_control_best_effort()
+                            .await?,
+                    )?
+                }
+                "walking_diagnostics" => {
+                    let mode = client.player_state().await?.game_mode.unwrap();
+                    serde_json::to_value(
+                        client
+                            .player_control(mode)
+                            .walking_diagnostics_for(v["session_id"].as_u64().unwrap())
                             .await?,
                     )?
                 }
@@ -215,7 +235,7 @@ async fn main() -> anyhow::Result<()> {
                     })
                     .await?,
                 )?,
-                "prepare" => {
+                "prepare" | "prepare_pose" => {
                     let wanted: [f64; 3] = serde_json::from_value(v["position"].clone())?;
                     tokio::time::timeout(Duration::from_secs(10), async {
                         loop {
@@ -232,15 +252,17 @@ async fn main() -> anyhow::Result<()> {
                         }
                     })
                     .await??;
-                    client
-                        .wait_for_loaded(
-                            Region {
-                                min: [-4, 60, -4],
-                                max: [4, 70, 4],
-                            },
-                            Duration::from_secs(10),
-                        )
-                        .await?;
+                    if v["command"] == "prepare" {
+                        client
+                            .wait_for_loaded(
+                                Region {
+                                    min: [-4, 60, -4],
+                                    max: [4, 70, 4],
+                                },
+                                Duration::from_secs(10),
+                            )
+                            .await?;
+                    }
                     tokio::time::sleep(Duration::from_millis(200)).await;
                     serde_json::to_value(body.observe(ObserveRequest::default()).await?)?
                 }

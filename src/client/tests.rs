@@ -2172,3 +2172,173 @@ pub(crate) async fn common_chat_utf16_scenario(client: &Client) -> Vec<(bool, St
     }
     expected
 }
+
+/// Exercise actual adapter admission, packet task ownership and body acceptance
+/// with an absent column, rather than passing an all-air synthetic world.
+pub(crate) async fn best_effort_unknown_body_and_route_scenario(client: &Client) {
+    use crate::body::{
+        Action as BodyAction, ActionStatus, Body as Facade, BodyConfig, HeadlessBody,
+    };
+    use crate::client::control::{ControlStatus, Controls};
+    use std::time::Duration;
+    let control = client.player_control(GameMode::Survival);
+    let body = Facade::new(
+        HeadlessBody::new(
+            client.clone(),
+            BodyConfig {
+                settle_window: Duration::from_millis(20),
+                action_timeout: Duration::from_secs(2),
+                ..Default::default()
+            },
+        )
+        .unwrap(),
+    );
+    let before = client.player_state().await.unwrap().position.unwrap().value;
+    let id = body
+        .submit(BodyAction::Move {
+            controls: Controls {
+                forward: 1,
+                ..Default::default()
+            },
+            ticks: Some(2),
+        })
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let result = body.action_status(id).await.unwrap();
+            if result.is_terminal() {
+                assert!(matches!(result, ActionStatus::Accepted), "{result:?}");
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    body.release_control().await.unwrap();
+    let stopped = control.control_record().await.unwrap().unwrap();
+    assert_eq!(stopped.dispatched_ticks, 2);
+    assert!(
+        control
+            .walking_diagnostics_for(stopped.session_id)
+            .await
+            .unwrap()
+            .terrain
+            .is_some()
+    );
+    assert!(matches!(stopped.status, ControlStatus::Stopped { .. }));
+    let path = [survival::SurvivalControl {
+        yaw: 0.0,
+        input: survival::SurvivalInput {
+            forward: 1,
+            ..Default::default()
+        },
+    }; 3];
+    assert!(control.start_path_best_effort(&[]).await.is_err());
+    assert!(
+        control
+            .start_path_best_effort(&[path[0]; 121])
+            .await
+            .is_err()
+    );
+    let started = control.start_path_best_effort(&path).await.unwrap();
+    assert!(
+        control
+            .set_controls_for(started.session_id, Default::default())
+            .await
+            .is_err()
+    );
+    assert!(
+        control
+            .stop_control_for(started.session_id + 1)
+            .await
+            .is_err()
+    );
+    let ended = tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let record = control.control_record().await.unwrap().unwrap();
+            if matches!(record.status, ControlStatus::Stopped { .. }) {
+                break record;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(ended.session_id, started.session_id);
+    let diagnostics = control
+        .walking_diagnostics_for(ended.session_id)
+        .await
+        .unwrap();
+    assert_eq!(diagnostics.path.unwrap().dispatched_ticks, 3);
+    assert_eq!(ended.dispatched_ticks, 3);
+    assert_eq!(diagnostics.terrain.unwrap().unproven_ticks, 5);
+    assert!(ended.frame.unwrap().position[2] > before[2] + 0.3);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(
+        control
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .dispatched_ticks,
+        3
+    );
+
+    // A route cannot wait indefinitely when its probe budget runs out. No input
+    // before the paused point is replayed, and the retained owner stays readable.
+    let stalled = control
+        .start_path_best_effort(&[path[0]; 25])
+        .await
+        .unwrap();
+    let stopped = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let record = control.control_record().await.unwrap().unwrap();
+            if matches!(record.status, ControlStatus::Stopped { .. }) {
+                break record;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(stopped.session_id, stalled.session_id);
+    let diagnostics = control
+        .walking_diagnostics_for(stopped.session_id)
+        .await
+        .unwrap();
+    assert_eq!(diagnostics.path.unwrap().dispatched_ticks, 15);
+    assert!(diagnostics.terrain.unwrap().waiting_for_evidence);
+    // body retains its own acceptance deadline instead of reporting rejection
+    // for missing terrain or waiting for a correction forever.
+    let exhausted = body
+        .submit(BodyAction::Move {
+            controls: Controls {
+                forward: 1,
+                ..Default::default()
+            },
+            ticks: Some(1),
+        })
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let status = body.action_status(exhausted).await.unwrap();
+            if status.is_terminal() {
+                assert!(matches!(status, ActionStatus::Unknown { .. }), "{status:?}");
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    body.release_control().await.unwrap();
+    assert!(
+        control
+            .walking_diagnostics_for(stopped.session_id)
+            .await
+            .is_err()
+    );
+}

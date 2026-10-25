@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added bounded unknown-terrain walking to `body::Move` and
+  `PlayerControl::start_control_best_effort` on both versions, plus
+  `start_path_best_effort` for connection-owned finite routes. Terrain warnings
+  and route progress are available through the additive `walking_diagnostics_for` getter. Strict prediction
+  and receipt APIs retain their existing proof requirements.
 - Added `Survival::begin_dig` / `DigOperation` as a public API addition for
   explicit per-dig cancellation, independent write evidence and joined owner
   completion. Dropping handles or waiters keeps digging; cancellation is explicit.

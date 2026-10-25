@@ -498,6 +498,15 @@ pub(crate) trait ControlOps {
         &self,
         mode: GameMode,
     ) -> Result<super::control::ControlRecord>;
+    async fn start_path_best_effort(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<super::control::ControlRecord>;
+    async fn walking_diagnostics_for(
+        &self,
+        session_id: u64,
+    ) -> Result<super::control::WalkingDiagnostics>;
     async fn contact_diagnostic_for(
         &self,
         session_id: u64,

@@ -136,6 +136,11 @@ pub enum Action {
     },
     /// Hold inputs for at least N fully dispatched client ticks, then release.
     /// None holds until release_control/cancel or the configured lease deadline.
+    /// Both versions use best-effort ground control: exact floor support and
+    /// zero velocity are not admission requirements. Unknown terrain uses small
+    /// bounded probes, with warnings through PlayerControl::walking_diagnostics_for.
+    /// A received pose rollback returns Corrected; evidence exhaustion reaches
+    /// bounded Unknown.
     Move {
         /// Digital inputs and explicit rotation.
         controls: Controls,

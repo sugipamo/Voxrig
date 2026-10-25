@@ -513,6 +513,19 @@ impl Bot {
                         return false;
                     }
                     session.dispatched(&output);
+                    let path_complete = session.path_complete();
+                    if path_complete {
+                        session.status = ControlStatus::Stopped {
+                            reason: "best-effort path fully dispatched; acceptance is separate"
+                                .into(),
+                        };
+                        if let Err(error) = self.release_control(session).await {
+                            session.status = ControlStatus::Stopped {
+                                reason: format!("path release write failed: {error}"),
+                            };
+                        }
+                    }
+
                     let frame = session.frame.clone().unwrap();
                     let fall_distance = session.body.fall_distance as f32;
                     let vertical_collision = session.body.vertical_collision;
@@ -579,7 +592,7 @@ impl Bot {
                     self.physics.lock().await.record_movement(snapshot);
                     self.common_receipts.lock().await.position_source =
                         Some(crate::client::ValueSource::Predicted);
-                    if landed || glide_ended {
+                    if landed || glide_ended || path_complete {
                         return false;
                     }
                     true
@@ -631,7 +644,7 @@ impl Bot {
         mode: GameMode,
         world: crate::body::BodyWorld,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, true, Some(world))
+        self.start_control_inner(mode, None, false, true, Some(world), None)
             .await
     }
     async fn start_control_inner(
@@ -641,6 +654,7 @@ impl Bot {
         glide: bool,
         best_effort_contacts: bool,
         world: Option<crate::body::BodyWorld>,
+        path: Option<&[crate::client::survival::SurvivalControl]>,
     ) -> Result<ControlRecord> {
         let admission = self.connection.ledger().try_work()?;
         admission
@@ -773,6 +787,7 @@ impl Bot {
                     if let Some(previous) = &control.session {
                         // Keep local item release provenance across control ownership changes.
                         session.inherit_item_release(previous);
+                        session.inherit_terrain_budget(previous);
                     }
                 }
                 control.generation = Some(generation);
@@ -793,6 +808,9 @@ impl Bot {
                 session.mode = mode;
                 session.kind = kind;
                 session.best_effort_contacts = best_effort_contacts;
+                if let Some(path) = path {
+                    session.set_path(path);
+                }
                 if let Some(controls) = initial_flight_controls {
                     session.controls = controls;
                 }
@@ -909,12 +927,12 @@ impl crate::client::adapter::ControlOps for Bot {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), true, false, None)
+        self.start_control_inner(mode, Some(controls), true, false, None, None)
             .await
     }
 
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, false, None)
+        self.start_control_inner(mode, None, false, false, None, None)
             .await
     }
 
@@ -923,13 +941,38 @@ impl crate::client::adapter::ControlOps for Bot {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), false, false, None)
+        self.start_control_inner(mode, Some(controls), false, false, None, None)
             .await
     }
 
     async fn start_control_best_effort(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, true, None)
+        self.start_control_inner(mode, None, false, true, None, None)
             .await
+    }
+
+    async fn start_path_best_effort(
+        &self,
+        mode: GameMode,
+        controls: &[crate::client::survival::SurvivalControl],
+    ) -> Result<ControlRecord> {
+        crate::client::survival::model::validate_controls(controls)?;
+        self.start_control_inner(mode, None, false, true, None, Some(controls))
+            .await
+    }
+
+    async fn walking_diagnostics_for(
+        &self,
+        session_id: u64,
+    ) -> Result<crate::client::control::WalkingDiagnostics> {
+        let state = self.common_control.lock().await;
+        let session = state
+            .session
+            .as_ref()
+            .filter(|session| session.id == session_id)
+            .ok_or_else(|| {
+                crate::error::state_error("selected control session is missing or was replaced")
+            })?;
+        Ok(session.walking_diagnostics())
     }
 
     async fn contact_diagnostic_for(
@@ -994,6 +1037,9 @@ impl crate::client::adapter::ControlOps for Bot {
                         }
                         if let Some(reason) = session.glide_stop_reason(&received) {
                             return Err(state_error(reason));
+                        }
+                        if session.path_active() {
+                            return Err(crate::error::state_error("finite path owns its scheduled inputs; stop the selected owner first"));
                         }
                         session.controls = controls;
                         Ok(session.record())
@@ -1173,6 +1219,23 @@ mod tests {
     use crate::client::adapter::ControlOps;
     use crate::client::control::Output;
     use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn best_effort_unknown_body_and_route_use_owned_native_ticks() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        bot.world.lock().await.clear();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        crate::client::tests::best_effort_unknown_body_and_route_scenario(&client).await;
+        let _ = client.revoke_connection();
+        drop(release);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn glide_start_without_actual_flag_times_out_without_position_or_retry() {

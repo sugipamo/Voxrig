@@ -649,7 +649,17 @@ impl Operations {
             let result = if state.reconstruction.issue.is_some()
                 || !state.reconstruction.recovery_chunks.is_empty()
             {
-                if session.contacts.as_ref().is_some_and(|c| c.has_bodies())
+                if session.best_effort_contacts && kind == crate::client::control::ControlKind::Ground {
+                    let warning = "incomplete piston reconstruction omitted; using received static block cache";
+                    session.terrain_warning(warning);
+                    session.omit_contacts(&crate::error::state_error(warning));
+                    session.step(&received, &mut |p| {
+                        let id = state.world.block(p).ok_or_else(|| crate::MovementRefusal::terrain(
+                            crate::error::state_error("received terrain is not loaded"), p,
+                        ))?;
+                        crate::versions::java_1_21_11::native_state(id)
+                    })
+                } else if session.contacts.as_ref().is_some_and(|c| c.has_bodies())
                     || kind == crate::client::control::ControlKind::Glide
                 {
                     session.contacts = None;
@@ -672,10 +682,11 @@ impl Operations {
                     session.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };
-                    if let Err(release) = self
-                        .write_release(&session, state.operations.local_player.entity_id)
-                        .await
-                    {
+                    let release = self.write_release(&session, state.operations.local_player.entity_id).await;
+                    if release.is_ok() && session.path_active() && error.kind() == crate::ErrorKind::Timeout {
+                        state.control.released_ground = Some(session.id);
+                    }
+                    if let Err(release) = release {
                         session.status = ControlStatus::Stopped {
                             reason: format!("{error}; release write failed: {release}"),
                         };
@@ -756,6 +767,16 @@ impl Operations {
                     state.motion.dispatched();
                     state.motion.on_ground = Some(output.on_ground);
                     session.dispatched(&output);
+                    let path_complete = session.path_complete();
+                    if path_complete {
+                        session.status = ControlStatus::Stopped { reason: "best-effort path fully dispatched; acceptance is separate".into() };
+                        if let Err(error) = self.write_release(&session, entity).await {
+                            session.status = ControlStatus::Stopped { reason: format!("path release write failed: {error}") };
+                        } else {
+                            state.control.released_ground = Some(session.id);
+                        }
+                    }
+
                     if landed {
                         session.status = ControlStatus::Stopped {
                             reason: "creative flight model landed".into(),
@@ -784,7 +805,7 @@ impl Operations {
                         state.motion.last_submission.as_ref().map(|s| s.attempt_id);
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();
-                    if landed || glide_ended {
+                    if landed || glide_ended || path_complete {
                         return false;
                     }
                 }
@@ -853,7 +874,7 @@ impl Operations {
         mode: GameMode,
         world: crate::body::BodyWorld,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, Some(world), true)
+        self.start_control_inner(mode, None, false, Some(world), true, None)
             .await
     }
     async fn start_control_inner(
@@ -863,6 +884,7 @@ impl Operations {
         glide: bool,
         world: Option<crate::body::BodyWorld>,
         best_effort_contacts: bool,
+        path: Option<&[crate::client::survival::SurvivalControl]>,
     ) -> Result<ControlRecord> {
         let admission = self.bot.session.ledger.try_work()?;
         admission.run_scoped(async {
@@ -995,6 +1017,7 @@ impl Operations {
             };
             if let Some(previous) = previous {
                 session.inherit_item_release(previous);
+                session.inherit_terrain_budget(previous);
             }
             if !glide && previous.is_some_and(|p| p.kind == crate::client::control::ControlKind::Glide)
             {
@@ -1008,6 +1031,9 @@ impl Operations {
             session.mode = mode;
             session.kind = kind;
             session.best_effort_contacts = best_effort_contacts;
+            if let Some(path) = path {
+                session.set_path(path);
+            }
             if let Some(controls) = initial_flight_controls {
                 session.controls = controls;
             }
@@ -1097,12 +1123,12 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), true, None, false)
+        self.start_control_inner(mode, Some(controls), true, None, false, None)
             .await
     }
 
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, None, false)
+        self.start_control_inner(mode, None, false, None, false, None)
             .await
     }
 
@@ -1111,13 +1137,39 @@ impl crate::client::adapter::ControlOps for Operations {
         mode: GameMode,
         controls: Controls,
     ) -> Result<ControlRecord> {
-        self.start_control_inner(mode, Some(controls), false, None, false)
+        self.start_control_inner(mode, Some(controls), false, None, false, None)
             .await
     }
 
     async fn start_control_best_effort(&self, mode: GameMode) -> Result<ControlRecord> {
-        self.start_control_inner(mode, None, false, None, true)
+        self.start_control_inner(mode, None, false, None, true, None)
             .await
+    }
+
+    async fn start_path_best_effort(
+        &self,
+        mode: GameMode,
+        controls: &[crate::client::survival::SurvivalControl],
+    ) -> Result<ControlRecord> {
+        crate::client::survival::model::validate_controls(controls)?;
+        self.start_control_inner(mode, None, false, None, true, Some(controls))
+            .await
+    }
+
+    async fn walking_diagnostics_for(
+        &self,
+        session_id: u64,
+    ) -> Result<crate::client::control::WalkingDiagnostics> {
+        let state = self.bot.session.state.lock().await;
+        let session = state
+            .control
+            .session
+            .as_ref()
+            .filter(|session| session.id == session_id)
+            .ok_or_else(|| {
+                crate::error::state_error("selected control session is missing or was replaced")
+            })?;
+        Ok(session.walking_diagnostics())
     }
 
     async fn contact_diagnostic_for(
@@ -1171,6 +1223,9 @@ impl crate::client::adapter::ControlOps for Operations {
                     Some(session) if session.running() && session.mode == mode => {
                         if session_id.is_some_and(|id| session.id != id) {
                             return Err(invalid("selected control session was replaced"));
+                        }
+                        if session.path_active() {
+                            return Err(crate::error::state_error("finite path owns its scheduled inputs; stop the selected owner first"));
                         }
                         session.controls = controls;
                         Ok(session.record())

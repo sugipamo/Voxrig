@@ -3968,7 +3968,7 @@
     }
   },
   "source_sha256": {
-    "src/client/entity/scope.rs": "58bc92ad4a001141b48ddefac631011f1732fa1f4f136121c05b57e7d7b7a032",
+    "src/client/entity/scope.rs": "4872336e27b15e0caf73fa3f68f27c502b2f58042d7a8de37a21a341eacd2b66",
     "src/client/entity/owned_contacts.rs": "42e6a596afb6c7841f22dc1247db1245a5b5b983ff43f46bf0e7c00e445dfd7d",
     "src/client/entity/tick_order.rs": "7e740e898f3d90049ee63465b24190f1ecce2c7b04428f98a50d96d25037eceb",
     "src/client/entity/query.rs": "7817058f2014c5b0815030b4434952aa44444be80684c3b12a2489f42cf05b80",
@@ -3980,7 +3980,7 @@
     "src/client/entity/contact_policy/locality.rs": "ea60e4eba8b417f5a95233352d45a53e0103cfcfbc564b87707c36323f783bdd",
     "src/client/entity/contact_capabilities.rs": "4858d4b661f1c5b7ef85049c2e8230e650b9c0e7e2d4e12087381d30aa185284",
     "docs/evidence/contact-capabilities-20261014.json": "5351aa666739f9037172230b0e878250b83f9c0100bf07cbcd573f968925123c",
-    "docs/evidence/contact-envelopes-20261015.json": "2792ce1581a3f7aad20ff5c9c420cc1e40c0a3cb14fd8e52c082f652fad588d3"
+    "docs/evidence/contact-envelopes-20261015.json": "7fb2c15e02b8819e9b82225e8a02d7b302fbc35d3aa11ee1d88fbf919b84a0b8"
   },
   "existing_providers": {
     "no_contact_class_proof": "existing version-qualified ProvenIrrelevant contact policy, whole groups only",
