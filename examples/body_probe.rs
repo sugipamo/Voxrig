@@ -19,7 +19,7 @@ fn parse_action(v: &Json) -> anyhow::Result<Action> {
             controls: serde_json::from_value::<Controls>(v["controls"].clone())?,
             ticks: v["ticks"].as_u64().map(u32::try_from).transpose()?,
         },
-        "place" | "break" => {
+        "place" | "break" | "activate" => {
             let pos = serde_json::from_value(v["pos"].clone())?;
             let face = match v["face"].as_str().unwrap() {
                 "Up" => BlockFace::Up,
@@ -32,6 +32,13 @@ fn parse_action(v: &Json) -> anyhow::Result<Action> {
             };
             if v["kind"] == "break" {
                 Action::BreakBlock { pos, face }
+            } else if v["kind"] == "activate" {
+                Action::ActivateBlock {
+                    pos,
+                    face,
+                    cursor: serde_json::from_value(v["cursor"].clone())?,
+                    hand: Hand::Main,
+                }
             } else {
                 Action::PlaceBlock {
                     pos,
@@ -124,6 +131,38 @@ async fn main() -> anyhow::Result<()> {
                         .select_hotbar(v["slot"].as_u64().unwrap().try_into()?)
                         .await?,
                 )?,
+                "place_cube" => {
+                    let Action::PlaceBlock {
+                        pos,
+                        face,
+                        cursor,
+                        hand,
+                        ..
+                    } = parse_action(&v)?
+                    else {
+                        anyhow::bail!("expected placement");
+                    };
+                    serde_json::to_value(body.place_cube(pos, face, cursor, hand).await?)?
+                }
+                "strict_open" => serde_json::to_value(
+                    client
+                        .survival()
+                        .open_container(serde_json::from_value(v["pos"].clone())?)
+                        .await?,
+                )?,
+                "screen" => serde_json::to_value(client.screen_state().await?)?,
+                "close_screen" => {
+                    let screen = client.screen_state().await?.screen.unwrap().id;
+                    serde_json::to_value(client.survival().close_container(screen).await?)?
+                }
+                "placement_warnings" => {
+                    let Action::PlaceBlock { pos, face, .. } = parse_action(&v)? else {
+                        anyhow::bail!("expected placement");
+                    };
+                    serde_json::to_value(
+                        body.backend().cube_placement_diagnostics(pos, face).await?,
+                    )?
+                }
                 "strict_place" => serde_json::to_value(
                     client
                         .survival()

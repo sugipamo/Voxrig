@@ -1,6 +1,6 @@
 # Body API: 受理に基づく共通契約
 
-`voxrig::body` は既存 `Client` の横に追加する API である。headless を残し、将来の Fabric client-only mod バックエンドにも同じ意図・観測・結果の境界を実装できるようにする。Java 1.21.11 headless に加え、1.16.1 は観測と明示的 `PlaceBlock` を提供する。1.16.1 の他 action は `Unsupported`。Microsoft 認証、Fabric/IPC、既存 API の移行は含まない。
+`voxrig::body` は既存 `Client` の横に追加する API である。headless を残し、将来の Fabric client-only mod バックエンドにも同じ意図・観測・結果の境界を実装できるようにする。Java 1.21.11 headless に加え、1.16.1 は観測と明示的 `PlaceBlock` / `ActivateBlock` を提供する。1.16.1 の他 action は `Unsupported`。Microsoft 認証、Fabric/IPC、既存 API の移行は含まない。
 
 ## 受理と完了
 
@@ -119,3 +119,13 @@ coherent state lock を保持し、選択スロットと受信済み item ID が
 不一致・未知状態なら送信せず `Rejected` になり、
 `body.backend().use_item_refusal(id)` で期待値と観測値を取得できる。
 `Accepted` は消費成功を意味しない。詳細は [common-item-use.md](../common-item-use.md)。
+
+### 拒否削減 step 3: 明示block操作
+
+`Body::place_cube(pos, face, cursor, hand)`はdefault-only材料・first outline・接地を
+送信条件にせず、隣接targetと手のblock名を使う。任意の診断は
+`HeadlessBody::cube_placement_diagnostics`の警告として別途取得する。
+`ActivateBlock`は両版で明示hitを送る。modernはACK＋bounded quiet、legacyは
+完全送信＋bounded quietで、menuのcontents受信をrollbackとは扱わない。
+実際のscreenは別途観測する。公式serverの距離条件とstrict receipt APIとの違いは
+[明示block操作](../explicit-block-interactions.md)を参照。

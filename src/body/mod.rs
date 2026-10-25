@@ -11,6 +11,7 @@ use crate::client::control::Controls;
 
 pub(crate) mod evidence;
 mod headless;
+pub(crate) mod interaction;
 mod state;
 pub use headless::HeadlessBody;
 
@@ -156,6 +157,19 @@ pub enum Action {
         /// Expected result; None uses the held item's block name.
         expected: Option<NativeBlockState>,
     },
+    /// Send an explicit block activation (tables, furnaces, storage, etc.).
+    /// No first-outline, standing, empty-hand or default-item proof is required.
+    /// Accepted means processing/quiet-window acceptance, not that a menu opened.
+    ActivateBlock {
+        /// Exact clicked cell.
+        pos: [i32; 3],
+        /// Exact clicked face, independent of the view ray.
+        face: BlockFace,
+        /// Block-relative hit, each coordinate 0..1.
+        cursor: [f32; 3],
+        /// Explicit hand; the held item may affect the server's result.
+        hand: Hand,
+    },
     /// Creative instant START or survival timed START/STOP continuation.
     BreakBlock {
         /// Block to break.
@@ -261,7 +275,7 @@ pub enum ActionKind {
     Look,
     /// Held ground movement.
     Move,
-    /// Exact block hit.
+    /// Exact block hit, including explicit activation.
     PlaceBlock,
     /// Creative and survival breaking.
     BreakBlock,
@@ -396,6 +410,28 @@ impl<B: BodyBackend> Body<B> {
     /// Submit an action exactly once.
     pub async fn submit(&self, request: impl Into<ActionRequest>) -> Result<ActionId> {
         self.backend.submit(request.into()).await
+    }
+    /// Submit an adjacent cube placement with an explicit hit. No default-only
+    /// material, standing or ray diagnostics are prerequisites. Use the existing
+    /// `Survival::placement_check` or strict `Survival::place_cube` separately when
+    /// those diagnostics are wanted. The server chooses the actual result.
+    pub async fn place_cube(
+        &self,
+        pos: [i32; 3],
+        face: BlockFace,
+        cursor: [f32; 3],
+        hand: Hand,
+    ) -> Result<ActionId> {
+        let target = crate::client::survival::placement::adjacent(pos, face)?;
+        self.submit(Action::PlaceBlock {
+            pos,
+            face,
+            cursor,
+            hand,
+            target,
+            expected: None,
+        })
+        .await
     }
     /// Read a retained outcome.
     pub async fn action_status(&self, id: ActionId) -> Result<ActionStatus> {

@@ -42,8 +42,10 @@ client.wait_for_block([10, 64, 20], std::time::Duration::from_secs(3), |b| {
   1.16.1のprotocolには操作番号がないので`None`。
 - 送信前に、受信したgame modeがhandleのmodeと一致することと、既存の未解決操作（設置・採掘・
   inventory操作・container・乗り物・飛行など）がないことを検査する。自動の再送はしない。
-- `use_on_block`は、対象がloaded、world内、目の位置から対象cellの中心まで4.5以内であることを送信前に検査し、
-  `cursor`は有限で各軸0..1であることを要求する。視線・遮蔽・面の向きは検査しない。
+- `use_on_block`は明示したpos/face/cursor/handを送り、視線・接地・固定4.5の検査はしない。
+  `cursor`は有限で各軸0..1、座標はwire範囲内であることを要求する。
+  距離は公式serverの条件（1.16.1は足元→block中心の距離二乗64未満、1.21.11は目→block AABBが
+  interaction-range属性＋1未満）を使う。未受信のmodern姿勢・属性はserver判定に委ねる。
   手に持ったものとblockの組み合わせで何が起きるか（設置か操作か）はserverが決める。
   - 両版のserverは処理のあとに、対象cellと面の隣のcellのblock更新を送り返す
     （1.21.11はreach外・当たり位置がcellの外の場合を除く）。
@@ -51,8 +53,8 @@ client.wait_for_block([10, 64, 20], std::time::Duration::from_secs(3), |b| {
 - `use_item`は今の向きを使う。1.21.11はpacketに向きを含み、serverはplayerをその向きにそろえる。
 - `release_use_item`は公式clientと同じく、位置0・面DOWN（1.21.11は操作番号0）の
   RELEASE_USE_ITEMを送る。使用中でなくても送れる（serverは何もしない）。
-- 1.21.11の版固有APIの`use_on_block`は、survivalでは従来どおり拒否する（確認付きの`place_survival_cube`を使う）。
-  共通APIの`Survival::use_on_block`は送信だけの別の契約で、材料の消費や設置を確認しない。
+- 1.21.11の版固有APIの`use_on_block`もSurvivalで明示送信できる。
+  共通APIの`Survival::use_on_block`と同じく、材料の消費や設置を確認しない。
   1個のfull cubeを置いて対象と材料の受信まで確認したい場合は、`Survival::place_cube`を使う。
 
 ## 使用中の受信状態（`using_item`）
@@ -97,24 +99,20 @@ client.wait_for_block([10, 64, 20], std::time::Duration::from_secs(3), |b| {
 | 盾を構えたまま継続操作でダッシュキーを押して歩く→下ろす→歩きながら構える | 減速・ダッシュなし→ダッシュ開始→ダッシュ継続のまま減速。serverの補正0回、serverの最後の位置が予測とbit単位で一致 | 同じ |
 | 床の上面へ松明 | 松明が設置され4→3 | 同じ（操作番号4） |
 | 素手でレバー・ドア | `powered=true`・`open=true`を受信 | 同じ |
-| 4.5より遠い対象 | 送信前に拒否 | 送信前に拒否 |
+| 4.5より遠い対象（この旧検証時の挙動。step 3で変更） | 送信前に拒否 | 送信前に拒否 |
 
 この確認で、1.21.11の効果packetのflagsにblend（8）があることが分かった。以前は受信時に拒否して接続を
 止めていた（金のリンゴの効果で発生）。公式のpacket定義に合わせて受け入れるように直した。
 
 
-## クリック位置の到達距離
+## 明示hitの到達距離（拒否削減 step 3）
 
-`use_on_block` は、受け取った support cell と `cursor` の和を実際の hit point として、
-立った eye からの距離を送信前に検査します。ブロック中心が範囲外でも、指定した面の
-クリック位置が 4.5 block 以内なら送信できます。近い面でも、指定したクリック位置が
-範囲外なら送信しません。従来の保守的な 4.5 の上限と、ロード・mode・所有・未解決操作の
-検査は維持します。`placement_check` の面への最短距離は候補の事前確認であり、
-任意の cursor の送信許可ではありません。採掘の中心を使う従来の検査は別の契約として維持します。
-
-Golemkit #152 の保存された半加算器の立ち位置・支持・West 面を平行移動した隔離 fixture は
-`scripts/run_block_hit_reach.py` で両公式サーバーに接続して確認します。
-新しい世界での fixture 検証と、元の半加算器の全施工・回路出力は区別します。
+固定4.5と立位eyeによる旧制限を外し、公式serverの距離条件に変更しました。
+`placement_check` は従来のclient pick range/default boxの任意診断です。
+厳密な`place_cube`/`open_container`はreceipt用に残し、移動・空中・非first-hitの設置は
+bodyの`place_cube`/`PlaceBlock`、容器操作は`ActivateBlock`を使えます。
+根拠・期限・Acceptedと実際の効果の区別は
+[明示block操作](explicit-block-interactions.md)を参照してください。採掘はこの変更の対象外です。
 
 ### Atomic held-item expectations
 

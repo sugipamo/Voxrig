@@ -117,7 +117,7 @@ struct Inner {
 ///
 /// Use one wrapper per Client, and avoid concurrent mutations through other Client clones.
 /// There is one active body action/lease at a time; overlapping submissions are Rejected.
-/// Legacy placement may accompany an existing `Client::survival().start_control()` session;
+/// Explicit placement/activation may accompany an existing PlayerControl session;
 /// that caller retains movement ownership and must stop it separately. Finite path and
 /// unresolved strict-operation admission gates still apply.
 #[derive(Clone)]
@@ -151,7 +151,7 @@ impl HeadlessBody {
     }
 
     /// Wrap without reconnecting or changing the existing strict API.
-    /// Java 1.16.1 supports observation and explicit placement. Atomic item use is
+    /// Java 1.16.1 supports observation, explicit placement and activation. Atomic item use is
     /// available through `HeadlessBody::use_item_expect`. Other actions are Unsupported.
     pub fn new(client: Client, config: BodyConfig) -> Result<Self> {
         if config.settle_window.is_zero()
@@ -181,6 +181,36 @@ impl HeadlessBody {
             }),
         })
     }
+    /// Optional cube diagnostics. Failures of the old standing/ray/default-stack
+    /// model are returned as warnings and never authorize or veto a send.
+    /// Call separately from submission; observations may change in between.
+    pub async fn cube_placement_diagnostics(
+        &self,
+        pos: [i32; 3],
+        face: BlockFace,
+    ) -> Result<Vec<String>> {
+        let player = self.inner.client.player_state().await?;
+        let mut warnings = Vec::new();
+        if let Err(error) = crate::client::survival::placement::selected_material(&player) {
+            warnings.push(error.to_string());
+        }
+        let query = match player.game_mode {
+            Some(GameMode::Creative) => self.inner.client.creative().target_block(4.5).await,
+            _ => self.inner.client.survival().target_block(4.5).await,
+        };
+        match query {
+            Ok(query)
+                if query
+                    .hit
+                    .as_ref()
+                    .is_some_and(|hit| hit.position == pos && hit.face == face) => {}
+            Ok(_) => warnings
+                .push("explicit support/face differs from the first outline diagnostic".into()),
+            Err(error) => warnings.push(error.to_string()),
+        }
+        Ok(warnings)
+    }
+
     /// Existing diagnostic API, retaining its original receipt semantics.
     pub fn client(&self) -> &Client {
         &self.inner.client
@@ -239,7 +269,10 @@ impl HeadlessBody {
     ) -> Result<ActionId> {
         let ops = self.operations()?;
         if matches!(&ops, Operations::Legacy(_))
-            && !matches!(request.action, Action::PlaceBlock { .. })
+            && !matches!(
+                request.action,
+                Action::PlaceBlock { .. } | Action::ActivateBlock { .. }
+            )
             && expected_use.is_none()
         {
             return Err(error(
@@ -251,7 +284,8 @@ impl HeadlessBody {
         let needs_ack = matches!(
             request.action,
             Action::PlaceBlock { .. } | Action::BreakBlock { .. }
-        );
+        ) || (matches!(request.action, Action::ActivateBlock { .. })
+            && self.inner.client.version() == MinecraftVersion::Java1_21_11);
         let job = Arc::new(Job {
             acceptance: Mutex::new(Acceptance::new(
                 deadline,
@@ -527,6 +561,7 @@ fn observe_action(action: &Action) -> ObserveRequest {
     ObserveRequest {
         blocks: match action {
             Action::PlaceBlock { pos, target, .. } => vec![*pos, *target],
+            Action::ActivateBlock { pos, .. } => vec![*pos],
             Action::BreakBlock { pos, .. } => vec![*pos],
             _ => vec![],
         },
@@ -598,7 +633,9 @@ async fn run(
             return Err(invalid("invalid movement inputs/tick count"));
         }
     }
-    if let Action::PlaceBlock { cursor, .. } = &request.action {
+    if let Action::PlaceBlock { cursor, .. } | Action::ActivateBlock { cursor, .. } =
+        &request.action
+    {
         crate::client::item_use::validate_cursor(*cursor)?;
     }
     let baseline = ops.body_evidence(inner.id, &selection, None).await?;
@@ -634,7 +671,7 @@ async fn run(
                 .await?;
             cleanup.dispatched = true;
         }
-        Action::PlaceBlock { .. } => {
+        Action::PlaceBlock { .. } | Action::ActivateBlock { .. } => {
             cleanup.attempted = true;
             let (sent_sequence, sent_cursor) = ops.body_place_send(world, &request.action).await?;
             sequence = sent_sequence;
@@ -868,10 +905,14 @@ fn correction(
                     }),
                 )
             }
-            Update::Resync if expected.is_none() => (
-                "server resynchronized inventory",
-                ServerCorrection::InventoryResync,
-            ),
+            Update::Resync
+                if expected.is_none() && !matches!(action, Action::ActivateBlock { .. }) =>
+            {
+                (
+                    "server resynchronized inventory",
+                    ServerCorrection::InventoryResync,
+                )
+            }
             Update::Chunk(chunk)
                 if expected.is_some_and(|(pos, _)| {
                     [pos[0].div_euclid(16), pos[2].div_euclid(16)] == *chunk
@@ -1050,6 +1091,36 @@ mod tests {
         assert!(matches!(
             correction(&resync, None, &Action::Chat("test".into())).unwrap(),
             Some(ActionStatus::Corrected { .. })
+        ));
+    }
+    #[test]
+    fn activation_contents_are_not_rollback_but_pose_corrections_still_are() {
+        let action = Action::ActivateBlock {
+            pos: [0, 64, 0],
+            face: BlockFace::Up,
+            cursor: [0.5; 3],
+            hand: Hand::Main,
+        };
+        assert!(
+            correction(&batch(vec![Update::Resync]), None, &action)
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            correction(
+                &batch(vec![Update::Pose {
+                    position: [1., 65., 0.],
+                    rotation: [0.; 2]
+                }]),
+                None,
+                &action
+            )
+            .unwrap(),
+            Some(ActionStatus::Corrected { .. })
+        ));
+        assert!(matches!(
+            correction(&batch(vec![Update::World]), None, &action).unwrap(),
+            Some(ActionStatus::Unknown { .. })
         ));
     }
     #[test]

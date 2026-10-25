@@ -67,13 +67,19 @@ def check(version, command, request, trace, report):
         native_inventory=native_inventory, hit_distance=math.dist(eye, hit),
         center_distance=math.dist(eye, center), original_frames=original_frames))
     boundary = trace.mark()
-    refusal = request('use_on_block', support=support, face='East', cursor=[1., .5, .5], expect_rejected=True)
+    # Step 3: the old client's 4.5 eye-to-cursor limit is only diagnostic.
+    # This far face is within both official servers' real distance limits.
+    receipt = request('use_on_block', support=support, face='East', cursor=[1., .5, .5])
+    deadline = time.monotonic() + 5
+    while 'Test passed' not in command('execute if block 3 66 4 minecraft:glass'):
+        if time.monotonic() >= deadline:
+            raise RuntimeError('native server did not accept the explicit far-face placement')
+        time.sleep(.02)
     writes = [f for f in trace.since(boundary) if f['phase'] == 'play'
               and f['direction'] == 'serverbound'
               and f['packet_id'] == (0x2d if version == '1.16.1' else 0x3f)]
-    if writes:
-        raise RuntimeError('out-of-range original cursor emitted a block interaction')
-    report['checks'].append(dict(name='far_face_rejected_before_write', refusal=refusal))
+    assert len(writes) == 1, writes
+    report['checks'].append(dict(name='far_face_within_server_range_accepted', receipt=receipt, original_frames=writes))
     trace.expect_disconnect()
     request('disconnect')
 

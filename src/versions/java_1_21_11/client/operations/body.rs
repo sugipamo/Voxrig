@@ -173,7 +173,21 @@ impl Operations {
             snapshot: self.body_snapshot_unlocked(&state, backend, request)?,
         })
     }
-    /// Body block dispatch deliberately omits geometric/reach/material filters.
+    pub(super) fn check_server_block_range(&self, state: &State, pos: [i32; 3]) -> Result<()> {
+        validate_wire_pos(pos)?;
+        let player = self.common_player_unlocked(state)?;
+        let posture = crate::client::posture::capture(
+            &player,
+            state.posture_pose.clone(),
+            state.posture_swimming.clone(),
+        );
+        crate::body::interaction::validate_server_range(
+            &player,
+            posture.eye_height.map(|h| f64::from(h.height.value)),
+            pos,
+        )
+    }
+    /// Body block dispatch omits client pick/standing/material filters.
     /// Existing strict operations and their records are untouched.
     pub(crate) async fn body_block_send(
         &self,
@@ -187,7 +201,13 @@ impl Operations {
             .try_work()?
             .run_scoped(async {
                 let state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
+                self.mutable_with_ground_requirement(
+                    &state,
+                    !matches!(
+                        action,
+                        body::Action::PlaceBlock { .. } | body::Action::ActivateBlock { .. }
+                    ),
+                )?;
                 if world
                     != (BodyWorld {
                         connection: self.bot.session.id,
@@ -205,9 +225,15 @@ impl Operations {
                         cursor,
                         hand,
                         ..
+                    }
+                    | body::Action::ActivateBlock {
+                        pos,
+                        face,
+                        cursor,
+                        hand,
                     } => {
                         crate::client::item_use::validate_cursor(*cursor)?;
-                        validate_wire_pos(*pos)?;
+                        self.check_server_block_range(&state, *pos)?;
                         put_varint(&mut payload, *hand as i32);
                         payload.extend(pack_position(*pos).to_be_bytes());
                         put_varint(&mut payload, *face as i32);

@@ -1937,3 +1937,83 @@ async fn slab_all_receipt_orders_complete_on_receive_and_freeze_before_first_get
 mod stairs;
 
 mod wet_slabs;
+
+#[tokio::test]
+async fn explicit_body_activation_ignores_outline_ground_and_default_item_and_waits_for_ack() {
+    use crate::body::{Action, ActionStatus, Body, BodyConfig, HeadlessBody};
+    let mut f = Fixture::new().await;
+    {
+        let mut state = f.api.bot.session.state.lock().await;
+        state.rotation = [180., 0.]; // looks away from explicit clicked face
+        state.motion.on_ground = Some(false);
+    }
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let body = Body::new(
+        HeadlessBody::new(
+            client,
+            BodyConfig {
+                settle_window: Duration::from_millis(20),
+                action_timeout: Duration::from_secs(2),
+                ..Default::default()
+            },
+        )
+        .unwrap(),
+    );
+    let action = Action::ActivateBlock {
+        pos: SUPPORT,
+        face: crate::BlockFace::East,
+        cursor: [1., 0.17, 0.83],
+        hand: crate::Hand::Off,
+    };
+    let id = body.submit(action.clone()).await.unwrap();
+    let (packet, payload) = f.expected_packet("explicit activation").await;
+    assert_eq!(packet, ids::play_serverbound::BLOCK_PLACE);
+    let mut r = Reader::new(&payload);
+    assert_eq!(r.varint().unwrap(), 1);
+    assert_eq!(
+        super::super::super::super::wire::unpack_position(r.u64().unwrap()),
+        SUPPORT
+    );
+    assert_eq!(r.varint().unwrap(), crate::BlockFace::East as i32);
+    assert_eq!(
+        [r.f32().unwrap(), r.f32().unwrap(), r.f32().unwrap()],
+        [1., 0.17, 0.83]
+    );
+    assert!(!r.bool().unwrap());
+    assert!(!r.bool().unwrap());
+    let sequence = r.varint().unwrap();
+    tokio::time::sleep(Duration::from_millis(40)).await;
+    assert!(matches!(
+        body.action_status(id).await.unwrap(),
+        ActionStatus::Pending
+    ));
+    // Ordinary screen contents are expected for activation, not an inventory rollback.
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .body_evidence
+        .push(100, crate::body::evidence::Update::Resync);
+    let mut ack = Vec::new();
+    put_varint(&mut ack, sequence);
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+        .await;
+    timeout(Duration::from_secs(1), async {
+        loop {
+            if body.action_status(id).await.unwrap().is_terminal() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(matches!(
+        body.action_status(id).await.unwrap(),
+        ActionStatus::Accepted
+    ));
+    drop(body);
+    f.stop().await;
+}
