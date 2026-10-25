@@ -1218,64 +1218,67 @@ mod tests {
 
     #[tokio::test]
     async fn selected_control_rejects_replacement_and_old_world_without_writes() {
-        let (bot, mut packets, release, server) =
-            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
-        super::super::common_motion::tests::seed_motion(&bot).await;
-        bot.player.lock().await.entity_id = Some(42);
-        let received = bot.control_received().await;
-        let mut session =
-            ControlSession::new(MinecraftVersion::Java1_16_1, 2, [8.5, 65.0, 8.5], &received);
-        session.dispatched(&Output {
-            sneak: Some(true),
-            sprint: Some(true),
-            input: None,
-            position: [8.5, 65.0, 8.5],
-            rotation: [0.0; 2],
-            on_ground: true,
-            horizontal_collision: false,
-        });
-        let generation = bot.common_receipts.lock().await.generation;
-        {
-            let mut control = bot.common_control.lock().await;
-            control.session = Some(session);
-            control.generation = Some(generation);
-        }
-        let client = crate::Client::from_java_1_16_1(bot.clone());
-        let api = client.survival();
-        let keys = Controls {
-            forward: 1,
-            ..Default::default()
-        };
-        assert!(api.set_controls_for(1, keys).await.is_err());
-        assert!(api.stop_control_for(1).await.is_err());
-        let replacement = api.control_record().await.unwrap().unwrap();
-        assert_eq!(replacement.session_id, 2);
-        assert_eq!(replacement.status, ControlStatus::Running);
-        assert_eq!(replacement.controls, Controls::default());
-        assert_eq!(api.set_controls_for(2, keys).await.unwrap().controls, keys);
-        // Reproduce a respawn generation before the worker handles it. Even
-        // previously submitted sprint/sneak cannot release in the new world.
-        bot.common_receipts.lock().await.generation += 1;
-        assert!(api.set_controls_for(2, Controls::default()).await.is_err());
-        let stopped = api.stop_control_for(2).await.unwrap();
-        assert_eq!(stopped.controls, keys);
-        assert!(
-            matches!(stopped.status, ControlStatus::Stopped { ref reason } if reason.contains("world changed"))
-        );
-        assert_eq!(api.stop_control_for(2).await.unwrap(), stopped);
-        assert!(
-            timeout(Duration::from_millis(30), packets.recv())
+        for best_effort_contacts in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.player.lock().await.entity_id = Some(42);
+            let received = bot.control_received().await;
+            let mut session =
+                ControlSession::new(MinecraftVersion::Java1_16_1, 2, [8.5, 65.0, 8.5], &received);
+            session.best_effort_contacts = best_effort_contacts;
+            session.dispatched(&Output {
+                sneak: Some(true),
+                sprint: Some(true),
+                input: None,
+                position: [8.5, 65.0, 8.5],
+                rotation: [0.0; 2],
+                on_ground: true,
+                horizontal_collision: false,
+            });
+            let generation = bot.common_receipts.lock().await.generation;
+            {
+                let mut control = bot.common_control.lock().await;
+                control.session = Some(session);
+                control.generation = Some(generation);
+            }
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let api = client.survival();
+            let keys = Controls {
+                forward: 1,
+                ..Default::default()
+            };
+            assert!(api.set_controls_for(1, keys).await.is_err());
+            assert!(api.stop_control_for(1).await.is_err());
+            let replacement = api.control_record().await.unwrap().unwrap();
+            assert_eq!(replacement.session_id, 2);
+            assert_eq!(replacement.status, ControlStatus::Running);
+            assert_eq!(replacement.controls, Controls::default());
+            assert_eq!(api.set_controls_for(2, keys).await.unwrap().controls, keys);
+            // Reproduce a respawn generation before the worker handles it. Even
+            // previously submitted sprint/sneak cannot release in the new world.
+            bot.common_receipts.lock().await.generation += 1;
+            assert!(api.set_controls_for(2, Controls::default()).await.is_err());
+            let stopped = api.stop_control_for(2).await.unwrap();
+            assert_eq!(stopped.controls, keys);
+            assert!(
+                matches!(stopped.status, ControlStatus::Stopped { ref reason } if reason.contains("world changed"))
+            );
+            assert_eq!(api.stop_control_for(2).await.unwrap(), stopped);
+            assert!(
+                timeout(Duration::from_millis(30), packets.recv())
+                    .await
+                    .is_err()
+            );
+            drop(api);
+            drop(client);
+            drop(release);
+            drop(bot);
+            timeout(Duration::from_secs(2), server)
                 .await
-                .is_err()
-        );
-        drop(api);
-        drop(client);
-        drop(release);
-        drop(bot);
-        timeout(Duration::from_secs(2), server)
-            .await
-            .unwrap()
-            .unwrap();
+                .unwrap()
+                .unwrap();
+        }
     }
 
     #[tokio::test]

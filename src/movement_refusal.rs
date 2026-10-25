@@ -1,4 +1,4 @@
-//! Structured refusals from the exact movement contact model.
+//! Structured refusals and best-effort diagnostics from the movement contact model.
 use crate::client::{EntityId, SessionStamp};
 use std::fmt;
 
@@ -6,6 +6,14 @@ use std::fmt;
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub enum MovementRefusal {
+    /// Warning from an opted-in ground owner: the entire remote numerical
+    /// contact state was dropped. The same owner and movement input continue
+    /// using local terrain; a received correction re-anchors the local pose.
+    /// The inner refusal describes the strict model, not the running control.
+    RemoteStateDropped {
+        /// Original strict cause, including its receipt and geometry context.
+        refusal: Box<MovementRefusal>,
+    },
     /// Missing received input can arrive; an invalidated owner still needs replacement.
     Transient {
         /// Frozen refusal details.
@@ -97,7 +105,9 @@ impl MovementRefusal {
             Self::Transient { context }
             | Self::Permanent { context }
             | Self::Unsupported { context } => context,
-            Self::Scoped { refusal, .. } => refusal.context(),
+            Self::Scoped { refusal, .. } | Self::RemoteStateDropped { refusal } => {
+                refusal.context()
+            }
         }
     }
     pub(crate) fn context_mut(&mut self) -> &mut MovementRefusalContext {
@@ -105,17 +115,23 @@ impl MovementRefusal {
             Self::Transient { context }
             | Self::Permanent { context }
             | Self::Unsupported { context } => context,
-            Self::Scoped { refusal, .. } => refusal.context_mut(),
+            Self::Scoped { refusal, .. } | Self::RemoteStateDropped { refusal } => {
+                refusal.context_mut()
+            }
         }
     }
     /// Geometry diagnostics for scoped contacts and missing terrain.
     pub fn geometry(&self) -> Option<&MovementGeometryContext> {
         match self {
             Self::Scoped { geometry, .. } => Some(geometry),
+            Self::RemoteStateDropped { refusal } => refusal.geometry(),
             _ => None,
         }
     }
     pub(crate) fn geometry_mut(&mut self) -> &mut MovementGeometryContext {
+        if let Self::RemoteStateDropped { refusal } = self {
+            return refusal.geometry_mut();
+        }
         if !matches!(self, Self::Scoped { .. }) {
             *self = Self::Scoped {
                 refusal: Box::new(self.clone()),
@@ -130,7 +146,9 @@ impl MovementRefusal {
     pub(crate) fn unsupported_kind(&self) -> bool {
         match self {
             Self::Unsupported { .. } => true,
-            Self::Scoped { refusal, .. } => refusal.unsupported_kind(),
+            Self::Scoped { refusal, .. } | Self::RemoteStateDropped { refusal } => {
+                refusal.unsupported_kind()
+            }
             _ => false,
         }
     }
@@ -178,6 +196,12 @@ impl MovementRefusal {
 }
 impl fmt::Display for MovementRefusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Self::RemoteStateDropped { refusal } = self {
+            return write!(
+                f,
+                "remote numerical contact state dropped; continuing with the same control owner and movement input; strict contact cause: {refusal}"
+            );
+        }
         f.write_str(&self.context().reason)?;
         if let Some(g) = self.geometry() {
             write!(

@@ -665,6 +665,20 @@ impl ControlSession {
 
     fn apply_pose(&mut self, pose: Option<(u64, [f64; 3], Option<[f64; 3]>)>) {
         if let Some((sequence, position, velocity)) = pose {
+            // A corrected local origin cannot reuse remote numerical state
+            // advanced against the old origin. Strict owners retain their
+            // receipt-based behavior; opted-in owners keep their held input.
+            if self.best_effort_contacts && self.contacts.is_some() {
+                let mut cause = crate::MovementRefusal::permanent(
+                    "received pose correction changed the contact origin".into(),
+                );
+                let context = cause.context_mut();
+                context.owner_id = Some(self.id);
+                context.owner_state = crate::MovementOwnerState::Invalidated;
+                context.receive_sequence = Some(sequence);
+                context.model_tick = Some(self.tick);
+                self.omit_contacts(&cause.into_error());
+            }
             self.last_pose = Some(sequence);
             self.body.teleport(self.version, position);
             if let Some(v) = velocity {
@@ -688,12 +702,14 @@ impl ControlSession {
         if !self.best_effort_contacts || self.kind != ControlKind::Ground {
             return false;
         }
-        self.contact_diagnostic = Some(
-            error
-                .movement_refusal()
-                .cloned()
-                .unwrap_or_else(|| crate::MovementRefusal::permanent(error.to_string())),
-        );
+        self.contact_diagnostic = Some(crate::MovementRefusal::RemoteStateDropped {
+            refusal: Box::new(
+                error
+                    .movement_refusal()
+                    .cloned()
+                    .unwrap_or_else(|| crate::MovementRefusal::permanent(error.to_string())),
+            ),
+        });
         self.contacts = None;
         self.entity_contacts = None;
         self.contact_team = None;

@@ -384,10 +384,18 @@ python3 -B scripts/run_climbing_control.py --accept-eula
 更新または staged tick に失敗すると、その owner の遠隔接触モデル全体を破棄する。
 同じ自分の身体状態から接触抜きで予測して送信し、その理由だけでは owner を停止しない。
 部分的な接触状態や途中まで計算した tick を再利用せず、この owner では再構築しない。
-`contact_diagnostic_for(session_id)` は破棄の原因を元の `MovementRefusal` として保持する。
+`contact_diagnostic_for(session_id)` は `MovementRefusal::RemoteStateDropped` を返し、
+遠隔の数値接触状態を捨て、同じ owner・移動入力を続けたことを明示する。
+内側の `refusal` に元の原因・受信境界・geometry を保持する。
+passenger history unavailable、lost relationship placement history、scope 再進入・再選択、
+sweep 超過の `start a new control owner` は内側の厳格モデルの診断であり、
+この opt-in owner を作り直す要求ではない。
 その context の `NotAdmitted/Invalidated` は厳密な接触モデルの状態であり、
 best-effort control owner の停止を意味しない。実際の状態は `ControlRecord.status` にある。
-既存の公開 record に field を足さず、診断用メソッドだけを追加した。
+既存の公開 record に field を足さず、診断チャネルに additive な variant を追加した。
+補正を受信した場合は、その pose を自分のモデルの再起点とする。
+旧起点の遠隔数値状態が残っていれば破棄して同じ入力を続け、既に破棄済みなら元の警告を保つ。
+共有の entity 観測・履歴は変更せず、この owner では遠隔モデルを再構築しない。
 
 world/spawn/owner identity と自分の受信 mode・生存・乗車等の照合は維持する。
 自分の移動を計算する地形や再構築の不足、在庫等の未解決 gate はこの変更で緩和しない。
@@ -403,3 +411,12 @@ original-byte proxy と RCON を使う。native feature で `body_probe` をビ�
 移動中の RCON teleport 補正を確認する。
 [2026-10-25 の両版の実測](evidence/contact-best-effort-live-20261025.json)には source/binary/JAR の
 fingerprint と独立した server 座標を保存した。補正検証は RCON teleport によるものである。
+
+Step 2 の `scripts/run_contact_history_live.py` は両版の opt-in control を使い、
+boat と zombie の追跡距離差（native）または server-only marker の乗客（modern）による
+rider lifetime 欠落、近傍 living passenger、
+移動中の spawn/despawn・scope 再選択、破棄前後の補正を検査する。
+上と同じ引数で実行する。公式 server は隔離した loopback world を使い、
+proxy は受信 bytes を変更しない。RCON 座標と同じ owner の dispatch を別々に検査する。
+履歴警告の [両版の実測](evidence/contact-history-warnings-live-20261025.json) に、
+元の typed cause、継続した入力と owner、独立した座標、source / binary / JAR の fingerprint を保存した。

@@ -1290,7 +1290,10 @@ pub(super) fn block_error(error: crate::Error, p: [i32; 3]) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::client::entity::{NativeSpawn, NativeSpawnMotion, owned_contacts::OwnedContacts};
+    use crate::client::entity::{
+        MAX_ENTITY_HISTORY_VALUE_BYTES, NativeSpawn, NativeSpawnMotion,
+        owned_contacts::OwnedContacts,
+    };
     use crate::{
         MinecraftVersion as V,
         client::{control::Controls, physics::Environment},
@@ -1453,7 +1456,12 @@ mod tests {
                 session.best_effort_contacts = true;
                 assert!(session.omit_contacts(&error));
                 let original = error.movement_refusal().unwrap();
-                assert_eq!(session.contact_diagnostic.as_ref(), Some(original));
+                let Some(MovementRefusal::RemoteStateDropped { refusal }) =
+                    &session.contact_diagnostic
+                else {
+                    panic!("missing remote-state warning");
+                };
+                assert_eq!(refusal.as_ref(), original);
                 let start = session.body.position;
                 for _ in 0..8 {
                     walk(&mut session, &received);
@@ -1517,6 +1525,186 @@ mod tests {
                 session.status,
                 crate::client::control::ControlStatus::Paused { .. }
             ));
+        }
+    }
+
+    fn assert_warning_continues(version: V, error: &crate::Error) {
+        let (mut session, received) = controller(version);
+        session.controls.forward = 1;
+        let keys = session.controls;
+        let origin = session.body.position;
+        assert!(!session.omit_contacts(error));
+        session.best_effort_contacts = true;
+        assert!(session.omit_contacts(error));
+        let warning = session.contact_diagnostic.clone().unwrap();
+        let MovementRefusal::RemoteStateDropped { refusal } = &warning else {
+            panic!("missing remote-state warning");
+        };
+        assert_eq!(refusal.as_ref(), error.movement_refusal().unwrap());
+        assert!(
+            warning
+                .to_string()
+                .contains("remote numerical contact state dropped")
+        );
+        for _ in 0..8 {
+            walk(&mut session, &received);
+        }
+        assert_eq!(session.id, 10);
+        assert_eq!(session.controls, keys);
+        assert_eq!(session.dispatched_ticks, 8);
+        assert!(session.body.position[2] > origin[2] + 0.5);
+        assert!(session.running());
+        assert!(session.movement_refusal.is_none());
+        assert!(session.contacts.is_none() && session.entity_contacts.is_none());
+        assert_eq!(session.contact_diagnostic.as_ref(), Some(&warning));
+    }
+
+    #[test]
+    fn best_effort_missing_passenger_and_placement_history_warn_without_replacement() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "chicken", 32., 1);
+            // Exercise the real bounded-history retention path, not a message match.
+            let count =
+                MAX_ENTITY_HISTORY_VALUE_BYTES / std::mem::size_of::<(i32, Option<EntityId>)>() + 1;
+            passengers(&mut ledger, version, 2, vec![1234; count]);
+            let error = owner(version, &ledger, 2, 256).unwrap_err();
+            assert!(error.to_string().contains("passenger history unavailable"));
+            assert_warning_continues(version, &error);
+
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "chicken", 32., 1);
+            // Membership received before its child's spawn cannot reconstruct
+            // the old attached placement when membership changes again.
+            passengers(&mut ledger, version, 2, vec![1234]);
+            let (mut proof, _) = ScopeReceipts::capture(stamp(version), 99, &ledger, 2).unwrap();
+            proof.preserve_groups(&[7]);
+            let error = proof.groups().unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("lost relationship placement history")
+            );
+            assert_warning_continues(version, &error);
+        }
+    }
+
+    #[test]
+    fn best_effort_reselection_after_remote_motion_keeps_input_and_owner() {
+        use crate::client::entity::NativeMotion;
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "cow", 64., 1);
+            let (mut session, received) = controller(version);
+            session.contacts = Some(owner(version, &ledger, 1, 256).unwrap());
+            session.best_effort_contacts = true;
+            walk(&mut session, &received);
+            ledger.history_context(version, 3, 2);
+            ledger.receive_motion(
+                version,
+                7,
+                NativeMotion::Absolute {
+                    position: [0.9, 65., 0.5],
+                    rotation: [0.; 2],
+                    velocity: (version == V::Java1_21_11).then_some([0.; 3]),
+                    ground: Some(true),
+                    reset_base: true,
+                },
+                2,
+            );
+            let error = session
+                .contacts
+                .as_mut()
+                .unwrap()
+                .refresh_player(10, &ledger, 2, (&session.body, &received.environment))
+                .unwrap_err();
+            assert!(error.to_string().contains("re-entry"));
+            assert!(session.omit_contacts(&error));
+            for _ in 0..8 {
+                walk(&mut session, &received);
+            }
+            assert_eq!(session.id, 10);
+            assert_eq!(session.dispatched_ticks, 9);
+            assert!(session.running());
+            assert!(session.body.position[2] > 1.);
+        }
+    }
+
+    #[test]
+    fn best_effort_excluded_sweep_overrun_reports_original_geometry() {
+        for version in VERSIONS {
+            let mut ledger = SpawnLedger::default();
+            spawn(&mut ledger, version, 7, "cow", 32., 1);
+            let scope = PlayerScope::new(
+                stamp(version),
+                99,
+                &ledger,
+                1,
+                &body(),
+                &Environment::defaults(version),
+                256,
+            )
+            .unwrap();
+            let error = scope
+                .check(Aabb {
+                    min_x: 0.,
+                    min_y: 65.,
+                    min_z: 0.,
+                    max_x: 33.,
+                    max_y: 67.,
+                    max_z: 1.,
+                })
+                .unwrap_err();
+            assert!(error.to_string().contains("staged sweep reaches excluded"));
+            assert!(error.movement_refusal().unwrap().geometry().is_some());
+            assert_warning_continues(version, &error);
+        }
+    }
+
+    #[test]
+    fn best_effort_correction_reanchors_same_input_and_drops_old_remote_origin() {
+        for version in VERSIONS {
+            for already_dropped in [false, true] {
+                let mut ledger = SpawnLedger::default();
+                spawn(&mut ledger, version, 7, "cow", 64., 1);
+                let (mut session, mut received) = controller(version);
+                session.best_effort_contacts = true;
+                session.contacts = Some(owner(version, &ledger, 1, 256).unwrap());
+                walk(&mut session, &received);
+                if already_dropped {
+                    session.omit_contacts(&permanent("passenger history unavailable"));
+                }
+                let earlier = session.contact_diagnostic.clone();
+                let keys = session.controls;
+                received.pose = Some((20, [4.5, 65., 0.5], Some([0.; 3])));
+                session.apply_received(&received);
+                assert_eq!(session.body.position, [4.5, 65., 0.5]);
+                assert_eq!(session.body.velocity, [0.; 3]);
+                assert_eq!(session.controls, keys);
+                assert_eq!(session.corrections, 1);
+                assert!(session.contacts.is_none() && session.entity_contacts.is_none());
+                if already_dropped {
+                    assert_eq!(session.contact_diagnostic, earlier);
+                } else {
+                    assert_eq!(
+                        session
+                            .contact_diagnostic
+                            .as_ref()
+                            .unwrap()
+                            .context()
+                            .receive_sequence,
+                        Some(20)
+                    );
+                }
+                for _ in 0..8 {
+                    walk(&mut session, &received);
+                }
+                assert_eq!(session.corrections, 1); // no replay of the receipt
+                assert_eq!(session.id, 10);
+                assert!(session.body.position[0] >= 4.5);
+                assert!(session.body.position[2] > 1.);
+                assert!(session.running());
+            }
         }
     }
 
