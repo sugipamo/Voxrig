@@ -374,6 +374,35 @@ impl MotionGate {
         super::admit(generation, state, active_output, context, class)?;
         self.normal_admission(class)
     }
+    pub(super) fn admit_domain(
+        &mut self,
+        generation: ConnectionGeneration,
+        state: ConnectionState,
+        active_output: Option<u64>,
+        context: OperationContext,
+        policy: (OperationClass, crate::client::domain::Domain),
+    ) -> Admission<()> {
+        let (class, domain) = policy;
+        if domain == crate::client::domain::Domain::Strict {
+            return self.admit(generation, state, active_output, context, class);
+        }
+        super::admit(generation, state, active_output, context, class)?;
+        let conflict = match self.owner {
+            Some(Owner::Motion(_)) => domain.motion(),
+            Some(Owner::Mining { .. }) => domain.dig(),
+            Some(Owner::Placement(_)) => false,
+            Some(_) => domain.inventory(),
+            None => false,
+        };
+        if conflict {
+            return Err(self.owner_error());
+        }
+        self.normal_revision = self
+            .normal_revision
+            .checked_add(1)
+            .ok_or(OperationAdmissionError::InvalidOperation)?;
+        Ok(())
+    }
     // Returns true only after possible delivery fails: the caller terminates the actor.
     pub(super) async fn process(
         &mut self,

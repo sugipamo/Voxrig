@@ -99,6 +99,16 @@ struct Job {
     cancel: watch::Sender<bool>,
     release: Mutex<Option<ReleaseStatus>>,
     use_item_refusal: Mutex<Option<crate::client::UseItemRefusal>>,
+    monitor: Mutex<Option<Monitor>>,
+    late_correction: Mutex<Option<ActionStatus>>,
+}
+#[derive(Clone)]
+struct Monitor {
+    selection: ObserveRequest,
+    world: BodyWorld,
+    cursor: u64,
+    action: Action,
+    expected: Option<([i32; 3], Expected)>,
 }
 struct Records {
     next: u64,
@@ -122,7 +132,9 @@ struct Inner {
 /// There is one active body action/lease at a time; overlapping submissions are Rejected.
 /// Explicit placement/activation may accompany an existing PlayerControl session;
 /// that caller retains movement ownership and must stop it separately. Finite path and
-/// unresolved strict-operation admission gates still apply.
+/// same-domain receipt gates still apply. Inventory/cursor and screen receipts
+/// do not veto motion, look, chat, selection or dig. Strict Client APIs retain
+/// their original admission and receipt semantics.
 #[derive(Clone)]
 pub struct HeadlessBody {
     inner: Arc<Inner>,
@@ -142,6 +154,64 @@ impl HeadlessBody {
         self.submit_inner(
             Action::UseItem { hand }.into(),
             Some((selected_hotbar, item)),
+        )
+        .await
+    }
+
+    /// Refresh an Accepted/Unknown outcome from retained original server evidence.
+    /// This additive view can report a late Corrected rollback notice. Existing
+    /// BodyBackend::action_status and its immutable terminal result are unchanged.
+    /// Does not replay, reopen ownership, or infer acceptance from late agreement.
+    /// Evidence gaps/world changes leave Unknown; retention bounds this facility.
+    pub async fn action_outcome(&self, id: ActionId) -> Result<ActionStatus> {
+        let status = self.action_status(id).await?;
+        if !matches!(
+            status,
+            ActionStatus::Unknown { .. } | ActionStatus::Accepted
+        ) {
+            return Ok(status);
+        }
+        let job = self.inner.job(id)?;
+        if let Some(corrected) = job.late_correction.lock().unwrap().clone() {
+            return Ok(corrected);
+        }
+        let monitor = job.monitor.lock().unwrap().clone();
+        if let Some(monitor) = monitor {
+            let batch = timeout(
+                self.inner.config.settle_window,
+                self.operations()?.body_evidence(
+                    self.inner.id,
+                    &monitor.selection,
+                    Some(monitor.cursor),
+                ),
+            )
+            .await;
+            if let Ok(Ok(batch)) = batch {
+                if !batch.gap && batch.snapshot.world == monitor.world {
+                    if let Some(corrected @ ActionStatus::Corrected { .. }) =
+                        correction(&batch, monitor.expected.as_ref(), &monitor.action)?
+                    {
+                        *job.late_correction.lock().unwrap() = Some(corrected.clone());
+                        return Ok(corrected);
+                    }
+                }
+            }
+        }
+        Ok(status)
+    }
+
+    /// Watch one existing strict PICKUP with a shared absolute deadline. Does
+    /// not change its strict record, clear cursor/screen uncertainty, or send.
+    /// Use body actions for unrelated work while the receipt is pending.
+    pub async fn watch_inventory_click(
+        &self,
+        id: crate::client::inventory::InventoryClickId,
+    ) -> Result<InventoryClickWatch> {
+        InventoryClickWatch::new(
+            self.inner.client.clone(),
+            id,
+            self.inner.config.action_timeout,
+            self.inner.config.settle_window,
         )
         .await
     }
@@ -286,6 +356,8 @@ impl HeadlessBody {
             cancel: watch::channel(false).0,
             release: Mutex::new(None),
             use_item_refusal: Mutex::new(None),
+            monitor: Mutex::new(None),
+            late_correction: Mutex::new(None),
         });
         let id;
         {
@@ -531,6 +603,7 @@ struct Cleanup {
     dispatched: bool,
     control: Option<(GameMode, u64)>,
     dig: Option<(BodyWorld, Action)>,
+    dig_owner: Option<tokio::sync::OwnedMutexGuard<()>>,
 }
 impl Cleanup {
     async fn release(&mut self, client: &Client, ops: &Operations) -> Result<()> {
@@ -540,6 +613,7 @@ impl Cleanup {
         if let Some((world, action)) = self.dig.take() {
             ops.body_block_send(world, &action, 1, None).await?;
         }
+        self.dig_owner.take();
         Ok(())
     }
 }
@@ -644,6 +718,13 @@ async fn run(
             .game_mode
             .ok_or_else(|| invalid("game mode unavailable"))
     };
+    *inner.job(id)?.monitor.lock().unwrap() = Some(Monitor {
+        selection: selection.clone(),
+        world,
+        cursor: baseline.cursor,
+        action: request.action.clone(),
+        expected: expected.clone(),
+    });
     let mut cursor = baseline.cursor;
     let mut sequence = None;
     match &request.action {
@@ -667,6 +748,14 @@ async fn run(
             cleanup.dispatched = true;
         }
         Action::BreakBlock { pos, .. } => {
+            use crate::client::adapter::DigOps;
+            let coordinator =
+                crate::client::dispatch!(&inner.client.adapter, a => DigOps::dig_coordinator(a));
+            cleanup.dig_owner = Some(coordinator.reserve_body(crate::client::SessionStamp {
+                version: inner.client.version(),
+                connection_id: world.connection,
+                world_generation: world.generation,
+            })?);
             let ticks = match mode()? {
                 GameMode::Creative => 0,
                 GameMode::Survival => inner.client.survival().dig_estimate(*pos).await?.ticks,
@@ -923,20 +1012,30 @@ fn correction(
                     }),
                 )
             }
-            Update::Pose { position, rotation } => (
-                "server position/rotation correction superseded the action",
-                ServerCorrection::Pose {
-                    position: Value {
-                        value: *position,
-                        source: received.clone(),
+            Update::Pose { position, rotation }
+                if !matches!(
+                    action,
+                    Action::Chat(_)
+                        | Action::Command(_)
+                        | Action::SelectHotbar(_)
+                        | Action::UseItem { .. }
+                ) =>
+            {
+                (
+                    "server position/rotation correction superseded the action",
+                    ServerCorrection::Pose {
+                        position: Value {
+                            value: *position,
+                            source: received.clone(),
+                        },
+                        rotation: Value {
+                            value: *rotation,
+                            source: received,
+                        },
                     },
-                    rotation: Value {
-                        value: *rotation,
-                        source: received,
-                    },
-                },
-            ),
-            Update::Selection(slot) => {
+                )
+            }
+            Update::Selection(slot) if matches!(action, Action::SelectHotbar(_)) => {
                 if matches!(action, Action::SelectHotbar(wanted) if wanted == slot) {
                     continue;
                 }
@@ -948,14 +1047,10 @@ fn correction(
                     }),
                 )
             }
-            Update::Resync
-                if expected.is_none() && !matches!(action, Action::ActivateBlock { .. }) =>
-            {
-                (
-                    "server resynchronized inventory",
-                    ServerCorrection::InventoryResync,
-                )
-            }
+            Update::Resync if matches!(action, Action::UseItem { .. }) => (
+                "server resynchronized inventory",
+                ServerCorrection::InventoryResync,
+            ),
             Update::Chunk(chunk)
                 if expected.is_some_and(|(pos, _)| {
                     [pos[0].div_euclid(16), pos[2].div_euclid(16)] == *chunk
@@ -1120,7 +1215,12 @@ mod tests {
             position: pose.position,
             rotation: pose.rotation,
         }]);
-        let actual = correction(&batch, None, &Action::Chat("test".into()))
+        assert!(
+            correction(&batch, None, &Action::Chat("test".into()))
+                .unwrap()
+                .is_none()
+        );
+        let actual = correction(&batch, None, &Action::Look { yaw: 0., pitch: 0. })
             .unwrap()
             .unwrap();
         assert!(matches!(
@@ -1131,8 +1231,15 @@ mod tests {
             }
         ));
         let resync = self::batch(vec![Update::Resync]);
+        for action in [
+            Action::Chat("test".into()),
+            Action::Look { yaw: 0., pitch: 0. },
+            Action::SelectHotbar(1),
+        ] {
+            assert!(correction(&resync, None, &action).unwrap().is_none());
+        }
         assert!(matches!(
-            correction(&resync, None, &Action::Chat("test".into())).unwrap(),
+            correction(&resync, None, &Action::UseItem { hand: Hand::Main }).unwrap(),
             Some(ActionStatus::Corrected { .. })
         ));
     }

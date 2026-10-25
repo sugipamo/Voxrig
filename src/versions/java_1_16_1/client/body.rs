@@ -115,6 +115,13 @@ impl Bot {
                 if self.connection_state() != ConnectionState::Ready {
                     return Err(crate::error::state_error("body connection is not ready"));
                 }
+                let domain = match action {
+                    Action::Look { .. } => api::domain::Domain::Motion,
+                    Action::SelectHotbar(_) => api::domain::Domain::Selection,
+                    Action::Chat(_) | Action::Command(_) => api::domain::Domain::Chat,
+                    _ => api::domain::Domain::ItemUse,
+                };
+                self.common_domain_admission(false, None, domain).await?;
                 match action {
                     Action::Look { yaw, pitch } => {
                         api::operations::validate_rotation([*yaw, *pitch])?;
@@ -123,26 +130,57 @@ impl Bot {
                                 "body look position unavailable",
                             ));
                         }
-                        self.look_unlocked(*yaw, *pitch).await
+                        let mut p = self.player.lock().await;
+                        p.yaw = *yaw;
+                        p.pitch = pitch.clamp(-90., 90.);
+                        let snapshot = p.clone();
+                        drop(p);
+                        self.common_receipts.lock().await.rotation_source =
+                            Some(api::ValueSource::Submitted);
+                        let mut payload = Vec::new();
+                        for v in [snapshot.x, snapshot.y, snapshot.z] {
+                            payload.extend(v.to_be_bytes());
+                        }
+                        for v in [snapshot.yaw, snapshot.pitch] {
+                            payload.extend(v.to_be_bytes());
+                        }
+                        payload.push(u8::from(snapshot.on_ground));
+                        self.send_in_domain(domain, 0x13, &payload).await?;
+                        self.physics.lock().await.record_movement(snapshot);
+                        Ok(())
                     }
                     Action::SelectHotbar(slot) => {
                         if *slot > 8 {
                             return Err(crate::error::invalid_input("hotbar slot must be 0..8"));
                         }
-                        self.select_hotbar_unlocked(*slot).await
+                        self.common_receipts.lock().await.selected_hotbar = None;
+                        self.send_in_domain(domain, 0x24, &i16::from(*slot).to_be_bytes())
+                            .await?;
+                        self.inventory.write().await.selected_hotbar = *slot;
+                        self.common_receipts.lock().await.selected_hotbar =
+                            Some(api::ObservedValue {
+                                value: *slot,
+                                source: api::ValueSource::Submitted,
+                            });
+                        Ok(())
                     }
                     Action::Chat(text) => {
                         api::chat::validate_chat(text)?;
-                        self.send_chat(text).await
+                        let mut payload = Vec::new();
+                        put_string(&mut payload, text);
+                        self.send_in_domain(domain, 0x03, &payload).await
                     }
                     Action::Command(text) => {
                         let command = api::chat::validate_command(text)?;
-                        self.send_command(command).await
+                        let mut payload = Vec::new();
+                        put_string(&mut payload, &format!("/{command}"));
+                        self.send_in_domain(domain, 0x03, &payload).await
                     }
                     Action::UseItem { hand } => {
                         if let Some((selected, item)) = expected {
                             self.validate_use_item_expected_unlocked(*hand, selected, item)
                                 .await?;
+                            self.common_motion_admission().await?;
                         }
                         if self.survival.read().await.game_mode.map(|id| id & 7)
                             != Some(match mode {
@@ -156,12 +194,102 @@ impl Bot {
                                 "body item use requires matching received mode",
                             ));
                         }
-                        self.use_item(*hand).await
+                        let mut payload = Vec::new();
+                        put_varint(&mut payload, *hand as i32);
+                        let send_domain = if expected.is_some() {
+                            api::domain::Domain::Strict
+                        } else {
+                            domain
+                        };
+                        self.send_in_domain(send_domain, 0x2e, &payload).await
                     }
                     _ => Err(crate::error::invalid_input("expected one-shot body action")),
                 }
             })
             .await
+    }
+    pub(super) async fn body_dig_hand_admission(&self, selected: Option<u8>) -> Result<()> {
+        use api::domain;
+        let click = super::lock_packet_state(&self.common_inventory_click).await;
+        if click
+            .as_ref()
+            .is_some_and(|r| !r.released && domain::click_changes_hand(&r.record, selected))
+        {
+            return Err(api::inventory::unavailable(
+                "pending click can change the retained dig hand",
+            ));
+        }
+        let mut expected = Vec::new();
+        if let Some(r) = click.as_ref().filter(|r| !r.released) {
+            if let Some(action) = r.record.send.legacy_action {
+                expected.push((r.record.window_id() as i8, action));
+            }
+        }
+        drop(click);
+        let swap = super::lock_packet_state(&self.common_inventory_swap).await;
+        if swap
+            .as_ref()
+            .is_some_and(|r| !r.released && domain::swap_changes_hand(&r.record, selected))
+        {
+            return Err(api::inventory::unavailable(
+                "pending swap can change the retained dig hand",
+            ));
+        }
+        if let Some(r) = swap.as_ref().filter(|r| !r.released) {
+            if let Some(action) = r.record.send.legacy_action {
+                expected.push((r.record.window_id() as i8, action));
+            }
+        }
+        drop(swap);
+        let transfer = super::lock_packet_state(&self.common_inventory_transfer).await;
+        if transfer
+            .as_ref()
+            .is_some_and(|r| !r.released && domain::transfer_changes_hand(&r.record, selected))
+        {
+            return Err(api::inventory::unavailable(
+                "pending transfer can change the retained dig hand",
+            ));
+        }
+        if let Some(r) = transfer.as_ref().filter(|r| !r.released) {
+            if let Some(action) = r.record.send.legacy_action {
+                expected.push((r.record.window_id() as i8, action));
+            }
+        }
+        drop(transfer);
+        if self
+            .inventory
+            .read()
+            .await
+            .pending_clicks
+            .keys()
+            .any(|key| !expected.contains(key))
+        {
+            return Err(api::inventory::unavailable(
+                "native pending inventory hand is unavailable",
+            ));
+        }
+        if super::lock_packet_state(&self.common_recipe_placement)
+            .await
+            .as_ref()
+            .is_some_and(|r| !r.released)
+            || super::lock_packet_state(&self.common_crafting_take)
+                .await
+                .as_ref()
+                .is_some_and(|r| !r.released)
+            || super::lock_packet_state(&self.common_container_close)
+                .await
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || super::lock_packet_state(&self.common_container_open)
+                .await
+                .as_ref()
+                .is_some_and(|r| !r.released)
+        {
+            return Err(api::inventory::unavailable(
+                "pending cursor return/crafting can change the retained dig hand",
+            ));
+        }
+        Ok(())
     }
     pub(crate) async fn body_break_send(
         &self,
@@ -197,6 +325,8 @@ impl Bot {
                         "body dig connection is not ready",
                     ));
                 }
+                self.common_domain_admission(false, None, api::domain::Domain::Dig)
+                    .await?;
                 let Action::BreakBlock { pos, face } = action else {
                     return Err(crate::error::invalid_input("expected body break action"));
                 };
@@ -210,6 +340,12 @@ impl Bot {
                 }
                 let player = self.common_player_unlocked().await?;
                 if status != 1 {
+                    if player.game_mode == Some(api::GameMode::Survival) {
+                        self.body_dig_hand_admission(
+                            player.selected_hotbar.as_ref().map(|s| s.value),
+                        )
+                        .await?;
+                    }
                     if !matches!(
                         player.game_mode,
                         Some(api::GameMode::Survival | api::GameMode::Creative)
@@ -268,16 +404,20 @@ impl Bot {
                     2 => DiggingStatus::Finished,
                     _ => return Err(crate::error::invalid_input("invalid body dig status")),
                 };
-                self.send_digging_packet(
-                    status,
+                let mut payload = Vec::new();
+                put_varint(&mut payload, status as i32);
+                payload.extend(
                     BlockPos {
                         x: pos[0],
                         y: pos[1],
                         z: pos[2],
-                    },
-                    *face,
-                )
-                .await
+                    }
+                    .packed()
+                    .to_be_bytes(),
+                );
+                payload.push(*face as u8);
+                self.send_in_domain(api::domain::Domain::Dig, 0x1b, &payload)
+                    .await
             })
             .await
     }
@@ -304,6 +444,12 @@ impl Bot {
                         "body world changed before placement dispatch",
                     ));
                 }
+                let domain = if matches!(action, Action::ActivateBlock { .. }) {
+                    api::domain::Domain::Screen
+                } else {
+                    api::domain::Domain::ItemUse
+                };
+                self.common_domain_admission(false, None, domain).await?;
                 let (Action::PlaceBlock {
                     pos,
                     face,
@@ -336,18 +482,23 @@ impl Bot {
                 let boundary = self.body_evidence.lock().await.next;
                 // The gate prevents any received event from crossing this boundary
                 // until the complete actor-owned write has returned.
-                self.place_block(
-                    *hand,
+                let mut payload = Vec::new();
+                put_varint(&mut payload, *hand as i32);
+                payload.extend(
                     BlockPos {
                         x: pos[0],
                         y: pos[1],
                         z: pos[2],
-                    },
-                    *face,
-                    *cursor,
-                    false,
-                )
-                .await?;
+                    }
+                    .packed()
+                    .to_be_bytes(),
+                );
+                put_varint(&mut payload, *face as i32);
+                for value in cursor {
+                    payload.extend(value.to_be_bytes());
+                }
+                payload.push(0);
+                self.send_in_domain(domain, 0x2d, &payload).await?;
                 Ok(boundary)
             })
             .await
@@ -752,6 +903,17 @@ mod tests {
                     "{status:?}"
                 ),
                 _ => assert!(matches!(status, ActionStatus::Unknown { .. }), "{status:?}"),
+            }
+            if scenario == "timeout" {
+                ack(&bot, "stone", 0, false).await;
+                assert!(matches!(
+                    body.backend().action_outcome(id).await.unwrap(),
+                    ActionStatus::Corrected { .. }
+                ));
+                assert!(matches!(
+                    body.action_status(id).await.unwrap(),
+                    ActionStatus::Unknown { .. }
+                ));
             }
             wait_release(&body).await;
             drop(release);

@@ -64,6 +64,7 @@ pub(crate) mod chunk_context;
 pub(crate) mod chunks;
 pub(crate) mod dig;
 pub(crate) mod dig_operation;
+pub(crate) mod domain;
 pub use dig_operation::{
     DigCancelOutcome, DigCompletion, DigDispatchEvidence, DigOperation, DigOperationId,
     DigOwnerExit, DigPhase, DigResult, DigSnapshot, DigWriteEvidence,

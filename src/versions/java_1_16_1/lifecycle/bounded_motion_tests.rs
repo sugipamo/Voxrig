@@ -382,3 +382,34 @@ async fn processing_resync_marker_is_separate_from_ordinary_counts_and_result_ta
     assert!(actor.bounded_processing_click(3,0,0,Some(marker)).await.is_err());
     no_packet(&mut peer).await;
 }
+
+#[tokio::test]
+async fn domain_gates_actor_preserves_receipt_owner_and_stale_identity() {
+    use crate::client::domain::Domain;
+    let (actor, mut peer) = actor_fixture().await;
+    actor.mark_ready().await;
+    let context = OperationContext { generation: actor.generation(), source_observation_sequence: 0 };
+    let revision = actor.motion_admission_revision().await.unwrap();
+    actor.begin_window_click(1, revision, 0).await.unwrap();
+    actor.bounded_inventory_click(1, 9, 0, None).await.unwrap();
+    assert_eq!(read_packet(&mut peer, None).await.unwrap().0, 0x09);
+    // Normal/strict and same-cursor sends retain the native owner refusal.
+    assert!(actor.dispatch(context, OperationClass::Normal, 0x03, &[1, b'x']).await.is_err());
+    assert!(actor.dispatch_domain(context, OperationClass::Normal, 0x2d, &[0;23], Domain::Screen).await.is_err());
+    for (domain, id, payload) in [
+        (Domain::Motion, 0x13, vec![0;33]), (Domain::Chat, 0x03, vec![1,b'x']),
+        (Domain::Selection, 0x24, vec![0,1]), (Domain::Dig, 0x1b, vec![0;10]),
+    ] {
+        actor.dispatch_domain(context, OperationClass::Normal, id, &payload, domain).await.unwrap();
+        assert_eq!(read_packet(&mut peer,None).await.unwrap(), (id,payload));
+    }
+    assert!(actor.admit(context, OperationClass::Normal).await.is_err());
+    assert!(actor.finish_inventory_click(2).await.is_err());
+    actor.finish_inventory_click(1).await.unwrap();
+    // Changing domain never changes the generation or observation checks.
+    let stale = OperationContext { generation: ConnectionGeneration::allocate(), source_observation_sequence: 0 };
+    assert!(actor.dispatch_domain(stale, OperationClass::Normal, 0x03, &[1,b'x'], Domain::Chat).await.is_err());
+    let future = OperationContext { source_observation_sequence: 99, ..context };
+    assert!(actor.dispatch_domain(future, OperationClass::Normal, 0x03, &[1,b'x'], Domain::Chat).await.is_err());
+    no_packet(&mut peer).await;
+}

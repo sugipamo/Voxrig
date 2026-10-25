@@ -25,6 +25,7 @@ include = [
     "/scripts/run_contact_best_effort_live.py",
     "/scripts/run_contact_history_live.py",
     "/scripts/run_walk_unknown_live.py",
+    "/scripts/run_domain_gates_live.py",
     "/scripts/ExportHandSwap.java",
     "/scripts/ExportExplosionPackets.java",
     "/scripts/ExportScreenProperties.java",

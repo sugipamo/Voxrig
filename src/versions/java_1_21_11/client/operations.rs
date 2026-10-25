@@ -483,7 +483,17 @@ impl Operations {
                 }
                 let state = self.bot.session.state.lock().await;
                 self.check_body_world(&state, world)?;
-                self.mutable(&state)?;
+                if world.is_some() {
+                    self.mutable_in_domain(
+                        &state,
+                        false,
+                        false,
+                        None,
+                        crate::client::domain::Domain::Chat,
+                    )?;
+                } else {
+                    self.mutable(&state)?;
+                }
                 let mut payload = Vec::new();
                 put_string(&mut payload, command);
                 self.bot
@@ -510,7 +520,17 @@ impl Operations {
                 crate::client::chat::validate_chat(message)?;
                 let state = self.bot.session.state.lock().await;
                 self.check_body_world(&state, world)?;
-                self.mutable(&state)?;
+                if world.is_some() {
+                    self.mutable_in_domain(
+                        &state,
+                        false,
+                        false,
+                        None,
+                        crate::client::domain::Domain::Chat,
+                    )?;
+                } else {
+                    self.mutable(&state)?;
+                }
                 let timestamp = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map_or(0, |elapsed| elapsed.as_millis() as u64);
@@ -640,7 +660,17 @@ impl Operations {
                 validate_pose([0.0; 3], rotation)?;
                 let mut state = self.bot.session.state.lock().await;
                 self.check_body_world(&state, world)?;
-                self.mutable(&state)?;
+                if world.is_some() {
+                    self.mutable_in_domain(
+                        &state,
+                        false,
+                        false,
+                        None,
+                        crate::client::domain::Domain::Motion,
+                    )?;
+                } else {
+                    self.mutable(&state)?;
+                }
                 self.require_mode(&state, mode)?;
                 let mut payload = Vec::new();
                 for v in rotation {
@@ -722,12 +752,22 @@ impl Operations {
                 }
                 let mut state = self.bot.session.state.lock().await;
                 self.check_body_world(&state, world)?;
-                self.mutable(&state)?;
+                if world.is_some() {
+                    self.mutable_in_domain(
+                        &state,
+                        false,
+                        false,
+                        None,
+                        crate::client::domain::Domain::Selection,
+                    )?;
+                } else {
+                    self.mutable(&state)?;
+                }
                 self.require_mode(&state, mode)?;
                 if let Some(mode) = mode {
                     crate::client::operations::validate_hotbar_selection(mode, slot)?;
                 }
-                if state.operations.inventory.pending_swap.is_some() {
+                if world.is_none() && state.operations.inventory.pending_swap.is_some() {
                     return Err(Error::new(
                         ErrorKind::State,
                         anyhow::anyhow!("inventory swap needs inspection"),
@@ -880,7 +920,17 @@ impl Operations {
                     let player = self.common_player_unlocked(&state)?;
                     crate::client::item_use::validate_expected(&player, hand, selected, item)?;
                 }
-                self.mutable(&state)?;
+                if world.is_some() && expected.is_none() {
+                    self.mutable_in_domain(
+                        &state,
+                        false,
+                        false,
+                        None,
+                        crate::client::domain::Domain::ItemUse,
+                    )?;
+                } else {
+                    self.mutable(&state)?;
+                }
                 self.require_mode(&state, Some(mode))?;
                 let seq = self.next_sequence()?;
                 let mut payload = Vec::new();
@@ -952,117 +1002,138 @@ impl Operations {
         flight_owner: bool,
         ground_owner: Option<crate::client::DismountId>,
     ) -> Result<()> {
+        self.mutable_in_domain(
+            state,
+            ground,
+            flight_owner,
+            ground_owner,
+            crate::client::domain::Domain::Strict,
+        )
+    }
+    fn mutable_in_domain(
+        &self,
+        state: &State,
+        ground: bool,
+        flight_owner: bool,
+        ground_owner: Option<crate::client::DismountId>,
+        domain: crate::client::domain::Domain,
+    ) -> Result<()> {
         self.bot.session.ledger.check_normal()?;
         self.ready(state)?;
-        if state
-            .operations
-            .selected_hotbar
-            .as_ref()
-            .is_some_and(|selection| !selection.dispatched)
+        if domain.held()
+            && state
+                .operations
+                .selected_hotbar
+                .as_ref()
+                .is_some_and(|selection| !selection.dispatched)
         {
             return Err(crate::client::inventory::unavailable(
                 "held slot dispatch unresolved; inspect and reconnect without replay",
             ));
         }
-        if crate::client::vehicle::control::unresolved(&state.vehicle_control_history) {
-            return Err(crate::client::inventory::unavailable(
-                "vehicle control unresolved; inspect without replay",
-            ));
+        if domain.motion() {
+            if crate::client::vehicle::control::unresolved(&state.vehicle_control_history) {
+                return Err(crate::client::inventory::unavailable(
+                    "vehicle control unresolved; inspect without replay",
+                ));
+            }
+            if !flight_owner && crate::client::flight::unresolved(&state.flight_history) {
+                return Err(crate::client::inventory::unavailable(
+                    "flight dispatch unresolved; inspect without replay",
+                ));
+            }
+            if state
+                .dismount_history
+                .lock()
+                .expect("dismount history")
+                .as_ref()
+                .is_some_and(|r| r.unresolved() && Some(r.id) != ground_owner)
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "dismount input unresolved; inspect and explicitly complete without replay",
+                ));
+            }
         }
-        if !flight_owner && crate::client::flight::unresolved(&state.flight_history) {
-            return Err(crate::client::inventory::unavailable(
-                "flight dispatch unresolved; inspect without replay",
-            ));
-        }
-        if state
-            .dismount_history
-            .lock()
-            .expect("dismount history")
-            .as_ref()
-            .is_some_and(|r| r.unresolved() && Some(r.id) != ground_owner)
-        {
-            return Err(crate::client::inventory::unavailable(
-                "dismount input unresolved; inspect and explicitly complete without replay",
-            ));
-        }
-        if state
-            .common_container_open
-            .as_ref()
-            .is_some_and(|o| o.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common storage activation unresolved; inspect without replay",
-            ));
-        }
-        if state
-            .common_container_close
-            .as_ref()
-            .is_some_and(|r| r.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common container close unresolved; inspect without replay",
-            ));
-        }
-        if state
-            .common_selected_drop
-            .as_ref()
-            .is_some_and(|r| r.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common selected drop unresolved; inspect without replay",
-            ));
-        }
-        if state
-            .common_hand_swap
-            .as_ref()
-            .is_some_and(|r| r.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common hand swap unresolved; inspect without replay",
-            ));
-        }
-        if state.common_inventory_swap.as_ref().is_some_and(|s| {
-            s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
-        }) {
-            return Err(crate::client::inventory::unavailable(
-                "common inventory swap unresolved; inspect retained record without replay",
-            ));
-        }
-        if state
-            .common_inventory_click
-            .as_ref()
-            .is_some_and(|s| s.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common inventory click unresolved; inspect without replay",
-            ));
-        }
-        if state
-            .common_recipe_placement
-            .as_ref()
-            .is_some_and(|r| r.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common recipe placement unresolved; inspect without replay",
-            ));
-        }
-        if state
-            .common_crafting_take
-            .as_ref()
-            .is_some_and(|r| r.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common crafting take unresolved; inspect without replay",
-            ));
-        }
-        if state
-            .common_inventory_transfer
-            .as_ref()
-            .is_some_and(|s| s.unresolved())
-        {
-            return Err(crate::client::inventory::unavailable(
-                "common inventory transfer unresolved; inspect without replay",
-            ));
+        if domain.inventory() {
+            if state
+                .common_container_open
+                .as_ref()
+                .is_some_and(|o| o.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common storage activation unresolved; inspect without replay",
+                ));
+            }
+            if state
+                .common_container_close
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common container close unresolved; inspect without replay",
+                ));
+            }
+            if state
+                .common_selected_drop
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common selected drop unresolved; inspect without replay",
+                ));
+            }
+            if state
+                .common_hand_swap
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common hand swap unresolved; inspect without replay",
+                ));
+            }
+            if state.common_inventory_swap.as_ref().is_some_and(|s| {
+                s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+            }) {
+                return Err(crate::client::inventory::unavailable(
+                    "common inventory swap unresolved; inspect retained record without replay",
+                ));
+            }
+            if state
+                .common_inventory_click
+                .as_ref()
+                .is_some_and(|s| s.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common inventory click unresolved; inspect without replay",
+                ));
+            }
+            if state
+                .common_recipe_placement
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common recipe placement unresolved; inspect without replay",
+                ));
+            }
+            if state
+                .common_crafting_take
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common crafting take unresolved; inspect without replay",
+                ));
+            }
+            if state
+                .common_inventory_transfer
+                .as_ref()
+                .is_some_and(|s| s.unresolved())
+            {
+                return Err(crate::client::inventory::unavailable(
+                    "common inventory transfer unresolved; inspect without replay",
+                ));
+            }
         }
         if !state.loading.notification_dispatched() {
             return Err(Error::new(
@@ -1072,28 +1143,31 @@ impl Operations {
                 ),
             ));
         }
-        if state
-            .survival_motion
-            .as_ref()
-            .is_some_and(|r| !r.status.is_continuation_candidate())
-        {
-            return Err(invalid(
-                "survival motion unresolved; inspect retained run before another mutation",
-            ));
+        if domain.motion() {
+            if state
+                .survival_motion
+                .as_ref()
+                .is_some_and(|r| !r.status.is_continuation_candidate())
+            {
+                return Err(invalid(
+                    "survival motion unresolved; inspect retained run before another mutation",
+                ));
+            }
+            if ground && state.survival_motion.is_some() {
+                movement::standing_basis(state)?;
+            }
+            if state.motion.position_basis == PositionBasis::PendingSubmission {
+                return Err(Error::new(
+                    ErrorKind::State,
+                    anyhow::anyhow!("position submission unresolved; inspect motion history"),
+                ));
+            }
         }
-        if ground && state.survival_motion.is_some() {
-            movement::standing_basis(state)?;
-        }
-        if state.motion.position_basis == PositionBasis::PendingSubmission {
-            return Err(Error::new(
-                ErrorKind::State,
-                anyhow::anyhow!("position submission unresolved; inspect motion history"),
-            ));
-        }
-        if state
-            .placement
-            .as_ref()
-            .is_some_and(|p| p.observation.is_none())
+        if domain == crate::client::domain::Domain::Strict
+            && state
+                .placement
+                .as_ref()
+                .is_some_and(|p| p.observation.is_none())
         {
             return Err(Error::new(
                 ErrorKind::State,
@@ -1102,7 +1176,7 @@ impl Operations {
                 ),
             ));
         }
-        if state.mining.is_some() {
+        if domain.dig() && state.mining.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
                 anyhow::anyhow!(

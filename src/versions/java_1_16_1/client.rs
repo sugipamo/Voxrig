@@ -6808,6 +6808,23 @@ impl Bot {
             .dispatch(self.operation_context(0), OperationClass::Normal, id, p)
             .await
     }
+    async fn send_in_domain(
+        &self,
+        domain: crate::client::domain::Domain,
+        id: i32,
+        payload: &[u8],
+    ) -> Result<()> {
+        self.observe_stop_context().await;
+        self.connection
+            .dispatch_domain(
+                self.operation_context(0),
+                OperationClass::Normal,
+                id,
+                payload,
+                domain,
+            )
+            .await
+    }
     async fn send_protocol(&self, id: i32, p: &[u8]) -> Result<()> {
         self.connection.dispatch_protocol(id, p).await
     }

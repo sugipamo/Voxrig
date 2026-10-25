@@ -30,6 +30,7 @@ Microsoftアカウント認証・online-mode暗号化、および署名付きcha
 - [受信targetのentity rayとblock遮蔽](common-entity-targeting.md)
 - [Entityの受信履歴](common-entity-history.md)
 - [共通の継続操作（キーを押し続ける移動）](common-control.md)
+- [bodyの領域別admission・期限付きreceipt観測・strict API互換性](domain-gates.md)
 - [共通のアイテム使用](common-item-use.md)
 - [共通の採掘（任意のblock）](common-dig.md)
 - [設置の事前確認](common-placement-check.md)

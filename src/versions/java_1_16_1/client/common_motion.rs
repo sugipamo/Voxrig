@@ -419,128 +419,149 @@ impl Bot {
         flight_owner: bool,
         ground_owner: Option<crate::client::DismountId>,
     ) -> Result<()> {
-        if crate::client::vehicle::control::unresolved(&self.vehicle_control_history) {
-            return Err(motion_state(
-                "vehicle control unresolved; inspect without replay",
-            ));
+        self.common_domain_admission(
+            flight_owner,
+            ground_owner,
+            crate::client::domain::Domain::Strict,
+        )
+        .await
+    }
+    pub(super) async fn common_domain_admission(
+        &self,
+        flight_owner: bool,
+        ground_owner: Option<crate::client::DismountId>,
+        domain: crate::client::domain::Domain,
+    ) -> Result<()> {
+        if domain.motion() {
+            if crate::client::vehicle::control::unresolved(&self.vehicle_control_history) {
+                return Err(motion_state(
+                    "vehicle control unresolved; inspect without replay",
+                ));
+            }
+            if !flight_owner && crate::client::flight::unresolved(&self.flight_history) {
+                return Err(motion_state(
+                    "flight dispatch unresolved; inspect without replay",
+                ));
+            }
+            if self
+                .dismount_history
+                .lock()
+                .expect("dismount history")
+                .as_ref()
+                .is_some_and(|r| r.unresolved() && Some(r.id) != ground_owner)
+            {
+                return Err(motion_state(
+                    "dismount input unresolved; inspect and explicitly complete without replay",
+                ));
+            }
         }
-        if !flight_owner && crate::client::flight::unresolved(&self.flight_history) {
-            return Err(motion_state(
-                "flight dispatch unresolved; inspect without replay",
-            ));
+        if domain.inventory() {
+            if super::lock_packet_state(&self.common_container_open)
+                .await
+                .as_ref()
+                .is_some_and(|o| !o.released)
+            {
+                return Err(motion_state(
+                    "common container activation unresolved; inspect without replay",
+                ));
+            }
+            if super::lock_packet_state(&self.common_container_close)
+                .await
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            {
+                return Err(motion_state(
+                    "common container close unresolved; inspect without replay",
+                ));
+            }
+            if super::lock_packet_state(&self.common_inventory_swap)
+                .await
+                .as_ref()
+                .is_some_and(|s| !s.released)
+            {
+                return Err(motion_state(
+                    "common inventory swap unresolved; inspect without replay",
+                ));
+            }
+            if super::lock_packet_state(&self.common_inventory_click)
+                .await
+                .as_ref()
+                .is_some_and(|s| !s.released)
+            {
+                return Err(motion_state(
+                    "common inventory click unresolved; inspect without replay",
+                ));
+            }
+            if super::lock_packet_state(&self.common_recipe_placement)
+                .await
+                .as_ref()
+                .is_some_and(|s| !s.released)
+            {
+                return Err(motion_state(
+                    "common recipe placement unresolved; inspect without replay",
+                ));
+            }
+            if super::lock_packet_state(&self.common_crafting_take)
+                .await
+                .as_ref()
+                .is_some_and(|s| !s.released)
+            {
+                return Err(motion_state(
+                    "common crafting take unresolved; inspect without replay",
+                ));
+            }
+            if super::lock_packet_state(&self.common_inventory_transfer)
+                .await
+                .as_ref()
+                .is_some_and(|s| !s.released)
+            {
+                return Err(motion_state(
+                    "common inventory transfer unresolved; inspect without replay",
+                ));
+            }
         }
-        if self
-            .dismount_history
-            .lock()
-            .expect("dismount history")
-            .as_ref()
-            .is_some_and(|r| r.unresolved() && Some(r.id) != ground_owner)
-        {
-            return Err(motion_state(
-                "dismount input unresolved; inspect and explicitly complete without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_container_open)
-            .await
-            .as_ref()
-            .is_some_and(|o| !o.released)
-        {
-            return Err(motion_state(
-                "common container activation unresolved; inspect without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_container_close)
-            .await
-            .as_ref()
-            .is_some_and(|r| r.unresolved())
-        {
-            return Err(motion_state(
-                "common container close unresolved; inspect without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_inventory_swap)
-            .await
-            .as_ref()
-            .is_some_and(|s| !s.released)
-        {
-            return Err(motion_state(
-                "common inventory swap unresolved; inspect without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_inventory_click)
-            .await
-            .as_ref()
-            .is_some_and(|s| !s.released)
-        {
-            return Err(motion_state(
-                "common inventory click unresolved; inspect without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_recipe_placement)
-            .await
-            .as_ref()
-            .is_some_and(|s| !s.released)
-        {
-            return Err(motion_state(
-                "common recipe placement unresolved; inspect without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_crafting_take)
-            .await
-            .as_ref()
-            .is_some_and(|s| !s.released)
-        {
-            return Err(motion_state(
-                "common crafting take unresolved; inspect without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_inventory_transfer)
-            .await
-            .as_ref()
-            .is_some_and(|s| !s.released)
-        {
-            return Err(motion_state(
-                "common inventory transfer unresolved; inspect without replay",
-            ));
-        }
-        if super::lock_packet_state(&self.common_mining)
-            .await
-            .is_some()
+        if domain.dig()
+            && super::lock_packet_state(&self.common_mining)
+                .await
+                .is_some()
         {
             return Err(motion_state(
                 "common mining retained; inspect and use explicit fresh recovery before continuation",
             ));
         }
-        if super::lock_packet_state(&self.common_placement)
-            .await
-            .as_ref()
-            .is_some_and(|p| !p.released)
+        if domain == crate::client::domain::Domain::Strict
+            && super::lock_packet_state(&self.common_placement)
+                .await
+                .as_ref()
+                .is_some_and(|p| !p.released)
         {
             return Err(motion_state(
                 "common placement unresolved; inspect target/material receipts without replay",
             ));
         }
-        let run = self.common_motion.lock().await.clone();
-        if let Some(run) = run {
-            if run.record.status != MotionStatus::Predicted {
-                return Err(motion_state(
-                    "common motion unresolved; inspect retained run without replay",
-                ));
-            }
-            let check = async {
-                self.legacy_stable_run(&run, false).await?;
-                let end = run.record.preview.frames.last().unwrap();
-                let world = self.world.lock().await;
-                legacy_clearance(
-                    &|p| legacy_motion_block(&world, p),
-                    end.position,
-                    1.0 / 16.0,
-                )
-            }
-            .await;
-            if let Err(error) = check {
-                self.interrupt_common_motion(&error.to_string()).await;
-                return Err(error);
+        if domain.motion() {
+            let run = self.common_motion.lock().await.clone();
+            if let Some(run) = run {
+                if run.record.status != MotionStatus::Predicted {
+                    return Err(motion_state(
+                        "common motion unresolved; inspect retained run without replay",
+                    ));
+                }
+                let check = async {
+                    self.legacy_stable_run(&run, false).await?;
+                    let end = run.record.preview.frames.last().unwrap();
+                    let world = self.world.lock().await;
+                    legacy_clearance(
+                        &|p| legacy_motion_block(&world, p),
+                        end.position,
+                        1.0 / 16.0,
+                    )
+                }
+                .await;
+                if let Err(error) = check {
+                    self.interrupt_common_motion(&error.to_string()).await;
+                    return Err(error);
+                }
             }
         }
         Ok(())

@@ -69,7 +69,12 @@ async fn main() -> anyhow::Result<()> {
     )?)
     .await?;
     client.wait_until_ready().await?;
-    let body = Body::new(HeadlessBody::new(client.clone(), BodyConfig::default())?);
+    let mut config = BodyConfig::default();
+    if let Ok(ms) = std::env::var("VOXRIG_BODY_TIMEOUT_MS") {
+        config.action_timeout = Duration::from_millis(ms.parse()?);
+    }
+    let body = Body::new(HeadlessBody::new(client.clone(), config)?);
+    let mut click_watch = None::<InventoryClickWatch>;
     println!("{}", json!({"ready":true}));
     std::io::stdout().flush()?;
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
@@ -77,6 +82,51 @@ async fn main() -> anyhow::Result<()> {
         let v: Json = serde_json::from_str(&line)?;
         let result: anyhow::Result<Json> = async {
             Ok(match v["command"].as_str().unwrap_or("") {
+                "click" => {
+                    let source = if v["container"].as_bool() == Some(true) {
+                        voxrig::client::inventory::InventoryClickSource::Container {
+                            screen: client.screen_state().await?.screen.unwrap().id,
+                        }
+                    } else {
+                        voxrig::client::inventory::InventoryClickSource::Player
+                    };
+                    let mode = client.player_state().await?.game_mode.unwrap();
+                    let record = match mode {
+                        GameMode::Creative => {
+                            client
+                                .creative()
+                                .click_inventory(
+                                    source,
+                                    v["slot"].as_u64().unwrap().try_into()?,
+                                    voxrig::client::inventory::InventoryClickButton::Left,
+                                )
+                                .await?
+                        }
+                        _ => {
+                            client
+                                .survival()
+                                .click_inventory(
+                                    source,
+                                    v["slot"].as_u64().unwrap().try_into()?,
+                                    voxrig::client::inventory::InventoryClickButton::Left,
+                                )
+                                .await?
+                        }
+                    };
+                    click_watch = Some(body.backend().watch_inventory_click(record.id).await?);
+                    serde_json::to_value(record)?
+                }
+                "click_record" => {
+                    serde_json::to_value(client.survival().inventory_click_record().await?)?
+                }
+                "click_status" => {
+                    serde_json::to_value(click_watch.as_ref().unwrap().status().await)?
+                }
+                "outcome" => serde_json::to_value(
+                    body.backend()
+                        .action_outcome(serde_json::from_value(v["id"].clone())?)
+                        .await?,
+                )?,
                 "player" => serde_json::to_value(client.player_state().await?)?,
                 "body_use_item_expect" => {
                     let id = body
