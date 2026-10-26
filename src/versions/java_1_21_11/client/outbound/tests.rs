@@ -1,5 +1,6 @@
 mod entity_at;
 mod explosion;
+mod health;
 mod motion_executor;
 use super::*;
 
@@ -791,7 +792,9 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
     let (peer, _) = listener.accept().await.unwrap();
     let (reader, writer) = client.into_split();
     let id = crate::connection::next_connection_id();
+    let health_log = Arc::default();
     let session = Arc::new(Session {
+        health_log: Arc::clone(&health_log),
         operational_dig: Arc::default(),
         id,
         ledger: Ledger::tracking(GenerationKey {
@@ -803,7 +806,10 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
             stream: SocketWriter::new(writer),
             compression: None,
         })),
-        state: Mutex::new(State::default()),
+        state: Mutex::new(State {
+            health_log: health_log.clone(),
+            ..State::default()
+        }),
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),

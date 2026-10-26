@@ -1155,7 +1155,9 @@ impl CommonFixture {
         state.phase = Phase::Play;
         let id = 42;
         state.connection_id = id;
+        let health_log = state.health_log.clone();
         let session = Arc::new(Session {
+            health_log: Arc::clone(&health_log),
             operational_dig: Arc::default(),
             id,
             ledger: Ledger::tracking(GenerationKey {
@@ -1741,7 +1743,9 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
     let mut state = baseline();
     state.phase = Phase::Play;
     let id = 42;
+    let health_log = state.health_log.clone();
     let session = Arc::new(Session {
+        health_log: Arc::clone(&health_log),
         operational_dig: Arc::default(),
         id,
         ledger: Ledger::tracking(GenerationKey {

@@ -61,6 +61,14 @@ impl Bot {
             let mut registries = receipts.registries.clone();
             registries.legacy_join(join.registry_codec.clone(), packet_sequence)?;
             receipts.generation = packet_sequence;
+            self.health_log.record(
+                Some(packet_sequence),
+                crate::client::HealthEvent::WorldChanged(crate::client::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_16_1,
+                    connection_id: self.connection_id(),
+                    world_generation: packet_sequence,
+                }),
+            );
             receipts.context = Default::default();
             receipts.context.world_entry = Some(crate::client::received(
                 crate::client::WorldEntryContext {
@@ -84,6 +92,7 @@ impl Bot {
                 .clone()
                 .map(|v| crate::client::received(v, packet_sequence));
 
+            receipts.health = None;
             receipts.abilities = None;
             receipts.fall_flying = None;
             receipts.entity_pose = None;
@@ -117,6 +126,7 @@ impl Bot {
         *self.oxygen_level.lock().await = Some(protocol_default_oxygen_level());
         *self.local_pose.lock().await = Some(0);
         let mut survival = self.survival.write().await;
+        survival.vitals = None;
         survival.game_mode = Some(join.game_mode);
         survival.previous_game_mode = Some(join.previous_game_mode);
         survival.item_cooldowns.clear();
@@ -282,6 +292,14 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
+            self.health_log.record(
+                Some(packet_sequence),
+                crate::client::HealthEvent::WorldChanged(crate::client::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_16_1,
+                    connection_id: self.connection_id(),
+                    world_generation: packet_sequence,
+                }),
+            );
             receipts.context = Default::default();
             receipts.context.world_entry = Some(crate::client::received(
                 crate::client::WorldEntryContext {
@@ -381,15 +399,29 @@ impl Bot {
 
     pub(super) async fn receive_vitals(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
         let vitals = parse_vitals(p)?;
+        let mut receipts = self.common_receipts.lock().await;
+        let health = crate::client::Health {
+            health: vitals.health,
+            food: vitals.food,
+            saturation: vitals.saturation,
+        };
+        if !self.health_log.record(
+            Some(packet_sequence),
+            crate::client::HealthEvent::Vitals(crate::client::ReceivedHealth {
+                session: crate::client::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_16_1,
+                    connection_id: self.connection_id(),
+                    world_generation: receipts.generation,
+                },
+                receive_sequence: packet_sequence,
+                health,
+            }),
+        ) {
+            return Err(anyhow::anyhow!("health receipt source closed").into());
+        }
+        receipts.health = Some(crate::client::received(health, packet_sequence));
+        drop(receipts);
         self.survival.write().await.vitals = Some(vitals);
-        self.common_receipts.lock().await.health = Some(crate::client::received(
-            crate::client::Health {
-                health: vitals.health,
-                food: vitals.food,
-                saturation: vitals.saturation,
-            },
-            packet_sequence,
-        ));
         self.emit(Event::Vitals(vitals));
         Ok(())
     }

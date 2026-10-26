@@ -686,7 +686,10 @@ impl Fixture {
             .unwrap();
         let (peer, _) = listener.accept().await.unwrap();
         let (reader, writer) = stream.into_split();
+        let state = state();
+        let health_log = state.health_log.clone();
         let session = Arc::new(Session {
+            health_log: Arc::clone(&health_log),
             operational_dig: Arc::default(),
             id,
             ledger: Ledger::tracking(GenerationKey {
@@ -698,7 +701,7 @@ impl Fixture {
                 stream: SocketWriter::new(writer),
                 compression: None,
             })),
-            state: Mutex::new(state()),
+            state: Mutex::new(state),
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),

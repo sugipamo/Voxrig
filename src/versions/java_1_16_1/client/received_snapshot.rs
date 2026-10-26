@@ -185,6 +185,36 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn health_log_contract_legacy_packet_fixture() {
+        use api::health::tests::{Packet, contract, payload};
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        contract(&client, |packet| {
+            let bot = bot.clone();
+            async move {
+                match packet {
+                    Packet::Health(hp) => {
+                        bot.apply_packet(0x49, payload(hp)).await.unwrap();
+                    }
+                    Packet::Noise => {
+                        bot.apply_packet(0x48, vec![0; 6]).await.unwrap();
+                    }
+                    Packet::World => {
+                        bot.apply_packet(0x3a, respawn()).await.unwrap();
+                    }
+                    Packet::Close => {
+                        let _ = bot.revoke_connection();
+                    }
+                }
+            }
+        })
+        .await;
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
     async fn received_snapshot_container_missing_before_join() {
         let (bot, server, release) =
             super::super::tests::ready_test_bot(ConnectionOptions::default()).await;

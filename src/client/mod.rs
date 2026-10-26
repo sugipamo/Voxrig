@@ -23,7 +23,12 @@ pub mod chat;
 pub mod effects;
 pub mod events;
 pub mod explosions;
+pub mod health;
 pub use events::{ClientEvent, EventKind, EventLog};
+pub use health::{
+    HealthChange, HealthEvent, HealthLog, HealthRecvError, HealthSubscription,
+    MAX_RETAINED_HEALTH_CHANGES, ReceivedHealth,
+};
 pub mod code_of_conduct;
 pub mod resource_pack;
 pub use resource_pack::ResourcePackRequest;
@@ -242,6 +247,10 @@ pub mod prelude {
         model_living_pair_push,
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
+    pub use super::health::{
+        HealthChange, HealthEvent, HealthLog, HealthRecvError, HealthSubscription,
+        MAX_RETAINED_HEALTH_CHANGES, ReceivedHealth,
+    };
     pub use super::inventory::{
         HandSwapId, HandSwapRecord, HandSwapSend, HandSwapStage, InventoryClickButton,
         InventoryClickId, InventoryClickRecord, InventoryClickSource, InventoryClickStage,

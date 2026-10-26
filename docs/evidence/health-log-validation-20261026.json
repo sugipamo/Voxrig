@@ -1,0 +1,345 @@
+{
+  "base": "324bcb5a1a332fe9427e4badf013379b5a0fad6e",
+  "branch": "feat/health-log",
+  "public_api": "additive",
+  "decision": "none",
+  "source_sha256": {
+    "Cargo.toml": "c5fb66554f18924d2cde0b299134bb56f4604a4086a2b793dc165e7b45492f89",
+    "docs/health-log.md": "ad78835dc404d438cd3e44d1261c942a2b5ed3f59841f4ea8b8eb551d63498a0",
+    "examples/health_log_probe.rs": "9cbd75241a2e8ae9adc27c673fd3da2babc7711dc7f99452f92c01a20d4210de",
+    "scripts/run_health_log_live.py": "739f8ecf8988197d8147dbf849348ff8e5267d645d2ae978692cce94b984d832",
+    "src/client/adapter.rs": "b012043705230b49201dc4b3a347796d3be12d0c103058f4c9dcedcbe0fb3e18",
+    "src/client/events.rs": "bedf8063a2826ff953b460df8684458a99e48b95d0b0a624d7caf7a9d29583ab",
+    "src/client/health.rs": "15d0daad6fef90b446587c44d0b4b9586184deba0d5ee7af7e5da24bce7c2814",
+    "src/client/mod.rs": "82b7d6067338d26d490bdb9c3b1089387b2f751eee35e35bce6d8d877fca21ac",
+    "src/versions/java_1_16_1/client.rs": "0216efb8ce687e34fc9380552929ae84585a02eca1c96bc6fa2439a4ece8ec3b",
+    "src/versions/java_1_16_1/client/play_player.rs": "bab2ec7fca34eb418b368cce073029d2a160ae242fcb162aadfe724743f5e766",
+    "src/versions/java_1_16_1/client/received_snapshot.rs": "c2f322281d30ba918c555b0c606c8d6351cc857ef34ace31f3bea638ad47dafd",
+    "src/versions/java_1_21_11/client.rs": "b3754426ec4c7a2f081ca5356e089114e2f883129482465fe581b206d3de37c5",
+    "src/versions/java_1_21_11/client/loading/tests.rs": "855ca89d5adfc97207c5c9da7d3adc9a55d02b2f87f072550e394dc427fc5f98",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "bd874ac7f91232f960416d1713ed1bf828067e78e854e4b18726a262704e826c",
+    "src/versions/java_1_21_11/client/operations/mining/tests.rs": "5ebec719be76a8e9a51bafed6b0fd3c2e18c4c30776a56f83e61d7a517581d3a",
+    "src/versions/java_1_21_11/client/operations/placement/tests.rs": "228a38c20a4a9d1c105106ce6a863e3e30439eed77eca99a753e4b9cf03a0eb7",
+    "src/versions/java_1_21_11/client/operations/survival.rs": "dabb6a880f3b80d1278c6ee7202497eb497ab51136121fe302b49b8d72f24500",
+    "src/versions/java_1_21_11/client/operations/survival/tests.rs": "195181576dfd583bfbf8adafa26c573cb74ade79dea33ea2de7cbb5a8ff730cc",
+    "src/versions/java_1_21_11/client/outbound.rs": "c38631732cb1e89d902fc26ee8797dd5b1cd75439db7804970c87d3e6ce67ae3",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "addeeb6cf3399108d5207f6dd494b93ae072c1080e12a1f36d7e1e76a0e64d88",
+    "src/versions/java_1_21_11/client/outbound/tests/health.rs": "d4d7005b62a82f29f4945e22b95047320a699273376a66adafbe892c7fa8a508"
+  },
+  "toolchains": {
+    "stable": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)"
+  },
+  "build_environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "RUST_TEST_THREADS": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "checks": [
+    {
+      "configuration": "stable-default",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "stable-default",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "stable-default",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "stable-native",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "stable-native",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "stable-native",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "1.85.0-default",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "1.85.0-default",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "1.85.0-default",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "1.85.0-native",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "1.85.0-native",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0
+    },
+    {
+      "configuration": "1.85.0-native",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "returncode": 0
+    }
+  ],
+  "extra_checks": [
+    {
+      "configuration": "stable-default",
+      "check": "clippy-final",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "reason": "Rechecked final LIVE driver after exit handling change."
+    }
+  ],
+  "tests": {
+    "stable-default": {
+      "parts": [
+        {
+          "passed": 1684,
+          "failed": 0,
+          "ignored": 8,
+          "seconds": 711.4
+        },
+        {
+          "passed": 14,
+          "failed": 0,
+          "ignored": 1,
+          "seconds": 0.0
+        },
+        {
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 1.24
+        }
+      ],
+      "passed": 1723,
+      "failed": 0,
+      "ignored": 9
+    },
+    "stable-native": {
+      "parts": [
+        {
+          "passed": 1684,
+          "failed": 0,
+          "ignored": 8,
+          "seconds": 681.58
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.17
+        },
+        {
+          "passed": 14,
+          "failed": 0,
+          "ignored": 1,
+          "seconds": 0.0
+        },
+        {
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 1.09
+        }
+      ],
+      "passed": 1727,
+      "failed": 0,
+      "ignored": 9
+    },
+    "1.85.0-default": {
+      "parts": [
+        {
+          "passed": 1684,
+          "failed": 0,
+          "ignored": 8,
+          "seconds": 726.33
+        },
+        {
+          "passed": 39,
+          "failed": 0,
+          "ignored": 1,
+          "seconds": 2.07
+        }
+      ],
+      "passed": 1723,
+      "failed": 0,
+      "ignored": 9
+    },
+    "1.85.0-native": {
+      "parts": [
+        {
+          "passed": 1684,
+          "failed": 0,
+          "ignored": 8,
+          "seconds": 638.13
+        },
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.15
+        },
+        {
+          "passed": 39,
+          "failed": 0,
+          "ignored": 1,
+          "seconds": 1.89
+        }
+      ],
+      "passed": 1727,
+      "failed": 0,
+      "ignored": 9
+    }
+  },
+  "live": {
+    "1.16.1": {
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "original_health_packets": 4,
+      "hp": [
+        20.0,
+        14.0,
+        0.0,
+        20.0
+      ],
+      "evidence": "health-log-live-1.16.1-20261026.json.gz"
+    },
+    "1.21.11": {
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "original_health_packets": 4,
+      "hp": [
+        20.0,
+        14.0,
+        0.0,
+        20.0
+      ],
+      "evidence": "health-log-live-1.21.11-20261026.json.gz"
+    }
+  },
+  "live_binary_sha256": "2f588d48016d02fa3bd8ba0b15445646168ec05546adfb0755263e9ad8f50ffe"
+}

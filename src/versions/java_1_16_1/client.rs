@@ -982,6 +982,7 @@ pub struct Bot {
     common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
     common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
     common_chat: Arc<Mutex<crate::client::chat::ChatLedger>>,
+    health_log: Arc<crate::client::health::HealthLedger>,
     common_events: Arc<std::sync::Mutex<crate::client::events::EventLedger>>,
     common_display: Arc<Mutex<crate::client::ui::display::DisplayLedger>>,
     common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
@@ -1061,6 +1062,8 @@ impl Drop for Bot {
         if self.counts_as_external_handle
             && self.external_handles.fetch_sub(1, Ordering::AcqRel) == 1
         {
+            self.health_log
+                .record(None, crate::client::HealthEvent::Disconnected);
             self.stopped.store(true, Ordering::Release);
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
@@ -1118,6 +1121,7 @@ impl Bot {
             common_scoreboard: self.common_scoreboard.clone(),
             common_boss_bars: self.common_boss_bars.clone(),
             common_chat: self.common_chat.clone(),
+            health_log: self.health_log.clone(),
             common_events: self.common_events.clone(),
             common_display: self.common_display.clone(),
             common_teams: self.common_teams.clone(),
@@ -1341,6 +1345,7 @@ impl Bot {
             common_scoreboard: Arc::new(Mutex::new(Default::default())),
             common_boss_bars: Arc::new(Mutex::new(Default::default())),
             common_chat: Arc::new(Mutex::new(Default::default())),
+            health_log: Arc::default(),
             common_events: Arc::new(std::sync::Mutex::new(Default::default())),
             common_display: Arc::new(Mutex::new(Default::default())),
             common_teams: Arc::new(Mutex::new(Default::default())),
@@ -1532,6 +1537,9 @@ impl Bot {
                 }
             }
             supervisor.physics.lock().await.record_disconnect();
+            supervisor
+                .health_log
+                .record(None, crate::client::HealthEvent::Disconnected);
             supervisor.stopped.store(true, Ordering::Release);
             supervisor.packet_applied.notify_waiters();
         });
@@ -1595,6 +1603,8 @@ impl Bot {
     #[must_use]
     pub fn revoke_connection(&self) -> GenerationRevocation {
         let receipt = self.connection.revoke();
+        self.health_log
+            .record(None, crate::client::HealthEvent::Disconnected);
         self.stopped.store(true, Ordering::Release);
         if let Ok(mut receipts) = self.common_receipts.try_lock() {
             let session = crate::client::SessionStamp {
@@ -6749,6 +6759,8 @@ impl Bot {
             queued.events.push_back(event.clone());
         }
         if terminal {
+            self.health_log
+                .record(None, crate::client::HealthEvent::Disconnected);
             self.stopped.store(true, Ordering::Release);
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
@@ -7118,6 +7130,9 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
 }
 
 impl crate::client::adapter::EventOps for Bot {
+    fn health_log(&self) -> &Arc<crate::client::health::HealthLedger> {
+        &self.health_log
+    }
     async fn inventory_divergence(
         &self,
         send: crate::client::inventory::InventorySendId,

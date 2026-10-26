@@ -37,6 +37,8 @@ impl Session {
         }
     }
     pub(super) fn stop(&self) {
+        self.health_log
+            .record(None, crate::client::HealthEvent::Disconnected);
         self.ledger.fail(Failure::Disconnected);
         self.stopped.store(true, Ordering::Release);
         if let Ok(mut state) = self.state.try_lock() {
