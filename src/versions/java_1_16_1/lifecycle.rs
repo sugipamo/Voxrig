@@ -1241,7 +1241,11 @@ impl ConnectionActor {
                                     continue;
                                 }
                                 let next = next_actions.entry(*window_id).or_insert(0);
-                                *next = next.wrapping_add(1);
+                                let Some(action) = next.checked_add(1).filter(|v| *v > 0) else {
+                                    let _ = reply.send(Err(OperationAdmissionError::InvalidOperation));
+                                    continue;
+                                };
+                                *next = action;
                                 TransactionIdentity::WindowClick {
                                     window_id: *window_id,
                                     action: *next,

@@ -1066,6 +1066,13 @@ impl Operations {
                 ));
             }
         }
+        if (domain.inventory() || domain == crate::client::domain::Domain::CurrentInventory)
+            && state.inventory_executor.busy()
+        {
+            return Err(crate::client::inventory::unavailable(
+                "inventory executor awaiting response/state or resync",
+            ));
+        }
         if domain.inventory() {
             if state
                 .common_container_open
@@ -1105,6 +1112,7 @@ impl Operations {
             }
             if state.common_inventory_swap.as_ref().is_some_and(|s| {
                 s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+                    && domain == crate::client::domain::Domain::Strict
             }) {
                 return Err(crate::client::inventory::unavailable(
                     "common inventory swap unresolved; inspect retained record without replay",
@@ -1113,7 +1121,7 @@ impl Operations {
             if state
                 .common_inventory_click
                 .as_ref()
-                .is_some_and(|s| s.unresolved())
+                .is_some_and(|s| s.unresolved() && domain == crate::client::domain::Domain::Strict)
             {
                 return Err(crate::client::inventory::unavailable(
                     "common inventory click unresolved; inspect without replay",
@@ -1131,7 +1139,7 @@ impl Operations {
             if state
                 .common_crafting_take
                 .as_ref()
-                .is_some_and(|r| r.unresolved())
+                .is_some_and(|r| r.unresolved() && domain == crate::client::domain::Domain::Strict)
             {
                 return Err(crate::client::inventory::unavailable(
                     "common crafting take unresolved; inspect without replay",
@@ -1140,7 +1148,7 @@ impl Operations {
             if state
                 .common_inventory_transfer
                 .as_ref()
-                .is_some_and(|s| s.unresolved())
+                .is_some_and(|s| s.unresolved() && domain == crate::client::domain::Domain::Strict)
             {
                 return Err(crate::client::inventory::unavailable(
                     "common inventory transfer unresolved; inspect without replay",
@@ -1484,7 +1492,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                                 .inventory
                                 .container
                                 .as_ref()
-                                .map(|s| s.capture(session).id),
+                                .map(|s| s.id(session)),
                             Some(close),
                         ),
                         Some(crate::client::container::PlayerScreenAccess::SubmittedClose { .. })
@@ -1597,9 +1605,9 @@ pub(super) fn common_player_in_state(
             world_generation: state.loading.generation,
         },
         receive_sequence: state.sequence,
-        pending_dispatch: crate::client::vehicle::control::unresolved(
-            &state.vehicle_control_history,
-        ) || crate::client::flight::unresolved(&state.flight_history)
+        pending_dispatch: state.inventory_executor.busy()
+            || crate::client::vehicle::control::unresolved(&state.vehicle_control_history)
+            || crate::client::flight::unresolved(&state.flight_history)
             || state
                 .dismount_history
                 .lock()
@@ -1623,25 +1631,10 @@ pub(super) fn common_player_in_state(
                 .common_hand_swap
                 .as_ref()
                 .is_some_and(|r| r.unresolved())
-            || state.common_inventory_swap.as_ref().is_some_and(|s| {
-                s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
-            })
-            || state
-                .common_inventory_click
-                .as_ref()
-                .is_some_and(|s| s.unresolved())
             || state
                 .common_recipe_placement
                 .as_ref()
                 .is_some_and(|r| r.unresolved())
-            || state
-                .common_crafting_take
-                .as_ref()
-                .is_some_and(|r| r.unresolved())
-            || state
-                .common_inventory_transfer
-                .as_ref()
-                .is_some_and(|s| s.unresolved())
             || state
                 .operations
                 .selected_hotbar
@@ -1893,12 +1886,7 @@ impl crate::client::adapter::CoreOps for Operations {
             receive_sequence: state.sequence,
             active_window: state.operations.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: state.operations.inventory.screen(player.session),
             cursor: player.inventory.cursor,
         })
     }
@@ -2208,12 +2196,7 @@ impl crate::client::adapter::CoreOps for Operations {
             receive_sequence: player.receive_sequence,
             active_window: state.operations.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: state.operations.inventory.screen(player.session),
             cursor: player.inventory.cursor.clone(),
         };
         let registries = state
@@ -2262,12 +2245,7 @@ impl crate::client::adapter::CoreOps for Operations {
             receive_sequence: state.sequence,
             active_window: state.operations.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: state.operations.inventory.screen(player.session),
             cursor: player.inventory.cursor.clone(),
         };
         let registries = state
@@ -2283,12 +2261,7 @@ impl crate::client::adapter::CoreOps for Operations {
             receive_sequence: state.sequence,
             active_window: state.operations.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: state.operations.inventory.screen(player.session),
             cursor: player.inventory.cursor.clone(),
         };
         let registries = state

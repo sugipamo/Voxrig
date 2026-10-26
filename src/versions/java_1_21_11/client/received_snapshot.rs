@@ -255,13 +255,7 @@ impl State {
                 out.inventory.last_full_contents.set((), event);
             }
         }
-        out.screen(
-            inventory
-                .container
-                .as_ref()
-                .map(|screen| screen.capture(session)),
-            event,
-        )?;
+        out.screen(inventory.screen(session), event)?;
         Ok(())
     }
 }

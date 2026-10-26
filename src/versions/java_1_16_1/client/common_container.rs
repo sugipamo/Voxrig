@@ -10,11 +10,8 @@ pub(super) struct NativeContainerOpen {
 
 impl Bot {
     async fn open_native_inventory_admission(&self) -> Result<()> {
-        let inventory = self.inventory.read().await;
-        if inventory.cursor.is_some()
-            || inventory.open_window.is_some()
-            || !inventory.pending_clicks.is_empty()
-        {
+        let inventory = self.inventory().await;
+        if inventory.cursor.is_some() || !inventory.pending_clicks.is_empty() {
             return Err(api::inventory::unavailable(
                 "native legacy player UI/mutation unresolved",
             ));
@@ -86,13 +83,7 @@ impl Bot {
                         return Ok(());
                     }
                 };
-                let screen = self
-                    .common_receipts
-                    .lock()
-                    .await
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(current.session));
+                let screen = self.common_receipts.lock().await.screen(current.session);
                 let selected = current.selected_hotbar.as_ref().map(|s| s.value);
                 let context = contract::open::OpenContext {
                     session: current.session,
@@ -143,15 +134,12 @@ impl Bot {
         .await
     }
     async fn close_native_basis(&self, window: i8, player: &api::PlayerObservation) -> Result<()> {
-        let inventory = self.inventory.read().await;
-        if inventory.open_window.as_ref().map(|w| w.id) != Some(window)
-            || !inventory.pending_clicks.is_empty()
-            || player.inventory.cursor.as_ref().is_none_or(|c| {
-                api::legacy_slot(inventory.cursor.as_ref()).ok().as_ref() != Some(&c.value)
-            })
+        let receipts = self.common_receipts.lock().await;
+        if receipts.container.as_ref().map(|s| s.window) != Some(i32::from(window))
+            || player.inventory.cursor.is_none()
         {
             return Err(api::inventory::unavailable(
-                "legacy close actual/cache UI/cursor basis unresolved",
+                "close received opening/cursor unavailable",
             ));
         }
         Ok(())
@@ -166,13 +154,7 @@ impl Bot {
             ));
         }
         let current = self.common_player_unlocked().await?;
-        let screen = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session));
+        let screen = self.common_receipts.lock().await.screen(current.session);
         let mut guard = super::lock_packet_state(&self.common_container_close).await;
         let record = guard
             .as_mut()
@@ -413,10 +395,7 @@ impl Bot {
         }
         let player = self.common_player_unlocked().await?;
         let receipts = self.common_receipts.lock().await;
-        let screen = receipts
-            .container
-            .as_ref()
-            .map(|s| s.capture(player.session));
+        let screen = receipts.screen(player.session);
         if let Some(r) = super::lock_packet_state(&self.common_container_close)
             .await
             .as_mut()
@@ -441,7 +420,8 @@ impl crate::client::adapter::ContainerOps for Bot {
             .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
-                self.common_motion_admission().await?;
+                self.common_domain_admission(false, None, api::domain::Domain::CurrentInventory)
+                    .await?;
                 let revision = self
                     .connection
                     .motion_admission_revision()
@@ -566,7 +546,8 @@ impl crate::client::adapter::ContainerOps for Bot {
             .try_work()?
             .run_scoped(async {
                 let gate = self.coherent_state_gate.lock().await;
-                self.common_motion_admission().await?;
+                self.common_domain_admission(false, None, api::domain::Domain::CurrentInventory)
+                    .await?;
                 let revision = self
                     .connection
                     .motion_admission_revision()
@@ -577,9 +558,7 @@ impl crate::client::adapter::ContainerOps for Bot {
                     .common_receipts
                     .lock()
                     .await
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session))
+                    .screen(initial.session)
                     .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
                 let window = i8::try_from(screen.window_id())
                     .ok()

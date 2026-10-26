@@ -191,22 +191,26 @@ impl Operations {
         use crate::client::domain;
         let selected = state.operations.selected_hotbar.as_ref().map(|s| s.slot);
         let hand = selected.map(|s| 36 + u16::from(s));
-        let conflict = state
-            .common_inventory_click
+        let conflict = state.common_inventory_click.as_ref().is_some_and(|r| {
+            state
+                .inventory_executor
+                .owns(r.initial.session, r.send.after_sequence, None)
+                && domain::click_changes_hand(r, selected)
+        }) || state.common_inventory_swap.as_ref().is_some_and(|r| {
+            state.inventory_executor.owns(
+                r.record.initial.session,
+                r.record.send.after_sequence,
+                None,
+            ) && domain::swap_changes_hand(&r.record, selected)
+        }) || state.common_inventory_transfer.as_ref().is_some_and(|r| {
+            state
+                .inventory_executor
+                .owns(r.initial.session, r.send.after_sequence, None)
+                && domain::transfer_changes_hand(r, selected)
+        }) || state
+            .common_selected_drop
             .as_ref()
-            .is_some_and(|r| r.unresolved() && domain::click_changes_hand(r, selected))
-            || state.common_inventory_swap.as_ref().is_some_and(|r| {
-                r.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
-                    && domain::swap_changes_hand(&r.record, selected)
-            })
-            || state
-                .common_inventory_transfer
-                .as_ref()
-                .is_some_and(|r| r.unresolved() && domain::transfer_changes_hand(r, selected))
-            || state
-                .common_selected_drop
-                .as_ref()
-                .is_some_and(|r| r.unresolved() && Some(r.main_slot) == hand)
+            .is_some_and(|r| r.unresolved() && Some(r.main_slot) == hand)
             || state
                 .common_hand_swap
                 .as_ref()
@@ -215,10 +219,11 @@ impl Operations {
                 .common_recipe_placement
                 .as_ref()
                 .is_some_and(|r| r.unresolved())
-            || state
-                .common_crafting_take
-                .as_ref()
-                .is_some_and(|r| r.unresolved())
+            || state.common_crafting_take.as_ref().is_some_and(|r| {
+                state
+                    .inventory_executor
+                    .owns(r.initial.session, r.send.after_sequence, None)
+            })
             || state
                 .common_container_close
                 .as_ref()

@@ -1,7 +1,11 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
 #[cfg(test)]
+pub(crate) mod acceptance_tests;
+#[cfg(test)]
 pub(crate) mod armor_tests;
 pub(crate) mod click;
+pub(crate) mod executor;
+pub use executor::{InventorySendId, InventorySendRecord, InventorySendStatus};
 #[cfg(test)]
 mod crafting_swap_tests;
 mod data;

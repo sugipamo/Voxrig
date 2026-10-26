@@ -34,9 +34,8 @@ pub struct InventoryState {
     pub last_transaction: Option<WindowTransaction>,
     /// The `properties` value.
     pub properties: HashMap<(i8, i16), i16>,
-    /// Compatibility click-prediction metadata awaiting packet application.
-    /// Transaction identity, acknowledgement, and deadline ownership belong
-    /// to the connection actor rather than this state snapshot.
+    /// Compatibility field, empty in Bot's received inventory projections.
+    /// Caller predictions are separate diagnostics in Bot::window_click_predictions().
     pub pending_clicks: HashMap<(i8, i16), PendingClick>,
     /// The `merchant_offers` value.
     pub merchant_offers: Option<MerchantOffers>,
@@ -154,7 +153,7 @@ pub struct PendingClick {
     pub slot_before: Option<ItemStack>,
     /// The `cursor_before` value.
     pub cursor_before: Option<ItemStack>,
-    /// Caller-supplied accepted cache effect carried by this pending click.
+    /// Caller-supplied diagnostic prediction; never an accepted cache effect.
     pub prediction: crate::WindowPrediction,
 }
 
@@ -355,6 +354,7 @@ pub(crate) fn parse_set_slot(payload: &[u8]) -> Result<SlotUpdate> {
     })
 }
 
+#[cfg(test)]
 pub(crate) fn apply_slot(state: &mut InventoryState, update: &SlotUpdate) -> Result<()> {
     if update.window_id == -1 && update.slot == -1 {
         state.cursor = update.item.clone();
@@ -414,6 +414,7 @@ pub(crate) fn player_inventory_slot(slot: i16) -> Option<usize> {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn apply_window_items(
     state: &mut InventoryState,
     window_id: i8,
@@ -433,6 +434,7 @@ pub(crate) fn apply_window_items(
     sync_player_inventory_from_window(state, window_id);
 }
 
+#[cfg(test)]
 pub(crate) fn sync_player_inventory_from_window(state: &mut InventoryState, window_id: i8) {
     if window_id == 0 {
         return;
@@ -461,6 +463,7 @@ pub(crate) fn sync_player_inventory_from_window(state: &mut InventoryState, wind
     }
 }
 
+#[cfg(test)]
 fn sync_player_slot_from_window(state: &mut InventoryState, window_id: i8, index: usize) {
     if window_id == 0 {
         return;
@@ -490,6 +493,7 @@ fn sync_player_slot_from_window(state: &mut InventoryState, window_id: i8, index
     player[player_slot] = item;
 }
 
+#[cfg(test)]
 pub(crate) fn predict_normal_click(
     state: &mut InventoryState,
     window_id: i8,
@@ -563,19 +567,6 @@ pub(crate) fn predict_normal_click(
         _ => bail!("normal click button must be 0 or 1"),
     }
     Ok(())
-}
-
-pub(crate) fn rollback_click(state: &mut InventoryState, pending: &PendingClick) {
-    state.cursor = pending.cursor_before.clone();
-    if pending.slot >= 0 {
-        if let Some(slot) = state
-            .windows
-            .get_mut(&pending.window_id)
-            .and_then(|slots| slots.get_mut(pending.slot as usize))
-        {
-            *slot = pending.slot_before.clone();
-        }
-    }
 }
 
 #[cfg(test)]

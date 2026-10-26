@@ -85,6 +85,7 @@ pub(crate) enum Family {
     HandSwap,
     SelectedDrop,
     Click,
+    InventoryResync,
     Transfer,
     Crafting,
     Recipe,

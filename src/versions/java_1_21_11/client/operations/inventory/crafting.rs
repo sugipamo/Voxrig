@@ -30,12 +30,7 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
         match super::super::common_player_in_state(state, record.id.session().connection_id, false)
         {
             Ok(current) => {
-                let table = state
-                    .operations
-                    .inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(current.session));
+                let table = state.operations.inventory.screen(current.session);
                 let registries = state
                     .registries
                     .capture(current.session, current.receive_sequence);
@@ -83,8 +78,12 @@ impl Operations {
     async fn crafting_send_owned(
         &self,
         id: contract::CraftingTakeId,
+        execution: crate::client::inventory::InventorySendId,
         submission: Option<Arc<take::Submission>>,
-    ) -> Result<CraftingTakeRecord> {
+    ) -> Result<(
+        CraftingTakeRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
         let mut state = self.bot.session.state.lock().await;
         let result = async {
             self.ready(&state)?;
@@ -98,12 +97,7 @@ impl Operations {
                 return Err(unavailable("crafting interrupted before I/O"));
             }
             let current = self.common_player_unlocked(&state)?;
-            let table = state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(current.session));
+            let table = state.operations.inventory.screen(current.session);
             let registries = state
                 .registries
                 .capture(current.session, current.receive_sequence);
@@ -130,6 +124,9 @@ impl Operations {
             if let Some(submission) = &submission {
                 submission.retain(state.common_crafting_take.as_ref().expect("retained"));
             }
+            state
+                .inventory_executor
+                .refresh_boundary(execution, current.receive_sequence)?;
             self.bot
                 .session
                 .send_with_attempt(
@@ -140,11 +137,20 @@ impl Operations {
                 .await?;
             let record = state.common_crafting_take.as_mut().expect("retained");
             record.send.dispatched = true;
-            Ok(record.clone())
+            let result = record.clone();
+            self.send_inventory_fence(&mut state, execution).await?;
+            Ok((
+                result,
+                state
+                    .inventory_executor
+                    .record()
+                    .expect("retained original send"),
+            ))
         }
         .await;
         if let Err(e) = &result {
-            if let Some(record) = state.common_crafting_take.as_mut() {
+            state.inventory_executor.invalidate_owned(execution);
+            if let Some(record) = state.common_crafting_take.as_mut().filter(|r| r.id == id) {
                 record.inspection(format!("crafting submission uncertain: {e}"));
                 if let Some(submission) = &submission {
                     if record.id == id {
@@ -166,13 +172,57 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
         destination: CraftingResultDestination,
         submission: Option<Arc<take::Submission>>,
     ) -> Result<CraftingTakeRecord> {
+        self.start_crafting_take(mode, grid, destination, submission, false)
+            .await
+            .map(|(record, _)| record)
+    }
+    async fn crafting_take_record(&self) -> Result<Option<CraftingTakeRecord>> {
+        if let Ok(mut state) = self.bot.session.state.try_lock() {
+            context_received(&mut state);
+        }
+        let mut history = self
+            .bot
+            .crafting_take_history
+            .lock()
+            .expect("crafting history");
+        if self.bot.session.stopped.load(Ordering::Acquire) {
+            if let Some(record) = history.as_mut() {
+                record.inspection("crafting connection closed or uncertain");
+            }
+        }
+        Ok(history.clone())
+    }
+}
+
+impl Operations {
+    pub(super) async fn start_crafting_take(
+        &self,
+        mode: api::GameMode,
+        grid: &contract::ReceivedCrafting,
+        destination: CraftingResultDestination,
+        submission: Option<Arc<take::Submission>>,
+        acceptance: bool,
+    ) -> Result<(
+        CraftingTakeRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
         self.bot
             .session
             .ledger
             .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
+                self.mutable_in_domain(
+                    &state,
+                    true,
+                    false,
+                    None,
+                    if acceptance {
+                        api::domain::Domain::CurrentInventory
+                    } else {
+                        api::domain::Domain::Strict
+                    },
+                )?;
                 if let CraftingSource::Table { screen } = grid.source() {
                     if state
                         .common_container_close
@@ -190,10 +240,7 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
                     return Err(unavailable("native inventory mutation/data unresolved"));
                 }
                 let initial = self.common_player_unlocked(&state)?;
-                let table = inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session));
+                let table = inventory.screen(initial.session);
                 let registries = state
                     .registries
                     .capture(initial.session, initial.receive_sequence);
@@ -212,6 +259,8 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
                     }
                 };
                 let id = record.id;
+                let execution =
+                    self.begin_inventory_execution(&mut state, record.initial.session, false)?;
                 if let Some(submission) = &submission {
                     submission.retain(&record);
                 }
@@ -226,7 +275,9 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
                 let (reply, result) = tokio::sync::oneshot::channel();
                 self.bot.session.spawn_finite_work(work, async move {
                     let _ = reply.send(crate::client::ledger::finite::checked(
-                        bot.operations().crafting_send_owned(id, submission).await,
+                        bot.operations()
+                            .crafting_send_owned(id, execution, submission)
+                            .await,
                     ));
                 });
                 drop(state);
@@ -235,21 +286,5 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
                     .map_err(|_| unavailable("crafting owner result unavailable"))?
             })
             .await
-    }
-    async fn crafting_take_record(&self) -> Result<Option<CraftingTakeRecord>> {
-        if let Ok(mut state) = self.bot.session.state.try_lock() {
-            context_received(&mut state);
-        }
-        let mut history = self
-            .bot
-            .crafting_take_history
-            .lock()
-            .expect("crafting history");
-        if self.bot.session.stopped.load(Ordering::Acquire) {
-            if let Some(record) = history.as_mut() {
-                record.inspection("crafting connection closed or uncertain");
-            }
-        }
-        Ok(history.clone())
     }
 }

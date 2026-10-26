@@ -211,51 +211,103 @@ impl Bot {
     pub(super) async fn body_dig_hand_admission(&self, selected: Option<u8>) -> Result<()> {
         use api::domain;
         let click = super::lock_packet_state(&self.common_inventory_click).await;
-        if click
-            .as_ref()
-            .is_some_and(|r| !r.released && domain::click_changes_hand(&r.record, selected))
-        {
+        if click.as_ref().is_some_and(|r| {
+            self.inventory_executor.try_lock().map_or(true, |e| {
+                e.owns(
+                    r.record.initial.session,
+                    r.record.send.after_sequence,
+                    r.record.send.legacy_action,
+                )
+            }) && domain::click_changes_hand(&r.record, selected)
+        }) {
             return Err(api::inventory::unavailable(
                 "pending click can change the retained dig hand",
             ));
         }
         let mut expected = Vec::new();
-        if let Some(r) = click.as_ref().filter(|r| !r.released) {
+        if let Some(r) = click.as_ref().filter(|r| {
+            self.inventory_executor.try_lock().map_or(true, |e| {
+                e.owns(
+                    r.record.initial.session,
+                    r.record.send.after_sequence,
+                    r.record.send.legacy_action,
+                )
+            })
+        }) {
             if let Some(action) = r.record.send.legacy_action {
                 expected.push((r.record.window_id() as i8, action));
             }
         }
         drop(click);
         let swap = super::lock_packet_state(&self.common_inventory_swap).await;
-        if swap
-            .as_ref()
-            .is_some_and(|r| !r.released && domain::swap_changes_hand(&r.record, selected))
-        {
+        if swap.as_ref().is_some_and(|r| {
+            self.inventory_executor.try_lock().map_or(true, |e| {
+                e.owns(
+                    r.record.initial.session,
+                    r.record.send.after_sequence,
+                    r.record.send.legacy_action,
+                )
+            }) && domain::swap_changes_hand(&r.record, selected)
+        }) {
             return Err(api::inventory::unavailable(
                 "pending swap can change the retained dig hand",
             ));
         }
-        if let Some(r) = swap.as_ref().filter(|r| !r.released) {
+        if let Some(r) = swap.as_ref().filter(|r| {
+            self.inventory_executor.try_lock().map_or(true, |e| {
+                e.owns(
+                    r.record.initial.session,
+                    r.record.send.after_sequence,
+                    r.record.send.legacy_action,
+                )
+            })
+        }) {
             if let Some(action) = r.record.send.legacy_action {
                 expected.push((r.record.window_id() as i8, action));
             }
         }
         drop(swap);
         let transfer = super::lock_packet_state(&self.common_inventory_transfer).await;
-        if transfer
-            .as_ref()
-            .is_some_and(|r| !r.released && domain::transfer_changes_hand(&r.record, selected))
-        {
+        if transfer.as_ref().is_some_and(|r| {
+            self.inventory_executor.try_lock().map_or(true, |e| {
+                e.owns(
+                    r.record.initial.session,
+                    r.record.send.after_sequence,
+                    r.record.send.legacy_action,
+                )
+            }) && domain::transfer_changes_hand(&r.record, selected)
+        }) {
             return Err(api::inventory::unavailable(
                 "pending transfer can change the retained dig hand",
             ));
         }
-        if let Some(r) = transfer.as_ref().filter(|r| !r.released) {
+        if let Some(r) = transfer.as_ref().filter(|r| {
+            self.inventory_executor.try_lock().map_or(true, |e| {
+                e.owns(
+                    r.record.initial.session,
+                    r.record.send.after_sequence,
+                    r.record.send.legacy_action,
+                )
+            })
+        }) {
             if let Some(action) = r.record.send.legacy_action {
                 expected.push((r.record.window_id() as i8, action));
             }
         }
         drop(transfer);
+        if lock_packet_state(&self.inventory_executor)
+            .await
+            .record()
+            .is_some_and(|r| {
+                r.status != api::inventory::InventorySendStatus::Received
+                    && r.legacy_action
+                        .is_some_and(|a| !expected.contains(&(r.window() as i8, a)))
+            })
+        {
+            return Err(api::inventory::unavailable(
+                "native pending inventory hand has no qualified common dependency",
+            ));
+        }
         if self
             .inventory
             .read()
@@ -275,7 +327,15 @@ impl Bot {
             || super::lock_packet_state(&self.common_crafting_take)
                 .await
                 .as_ref()
-                .is_some_and(|r| !r.released)
+                .is_some_and(|r| {
+                    self.inventory_executor.try_lock().map_or(true, |e| {
+                        e.owns(
+                            r.record.initial.session,
+                            r.record.send.after_sequence,
+                            r.record.send.legacy_action,
+                        )
+                    })
+                })
             || super::lock_packet_state(&self.common_container_close)
                 .await
                 .as_ref()

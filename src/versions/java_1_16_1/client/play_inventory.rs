@@ -21,53 +21,32 @@ impl Bot {
             transaction.action,
             transaction.accepted,
         );
-        let (confirmation_observed, response_work) = self
-            .connection
-            .observe_window_confirmation_work(
-                transaction_context.0,
-                transaction_context.1,
-                transaction_context.2,
-            )
-            .await;
-        let response_work = response_work.map(crate::client::ledger::ScopedWork::new);
         let identity = (transaction.window_id, transaction.action);
         let exact = self
             .exact_window_barriers
             .lock()
             .await
             .contains_key(&identity);
-        let mut inventory = self.inventory.write().await;
+        let (confirmation_observed, response_work) = self
+            .connection
+            .observe_window_confirmation_work(
+                transaction_context.0,
+                transaction_context.1,
+                transaction_context.2 || exact,
+            )
+            .await;
+        let response_work = response_work.map(crate::client::ledger::ScopedWork::new);
         if confirmation_observed {
-            let pending = inventory
+            self.inventory
+                .write()
+                .await
                 .pending_clicks
-                .remove(&(transaction.window_id, transaction.action));
-            if let Some(pending) = &pending {
-                if exact && transaction.accepted && pending.mode == ClickMode::Normal {
-                    apply_accepted_normal_click(&mut inventory, pending)?;
-                } else if !exact && !transaction.accepted {
-                    rollback_click(&mut inventory, pending);
-                } else if !exact && pending.mode == ClickMode::Normal {
-                    rollback_click(&mut inventory, pending);
-                    predict_normal_click(
-                        &mut inventory,
-                        pending.window_id,
-                        pending.slot,
-                        pending.button,
-                    )?;
-                    sync_player_inventory_from_window(&mut inventory, pending.window_id);
-                }
-            }
-        }
-        drop(inventory);
-        if confirmation_observed {
-            if !transaction.accepted {
-                self.exact_window_barriers.lock().await.remove(&identity);
-            } else if exact {
+                .remove(&identity);
+            if exact {
                 if let Some(barrier) = self.exact_window_barriers.lock().await.get_mut(&identity) {
                     barrier.confirmation_seen = true;
                 }
-                self.commit_satisfied_window_barriers().await;
-            } else {
+            } else if transaction.accepted {
                 let _ = self
                     .connection
                     .commit_window_barrier(transaction.window_id, transaction.action)
@@ -86,11 +65,19 @@ impl Bot {
                 .dispatch_protocol_work(0x07, &payload, child)
                 .await?;
         }
+        let execution_matches = self.inventory_protocol_response(transaction).await;
         self.common_inventory_reply_received(transaction).await;
-        self.common_click_reply_received(transaction).await;
-        self.common_crafting_reply_received(transaction).await;
-        self.common_transfer_reply_received(transaction).await;
+        if execution_matches {
+            self.common_click_reply_received(transaction).await;
+        }
+        if execution_matches {
+            self.common_crafting_reply_received(transaction).await;
+        }
+        if execution_matches {
+            self.common_transfer_reply_received(transaction).await;
+        }
         self.common_container_return_reply(transaction).await;
+        self.commit_satisfied_window_barriers().await;
         self.emit(Event::WindowTransaction(transaction));
         Ok(())
     }
@@ -103,6 +90,14 @@ impl Bot {
             ));
         }
         let window_id = *p.first().context("missing closed window ID")? as i8;
+        let mut executor = lock_packet_state(&self.inventory_executor).await;
+        if executor
+            .record()
+            .is_some_and(|r| r.window() == i32::from(window_id))
+        {
+            executor.invalidate();
+        }
+        drop(executor);
         if let Some(run) = lock_packet_state(&self.common_inventory_click)
             .await
             .as_mut()
@@ -181,8 +176,16 @@ impl Bot {
             .lock()
             .await
             .window_items(window_id, &slots, packet_sequence)?;
-        apply_window_items(&mut inventory, window_id, slots);
+        let _ = &mut **inventory; // received-domain revision, no duplicate slot writer
         drop(inventory);
+        let (session, source) = self.inventory_execution_scope().await;
+        lock_packet_state(&self.inventory_executor).await.contents(
+            session,
+            source,
+            i32::from(window_id),
+            packet_sequence,
+            false,
+        );
         self.commit_satisfied_window_barriers().await;
         self.emit(Event::InventoryUpdated {
             window_id,
@@ -196,9 +199,17 @@ impl Bot {
         update.packet_sequence = packet_sequence;
         let mut inventory = self.inventory.write().await;
         self.common_receipts.lock().await.slot(&update)?;
-        apply_slot(&mut inventory, &update)?;
+        let _ = &mut **inventory; // received-domain revision; canonical state is above
         let observed = inventory.map_snapshot(|_| update.clone());
         drop(inventory);
+        if update.window_id == -1 && update.slot == -1 {
+            let (session, source) = self.inventory_execution_scope().await;
+            lock_packet_state(&self.inventory_executor).await.cursor(
+                session,
+                source,
+                packet_sequence,
+            );
+        }
         self.emit(Event::InventorySlotObserved(observed));
         self.commit_satisfied_window_barriers().await;
         self.emit(Event::SlotUpdated(update));
@@ -206,6 +217,9 @@ impl Bot {
     }
 
     pub(super) async fn receive_horse_window(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
+        lock_packet_state(&self.inventory_executor)
+            .await
+            .invalidate();
         let mut rest = p;
         let window_id = i8::try_from(*rest.first().context("missing horse window ID")?)
             .context("horse window ID out of range")?;
@@ -224,11 +238,17 @@ impl Bot {
             let mut inventory = self.inventory.write().await;
             inventory.window_player_starts.remove(&window.id);
             inventory.windows.remove(&window.id);
-            inventory.open_window = Some(window.clone());
+            // Opening authority is ScreenReceipts; native view is a projection.
             let mut receipts = self.common_receipts.lock().await;
+            for (i, value) in receipts.inventory.slots.iter_mut().enumerate() {
+                if ![5, 6, 7, 8, 45].contains(&i) {
+                    *value = None;
+                }
+            }
             receipts.inventory.window_id = Some(i32::from(window.id));
             receipts.inventory.cursor = None;
             receipts.player_starts.remove(&window.id);
+            receipts.legacy_open_extra = (window.entity_id, window.declared_slots);
             receipts.container = Some(crate::client::container::ScreenReceipts::open(
                 crate::MinecraftVersion::Java1_16_1,
                 i32::from(window.id),
@@ -243,6 +263,9 @@ impl Bot {
     }
 
     pub(super) async fn receive_open_window(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
+        lock_packet_state(&self.inventory_executor)
+            .await
+            .invalidate();
         let mut rest = p;
         let id = get_varint(&mut rest)?;
         if !(1..=127).contains(&id) {
@@ -259,11 +282,17 @@ impl Bot {
             let mut inventory = self.inventory.write().await;
             inventory.window_player_starts.remove(&window.id);
             inventory.windows.remove(&window.id);
-            inventory.open_window = Some(window.clone());
+            // Opening authority is ScreenReceipts; native view is a projection.
             let mut receipts = self.common_receipts.lock().await;
+            for (i, value) in receipts.inventory.slots.iter_mut().enumerate() {
+                if ![5, 6, 7, 8, 45].contains(&i) {
+                    *value = None;
+                }
+            }
             receipts.inventory.window_id = Some(i32::from(window.id));
             receipts.inventory.cursor = None;
             receipts.player_starts.remove(&window.id);
+            receipts.legacy_open_extra = (window.entity_id, window.declared_slots);
             receipts.container = Some(crate::client::container::ScreenReceipts::open(
                 crate::MinecraftVersion::Java1_16_1,
                 i32::from(window.id),

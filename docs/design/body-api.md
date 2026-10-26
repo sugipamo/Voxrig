@@ -275,3 +275,16 @@ modded stateは公式serverには存在しないため実機では作らず、�
 world変更後の旧入力解放は送らず、partial writeのK1と欠測・未監査K2の拒否は維持する。
 再導出は近傍地形と現在pose／momentumから行い、strict previewだけが最大120tick分の計算を行う。
 Golemkitの運用API、既存strictの引数・結果型・成功／observer証明条件は変更しない。
+
+## 0.3.0 の情報所有権と移行
+
+受信 packet reducer が現在の slots/cursor/opening の唯一の正本となる。player/menu の共有
+slot は canonical player entry から導出し、native cache 予測と strict 診断を現在値へ書き戻さない。
+従来は受信値・予測 cache・共有 slot コピー・共通 released と actor owner が別々に保持して drift した。
+実行権は protocol response と必要な実状態の到着を待つ executor が持ち、strict inspection は診断履歴に残す。
+新受信は現在値を置換し、timeout/world/opening 変更は古い操作の継続権を失効させる。
+再導出は snapshot/transfer/crafting 計画について画面 slot 数に比例し、opening/action 照合は O(1)。
+Golemkit helpers は追加の send/current-state API を使い、同じ一回の送信の strict record を診断に使う。
+ACK だけでも slot 更新だけでも次を送らず、期限後は元の click を再送せず明示 resync と再計画へ進む。
+close の完全送信は SubmittedClose であり、受信 opening/cursor や close echo を生成しない。
+署名・最小例・BREAKING な native 受信タイミング変更は [0.3 migration](../migration-0.3.md) を参照。

@@ -23,12 +23,7 @@ fn publish(state: &mut State) {
 }
 fn capture(state: &State, connection: u64) -> Result<contract::ReceivedCraftingContext> {
     let player = super::super::common_player_in_state(state, connection, false)?;
-    let table = state
-        .operations
-        .inventory
-        .container
-        .as_ref()
-        .map(|s| s.capture(player.session));
+    let table = state.operations.inventory.screen(player.session);
     let registries = state
         .registries
         .capture(player.session, player.receive_sequence);

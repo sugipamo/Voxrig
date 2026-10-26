@@ -54,20 +54,14 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             player_screen: api::container::player_screen_access(
                 current.session,
                 inventory.window_id,
-                inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(current.session).id),
+                inventory.container.as_ref().map(|s| s.id(current.session)),
                 state.common_container_close.as_ref(),
             ),
             screen_revision: inventory.screen_revision,
             player_screen_revision: inventory.player_revision.clone(),
             local_cache: None,
         };
-        let screen = inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session));
+        let screen = inventory.screen(current.session);
         let registries = state
             .registries
             .capture(current.session, current.receive_sequence);
@@ -127,9 +121,42 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
         source: InventorySource,
         slot: u16,
     ) -> Result<InventoryTransferRecord> {
+        self.start_transfer_inventory(mode, source, slot, false)
+            .await
+            .map(|(record, _)| record)
+    }
+    async fn inventory_transfer_record(&self) -> Result<Option<InventoryTransferRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        context_received(&mut state);
+        if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {
+            if let Some(record) = state.common_inventory_transfer.as_mut() {
+                record.inspection("transfer connection closed or uncertain");
+            }
+        }
+        if let Some(record) = state.common_inventory_transfer.as_mut() {
+            if record.ready() {
+                record.stage = InventoryTransferStage::ObservedTransferred;
+            }
+        }
+        state.reconcile_finite();
+        Ok(state.common_inventory_transfer.clone())
+    }
+}
+
+impl Operations {
+    pub(super) async fn start_transfer_inventory(
+        &self,
+        mode: api::GameMode,
+        source: InventorySource,
+        slot: u16,
+        acceptance: bool,
+    ) -> Result<(
+        InventoryTransferRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
         self.bot.session.ledger.try_work()?.run_scoped(async {
         let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
+        self.mutable_in_domain(&state, true, false, None, if acceptance { api::domain::Domain::CurrentInventory } else { api::domain::Domain::Strict })?;
         if let InventorySource::Container { screen } = source {
             if state
                 .common_container_close
@@ -151,10 +178,7 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
             ));
         }
         let initial = self.common_player_unlocked(&state)?;
-        let screen = inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session));
+        let screen = inventory.screen(initial.session);
         let attempt = state
             .common_inventory_transfer
             .as_ref()
@@ -173,6 +197,9 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
                 .screen_revision
                 .map(|v| if v == 0 { 1 } else { 0 });
         }
+        record.send.request_full_resync = true;
+        record.send.sent_screen_revision = record.send.screen_revision.map(|v| if v == 0 { 1 } else { 0 });
+        let execution=self.begin_inventory_execution(&mut state,record.initial.session,false)?;
         let bytes = payload(&record)?;
         let work = state.finite_work.begin(&self.bot.session.ledger, crate::client::ledger::finite::Family::Transfer, record.id.attempt());
         state.common_inventory_transfer = Some(record);
@@ -184,31 +211,18 @@ impl crate::client::adapter::InventoryTransferOps for Operations {
         let record = state.common_inventory_transfer.as_mut().expect("retained");
         match result {
             Ok(()) => {
-                record.send.dispatched = true;
-                Ok(record.clone())
+                        record.send.dispatched = true;
+                        let result=record.clone();
+                        self.send_inventory_fence(&mut state,execution).await?;
+                        Ok((result,state.inventory_executor.record().expect("retained original send")))
             }
             Err(e) => {
                 record.inspection(format!("transfer submission uncertain: {e}"));
+                        state.inventory_executor.invalidate_owned(execution);
                 Err(e)
             }
         }
 
         }).await
-    }
-    async fn inventory_transfer_record(&self) -> Result<Option<InventoryTransferRecord>> {
-        let mut state = self.bot.session.state.lock().await;
-        context_received(&mut state);
-        if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {
-            if let Some(record) = state.common_inventory_transfer.as_mut() {
-                record.inspection("transfer connection closed or uncertain");
-            }
-        }
-        if let Some(record) = state.common_inventory_transfer.as_mut() {
-            if record.ready() {
-                record.stage = InventoryTransferStage::ObservedTransferred;
-            }
-        }
-        state.reconcile_finite();
-        Ok(state.common_inventory_transfer.clone())
     }
 }

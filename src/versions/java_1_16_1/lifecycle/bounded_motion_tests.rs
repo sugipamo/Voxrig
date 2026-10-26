@@ -357,12 +357,13 @@ async fn crafting_take_actor_separates_result_from_ordinary_click_and_sends_once
 }
 
 #[tokio::test]
-async fn processing_resync_marker_is_separate_from_ordinary_counts_and_result_take() {
+async fn resync_marker_is_comparison_only_for_ordinary_and_processing_clicks() {
     let (actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
     let revision=actor.motion_admission_revision().await.unwrap();
     actor.begin_window_click(1,revision,3).await.unwrap();
     let mut marker=swap_comparison();marker.count=127;
-    assert!(actor.bounded_inventory_click(1,0,1,Some(marker.clone())).await.is_err());
+    let mut invalid_count = marker.clone(); invalid_count.count = 126;
+    assert!(actor.bounded_inventory_click(1,0,1,Some(invalid_count)).await.is_err());
     assert!(actor.bounded_processing_click(1,3,1,Some(marker.clone())).await.is_err());
     assert!(actor.bounded_processing_click(1,0,1,Some(swap_comparison())).await.is_err());
     no_packet(&mut peer).await;
@@ -375,7 +376,9 @@ async fn processing_resync_marker_is_separate_from_ordinary_counts_and_result_ta
     actor.begin_window_click(2,revision,0).await.unwrap();
     assert!(actor.bounded_processing_click(2,1,1,Some(marker.clone())).await.is_err());
     no_packet(&mut peer).await;
-    actor.bounded_inventory_click(2,9,0,None).await.unwrap();read_packet(&mut peer,None).await.unwrap();
+    actor.bounded_inventory_click(2,9,0,Some(marker.clone())).await.unwrap();
+    let (packet,payload)=read_packet(&mut peer,None).await.unwrap();
+    assert_eq!(packet,0x09);assert_eq!(payload[payload.len()-2],127);
     actor.finish_inventory_click(2).await.unwrap();
     let revision=actor.motion_admission_revision().await.unwrap();
     actor.begin_crafting_result_take(3,revision,3).await.unwrap();
@@ -384,18 +387,20 @@ async fn processing_resync_marker_is_separate_from_ordinary_counts_and_result_ta
 }
 
 #[tokio::test]
-async fn domain_gates_actor_preserves_receipt_owner_and_stale_identity() {
+async fn actor_reservation_ends_at_full_write_and_stale_context_stays_rejected() {
     use crate::client::domain::Domain;
     let (actor, mut peer) = actor_fixture().await;
     actor.mark_ready().await;
     let context = OperationContext { generation: actor.generation(), source_observation_sequence: 0 };
     let revision = actor.motion_admission_revision().await.unwrap();
     actor.begin_window_click(1, revision, 0).await.unwrap();
-    actor.bounded_inventory_click(1, 9, 0, None).await.unwrap();
-    assert_eq!(read_packet(&mut peer, None).await.unwrap().0, 0x09);
-    // Normal/strict and same-cursor sends retain the native owner refusal.
+    // Actor owns only the pre-write reservation; the packet executor owns response/state debt.
     assert!(actor.dispatch(context, OperationClass::Normal, 0x03, &[1, b'x']).await.is_err());
     assert!(actor.dispatch_domain(context, OperationClass::Normal, 0x2d, &[0;23], Domain::Screen).await.is_err());
+    assert!(actor.finish_inventory_click(2).await.is_err());
+    actor.bounded_inventory_click(1, 9, 0, None).await.unwrap();
+    assert_eq!(read_packet(&mut peer, None).await.unwrap().0, 0x09);
+    actor.admit(context, OperationClass::Normal).await.unwrap();
     for (domain, id, payload) in [
         (Domain::Motion, 0x13, vec![0;33]), (Domain::Chat, 0x03, vec![1,b'x']),
         (Domain::Selection, 0x24, vec![0,1]), (Domain::Dig, 0x1b, vec![0;10]),
@@ -403,9 +408,6 @@ async fn domain_gates_actor_preserves_receipt_owner_and_stale_identity() {
         actor.dispatch_domain(context, OperationClass::Normal, id, &payload, domain).await.unwrap();
         assert_eq!(read_packet(&mut peer,None).await.unwrap(), (id,payload));
     }
-    assert!(actor.admit(context, OperationClass::Normal).await.is_err());
-    assert!(actor.finish_inventory_click(2).await.is_err());
-    actor.finish_inventory_click(1).await.unwrap();
     // Changing domain never changes the generation or observation checks.
     let stale = OperationContext { generation: ConnectionGeneration::allocate(), source_observation_sequence: 0 };
     assert!(actor.dispatch_domain(stale, OperationClass::Normal, 0x03, &[1,b'x'], Domain::Chat).await.is_err());

@@ -412,6 +412,7 @@ pub(crate) struct LegacyReceipts {
     pub recipes: super::crafting::recipes::RecipeReceipts,
     pub recipe_ghost: Option<super::crafting::ghost::GhostReceipts>,
     pub container: Option<super::container::ScreenReceipts>,
+    pub legacy_open_extra: (Option<i32>, Option<i32>),
     pub generation: u64,
     pub pose: Option<ReceivedPose>,
     pub position_source: Option<ValueSource>,
@@ -438,6 +439,15 @@ pub(crate) struct LegacyReceipts {
     pub disconnect_reason: Option<super::ui::UiText>,
 }
 impl LegacyReceipts {
+    pub(crate) fn screen(
+        &self,
+        session: SessionStamp,
+    ) -> Option<super::container::ContainerScreen> {
+        self.container
+            .as_ref()
+            .map(|s| s.project(session, &self.inventory.slots))
+    }
+
     pub fn window_items(
         &mut self,
         window: i8,
@@ -469,10 +479,7 @@ impl LegacyReceipts {
                         self.player_starts.insert(window, first);
                     }
                 }
-                for mapping in &layout.player_slots {
-                    self.inventory.slots[mapping.player_slot] =
-                        screen.slots[mapping.screen_slot].clone();
-                }
+                screen.take_shared(&mut self.inventory.slots);
             }
         }
         Ok(())
@@ -505,7 +512,15 @@ impl LegacyReceipts {
         };
         if let Some(screen) = &mut self.container {
             if update.window_id > 0 && screen.window == i32::from(update.window_id) {
-                screen.slot(slot, Some(value.clone()), None, update.packet_sequence)?;
+                let shared = screen.layout.as_ref().is_some_and(|layout| {
+                    layout.player_slots.iter().any(|m| m.screen_slot == slot)
+                });
+                screen.slot(
+                    slot,
+                    if shared { None } else { Some(value.clone()) },
+                    None,
+                    update.packet_sequence,
+                )?;
                 if let Some(mapping) = screen
                     .layout
                     .as_ref()
@@ -521,12 +536,7 @@ impl LegacyReceipts {
                         .and_then(|layout| layout.player_slots.iter().find(|m| m.player_slot == i))
                         .map(|m| m.screen_slot)
                 }) {
-                    screen.slot(
-                        screen_slot,
-                        Some(value.clone()),
-                        None,
-                        update.packet_sequence,
-                    )?;
+                    screen.slot(screen_slot, None, None, update.packet_sequence)?;
                 }
             }
         }

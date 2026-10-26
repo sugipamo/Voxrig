@@ -22,6 +22,8 @@ deepplanningの公開snapshotは元の`a014cd098d47cf35fcc78524072332a8c96f6d7d`
 取込後はpackage/crateを`voxrig`へ戻し、特定のplannerやBodyに依存しない名称へ整理した。
 かまどと製作のクリック列は`WindowClickSequence`に統一し、利用側が渡すcache予測を
 `WindowPrediction`として明示した。クリック列は最初の送信前に構造を検証する。
+0.3.0 ではこの予測を別の診断履歴に分離し、在庫へ適用しない。
+ACK と受信状態を両方待つ契約と helper の移行は [0.3 移行](migration-0.3.md)を参照する。
 
 1.16.1の追加機能は`versions::java_1_16_1`へ配置し、rootの既存APIを同版へ固定する。
 1.21.11の型・状態ID・保証は独立した版別APIを維持する。

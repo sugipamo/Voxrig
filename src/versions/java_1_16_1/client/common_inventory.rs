@@ -5,7 +5,6 @@ use contract::{InventorySwapId, InventorySwapRecord, InventorySwapStage};
 #[derive(Clone)]
 pub(super) struct NativeInventorySwap {
     pub(super) record: InventorySwapRecord,
-    pub(super) released: bool,
     receipt_deadline: Option<tokio::time::Instant>,
 }
 
@@ -64,12 +63,8 @@ impl Bot {
                     .await
                     .map_err(|e| contract::unavailable(format!("inventory admission: {e:?}")))?;
                 {
-                    let inventory = self.inventory.read().await;
-                    if !inventory.pending_clicks.is_empty()
-                        || inventory.cursor.is_some()
-                        || (matches!(source, contract::InventorySwapSource::PlayerMain)
-                            && inventory.open_window.is_some())
-                    {
+                    let inventory = self.inventory().await;
+                    if !inventory.pending_clicks.is_empty() || inventory.cursor.is_some() {
                         return Err(contract::unavailable(
                             "legacy inventory operation unresolved",
                         ));
@@ -81,13 +76,7 @@ impl Bot {
                     .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
                     .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
                 let initial = self.common_player_unlocked().await?;
-                let screen = self
-                    .common_receipts
-                    .lock()
-                    .await
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session));
+                let screen = self.common_receipts.lock().await.screen(initial.session);
                 let registries = self
                     .common_receipts
                     .lock()
@@ -107,13 +96,14 @@ impl Bot {
                         screen
                     },
                 )?;
+                self.reserve_inventory_execution(record.initial.session)
+                    .await?;
                 let id = record.id;
                 let work =
                     self.begin_finite(crate::client::ledger::finite::Family::Swap, id.attempt());
                 *super::lock_packet_state(&self.common_inventory_swap).await =
                     Some(NativeInventorySwap {
                         record,
-                        released: false,
                         receipt_deadline: None,
                     });
                 let (reply, result) = tokio::sync::oneshot::channel();
@@ -149,13 +139,7 @@ impl Bot {
                 ));
             }
             let current = self.common_player_unlocked().await?;
-            let screen = self
-                .common_receipts
-                .lock()
-                .await
-                .container
-                .as_ref()
-                .map(|s| s.capture(current.session));
+            let screen = self.common_receipts.lock().await.screen(current.session);
             let slots = contract::source_slots(&record, &current, screen.as_ref())?;
             if !contract::same_received_value(
                 slots
@@ -194,6 +178,8 @@ impl Bot {
                 record.send.legacy_comparison = Some(comparison.clone());
                 record.send.after_sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
             }
+            self.begin_inventory_execution(record.initial.session, action, false)
+                .await?;
             self.connection
                 .bounded_inventory_swap(
                     id.attempt(),
@@ -214,6 +200,7 @@ impl Bot {
                     },
                 )
                 .await?;
+            self.inventory_execution_written().await;
             let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
@@ -235,6 +222,16 @@ impl Bot {
         }
         .await;
         if let Err(error) = &result {
+            let boundary = super::lock_packet_state(&self.common_inventory_swap)
+                .await
+                .as_ref()
+                .filter(|r| r.record.id == id)
+                .map(|r| r.record.send.after_sequence);
+            if let Some(after) = boundary {
+                lock_packet_state(&self.inventory_executor)
+                    .await
+                    .cancel_unsent(id.session(), after);
+            }
             self.interrupt_common_inventory_swap(format!(
                 "inventory submission uncertain: {error}"
             ))
@@ -290,18 +287,12 @@ impl Bot {
                 return Ok(());
             }
             let current = self.common_player_unlocked().await?;
-            let screen = self
-                .common_receipts
-                .lock()
-                .await
-                .container
-                .as_ref()
-                .map(|s| s.capture(current.session));
+            let screen = self.common_receipts.lock().await.screen(current.session);
             let native_conflict = if matches!(
                 snapshot.record.source,
                 contract::InventorySwapSource::Container { .. }
             ) {
-                let inventory = self.inventory.read().await;
+                let inventory = self.inventory().await;
                 inventory.cursor.is_some()
                     || inventory
                         .open_window
@@ -339,24 +330,9 @@ impl Bot {
                 contract::destinations_ready(record) && record.legacy_reply.is_some()
             };
             if complete {
-                match self
-                    .connection
-                    .finish_inventory_swap(snapshot.record.id.attempt())
-                    .await
-                {
-                    Ok(()) => {
-                        let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
-                        let run = guard.as_mut().expect("retained");
-                        run.released = true;
-                        run.record.stage = InventorySwapStage::ObservedSwapped;
-                    }
-                    Err(e) => {
-                        self.interrupt_common_inventory_swap(format!(
-                            "inventory completion gate: {e:?}"
-                        ))
-                        .await
-                    }
-                }
+                let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
+                guard.as_mut().expect("retained").record.stage =
+                    InventorySwapStage::ObservedSwapped;
             }
             Ok(())
         })
@@ -571,7 +547,7 @@ mod tests {
                 self.bot.apply_packet(0x16, payload).await.unwrap();
             }
             async fn reply(&mut self, action: Option<i16>) {
-                super::ack(&self.bot, action.unwrap(), false).await;
+                Box::pin(super::ack(&self.bot, action.unwrap(), false)).await;
                 assert_eq!(script::ready(self.packets.recv()).await.unwrap().0, 0x07);
             }
             async fn click_packet(&mut self, record: &api::inventory::InventoryClickRecord) {
@@ -1104,7 +1080,7 @@ mod tests {
         let first =
             api::tests::common_container_close_scenario(&client, api::GameMode::Survival, id).await;
         assert_eq!(packets.recv().await.unwrap(), (0x0a, vec![3]));
-        assert!(bot.open_window_state().await.is_none());
+        assert_eq!(bot.open_window_state().await.unwrap().id, 3);
         // Local closure does not fabricate a received close or erase received screen history.
         assert_eq!(client.screen_state().await.unwrap().screen.unwrap().id, id);
         bot.apply_packet(0x13, vec![4]).await.unwrap();
@@ -1715,6 +1691,7 @@ mod tests {
                     p.extend(record.send.legacy_action.unwrap().to_be_bytes());
                     p.push(0);
                     bot.apply_packet(0x12, p).await.unwrap();
+                    bot.fixture_inventory_protocol_boundary().await;
                     let complete = completing.await;
                     assert!(!complete.legacy_reply.unwrap().accepted);
                 }
@@ -2145,7 +2122,7 @@ mod tests {
                     ));
                     assert_eq!(
                         record.send.legacy_comparison.as_ref(),
-                        Some(&api::SlotKnowledge::Empty)
+                        Some(&bot.inventory_resync_comparison().unwrap())
                     );
                 }
                 for change in &record.changed_slots {
@@ -2173,6 +2150,7 @@ mod tests {
                 ack.extend(record.send.legacy_action.unwrap().to_be_bytes());
                 ack.push(0);
                 bot.apply_packet(0x12, ack).await.unwrap();
+                bot.fixture_inventory_protocol_boundary().await;
                 let complete =
                     api::tests::common_transfer_complete_scenario(&client, record.id).await;
                 assert_eq!(complete.cursor_inspected.unwrap().source, before_cursor);
@@ -2279,6 +2257,7 @@ mod tests {
                 reply.extend(step.send.legacy_action.unwrap().to_be_bytes());
                 reply.push(0);
                 bot.apply_packet(0x12, reply).await.unwrap();
+                bot.fixture_inventory_protocol_boundary().await;
                 assert_eq!(packets.recv().await.unwrap().0, 0x07);
             }
             assert_eq!(
@@ -2397,6 +2376,7 @@ mod tests {
         p.extend(record.send.legacy_action.unwrap().to_be_bytes());
         p.push(0);
         bot.apply_packet(0x12, p).await.unwrap();
+        bot.fixture_inventory_protocol_boundary().await;
     }
     #[tokio::test]
     async fn shulker_slot_refusal_is_shared_by_both_modes_before_owner_or_click() {
@@ -3614,6 +3594,7 @@ mod tests {
         reply.extend(sent.send.legacy_action.unwrap().to_be_bytes());
         reply.push(0);
         bot.apply_packet(0x12, reply).await.unwrap();
+        bot.fixture_inventory_protocol_boundary().await;
         assert_eq!(packets.recv().await.unwrap().0, 0x07);
         let mut full = vec![0, 0, 46];
         for index in 0..46 {
@@ -3781,6 +3762,7 @@ mod tests {
         reply.extend(sent.send.legacy_action.unwrap().to_be_bytes());
         reply.push(0);
         bot.apply_packet(0x12, reply).await.unwrap();
+        bot.fixture_inventory_protocol_boundary().await;
         assert_eq!(packets.recv().await.unwrap().0, 0x07);
         let mut full = vec![0, 0, 46];
         for index in 0..46 {
@@ -3893,6 +3875,7 @@ mod tests {
         payload.extend(action.to_be_bytes());
         payload.push(u8::from(accepted));
         bot.apply_packet(0x12, payload).await.unwrap();
+        bot.fixture_inventory_protocol_boundary().await;
     }
     #[tokio::test]
     async fn refreshed_predecessors_allow_one_swap_but_never_count_as_results_or_heal_conflicts() {
@@ -3916,7 +3899,6 @@ mod tests {
             .unwrap();
             *bot.common_inventory_swap.lock().await = Some(NativeInventorySwap {
                 record: record.clone(),
-                released: false,
                 receipt_deadline: None,
             });
             slot(&bot, 9, &record.source_before.value, false).await;
@@ -4558,6 +4540,7 @@ mod tests {
                 reply.extend(step.send.legacy_action.unwrap().to_be_bytes());
                 reply.push(0);
                 bot.apply_packet(0x12, reply).await.unwrap();
+                bot.fixture_inventory_protocol_boundary().await;
                 assert_eq!(packets.recv().await.unwrap().0, 0x07);
             }
             assert_eq!(
@@ -4699,6 +4682,7 @@ mod tests {
                 reply.extend(record.send.legacy_action.unwrap().to_be_bytes());
                 reply.push(0);
                 bot.apply_packet(0x12, reply).await.unwrap();
+                bot.fixture_inventory_protocol_boundary().await;
                 assert_eq!(packets.recv().await.unwrap().0, 0x07);
                 let complete = client
                     .survival()

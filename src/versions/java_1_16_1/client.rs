@@ -9,6 +9,7 @@ mod common_control;
 mod common_crafting;
 mod common_entity_motion;
 mod common_entity_parts;
+mod inventory_execution;
 mod operational_dig;
 mod packet_names;
 pub(crate) use common_entity_parts::derive_entity_parts;
@@ -41,10 +42,8 @@ use crate::versions::java_1_16_1::{
     },
     inventory::{
         ClickMode, EquipmentSlot, InventoryState, ItemCollected, ItemStack, OpenWindow,
-        PendingClick, SlotUpdate, WindowProperty, WindowTransaction, apply_slot,
-        apply_window_items, parse_merchant_offers, parse_set_slot, parse_window_items,
-        predict_normal_click, read_slot, rollback_click, sync_player_inventory_from_window,
-        write_slot,
+        PendingClick, SlotUpdate, WindowProperty, WindowTransaction, parse_merchant_offers,
+        parse_set_slot, parse_window_items, read_slot, write_slot,
     },
     lifecycle::{
         ConnectionActor, ConnectionGeneration, ConnectionState, GenerationRevocation,
@@ -139,154 +138,6 @@ fn optional_slot_matches(item: Option<&ItemStack>, expected: Option<&SlotExpecta
         (None, None) => true,
         (Some(item), Some(expected)) => slot_matches(item, expected),
         _ => false,
-    }
-}
-
-fn apply_accepted_normal_click(
-    inventory: &mut InventoryState,
-    pending: &PendingClick,
-) -> Result<()> {
-    let current_slot = usize::try_from(pending.slot)
-        .ok()
-        .and_then(|slot| {
-            inventory
-                .windows
-                .get(&pending.window_id)
-                .and_then(|slots| slots.get(slot))
-        })
-        .cloned()
-        .flatten();
-    let current_cursor = inventory.cursor.clone();
-    let mut predicted = inventory.clone();
-    let slot =
-        usize::try_from(pending.slot).map_err(|_| anyhow::anyhow!("invalid pending slot"))?;
-    let slots = predicted
-        .windows
-        .get_mut(&pending.window_id)
-        .context("pending window has no slots")?;
-    let target = slots
-        .get_mut(slot)
-        .context("pending slot is outside window")?;
-    *target = pending.slot_before.clone();
-    predicted.cursor = pending.cursor_before.clone();
-    predict_normal_click(
-        &mut predicted,
-        pending.window_id,
-        pending.slot,
-        pending.button,
-    )?;
-    // Check Caller predictions against the unmodified cache. Ordinary click
-    // prediction can clear a replenished recipe output, destroying the exact
-    // prestate that authorizes its accepted effect.
-    apply_window_prediction(inventory, pending, &predicted)?;
-    let effects = &pending.prediction;
-    let clicked_slot_declared = effects
-        .slots
-        .iter()
-        .any(|effect| effect.slot == i32::from(pending.slot));
-    let prediction_declared = !effects.slots.is_empty()
-        || effects.cursor_before.is_some()
-        || effects.cursor_after.is_some();
-    // A server SetSlot/WindowItems fact always wins. The compatibility click
-    // prediction only fills domains with no Caller-supplied effect; it cannot
-    // overwrite a declared identity effect or an early server update.
-    if !clicked_slot_declared && current_slot == pending.slot_before {
-        inventory.windows.get_mut(&pending.window_id).unwrap()[slot] =
-            predicted.windows[&pending.window_id][slot].clone();
-    }
-    if !prediction_declared && current_cursor == pending.cursor_before {
-        inventory.cursor = predicted.cursor;
-    }
-    sync_player_inventory_from_window(inventory, pending.window_id);
-    Ok(())
-}
-
-fn effect_stack(expectation: &SlotExpectation) -> Result<ItemStack> {
-    let item_id = crate::registry::item_id(&expectation.item_name)
-        .context("accepted cache effect names unknown item")?;
-    if expectation.metadata != 0 || !(1..=64).contains(&expectation.count) {
-        return Err(anyhow::anyhow!("accepted cache effect stack invalid").into());
-    }
-    Ok(ItemStack {
-        item_id,
-        count: i8::try_from(expectation.count).context("accepted cache effect count")?,
-        nbt: None,
-    })
-}
-
-fn effect_slot_matches(item: Option<&ItemStack>, expected: Option<&SlotExpectation>) -> bool {
-    optional_slot_matches(item, expected)
-}
-
-fn apply_window_prediction(
-    inventory: &mut InventoryState,
-    pending: &PendingClick,
-    predicted: &InventoryState,
-) -> Result<()> {
-    let effects = &pending.prediction;
-    for effect in &effects.slots {
-        let slot = usize::try_from(effect.slot).context("accepted cache effect slot")?;
-        let current = inventory
-            .windows
-            .get(&pending.window_id)
-            .and_then(|slots| slots.get(slot))
-            .context("accepted cache effect slot outside window")?
-            .as_ref();
-        if effect_slot_matches(current, effect.before.as_ref()) {
-            let predicted_slot = predicted
-                .windows
-                .get(&pending.window_id)
-                .and_then(|slots| slots.get(slot))
-                .and_then(Option::as_ref);
-            let after = if effect_slot_matches(predicted_slot, effect.after.as_ref()) {
-                predicted_slot.cloned()
-            } else {
-                effect.after.as_ref().map(effect_stack).transpose()?
-            };
-            inventory.windows.get_mut(&pending.window_id).unwrap()[slot] = after;
-        }
-    }
-    if effect_slot_matches(inventory.cursor.as_ref(), effects.cursor_before.as_ref()) {
-        inventory.cursor =
-            if effect_slot_matches(predicted.cursor.as_ref(), effects.cursor_after.as_ref()) {
-                predicted.cursor.clone()
-            } else {
-                effects
-                    .cursor_after
-                    .as_ref()
-                    .map(effect_stack)
-                    .transpose()?
-            };
-    }
-    Ok(())
-}
-
-/// Completes the client cache for an accepted protocol mode-2 hotbar swap.
-///
-/// Vanilla 1.16 servers may acknowledge the number-key click without
-/// echoing either changed player slot. Each domain is therefore repaired only
-/// while its exact prestate is still present; an early SetSlot fact remains
-/// authoritative. The actual cached stacks are moved so NBT is preserved.
-fn apply_accepted_equip_swap(
-    inventory: &mut InventoryState,
-    source_slot: u16,
-    selected_hotbar_slot: u8,
-    source_before: &ItemStack,
-    destination_before: Option<&ItemStack>,
-) {
-    let source_index = usize::from(source_slot);
-    let destination_index = 36 + usize::from(selected_hotbar_slot);
-    let Some(slots) = inventory.windows.get_mut(&0) else {
-        return;
-    };
-    if source_index >= slots.len() || destination_index >= slots.len() {
-        return;
-    }
-    if slots[source_index].as_ref() == Some(source_before) {
-        slots[source_index] = destination_before.cloned();
-    }
-    if slots[destination_index] == destination_before.cloned() {
-        slots[destination_index] = Some(source_before.clone());
     }
 }
 
@@ -1144,6 +995,12 @@ pub struct Bot {
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
     finite_work: Arc<std::sync::Mutex<crate::client::ledger::finite::Retained>>,
     common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
+    inventory_executor: Arc<Mutex<crate::client::inventory::executor::Executor>>,
+    window_predictions: Arc<
+        Mutex<
+            std::collections::VecDeque<(crate::client::inventory::InventorySendId, PendingClick)>,
+        >,
+    >,
     common_inventory_click: Arc<Mutex<Option<common_click::NativeInventoryClick>>>,
     common_crafting_take: Arc<Mutex<Option<common_crafting::NativeCraftingTake>>>,
     common_recipe_placement: Arc<Mutex<Option<common_recipe_placement::NativeRecipePlacement>>>,
@@ -1273,6 +1130,8 @@ impl Bot {
             common_placement: self.common_placement.clone(),
             finite_work: self.finite_work.clone(),
             common_inventory_swap: self.common_inventory_swap.clone(),
+            inventory_executor: self.inventory_executor.clone(),
+            window_predictions: self.window_predictions.clone(),
             common_inventory_click: self.common_inventory_click.clone(),
             common_crafting_take: self.common_crafting_take.clone(),
             common_recipe_placement: self.common_recipe_placement.clone(),
@@ -1494,6 +1353,8 @@ impl Bot {
             common_placement: Arc::new(Mutex::new(None)),
             finite_work: Arc::default(),
             common_inventory_swap: Arc::new(Mutex::new(None)),
+            inventory_executor: Arc::default(),
+            window_predictions: Arc::default(),
             common_inventory_click: Arc::new(Mutex::new(None)),
             common_crafting_take: Arc::new(Mutex::new(None)),
             common_recipe_placement: Arc::new(Mutex::new(None)),
@@ -1877,7 +1738,7 @@ impl Bot {
                 let coherent_state = self.coherent_state_gate.lock().await;
                 match operation {
                     EquipOperation::SelectEmptyHotbar { hotbar_slot } => {
-                        let inventory = self.inventory.read().await;
+                        let inventory = self.inventory().await;
                         if hotbar_slot > 8
                             || !inventory
                                 .player_slots()
@@ -1900,7 +1761,7 @@ impl Bot {
                         hotbar_slot,
                         expected_item,
                     } => {
-                        let inventory = self.inventory.read().await;
+                        let inventory = self.inventory().await;
                         let matches = inventory
                             .player_slots()
                             .get(36 + usize::from(hotbar_slot))
@@ -1926,7 +1787,7 @@ impl Bot {
                         expected_destination,
                         cursor_must_be_empty,
                     } => {
-                        let inventory = self.inventory.read().await;
+                        let inventory = self.inventory().await;
                         let selected_match = inventory.selected_hotbar == selected_hotbar_slot;
                         let cursor_empty = inventory.cursor.is_none();
                         let cursor_ok = !cursor_must_be_empty || cursor_empty;
@@ -1956,7 +1817,7 @@ impl Bot {
                         }
                         drop(inventory);
                         let transaction = match self
-                            .dispatch_acknowledged(
+                            .dispatch_window_ack_unlocked(
                                 context,
                                 AcknowledgedOperation::WindowClick {
                                     window_id: 0,
@@ -1973,19 +1834,16 @@ impl Bot {
                             Ok(transaction) => transaction,
                             Err(error) => return Err(error),
                         };
+                        let action = transaction
+                            .window_action()
+                            .ok_or(DispatchError::InvalidInput)?;
+                        let (session, _) = self.inventory_execution_scope().await;
+                        self.begin_inventory_execution(session, action, false)
+                            .await
+                            .map_err(|_| DispatchError::InvalidInput)?;
+                        self.inventory_execution_written().await;
                         drop(coherent_state);
                         let outcome = transaction.wait().await;
-                        if outcome == DispatchOutcome::Acknowledged {
-                            let _coherent_state = self.coherent_state_gate.lock().await;
-                            let mut inventory = self.inventory.write().await;
-                            apply_accepted_equip_swap(
-                                &mut inventory,
-                                inventory_slot,
-                                selected_hotbar_slot,
-                                &source,
-                                destination.as_ref(),
-                            );
-                        }
                         Ok(outcome)
                     }
                 }
@@ -2039,7 +1897,14 @@ impl Bot {
                 for (index, click) in clicks.iter().enumerate() {
                     let successor = clicks.get(index + 1).cloned();
                     let coherent_state = self.coherent_state_gate.lock().await;
-                    let inventory = self.inventory.read().await;
+                    lock_packet_state(&self.inventory_executor)
+                        .await
+                        .admit()
+                        .map_err(|_| DispatchError::InvalidInput)?;
+                    self.require_received_click_preconditions(window_id, click.slot)
+                        .await
+                        .map_err(|_| DispatchError::InvalidInput)?;
+                    let inventory = self.inventory().await;
                     if (window_id != 0
                         && inventory.open_window.as_ref().map(|window| window.id)
                             != Some(window_id))
@@ -2077,14 +1942,18 @@ impl Bot {
                     let cursor_before = inventory.cursor.clone();
                     drop(inventory);
                     let transaction = match self
-                        .dispatch_acknowledged(
+                        .dispatch_window_ack_unlocked(
                             context,
                             AcknowledgedOperation::WindowClick {
                                 window_id,
                                 slot: click.slot,
                                 button: click.button,
                                 mode: click.mode,
-                                clicked,
+                                clicked: super::client::common_click::legacy_comparison_stack(
+                                    &self
+                                        .inventory_resync_comparison()
+                                        .map_err(|_| DispatchError::InvalidInput)?,
+                                ),
                             },
                         )
                         .await
@@ -2096,19 +1965,22 @@ impl Bot {
                     let action = transaction
                         .window_action()
                         .ok_or(DispatchError::InvalidInput)?;
-                    self.inventory.write().await.pending_clicks.insert(
-                        (window_id, action),
-                        PendingClick {
-                            window_id,
-                            action,
-                            slot: click.slot,
-                            button: click.button,
-                            mode: click.mode,
-                            slot_before,
-                            cursor_before,
-                            prediction: click.prediction.clone(),
-                        },
-                    );
+                    let (session, _) = self.inventory_execution_scope().await;
+                    self.begin_inventory_execution(session, action, false)
+                        .await
+                        .map_err(|_| DispatchError::InvalidInput)?;
+                    self.inventory_execution_written().await;
+                    self.retain_window_prediction(PendingClick {
+                        window_id,
+                        action,
+                        slot: click.slot,
+                        button: click.button,
+                        mode: click.mode,
+                        slot_before,
+                        cursor_before,
+                        prediction: click.prediction.clone(),
+                    })
+                    .await;
                     self.exact_window_barriers.lock().await.insert(
                         (window_id, action),
                         ExactWindowBarrier {
@@ -2151,24 +2023,8 @@ impl Bot {
                         }
                     }
                 }
-                if close_window_after {
-                    let outcome = match self
-                        .connection
-                        .dispatch_operation(
-                            context,
-                            OperationClass::Cleanup,
-                            0x0a,
-                            &[window_id as u8],
-                        )
-                        .await
-                    {
-                        Ok(outcome) => outcome,
-                        Err(_) => return Ok(DispatchOutcome::DeliveryUnknown),
-                    };
-                    if outcome != DispatchOutcome::Dispatched {
-                        return Ok(DispatchOutcome::DeliveryUnknown);
-                    }
-                    self.clear_local_window(window_id).await;
+                if close_window_after && self.close_window().await.is_err() {
+                    return Ok(DispatchOutcome::DeliveryUnknown);
                 }
                 Ok(DispatchOutcome::Acknowledged)
             })
@@ -2183,12 +2039,18 @@ impl Bot {
     }
 
     async fn commit_satisfied_window_barriers(&self) {
-        let inventory = self.inventory.read().await;
+        let inventory = self.inventory().await;
+        let execution = lock_packet_state(&self.inventory_executor).await.record();
         let mut barriers = self.exact_window_barriers.lock().await;
         let ready = barriers
             .iter()
             .filter_map(|(&(window_id, action), barrier)| {
                 (barrier.confirmation_seen
+                    && execution.as_ref().is_some_and(|r| {
+                        r.legacy_action == Some(action)
+                            && r.window() == i32::from(window_id)
+                            && r.status == crate::client::inventory::InventorySendStatus::Received
+                    })
                     && barrier.successor.as_ref().is_none_or(|successor| {
                         click_precondition_matches(&inventory, window_id, successor)
                     }))
@@ -2274,14 +2136,78 @@ impl Bot {
         operation: AcknowledgedOperation,
         diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
     ) -> std::result::Result<ProtocolTransaction, DispatchError> {
-        self.connection
+        if matches!(&operation, AcknowledgedOperation::WindowClick { .. }) {
+            let _gate = self.coherent_state_gate.lock().await;
+            self.dispatch_window_ack_work_unlocked(
+                context,
+                operation,
+                diagnostic_correlation,
+                false,
+            )
+            .await
+        } else {
+            self.connection
+                .dispatch_acknowledged_with_diagnostic(
+                    context,
+                    OperationClass::Normal,
+                    operation,
+                    diagnostic_correlation,
+                )
+                .await
+        }
+    }
+
+    async fn dispatch_window_ack_unlocked(
+        &self,
+        context: OperationContext,
+        operation: AcknowledgedOperation,
+    ) -> std::result::Result<ProtocolTransaction, DispatchError> {
+        self.dispatch_window_ack_work_unlocked(context, operation, None, false)
+            .await
+    }
+    async fn dispatch_window_ack_work_unlocked(
+        &self,
+        context: OperationContext,
+        operation: AcknowledgedOperation,
+        diagnostic: Option<crate::DiagnosticCorrelationId>,
+        resync: bool,
+    ) -> std::result::Result<ProtocolTransaction, DispatchError> {
+        let (session, source) = self.inventory_execution_scope().await;
+        let window = match source {
+            crate::client::inventory::InventorySource::Player => 0,
+            crate::client::inventory::InventorySource::Container { screen } => screen.window_id(),
+        };
+        if !matches!(&operation,AcknowledgedOperation::WindowClick{window_id,..} if i32::from(*window_id)==window)
+        {
+            return Err(DispatchError::InvalidInput);
+        }
+        if !resync {
+            lock_packet_state(&self.inventory_executor)
+                .await
+                .admit()
+                .map_err(|_| {
+                    DispatchError::Admission(OperationAdmissionError::TransactionInProgress)
+                })?;
+        }
+        let transaction = self
+            .connection
             .dispatch_acknowledged_with_diagnostic(
                 context,
                 OperationClass::Normal,
                 operation,
-                diagnostic_correlation,
+                diagnostic,
             )
-            .await
+            .await?;
+        if transaction.was_dispatched() {
+            let action = transaction
+                .window_action()
+                .ok_or(DispatchError::InvalidInput)?;
+            self.begin_inventory_execution(session, action, resync)
+                .await
+                .map_err(|_| DispatchError::DeliveryUnknown)?;
+            self.inventory_execution_written().await;
+        }
+        Ok(transaction)
     }
 
     /// Dispatches one finite cleanup primitive through the disconnect barrier.
@@ -2322,6 +2248,26 @@ impl Bot {
                         .map_err(DispatchError::Admission)?;
                     return Ok(CleanupDispatchOutcome::AppliedLocally);
                 }
+                if let CleanupOperation::CloseWindow { window_id } = operation {
+                    if self.connection_state() == ConnectionState::Ready {
+                        self.connection
+                            .admit(context, OperationClass::Cleanup)
+                            .await
+                            .map_err(DispatchError::Admission)?;
+                        if self.open_window_state().await.as_ref().map(|w| w.id) != Some(window_id)
+                        {
+                            return Err(DispatchError::InvalidInput);
+                        }
+                        self.close_window().await.map_err(|_| {
+                            if self.connection_state() == ConnectionState::Ready {
+                                DispatchError::InvalidInput
+                            } else {
+                                DispatchError::DeliveryUnknown
+                            }
+                        })?;
+                        return Ok(CleanupDispatchOutcome::Dispatched);
+                    }
+                }
                 let Some((packet_id, payload)) = operation
                     .encode()
                     .map_err(|_| DispatchError::InvalidInput)?
@@ -2361,11 +2307,8 @@ impl Bot {
                         DispatchOutcome::Dispatched | DispatchOutcome::Acknowledged
                     )
                 {
-                    // The close packet is a finite cleanup operation.  Keep the
-                    // predicted cache aligned with the already-written packet so the
-                    // The caller can observe the window as absent and schedule its bounded
-                    // reopen interval.  This is local cache state, not proof that the
-                    // server applied the close; an uncertain write remains unknown.
+                    // Terminal cleanup retains received history. Ready-session closes
+                    // above use the same opening-bound close owner as the common API.
                     if let CleanupOperation::CloseWindow { window_id } = operation {
                         self.clear_local_window(window_id).await;
                     }
@@ -2391,39 +2334,14 @@ impl Bot {
         let _coherent_state = self.coherent_state_gate.lock().await;
         self.clear_local_window_unlocked(window_id).await;
     }
-    async fn clear_local_window_unlocked(&self, window_id: i8) {
-        let mut inventory = self.inventory.write().await;
-        if inventory
-            .open_window
-            .as_ref()
-            .is_none_or(|window| window.id != window_id)
-        {
-            return;
-        }
-        inventory.open_window = None;
-        {
-            let mut receipts = self.common_receipts.lock().await;
-            let session = crate::client::SessionStamp {
-                version: crate::MinecraftVersion::Java1_16_1,
-                connection_id: self.connection_id(),
-                world_generation: receipts.generation,
-            };
-            receipts.snapshot.local_close(session);
-        }
-        inventory.last_transaction = None;
-        inventory.merchant_offers = None;
-        inventory.windows.remove(&window_id);
-        inventory.properties.retain(|(id, _), _| *id != window_id);
-        inventory
-            .pending_clicks
-            .retain(|(id, _), _| *id != window_id);
-        let mut furnace_window_position = self.furnace_window_position.lock().await;
-        if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
-            *furnace_window_position = None;
-        }
-        drop(furnace_window_position);
-        drop(inventory);
-        self.emit(Event::WindowClosed { window_id });
+    async fn clear_local_window_unlocked(&self, _window_id: i8) {
+        let mut receipts = self.common_receipts.lock().await;
+        let session = crate::client::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: receipts.generation,
+        };
+        receipts.snapshot.local_close(session);
     }
     /// Waits without an internal timeout for a confirmed or unknown terminal state.
     /// The outer PlaySupervisor owns the logout deadline.
@@ -2965,7 +2883,21 @@ impl Bot {
     }
     /// Performs the `inventory_snapshot` operation.
     pub async fn inventory_snapshot(&self) -> Snapshot<InventoryState> {
-        self.inventory.read().await.snapshot()
+        let metadata = self.inventory.read().await;
+        let receipts = self.common_receipts.lock().await;
+        metadata.map_snapshot(|state| Self::project_inventory(state, &receipts))
+    }
+    /// Retained caller predictions, paired with their original send identity.
+    /// These values never update inventory or authorize a replay.
+    pub async fn window_click_predictions(
+        &self,
+    ) -> Vec<(crate::client::inventory::InventorySendId, PendingClick)> {
+        self.window_predictions
+            .lock()
+            .await
+            .iter()
+            .cloned()
+            .collect()
     }
     /// Performs the `open_window_state` operation.
     pub async fn open_window_state(&self) -> Option<OpenWindow> {
@@ -2973,10 +2905,13 @@ impl Bot {
     }
     /// Performs the `open_window_snapshot` operation.
     pub async fn open_window_snapshot(&self) -> Snapshot<Option<OpenWindow>> {
-        self.inventory
-            .read()
-            .await
-            .map_snapshot(|inventory| inventory.open_window.clone())
+        let snapshot = self.inventory_snapshot().await;
+        Snapshot {
+            revision: snapshot.revision,
+            updated_at: snapshot.updated_at,
+            captured_at: snapshot.captured_at,
+            value: snapshot.value.open_window,
+        }
     }
     /// Performs the `merchant_offers` operation.
     pub async fn merchant_offers(&self) -> Option<crate::versions::java_1_16_1::MerchantOffers> {
@@ -3923,7 +3858,7 @@ impl Bot {
                         {
                             bail!("player slots must be distinct values in 0..=45");
                         }
-                        let inventory = self.inventory.read().await;
+                        let inventory = self.inventory().await;
                         if inventory.cursor.is_some() {
                             bail!("inventory cursor must be empty before moving an item");
                         }
@@ -4427,7 +4362,7 @@ impl Bot {
             })
             .await
     }
-    /// Applies a predicted click locally, dispatches it, and returns its action ID.
+    /// Dispatches one click using received values and returns its action ID.
     ///
     /// This does not wait for server acceptance. Use
     /// [`Bot::click_slot_and_wait`] for an acknowledged transaction.
@@ -4459,15 +4394,9 @@ impl Bot {
             .await
     }
 
-    async fn rollback_pending_click(&self, window_id: i8, action: i16) {
-        let _coherent_state = self.coherent_state_gate.lock().await;
-        let mut inventory = self.inventory.write().await;
-        if let Some(pending) = inventory.pending_clicks.remove(&(window_id, action)) {
-            rollback_click(&mut inventory, &pending);
-            sync_player_inventory_from_window(&mut inventory, window_id);
-        }
+    async fn rollback_pending_click(&self, _window_id: i8, _action: i16) {
+        // Delivery uncertainty never restores a predecessor. Diagnostic history is retained.
     }
-
     async fn click_slot_transaction(
         &self,
         window_id: i8,
@@ -4481,8 +4410,11 @@ impl Bot {
             .run_result(async {
                 let _click_guard = self.click_lock.lock().await;
                 let _coherent_state = self.coherent_state_gate.lock().await;
-                let (clicked, slot_before, cursor_before) = {
-                    let mut inventory = self.inventory.write().await;
+                lock_packet_state(&self.inventory_executor).await.admit()?;
+                self.require_received_click_preconditions(window_id, slot)
+                    .await?;
+                let (_clicked, slot_before, cursor_before) = {
+                    let inventory = self.inventory().await;
                     if window_id != 0
                         && inventory.open_window.as_ref().map(|window| window.id) != Some(window_id)
                     {
@@ -4507,42 +4439,25 @@ impl Bot {
                     };
                     let slot_before = clicked.clone();
                     let cursor_before = inventory.cursor.clone();
-                    if mode == ClickMode::Normal {
-                        predict_normal_click(&mut inventory, window_id, slot, button)?;
-                        sync_player_inventory_from_window(&mut inventory, window_id);
-                    }
                     (clicked, slot_before, cursor_before)
                 };
                 let transaction = match self
-                    .dispatch_acknowledged(
+                    .dispatch_window_ack_unlocked(
                         self.operation_context(0),
                         AcknowledgedOperation::WindowClick {
                             window_id,
                             slot,
                             button,
                             mode,
-                            clicked,
+                            clicked: common_click::legacy_comparison_stack(
+                                &self.inventory_resync_comparison()?,
+                            ),
                         },
                     )
                     .await
                 {
                     Ok(transaction) => transaction,
                     Err(error) => {
-                        let mut inventory = self.inventory.write().await;
-                        if mode == ClickMode::Normal {
-                            let pending = PendingClick {
-                                window_id,
-                                action: 0,
-                                slot,
-                                button,
-                                mode,
-                                slot_before,
-                                cursor_before,
-                                prediction: Default::default(),
-                            };
-                            rollback_click(&mut inventory, &pending);
-                            sync_player_inventory_from_window(&mut inventory, window_id);
-                        }
                         let message = anyhow::anyhow!(error.to_string());
                         return Err(crate::Error::new(
                             if matches!(error, DispatchError::DeliveryUnknown) {
@@ -4555,21 +4470,6 @@ impl Bot {
                     }
                 };
                 if !transaction.was_dispatched() {
-                    let mut inventory = self.inventory.write().await;
-                    if mode == ClickMode::Normal {
-                        let pending = PendingClick {
-                            window_id,
-                            action: 0,
-                            slot,
-                            button,
-                            mode,
-                            slot_before,
-                            cursor_before,
-                            prediction: Default::default(),
-                        };
-                        rollback_click(&mut inventory, &pending);
-                        sync_player_inventory_from_window(&mut inventory, window_id);
-                    }
                     return Err(crate::Error::new(
                         crate::ErrorKind::Connection,
                         anyhow::anyhow!("window click delivery is unknown"),
@@ -4578,21 +4478,29 @@ impl Bot {
                 let action = transaction
                     .window_action()
                     .context("window click transaction did not expose a local action")?;
-                let mut inventory = self.inventory.write().await;
-                inventory.pending_clicks.insert(
+                let (session, _) = self.inventory_execution_scope().await;
+                self.begin_inventory_execution(session, action, false)
+                    .await?;
+                self.inventory_execution_written().await;
+                self.exact_window_barriers.lock().await.insert(
                     (window_id, action),
-                    PendingClick {
-                        window_id,
-                        action,
-                        slot,
-                        button,
-                        mode,
-                        slot_before,
-                        cursor_before,
-                        prediction: Default::default(),
+                    ExactWindowBarrier {
+                        _work: transaction.barrier_work(),
+                        successor: None,
+                        confirmation_seen: false,
                     },
                 );
-                drop(inventory);
+                self.retain_window_prediction(PendingClick {
+                    window_id,
+                    action,
+                    slot,
+                    button,
+                    mode,
+                    slot_before,
+                    cursor_before,
+                    prediction: Default::default(),
+                })
+                .await;
                 Ok((action, transaction))
             })
             .await
@@ -4734,6 +4642,10 @@ impl Bot {
     }
     /// Performs the `take_crafting_result` operation.
     pub async fn take_crafting_result(&self, window_id: i8, grid_slots: usize) -> Result<()> {
+        check_inventory(
+            matches!(grid_slots, 4 | 9),
+            "crafting grid must contain 4 or 9 inputs",
+        )?;
         let admission = self.connection.ledger().try_work()?;
         admission.run_scoped(async {
             self.connection
@@ -4755,24 +4667,6 @@ impl Bot {
                     self.click_slot_and_wait(window_id, 0, 0, ClickMode::Normal)
                         .await
                         .context("collect crafting result")?;
-                    {
-                        let _coherent_state = self.coherent_state_gate.lock().await;
-                        // Accepted crafting-result clicks consume one item from every occupied
-                        // recipe slot client-side; vanilla does not necessarily echo these slots.
-                        let mut inventory = self.inventory.write().await;
-                        if let Some(slots) = inventory.windows.get_mut(&window_id) {
-                            for slot in slots.iter_mut().take(1 + grid_slots).skip(1).flatten() {
-                                slot.count -= 1;
-                            }
-                            for item in slots.iter_mut().take(1 + grid_slots).skip(1) {
-                                if item.as_ref().is_some_and(|item| item.count <= 0) {
-                                    *item = None;
-                                }
-                            }
-                            slots[0] = None;
-                        }
-                        sync_player_inventory_from_window(&mut inventory, window_id);
-                    }
                     self.store_cursor(window_id)
                         .await
                         .context("store crafting result")?;
@@ -4951,46 +4845,25 @@ impl Bot {
             })
             .await
     }
-    /// Dispatches close-window and immediately clears the predicted local window.
+    /// Dispatches a received-basis close and revokes the old opening’s operation rights.
     pub async fn close_window(&self) -> Result<()> {
-        let admission = self.connection.ledger().try_work()?;
-        admission
-            .run_scoped(async {
-                self.connection
-                    .ledger()
-                    .try_work()?
-                    .run_result(async {
-                        let _coherent_state = self.coherent_state_gate.lock().await;
-                        let window_id = self
-                            .inventory
-                            .read()
-                            .await
-                            .open_window
-                            .as_ref()
-                            .map(|window| window.id)
-                            .context("no window is open")?;
-                        self.send(0x0a, &[window_id as u8]).await?;
-                        let mut inventory = self.inventory.write().await;
-                        inventory.open_window = None;
-                        inventory.last_transaction = None;
-                        inventory.merchant_offers = None;
-                        inventory.windows.remove(&window_id);
-                        inventory.properties.retain(|(id, _), _| *id != window_id);
-                        inventory
-                            .pending_clicks
-                            .retain(|(id, _), _| *id != window_id);
-                        let mut furnace_window_position = self.furnace_window_position.lock().await;
-                        if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
-                            *furnace_window_position = None;
-                        }
-                        drop(furnace_window_position);
-                        drop(inventory);
-                        self.emit(Event::WindowClosed { window_id });
-                        Ok(())
-                    })
-                    .await
-            })
+        use crate::client::adapter::ContainerOps;
+        let player = self.common_player_unlocked().await?;
+        let screen = self
+            .common_receipts
+            .lock()
             .await
+            .screen(player.session)
+            .ok_or_else(|| crate::client::inventory::unavailable("no received opening"))?;
+        ContainerOps::close_container(
+            self,
+            player.game_mode.ok_or_else(|| {
+                crate::client::inventory::unavailable("received mode unavailable")
+            })?,
+            screen.id,
+        )
+        .await?;
+        Ok(())
     }
     /// Selects one server-advertised merchant offer without choosing it automatically.
     pub async fn select_trade(&self, index: usize) -> Result<()> {
@@ -6245,7 +6118,8 @@ impl Bot {
         let survival = self.survival.read().await.clone();
         let inventory_guard = self.inventory.read().await;
         let inventory_revision = inventory_guard.revision();
-        let inventory = inventory_guard.clone();
+        let inventory =
+            Self::project_inventory(&inventory_guard, &*self.common_receipts.lock().await);
         drop(inventory_guard);
         let open_window = inventory.open_window.clone();
         let furnace_window_position = *self.furnace_window_position.lock().await;
@@ -7418,177 +7292,7 @@ impl crate::client::adapter::UiOps for Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        BlockCollision, CoherentWorldTime, GeometryBlock, GeometryQuery, SlotPrediction,
-        WindowPrediction,
-    };
-
-    fn repeated_pickup_fixture(window_id: i8) -> (InventoryState, PendingClick) {
-        let expected = |name: &str, count| SlotExpectation {
-            item_name: name.to_owned(),
-            count,
-            metadata: 0,
-        };
-        let stack = |name, count| ItemStack {
-            item_id: crate::registry::item_id(name).unwrap(),
-            count,
-            nbt: None,
-        };
-        let output = expected("stick", 4);
-        let mut inventory = InventoryState::default();
-        let mut slots = vec![None; 46];
-        slots[0] = Some(stack("stick", 4));
-        slots[1] = Some(stack("oak_planks", 2));
-        slots[3] = Some(stack("oak_planks", 2));
-        inventory.windows.insert(window_id, slots);
-        let pending = PendingClick {
-            window_id,
-            action: 1,
-            slot: 0,
-            button: 0,
-            mode: ClickMode::Normal,
-            slot_before: Some(stack("stick", 4)),
-            cursor_before: None,
-            prediction: WindowPrediction {
-                slots: vec![
-                    SlotPrediction {
-                        slot: 0,
-                        before: Some(output.clone()),
-                        after: Some(output.clone()),
-                    },
-                    SlotPrediction {
-                        slot: 1,
-                        before: Some(expected("oak_planks", 2)),
-                        after: Some(expected("oak_planks", 1)),
-                    },
-                    SlotPrediction {
-                        slot: 3,
-                        before: Some(expected("oak_planks", 2)),
-                        after: Some(expected("oak_planks", 1)),
-                    },
-                ],
-                cursor_before: None,
-                cursor_after: Some(output),
-            },
-        };
-        (inventory, pending)
-    }
-
-    fn assert_repeated_pickup_can_continue(window_id: i8) {
-        let (mut inventory, pending) = repeated_pickup_fixture(window_id);
-        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
-        assert_eq!(inventory.windows[&window_id][0], pending.slot_before);
-        assert_eq!(inventory.cursor, pending.slot_before);
-        for slot in [1, 3] {
-            assert_eq!(
-                inventory.windows[&window_id][slot].as_ref().unwrap().count,
-                1
-            );
-        }
-        let output = pending.prediction.cursor_after.clone();
-        let deposit = PendingClick {
-            window_id,
-            action: 2,
-            slot: 9,
-            button: 0,
-            mode: ClickMode::Normal,
-            slot_before: None,
-            cursor_before: inventory.cursor.clone(),
-            prediction: WindowPrediction {
-                slots: vec![SlotPrediction {
-                    slot: 9,
-                    before: None,
-                    after: output.clone(),
-                }],
-                cursor_before: output.clone(),
-                cursor_after: None,
-            },
-        };
-        apply_accepted_normal_click(&mut inventory, &deposit).unwrap();
-        let next = WindowClick {
-            slot: 0,
-            button: 0,
-            mode: ClickMode::Normal,
-            expected_item: output,
-            expected_cursor: None,
-            prediction: Default::default(),
-        };
-        assert!(
-            click_precondition_matches(&inventory, window_id, &next),
-            "confirmed deposit must release the next output pickup barrier"
-        );
-    }
-
-    #[test]
-    fn confirmed_inventory_output_replenishes_for_next_pickup() {
-        assert_repeated_pickup_can_continue(0);
-    }
-
-    #[test]
-    fn confirmed_table_output_replenishes_for_next_pickup() {
-        assert_repeated_pickup_can_continue(1);
-    }
-
-    #[test]
-    fn confirmed_repeating_pickup_preserves_early_empty_server_output() {
-        let (mut inventory, pending) = repeated_pickup_fixture(0);
-        inventory.windows.get_mut(&0).unwrap()[0] = None;
-        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
-        assert!(inventory.windows[&0][0].is_none());
-        assert_eq!(inventory.cursor, pending.slot_before);
-    }
-
-    #[test]
-    fn confirmed_repeating_pickup_preserves_early_server_cursor() {
-        let (mut inventory, pending) = repeated_pickup_fixture(0);
-        let server_cursor = ItemStack {
-            item_id: crate::registry::item_id("oak_planks").unwrap(),
-            count: 1,
-            nbt: None,
-        };
-        inventory.cursor = Some(server_cursor.clone());
-        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
-        assert_eq!(inventory.cursor, Some(server_cursor));
-    }
-
-    #[test]
-    fn confirmed_body_effect_retains_matching_predicted_stack_nbt() {
-        let mut inventory = InventoryState::default();
-        let source = ItemStack {
-            item_id: crate::registry::item_id("oak_log").unwrap(),
-            count: 3,
-            nbt: Some(vec![10, 0, 0, 0]),
-        };
-        let expected = SlotExpectation {
-            item_name: "oak_log".to_owned(),
-            count: 3,
-            metadata: 0,
-        };
-        let mut slots = vec![None; 46];
-        slots[9] = Some(source.clone());
-        inventory.windows.insert(0, slots);
-        let pending = PendingClick {
-            window_id: 0,
-            action: 1,
-            slot: 9,
-            button: 0,
-            mode: ClickMode::Normal,
-            slot_before: Some(source.clone()),
-            cursor_before: None,
-            prediction: WindowPrediction {
-                slots: vec![SlotPrediction {
-                    slot: 9,
-                    before: Some(expected.clone()),
-                    after: None,
-                }],
-                cursor_before: None,
-                cursor_after: Some(expected),
-            },
-        };
-        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
-        assert!(inventory.windows[&0][9].is_none());
-        assert_eq!(inventory.cursor, Some(source));
-    }
+    use crate::{BlockCollision, CoherentWorldTime, GeometryBlock, GeometryQuery};
 
     #[test]
     fn disconnect_accepts_only_actor_applied_control_cleanup() {
@@ -7601,88 +7305,6 @@ mod tests {
         ] {
             assert!(require_disconnect_control_cleanup(non_local).is_err());
         }
-    }
-
-    #[test]
-    fn accepted_normal_click_preserves_early_server_slot_fact_and_applies_cursor_effect() {
-        let output = ItemStack {
-            item_id: 15,
-            count: 4,
-            nbt: None,
-        };
-        let mut inventory = InventoryState::default();
-        inventory.windows.insert(0, vec![None]);
-        let pending = PendingClick {
-            window_id: 0,
-            action: 3,
-            slot: 0,
-            button: 0,
-            mode: ClickMode::Normal,
-            slot_before: Some(output.clone()),
-            cursor_before: None,
-            prediction: WindowPrediction {
-                slots: vec![SlotPrediction {
-                    slot: 0,
-                    before: Some(SlotExpectation {
-                        item_name: "oak_log".to_owned(),
-                        count: 1,
-                        metadata: 0,
-                    }),
-                    after: None,
-                }],
-                cursor_before: None,
-                cursor_after: Some(SlotExpectation {
-                    item_name: "oak_planks".to_owned(),
-                    count: 4,
-                    metadata: 0,
-                }),
-            },
-        };
-        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
-        assert!(inventory.windows[&0][0].is_none());
-        assert_eq!(inventory.cursor, Some(output));
-    }
-
-    #[test]
-    fn accepted_equip_swap_repairs_omitted_player_slot_facts_and_preserves_nbt() {
-        let source = ItemStack {
-            item_id: crate::registry::item_id("crafting_table").unwrap(),
-            count: 1,
-            nbt: Some(vec![10, 1, 2]),
-        };
-        let destination = ItemStack {
-            item_id: crate::registry::item_id("oak_log").unwrap(),
-            count: 2,
-            nbt: None,
-        };
-        let mut inventory = InventoryState {
-            windows: [(0, {
-                let mut slots = vec![None; 46];
-                slots[9] = Some(source.clone());
-                slots[36] = Some(destination.clone());
-                slots
-            })]
-            .into_iter()
-            .collect(),
-            ..InventoryState::default()
-        };
-        apply_accepted_equip_swap(&mut inventory, 9, 0, &source, Some(&destination));
-        assert_eq!(inventory.windows[&0][9], Some(destination.clone()));
-        assert_eq!(inventory.windows[&0][36], Some(source.clone()));
-
-        // An early server fact wins per domain; the missing source update can
-        // still be repaired without overwriting the already-factual target.
-        inventory.windows.get_mut(&0).unwrap()[36] = Some(ItemStack {
-            item_id: crate::registry::item_id("stick").unwrap(),
-            count: 1,
-            nbt: None,
-        });
-        apply_accepted_equip_swap(&mut inventory, 9, 0, &source, Some(&destination));
-        assert_eq!(inventory.windows[&0][9], Some(destination));
-        assert_eq!(
-            inventory.windows[&0][36].as_ref().unwrap().name(),
-            Some("stick")
-        );
     }
 
     #[test]
@@ -8439,11 +8061,7 @@ mod tests {
     #[tokio::test]
     async fn exact_empty_hotbar_selection_uses_existing_packet_and_updates_cache() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
-        bot.inventory
-            .write()
-            .await
-            .windows
-            .insert(0, vec![None; 45]);
+        native_inventory_fixture(&bot, 0, vec![None; 46], None).await;
         let outcome = bot
             .dispatch_equip(
                 bot.operation_context(0),
@@ -8467,7 +8085,7 @@ mod tests {
             count: 1,
             nbt: None,
         });
-        bot.inventory.write().await.windows.insert(0, slots);
+        native_inventory_fixture(&bot, 0, slots, None).await;
         for hotbar_slot in [3, 9] {
             assert!(matches!(
                 bot.dispatch_equip(
@@ -9201,6 +8819,28 @@ mod tests {
         server.await.unwrap();
     }
 
+    async fn native_inventory_fixture(
+        bot: &Bot,
+        window: i8,
+        slots: Vec<Option<ItemStack>>,
+        cursor: Option<ItemStack>,
+    ) {
+        let mut p = vec![window as u8];
+        p.extend((slots.len() as i16).to_be_bytes());
+        for slot in slots {
+            write_slot(&mut p, slot.as_ref());
+        }
+        Box::pin(bot.apply_packet(0x14, p)).await.unwrap();
+        let mut p = vec![255, 255, 255];
+        write_slot(&mut p, cursor.as_ref());
+        Box::pin(bot.apply_packet(0x16, p)).await.unwrap();
+    }
+    async fn native_click_reply(bot: &Bot, action: i16, accepted: bool) {
+        let mut p = vec![0];
+        p.extend(action.to_be_bytes());
+        p.push(u8::from(accepted));
+        Box::pin(bot.apply_packet(0x12, p)).await.unwrap();
+    }
     #[tokio::test]
     async fn packet_acknowledgements_route_to_actor_transactions() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
@@ -9209,143 +8849,61 @@ mod tests {
             count: 2,
             nbt: None,
         };
-        bot.inventory
-            .write()
-            .await
-            .windows
-            .insert(0, vec![Some(stack.clone())]);
-        let window_transaction = bot
-            .dispatch_acknowledged(
-                bot.operation_context(0),
-                AcknowledgedOperation::WindowClick {
-                    window_id: 0,
-                    slot: 0,
-                    button: 0,
-                    mode: ClickMode::Normal,
-                    clicked: Some(stack.clone()),
-                },
-            )
+        let mut slots = vec![None; 46];
+        slots[9] = Some(stack.clone());
+        native_inventory_fixture(&bot, 0, slots.clone(), None).await;
+        let (action, transaction) = bot
+            .click_slot_transaction(0, 9, 0, ClickMode::Normal)
             .await
             .unwrap();
-        let action = window_transaction.window_action().unwrap();
-        bot.inventory.write().await.pending_clicks.insert(
-            (0, action),
-            PendingClick {
-                window_id: 0,
-                action,
-                slot: 0,
-                button: 0,
-                mode: ClickMode::Normal,
-                slot_before: Some(stack),
-                cursor_before: None,
-                prediction: Default::default(),
-            },
+        let mut wait = tokio::spawn(transaction.wait());
+        assert!(bot.inventory().await.pending_clicks.is_empty());
+        assert_eq!(bot.window_click_predictions().await.len(), 1);
+        let mut old_window_response = vec![3];
+        old_window_response.extend(action.to_be_bytes());
+        old_window_response.push(1);
+        bot.apply_packet(0x12, old_window_response).await.unwrap();
+        assert!(
+            lock_packet_state(&bot.inventory_executor)
+                .await
+                .record()
+                .unwrap()
+                .response_sequence
+                .is_none()
         );
-        bot.exact_window_barriers.lock().await.insert(
-            (0, action),
-            ExactWindowBarrier {
-                _work: None,
-                successor: None,
-                confirmation_seen: false,
-            },
+        bot.apply_packet(0x13, vec![3]).await.unwrap(); // late old-window close cannot revoke this player send
+        assert_eq!(
+            lock_packet_state(&bot.inventory_executor)
+                .await
+                .record()
+                .unwrap()
+                .status,
+            crate::client::inventory::InventorySendStatus::Pending
         );
-        let waiter_bot = bot.clone_internal();
-        let waiter = tokio::spawn(async move {
-            let outcome = window_transaction.wait().await;
-            let inventory = waiter_bot.inventory.read().await;
-            (
-                outcome,
-                inventory.windows[&0][0].clone(),
-                inventory.cursor.clone(),
-            )
-        });
-        let mut window_ack = Vec::new();
-        window_ack.write_i8(0).unwrap();
-        window_ack.write_i16::<BigEndian>(action).unwrap();
-        window_ack.push(1);
-        assert!(bot.apply_packet(0x12, window_ack).await.unwrap());
-        let (outcome, slot, cursor) = waiter.await.unwrap();
-        assert_eq!(outcome, DispatchOutcome::Acknowledged);
-        assert!(slot.is_none());
-        assert_eq!(cursor.map(|item| item.count), Some(2));
-
-        let corrective = ItemStack {
-            item_id: 3,
-            count: 1,
-            nbt: None,
-        };
-        let second = bot
-            .dispatch_acknowledged(
-                bot.operation_context(0),
-                AcknowledgedOperation::WindowClick {
-                    window_id: 0,
-                    slot: 0,
-                    button: 0,
-                    mode: ClickMode::Normal,
-                    clicked: None,
-                },
-            )
+        native_click_reply(&bot, action, true).await;
+        assert_eq!(bot.inventory().await.player_slots()[9], Some(stack.clone()));
+        assert!(bot.inventory().await.cursor.is_none());
+        assert!(timeout(Duration::from_millis(10), &mut wait).await.is_err());
+        slots[9] = None;
+        native_inventory_fixture(&bot, 0, slots.clone(), Some(stack.clone())).await;
+        assert_eq!(wait.await.unwrap(), DispatchOutcome::Acknowledged);
+        assert_eq!(bot.window_click_predictions().await.len(), 1);
+        let (second, transaction) = bot
+            .click_slot_transaction(0, 9, 0, ClickMode::Normal)
             .await
             .unwrap();
-        let second_action = second.window_action().unwrap();
-        bot.inventory.write().await.pending_clicks.insert(
-            (0, second_action),
-            PendingClick {
-                window_id: 0,
-                action: second_action,
-                slot: 0,
-                button: 0,
-                mode: ClickMode::Normal,
-                slot_before: None,
-                cursor_before: None,
-                prediction: Default::default(),
-            },
-        );
-        bot.exact_window_barriers.lock().await.insert(
-            (0, second_action),
-            ExactWindowBarrier {
-                _work: None,
-                successor: None,
-                confirmation_seen: false,
-            },
-        );
-        {
-            let mut inventory = bot.inventory.write().await;
-            inventory.windows.get_mut(&0).unwrap()[0] = Some(corrective.clone());
-            inventory.cursor = None;
-        }
-        let mut second_ack = Vec::new();
-        second_ack.write_i8(0).unwrap();
-        second_ack.write_i16::<BigEndian>(second_action).unwrap();
-        second_ack.push(1);
-        assert!(bot.apply_packet(0x12, second_ack).await.unwrap());
-        assert_eq!(second.wait().await, DispatchOutcome::Acknowledged);
-        assert_eq!(bot.inventory.read().await.windows[&0][0], Some(corrective));
-
-        let position = BlockPos { x: -2, y: 4, z: 6 };
-        let dig_transaction = bot
-            .dispatch_acknowledged(
-                bot.operation_context(0),
-                AcknowledgedOperation::DigFinish {
-                    position,
-                    face: BlockFace::North,
-                },
-            )
-            .await
-            .unwrap();
-        let mut dig_ack = Vec::new();
-        dig_ack.write_u64::<BigEndian>(position.packed()).unwrap();
-        put_varint(&mut dig_ack, 0);
-        put_varint(&mut dig_ack, DiggingStatus::Finished as i32);
-        dig_ack.push(1);
-        assert!(bot.apply_packet(0x07, dig_ack).await.unwrap());
-        assert_eq!(dig_transaction.wait().await, DispatchOutcome::Acknowledged);
-
+        let mut wait = tokio::spawn(transaction.wait());
+        slots[9] = Some(stack.clone());
+        native_inventory_fixture(&bot, 0, slots, None).await;
+        native_click_reply(&bot, action, true).await; // old action never acknowledges second
+        assert!(timeout(Duration::from_millis(10), &mut wait).await.is_err());
+        native_click_reply(&bot, second, false).await; // comparison mismatch is resync, not rollback
+        assert_eq!(wait.await.unwrap(), DispatchOutcome::Acknowledged);
+        assert_eq!(bot.inventory().await.player_slots()[9], Some(stack));
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
     }
-
     #[tokio::test]
     async fn exact_confirmation_waits_for_successor_server_cache_fact() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
@@ -9354,73 +8912,36 @@ mod tests {
             count: 1,
             nbt: None,
         };
-        bot.inventory
-            .write()
-            .await
-            .windows
-            .insert(0, vec![Some(stack.clone()), Some(stack.clone())]);
-        let transaction = bot
-            .dispatch_acknowledged(
-                bot.operation_context(0),
-                AcknowledgedOperation::WindowClick {
-                    window_id: 0,
-                    slot: 0,
-                    button: 0,
-                    mode: ClickMode::Drop,
-                    clicked: Some(stack.clone()),
-                },
-            )
+        let mut slots = vec![None; 46];
+        slots[9] = Some(stack.clone());
+        slots[10] = Some(stack);
+        native_inventory_fixture(&bot, 0, slots.clone(), None).await;
+        let (action, transaction) = bot
+            .click_slot_transaction(0, 9, 0, ClickMode::Drop)
             .await
             .unwrap();
-        let action = transaction.window_action().unwrap();
-        bot.inventory.write().await.pending_clicks.insert(
-            (0, action),
-            PendingClick {
-                window_id: 0,
-                action,
-                slot: 0,
-                button: 0,
-                mode: ClickMode::Drop,
-                slot_before: Some(stack),
-                cursor_before: None,
-                prediction: Default::default(),
-            },
-        );
-        bot.exact_window_barriers.lock().await.insert(
-            (0, action),
-            ExactWindowBarrier {
-                _work: None,
-                successor: Some(WindowClick {
-                    slot: 1,
-                    button: 0,
-                    mode: ClickMode::Normal,
-                    expected_item: None,
-                    expected_cursor: None,
-                    prediction: Default::default(),
-                }),
-                confirmation_seen: false,
-            },
-        );
-        let mut waiter = tokio::spawn(transaction.wait());
-        let mut confirmation = Vec::new();
-        confirmation.write_i8(0).unwrap();
-        confirmation.write_i16::<BigEndian>(action).unwrap();
-        confirmation.push(1);
-        assert!(bot.apply_packet(0x12, confirmation).await.unwrap());
-        assert!(
-            tokio::time::timeout(Duration::from_millis(10), &mut waiter)
-                .await
-                .is_err()
-        );
-
-        let mut set_slot = Vec::new();
-        set_slot.write_i8(0).unwrap();
-        set_slot.write_i16::<BigEndian>(1).unwrap();
-        write_slot(&mut set_slot, None);
-        assert!(bot.apply_packet(0x16, set_slot).await.unwrap());
-        assert_eq!(waiter.await.unwrap(), DispatchOutcome::Acknowledged);
+        bot.exact_window_barriers
+            .lock()
+            .await
+            .get_mut(&(0, action))
+            .unwrap()
+            .successor = Some(WindowClick {
+            slot: 10,
+            button: 0,
+            mode: ClickMode::Normal,
+            expected_item: None,
+            expected_cursor: None,
+            prediction: Default::default(),
+        });
+        let mut wait = tokio::spawn(transaction.wait());
+        native_click_reply(&bot, action, true).await;
+        assert!(timeout(Duration::from_millis(10), &mut wait).await.is_err());
+        slots[9] = None;
+        native_inventory_fixture(&bot, 0, slots, None).await;
+        assert!(timeout(Duration::from_millis(10), &mut wait).await.is_err());
+        bot.apply_packet(0x16, vec![0, 0, 10, 0]).await.unwrap();
+        assert_eq!(wait.await.unwrap(), DispatchOutcome::Acknowledged);
         assert!(bot.exact_window_barriers.lock().await.is_empty());
-
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -9724,42 +9245,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn furnace_close_cleanup_clears_local_window_without_server_echo() {
+    async fn furnace_close_cleanup_retains_received_opening_without_server_echo() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
-        let window_id = 2;
-        bot.inventory.write().await.open_window = Some(OpenWindow {
-            id: window_id,
-            window_type: 13,
-            title_json: "{}".to_owned(),
-            entity_id: None,
-            declared_slots: Some(39),
-        });
-        bot.inventory
-            .write()
-            .await
-            .windows
-            .insert(window_id, vec![None; 39]);
-        bot.inventory
-            .write()
-            .await
-            .properties
-            .insert((window_id, 0), 0);
-
+        common_motion::tests::seed_motion(&bot).await;
+        let mut open = vec![2, 13];
+        put_string(&mut open, "{}");
+        bot.apply_packet(0x2e, open).await.unwrap();
+        native_inventory_fixture(&bot, 2, vec![None; 39], None).await;
         assert_eq!(
             bot.dispatch_cleanup(
                 bot.operation_context(0),
-                CleanupOperation::CloseWindow { window_id },
+                CleanupOperation::CloseWindow { window_id: 2 }
             )
             .await
             .unwrap(),
             CleanupDispatchOutcome::Dispatched
         );
+        assert_eq!(bot.open_window_state().await.unwrap().id, 2);
+        assert!(bot.inventory().await.windows.contains_key(&2));
+        bot.apply_packet(0x13, vec![2]).await.unwrap();
         assert!(bot.open_window_state().await.is_none());
-        let inventory = bot.inventory.read().await;
-        assert!(!inventory.windows.contains_key(&window_id));
-        assert!(!inventory.properties.keys().any(|(id, _)| *id == window_id));
-        drop(inventory);
-
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -11222,14 +10727,9 @@ mod tests {
     }
 
     async fn lagged_click(accepted: bool) -> Result<i16> {
-        // Confirm Transaction: i8 window + i16 action + bool accepted.
         let response = vec![0, 0, 1, u8::from(accepted)];
         let (bot, mut packets, release, server) = operation_test_bot(0x09, 0x12, response).await;
-        bot.inventory
-            .write()
-            .await
-            .windows
-            .insert(0, vec![None; 46]);
+        native_inventory_fixture(&bot, 0, vec![None; 46], None).await;
         let worker = bot.clone();
         let clicking =
             tokio::spawn(
@@ -11240,6 +10740,7 @@ mod tests {
             bot.emit(Event::ChunkLoaded { x, z: 0 });
         }
         release.send(()).unwrap();
+        native_inventory_fixture(&bot, 0, vec![None; 46], None).await;
         let result = timeout(Duration::from_secs(2), clicking)
             .await
             .unwrap()
@@ -11248,18 +10749,13 @@ mod tests {
         server.await.unwrap();
         result
     }
-
     #[tokio::test]
     async fn accepted_click_survives_unrelated_event_lag() {
         assert_eq!(lagged_click(true).await.unwrap(), 1);
     }
-
     #[tokio::test]
-    async fn rejected_click_after_event_lag_is_still_rejected() {
-        assert_eq!(
-            lagged_click(false).await.unwrap_err().kind(),
-            crate::ErrorKind::Rejected
-        );
+    async fn comparison_rejection_after_event_lag_waits_for_resync_without_rollback() {
+        assert_eq!(lagged_click(false).await.unwrap(), 1);
     }
 
     #[tokio::test]

@@ -106,13 +106,12 @@ pub struct WindowClick {
     pub expected_item: Option<SlotExpectation>,
     /// Exact cursor stack, or an empty-cursor requirement.
     pub expected_cursor: Option<SlotExpectation>,
-    /// Deterministic accepted cache effect supplied by the caller. The client
-    /// applies it only after accepted confirmation and only when each current
-    /// domain still equals its declared prestate.
+    /// Caller prediction retained for diagnostics only. It never writes inventory.
+    /// Subsequent preconditions wait for received slot/cursor values.
     pub prediction: WindowPrediction,
 }
 
-/// Exact per-domain cache effects for an accepted Craft click.
+/// Diagnostic per-domain predictions; never applied to received inventory.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct WindowPrediction {
     /// Slot effects, bounded by the client contract.

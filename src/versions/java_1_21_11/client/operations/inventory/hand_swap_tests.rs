@@ -139,6 +139,7 @@ async fn hand_swap_both_modes_two_fresh_destinations_shared_sequence_and_history
                 serde_json::to_value(history).unwrap(),
                 serde_json::to_value(complete).unwrap()
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
                     .await
@@ -286,6 +287,7 @@ async fn hand_swap_context_conflicts_are_sticky_after_restoration() {
         let record = client.survival().hand_swap_record().await.unwrap().unwrap();
         assert_eq!(record.stage, Stage::RequiresInspection, "{conflict}");
         assert!(client.survival().swap_hands().await.is_err());
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
                 .await
@@ -320,6 +322,7 @@ async fn hand_swap_cancelled_before_writer_never_completes_or_resends() {
     assert_eq!(record.stage, Stage::RequiresInspection);
     assert!(client.survival().swap_hands().await.is_err());
     assert!(session.ledger.cut(false).wait().await.is_err());
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
             .await
@@ -407,6 +410,7 @@ async fn hand_swap_rejects_missing_identical_and_competing_predecessors_before_i
                 .unwrap()
                 .is_none()
         );
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
                 .await
@@ -535,6 +539,7 @@ async fn hand_swap_tag_reload_keeps_conflict_even_when_destinations_later_match(
     assert_eq!(retained.requires_inspection, conflict.requires_inspection);
     assert!(client.survival().swap_hands().await.is_err());
     assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
             .await
@@ -610,6 +615,7 @@ async fn hand_swap_full_contents_requires_both_hands_and_unchanged_cursor_atomic
             );
             f.api.bot.session.ledger.cut(false).wait().await.unwrap();
         }
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
                 .await

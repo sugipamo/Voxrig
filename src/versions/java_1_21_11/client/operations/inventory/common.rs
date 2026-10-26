@@ -50,20 +50,14 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             player_screen: api::container::player_screen_access(
                 current.session,
                 inventory.window_id,
-                inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(current.session).id),
+                inventory.container.as_ref().map(|s| s.id(current.session)),
                 state.common_container_close.as_ref(),
             ),
             screen_revision: inventory.screen_revision,
             player_screen_revision: inventory.player_revision.clone(),
             local_cache: None,
         };
-        let screen = inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session));
+        let screen = inventory.screen(current.session);
         let registries = state
             .registries
             .capture(current.session, current.receive_sequence);
@@ -73,10 +67,7 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             screen.as_ref(),
             &registries,
         );
-        if inventory.pending_swap.as_ref() != common.submission.as_ref()
-            || inventory.unsupported_components
-            || !inventory.pending_creative.is_empty()
-        {
+        if inventory.unsupported_components || !inventory.pending_creative.is_empty() {
             contract::inspection(
                 &mut common.record,
                 "native swap ownership/item data context changed",
@@ -165,12 +156,10 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                     attempt,
                     None,
                 )?;
-                let after_close = match record.initial.inventory.player_screen {
-                    Some(api::container::PlayerScreenAccess::SubmittedClose { .. }) => {
-                        record.send.screen_revision
-                    }
-                    _ => None,
-                };
+                let after_close = record
+                    .send
+                    .screen_revision
+                    .map(|v| if v == 0 { 1 } else { 0 });
                 let (submission, payload) = prepare_with_item_data(
                     &state.operations.inventory,
                     self.bot.session.id,
@@ -183,6 +172,8 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                 let work = self.bot.session.ledger.work();
                 state.pending_swap_work = Some(PendingWork::new(work));
                 state.operations.inventory.pending_swap = Some(submission.clone());
+                let execution =
+                    self.begin_inventory_execution(&mut state, record.initial.session, false)?;
                 state.common_inventory_swap = Some(CommonSwap {
                     record,
                     submission: Some(submission),
@@ -205,7 +196,9 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                     .await?;
                 let common = state.common_inventory_swap.as_mut().expect("retained");
                 common.record.send.dispatched = true;
-                Ok(common.record.clone())
+                let result = common.record.clone();
+                self.send_inventory_fence(&mut state, execution).await?;
+                Ok(result)
             })
             .await
     }
@@ -241,12 +234,7 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                         "native inventory data/mutation unresolved",
                     ));
                 }
-                let captured = state
-                    .operations
-                    .inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session));
+                let captured = state.operations.inventory.screen(initial.session);
                 let attempt = state
                     .common_inventory_swap
                     .as_ref()
@@ -270,7 +258,7 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                     .ok_or_else(|| contract::unavailable("native screen revision unavailable"))?;
                 let mut payload = Vec::new();
                 put_varint(&mut payload, record.window_id());
-                put_varint(&mut payload, revision);
+                put_varint(&mut payload, if revision == 0 { 1 } else { 0 });
                 payload.extend((slot as i16).to_be_bytes());
                 payload.extend([hotbar, 2, 0]);
                 put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
@@ -279,6 +267,8 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                     crate::client::ledger::finite::Family::Swap,
                     record.id.attempt(),
                 );
+                let execution =
+                    self.begin_inventory_execution(&mut state, record.initial.session, false)?;
                 state.common_inventory_swap = Some(CommonSwap {
                     record,
                     submission: None,
@@ -291,7 +281,9 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                 .await?;
                 let common = state.common_inventory_swap.as_mut().expect("retained");
                 common.record.send.dispatched = true;
-                Ok(common.record.clone())
+                let result = common.record.clone();
+                self.send_inventory_fence(&mut state, execution).await?;
+                Ok(result)
             })
             .await
     }
@@ -329,12 +321,7 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                         "native inventory data/mutation unresolved",
                     ));
                 }
-                let captured = state
-                    .operations
-                    .inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session));
+                let captured = state.operations.inventory.screen(initial.session);
                 let attempt = state
                     .common_inventory_swap
                     .as_ref()
@@ -362,7 +349,7 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                     .ok_or_else(|| contract::unavailable("native screen revision unavailable"))?;
                 let mut payload = Vec::new();
                 put_varint(&mut payload, record.window_id());
-                put_varint(&mut payload, revision);
+                put_varint(&mut payload, if revision == 0 { 1 } else { 0 });
                 payload.extend((slot as i16).to_be_bytes());
                 payload.extend([hotbar, 2, 0]);
                 put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
@@ -371,6 +358,8 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                     crate::client::ledger::finite::Family::Swap,
                     record.id.attempt(),
                 );
+                let execution =
+                    self.begin_inventory_execution(&mut state, record.initial.session, false)?;
                 state.common_inventory_swap = Some(CommonSwap {
                     record,
                     submission: None,
@@ -383,7 +372,9 @@ impl crate::client::adapter::InventorySwapOps for Operations {
                 .await?;
                 let common = state.common_inventory_swap.as_mut().expect("retained");
                 common.record.send.dispatched = true;
-                Ok(common.record.clone())
+                let result = common.record.clone();
+                self.send_inventory_fence(&mut state, execution).await?;
+                Ok(result)
             })
             .await
     }

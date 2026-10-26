@@ -1,9 +1,9 @@
 //! Mode-specific common operations. Handles do not grant or change game mode.
 use super::{GameMode, PlayerObservation};
 use crate::client::adapter::{
-    ContainerOps, ControlOps, CraftingTakeOps, FlightOps, InventoryClickOps, InventorySwapOps,
-    InventoryTransferOps, MiningOps, PathMotionOps, PlacementOps, RecipePlacementOps,
-    StandingQueryOps,
+    ContainerOps, ControlOps, CraftingTakeOps, FlightOps, InventoryClickOps, InventorySendOps,
+    InventorySwapOps, InventoryTransferOps, MiningOps, PathMotionOps, PlacementOps,
+    RecipePlacementOps, StandingQueryOps,
 };
 use crate::{BlockFace, Client, MinecraftVersion, Result};
 
@@ -225,10 +225,46 @@ impl Survival {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
+    /// Submit one sealed crafting result take; inspect strict evidence separately.
+    pub async fn send_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+        destination: super::crafting::CraftingResultDestination,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Survival, grid, destination).await)
+    }
+    /// Submit one PICKUP using current received preconditions. Read strict evidence separately.
+    pub async fn send_inventory_click(
+        &self,
+        source: super::inventory::InventorySource,
+        slot: u16,
+        button: super::inventory::InventoryClickButton,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_inventory_click(a, GameMode::Survival, source, slot, button).await)
+    }
+    /// Submit one QUICK_MOVE through the same inventory executor.
+    pub async fn send_inventory_transfer(
+        &self,
+        source: super::inventory::InventorySource,
+        slot: u16,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_inventory_transfer(a, GameMode::Survival, source, slot).await)
+    }
+    /// Protocol progress of the last send; never an exact-effect receipt.
+    pub async fn inventory_send_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventorySendRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::inventory_send_record(a).await)
+    }
+    /// Request fresh full received state after timeout without replaying an intent.
+    pub async fn resync_inventory(&self) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::resync_inventory(a).await)
+    }
     /// One ordinary left/right click of player input slots 1..4, armor slots 5..8,
     /// inventory slots 9..44, offhand 45, or ordinary slots in the same audited opening.
     /// Equipment obeys native item/capacity and actual-mode armor take restrictions.
     /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
+    /// Strict PICKUP intent; exact receipt predicates and inspection latch are retained.
     pub async fn click_inventory(
         &self,
         source: super::inventory::InventoryClickSource,
@@ -780,10 +816,46 @@ impl Creative {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
+    /// Submit one sealed crafting result take; inspect strict evidence separately.
+    pub async fn send_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+        destination: super::crafting::CraftingResultDestination,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Creative, grid, destination).await)
+    }
+    /// Submit one PICKUP using current received preconditions. Read strict evidence separately.
+    pub async fn send_inventory_click(
+        &self,
+        source: super::inventory::InventorySource,
+        slot: u16,
+        button: super::inventory::InventoryClickButton,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_inventory_click(a, GameMode::Creative, source, slot, button).await)
+    }
+    /// Submit one QUICK_MOVE through the same inventory executor.
+    pub async fn send_inventory_transfer(
+        &self,
+        source: super::inventory::InventorySource,
+        slot: u16,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_inventory_transfer(a, GameMode::Creative, source, slot).await)
+    }
+    /// Protocol progress of the last send; never an exact-effect receipt.
+    pub async fn inventory_send_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventorySendRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::inventory_send_record(a).await)
+    }
+    /// Request fresh full received state after timeout without replaying an intent.
+    pub async fn resync_inventory(&self) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::resync_inventory(a).await)
+    }
     /// One ordinary left/right click of player input slots 1..4, armor slots 5..8,
     /// inventory slots 9..44, offhand 45, or ordinary slots in the same audited opening.
     /// Equipment obeys native item/capacity and actual-mode armor take restrictions.
     /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
+    /// Strict PICKUP intent; exact receipt predicates and inspection latch are retained.
     pub async fn click_inventory(
         &self,
         source: super::inventory::InventoryClickSource,

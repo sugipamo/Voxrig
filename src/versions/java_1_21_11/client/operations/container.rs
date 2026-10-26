@@ -9,12 +9,7 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             super::common_player_in_state(state, record.initial.session.connection_id, false);
         match current {
             Ok(current) => {
-                let screen = state
-                    .operations
-                    .inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(current.session));
+                let screen = state.operations.inventory.screen(current.session);
                 let registries = state
                     .registries
                     .capture(current.session, current.receive_sequence);
@@ -109,7 +104,7 @@ fn open_context_received(state: &mut State) {
                 world_generation: state.loading.generation,
                 ..record.initial.session
             };
-            let screen = inventory.container.as_ref().map(|s| s.capture(session));
+            let screen = inventory.screen(session);
             let basis = contract::player_screen_access(
                 session,
                 inventory.window_id,
@@ -219,9 +214,7 @@ impl Operations {
         let screen = state
             .operations
             .inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session))
+            .screen(current.session)
             .ok_or_else(|| api::inventory::unavailable("close original opening unavailable"))?;
         Ok((current, screen))
     }
@@ -352,7 +345,13 @@ impl crate::client::adapter::ContainerOps for Operations {
             .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
+                self.mutable_in_domain(
+                    &state,
+                    true,
+                    false,
+                    None,
+                    api::domain::Domain::CurrentInventory,
+                )?;
                 let inventory = &state.operations.inventory;
                 if inventory.pending_swap.is_some()
                     || !inventory.pending_creative.is_empty()
@@ -448,7 +447,13 @@ impl crate::client::adapter::ContainerOps for Operations {
             .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
+                self.mutable_in_domain(
+                    &state,
+                    true,
+                    false,
+                    None,
+                    api::domain::Domain::CurrentInventory,
+                )?;
                 let inventory = &state.operations.inventory;
                 if inventory.pending_swap.is_some()
                     || !inventory.pending_creative.is_empty()
@@ -460,9 +465,7 @@ impl crate::client::adapter::ContainerOps for Operations {
                 }
                 let initial = self.common_player_unlocked(&state)?;
                 let captured = inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session))
+                    .screen(initial.session)
                     .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
                 let registries = state
                     .registries

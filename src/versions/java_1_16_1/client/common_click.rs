@@ -28,7 +28,6 @@ pub(super) fn legacy_comparison_stack(comparison: &api::SlotKnowledge) -> Option
 #[derive(Clone)]
 pub(super) struct NativeInventoryClick {
     pub(super) record: InventoryClickRecord,
-    pub(super) released: bool,
     receipt_deadline: Option<tokio::time::Instant>,
 }
 impl Bot {
@@ -56,7 +55,10 @@ impl Bot {
         &self,
         id: InventoryClickId,
         revision: u64,
-    ) -> Result<InventoryClickRecord> {
+    ) -> Result<(
+        InventoryClickRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
             let record = super::lock_packet_state(&self.common_inventory_click)
@@ -74,13 +76,7 @@ impl Bot {
                 return Err(contract::unavailable(predicate));
             }
             let current = self.common_player_unlocked().await?;
-            let screen = self
-                .common_receipts
-                .lock()
-                .await
-                .container
-                .as_ref()
-                .map(|s| s.capture(current.session));
+            let screen = self.common_receipts.lock().await.screen(current.session);
             let slots = click::source_slots(&record, &current, screen.as_ref())?;
             if let Some(context) = &record.item_context {
                 let registries = self
@@ -107,50 +103,10 @@ impl Bot {
             ) {
                 return Err(contract::unavailable("click capture changed before I/O"));
             }
-            {
-                let inventory = self.inventory.read().await;
-                if !inventory.pending_clicks.is_empty()
-                    || inventory
-                        .open_window
-                        .as_ref()
-                        .map_or(0, |s| i32::from(s.id))
-                        != record.window_id()
-                    || api::legacy_slot(inventory.cursor.as_ref())? != record.cursor_before.value
-                {
-                    return Err(contract::unavailable(
-                        "legacy click cache/owner changed before I/O",
-                    ));
-                }
-            }
             // Original native PICKUP returns source_before. Deliberately use
             // the other nonempty predecessor (or Empty) for actual full resync.
-            let processing_insertion = record.source_slot <= 1
-                && record.initial_screen.as_ref().is_some_and(|s| {
-                    s.menu_name.as_deref().is_some_and(|menu| {
-                        api::furnace::native_menu(record.initial.session.version, menu).is_some()
-                    })
-                });
-            let processing_resync = processing_insertion
-                && matches!(record.cursor_before.value, api::SlotKnowledge::Item { .. });
-            let resync_item = match &record.cursor_before.value {
-                api::SlotKnowledge::Item { item } if processing_resync => Some(item),
-                _ => None,
-            };
-            let comparison = if let Some(item) = resync_item {
-                // A furnace can consume its predecessor before applying PICKUP.
-                // Empty may then MATCH the native return and suppress resync.
-                // This comparison-only count exceeds ordinary slot capacities;
-                // it is never a predicted/received cursor or placed inventory item.
-                // Actual fresh source/cursor and transaction receipts still decide
-                // completion; unusual server state cannot turn this into an ACK.
-                let mut marker = item.clone();
-                marker.count = i8::MAX as u32;
-                api::SlotKnowledge::Item { item: marker }
-            } else if matches!(record.source_before.value, api::SlotKnowledge::Empty) {
-                record.cursor_before.value.clone()
-            } else {
-                api::SlotKnowledge::Empty
-            };
+            let processing_resync = false;
+            let comparison = self.inventory_resync_comparison()?;
             let native = legacy_comparison_stack(&comparison);
             let action = self
                 .connection
@@ -165,6 +121,8 @@ impl Bot {
                 r.send.request_full_resync = processing_resync;
                 r.send.after_sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
             }
+            self.begin_inventory_execution(record.initial.session, action, false)
+                .await?;
             if processing_resync {
                 self.connection
                     .bounded_processing_click(
@@ -184,6 +142,7 @@ impl Bot {
                     )
                     .await?;
             }
+            self.inventory_execution_written().await;
             let mut guard = super::lock_packet_state(&self.common_inventory_click).await;
             let run = guard.as_mut().expect("retained");
             run.receipt_deadline = Some(
@@ -196,10 +155,26 @@ impl Bot {
                 run.receipt_deadline.expect("deadline"),
             );
             run.record.send.dispatched = true;
-            Ok(run.record.clone())
+            Ok((
+                run.record.clone(),
+                lock_packet_state(&self.inventory_executor)
+                    .await
+                    .record()
+                    .expect("retained original send"),
+            ))
         }
         .await;
         if let Err(e) = &result {
+            let boundary = super::lock_packet_state(&self.common_inventory_click)
+                .await
+                .as_ref()
+                .filter(|r| r.record.id == id)
+                .map(|r| r.record.send.after_sequence);
+            if let Some(after) = boundary {
+                lock_packet_state(&self.inventory_executor)
+                    .await
+                    .cancel_unsent(id.session(), after);
+            }
             self.interrupt_common_inventory_click(format!("click submission uncertain: {e}"))
                 .await;
         }
@@ -254,13 +229,7 @@ impl Bot {
                 return Ok(());
             }
             let current = self.common_player_unlocked().await?;
-            let screen = self
-                .common_receipts
-                .lock()
-                .await
-                .container
-                .as_ref()
-                .map(|s| s.capture(current.session));
+            let screen = self.common_receipts.lock().await.screen(current.session);
             let complete = {
                 let mut guard = super::lock_packet_state(&self.common_inventory_click).await;
                 let record = &mut guard.as_mut().expect("retained").record;
@@ -284,25 +253,9 @@ impl Bot {
                 record.ready()
             };
             if complete {
-                match self
-                    .connection
-                    .finish_inventory_click(snapshot.record.id.attempt())
-                    .await
-                {
-                    Ok(()) => {
-                        let mut guard =
-                            super::lock_packet_state(&self.common_inventory_click).await;
-                        let run = guard.as_mut().expect("retained");
-                        run.released = true;
-                        run.record.stage = InventoryClickStage::ObservedClicked;
-                    }
-                    Err(e) => {
-                        self.interrupt_common_inventory_click(format!(
-                            "click completion gate: {e:?}"
-                        ))
-                        .await
-                    }
-                }
+                let mut guard = super::lock_packet_state(&self.common_inventory_click).await;
+                let run = guard.as_mut().expect("retained");
+                run.record.stage = InventoryClickStage::ObservedClicked;
             }
             Ok(())
         })
@@ -318,101 +271,9 @@ impl crate::client::adapter::InventoryClickOps for Bot {
         slot: u16,
         button: InventoryClickButton,
     ) -> Result<InventoryClickRecord> {
-        self.connection
-            .ledger()
-            .try_work()?
-            .run_scoped(async {
-                let gate = self.coherent_state_gate.lock().await;
-                self.common_motion_admission().await?;
-                if let InventoryClickSource::Container { screen } = source {
-                    if super::lock_packet_state(&self.common_container_close)
-                        .await
-                        .as_ref()
-                        .is_some_and(|r| r.id.screen() == screen)
-                    {
-                        return Err(contract::unavailable(
-                            "old opening has a retained close intent",
-                        ));
-                    }
-                }
-                let revision = self
-                    .connection
-                    .motion_admission_revision()
-                    .await
-                    .map_err(|e| contract::unavailable(format!("click admission: {e:?}")))?;
-                if !self.inventory.read().await.pending_clicks.is_empty() {
-                    return Err(contract::unavailable("native inventory click unresolved"));
-                }
-                let attempt = super::lock_packet_state(&self.common_inventory_click)
-                    .await
-                    .as_ref()
-                    .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
-                    .ok_or_else(|| contract::unavailable("inventory click attempts exhausted"))?;
-                let initial = self.common_player_unlocked().await?;
-                let screen = self
-                    .common_receipts
-                    .lock()
-                    .await
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session));
-                let registries = self
-                    .common_receipts
-                    .lock()
-                    .await
-                    .registries
-                    .capture(initial.session, initial.receive_sequence);
-                let record = click::prepare_received(
-                    (initial, registries),
-                    mode,
-                    source,
-                    slot,
-                    button,
-                    attempt,
-                    screen,
-                )?;
-                {
-                    let inventory = self.inventory.read().await;
-                    if inventory
-                        .open_window
-                        .as_ref()
-                        .map_or(0, |s| i32::from(s.id))
-                        != record.window_id()
-                        || api::legacy_slot(inventory.cursor.as_ref())?
-                            != record.cursor_before.value
-                    {
-                        return Err(contract::unavailable(
-                            "legacy click received/cache UI basis disagrees",
-                        ));
-                    }
-                }
-                if let Some(predicate) = click::Dependency::for_click(&record)
-                    .posture_failure(self.local_pose.lock().await.unwrap_or(-1))
-                {
-                    return Err(contract::unavailable(predicate));
-                }
-                let id = record.id;
-                let work =
-                    self.begin_finite(crate::client::ledger::finite::Family::Click, id.attempt());
-                *super::lock_packet_state(&self.common_inventory_click).await =
-                    Some(NativeInventoryClick {
-                        record,
-                        released: false,
-                        receipt_deadline: None,
-                    });
-                let (reply, result) = tokio::sync::oneshot::channel();
-                let bot = self.clone_internal();
-                self.spawn_finite_work(work, async move {
-                    let _ = reply.send(crate::client::ledger::finite::checked(
-                        bot.common_click_send_owned(id, revision).await,
-                    ));
-                });
-                drop(gate);
-                result
-                    .await
-                    .map_err(|_| contract::unavailable("click owner result unavailable"))?
-            })
+        self.start_click_inventory(mode, source, slot, button, false)
             .await
+            .map(|(record, _)| record)
     }
     async fn inventory_click_record(&self) -> Result<Option<InventoryClickRecord>> {
         // A stalled writer must not hide the already-retained intent. Complete
@@ -435,5 +296,104 @@ impl crate::client::adapter::InventoryClickOps for Bot {
             .await
             .as_ref()
             .map(|s| s.record.clone()))
+    }
+}
+
+impl Bot {
+    pub(super) async fn start_click_inventory(
+        &self,
+        mode: api::GameMode,
+        source: InventoryClickSource,
+        slot: u16,
+        button: InventoryClickButton,
+        acceptance: bool,
+    ) -> Result<(
+        InventoryClickRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
+        self.connection
+            .ledger()
+            .try_work()?
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_domain_admission(
+                    false,
+                    None,
+                    if acceptance {
+                        api::domain::Domain::CurrentInventory
+                    } else {
+                        api::domain::Domain::Strict
+                    },
+                )
+                .await?;
+                if let InventoryClickSource::Container { screen } = source {
+                    if super::lock_packet_state(&self.common_container_close)
+                        .await
+                        .as_ref()
+                        .is_some_and(|r| r.id.screen() == screen)
+                    {
+                        return Err(contract::unavailable(
+                            "old opening has a retained close intent",
+                        ));
+                    }
+                }
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| contract::unavailable(format!("click admission: {e:?}")))?;
+                if !self.inventory().await.pending_clicks.is_empty() {
+                    return Err(contract::unavailable("native inventory click unresolved"));
+                }
+                let attempt = super::lock_packet_state(&self.common_inventory_click)
+                    .await
+                    .as_ref()
+                    .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
+                    .ok_or_else(|| contract::unavailable("inventory click attempts exhausted"))?;
+                let initial = self.common_player_unlocked().await?;
+                let screen = self.common_receipts.lock().await.screen(initial.session);
+                let registries = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let record = click::prepare_received(
+                    (initial, registries),
+                    mode,
+                    source,
+                    slot,
+                    button,
+                    attempt,
+                    screen,
+                )?;
+                if let Some(predicate) = click::Dependency::for_click(&record)
+                    .posture_failure(self.local_pose.lock().await.unwrap_or(-1))
+                {
+                    return Err(contract::unavailable(predicate));
+                }
+                self.reserve_inventory_execution(record.initial.session)
+                    .await?;
+                let id = record.id;
+                let work =
+                    self.begin_finite(crate::client::ledger::finite::Family::Click, id.attempt());
+                *super::lock_packet_state(&self.common_inventory_click).await =
+                    Some(NativeInventoryClick {
+                        record,
+                        receipt_deadline: None,
+                    });
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite_work(work, async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.common_click_send_owned(id, revision).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| contract::unavailable("click owner result unavailable"))?
+            })
+            .await
     }
 }

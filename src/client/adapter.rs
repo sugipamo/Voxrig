@@ -244,6 +244,30 @@ pub(crate) trait ContainerOps {
     async fn container_close_record(&self) -> Result<Option<ContainerCloseRecord>>;
 }
 
+/// Single-send acceptance with independent received-state/protocol progress.
+pub(crate) trait InventorySendOps {
+    async fn send_crafting_result(
+        &self,
+        mode: GameMode,
+        grid: &ReceivedCrafting,
+        destination: CraftingResultDestination,
+    ) -> Result<super::inventory::InventorySendRecord>;
+    async fn send_inventory_click(
+        &self,
+        mode: GameMode,
+        source: InventorySource,
+        slot: u16,
+        button: InventoryClickButton,
+    ) -> Result<super::inventory::InventorySendRecord>;
+    async fn send_inventory_transfer(
+        &self,
+        mode: GameMode,
+        source: InventorySource,
+        slot: u16,
+    ) -> Result<super::inventory::InventorySendRecord>;
+    async fn inventory_send_record(&self) -> Result<Option<super::inventory::InventorySendRecord>>;
+    async fn resync_inventory(&self) -> Result<super::inventory::InventorySendRecord>;
+}
 /// Ordinary PICKUP clicks.
 pub(crate) trait InventoryClickOps {
     async fn click_inventory(
@@ -571,6 +595,7 @@ pub(crate) trait VersionAdapter:
     + EventOps
     + ContainerOps
     + InventoryClickOps
+    + InventorySendOps
     + InventorySwapOps
     + InventoryTransferOps
     + CraftingTakeOps
@@ -597,6 +622,7 @@ where
         + EventOps
         + ContainerOps
         + InventoryClickOps
+        + InventorySendOps
         + InventorySwapOps
         + InventoryTransferOps
         + CraftingTakeOps

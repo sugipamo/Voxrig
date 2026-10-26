@@ -499,6 +499,7 @@ pub fn item_max_durability(id: i32) -> Option<u32> {
     registry().items.get(&id).map(|item| item.max_durability)
 }
 
+#[cfg(test)]
 pub(crate) fn item_stack_size(id: i32) -> i8 {
     registry().items.get(&id).map_or(64, |item| item.stack_size)
 }

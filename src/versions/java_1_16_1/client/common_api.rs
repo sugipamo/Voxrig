@@ -33,7 +33,6 @@ impl Bot {
         let player = self.player.lock().await.clone();
         let positioned = *self.positioned.lock().await;
         let survival = self.survival.read().await;
-        let inventory = self.inventory.read().await;
         let receipts = self.common_receipts.lock().await;
         let mut received_inventory = receipts.inventory.clone();
         let session = api::SessionStamp {
@@ -44,20 +43,11 @@ impl Bot {
         received_inventory.player_screen = api::container::player_screen_access(
             session,
             received_inventory.window_id,
-            receipts.container.as_ref().map(|s| s.capture(session).id),
+            receipts.container.as_ref().map(|s| s.id(session)),
             super::lock_packet_state(&self.common_container_close)
                 .await
                 .as_ref(),
         );
-        if !inventory.player_slots().is_empty() {
-            received_inventory.local_cache = Some(
-                inventory
-                    .player_slots()
-                    .iter()
-                    .map(|item| api::legacy_slot(item.as_ref()))
-                    .collect::<Result<_>>()?,
-            );
-        }
         let dismount_pending = self
             .dismount_history
             .lock()
@@ -616,10 +606,7 @@ impl crate::client::adapter::CoreOps for Bot {
             receive_sequence: player.receive_sequence,
             active_window: receipts.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: receipts
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: receipts.screen(player.session),
             cursor: receipts.inventory.cursor.clone(),
         })
     }
@@ -680,10 +667,7 @@ impl crate::client::adapter::CoreOps for Bot {
             receive_sequence: player.receive_sequence,
             active_window: receipts.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: receipts
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: receipts.screen(player.session),
             cursor: receipts.inventory.cursor.clone(),
         };
         let registries = receipts
@@ -730,10 +714,7 @@ impl crate::client::adapter::CoreOps for Bot {
             receive_sequence: player.receive_sequence,
             active_window: receipts.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: receipts
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: receipts.screen(player.session),
             cursor: receipts.inventory.cursor.clone(),
         };
         let registries = receipts
@@ -750,10 +731,7 @@ impl crate::client::adapter::CoreOps for Bot {
             receive_sequence: player.receive_sequence,
             active_window: receipts.inventory.window_id,
             player_screen: player.inventory.player_screen,
-            screen: receipts
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
+            screen: receipts.screen(player.session),
             cursor: receipts.inventory.cursor.clone(),
         };
         let registries = receipts
@@ -2713,7 +2691,12 @@ mod tests {
             crate::client::tests::common_container_capture_scenario(&client, true).await,
             before
         );
-        bot.inventory.write().await.windows.get_mut(&3).unwrap()[0] = None;
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .entry(3)
+            .or_insert_with(|| vec![None; 63])[0] = None;
         crate::client::tests::common_container_capture_scenario(&client, true).await;
         let received = client.screen_state().await.unwrap();
         assert!(received.screen.as_ref().unwrap().revision.is_none());
@@ -2943,15 +2926,18 @@ mod tests {
             write_slot(&mut payload, (index == 9).then_some(&item));
         }
         bot.apply_packet(0x14, payload).await.unwrap();
-        bot.inventory.write().await.windows.get_mut(&0).unwrap()[9] = None;
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .entry(0)
+            .or_insert_with(|| vec![None; 46])[9] = None;
         let state = bot.player_state().await.unwrap();
         assert!(
             matches!(&state.inventory.slots[9], Some(value) if matches!(value.value, api::SlotKnowledge::Item { .. }))
         );
-        assert_eq!(
-            state.inventory.local_cache.unwrap()[9],
-            api::SlotKnowledge::Empty
-        );
+        assert!(state.inventory.local_cache.is_none());
+        assert_eq!(bot.inventory().await.player_slots()[9], Some(item));
         assert!(state.inventory.cursor.is_none());
         assert!(state.health.is_none());
         let client = crate::Client::from_java_1_16_1(bot.clone());

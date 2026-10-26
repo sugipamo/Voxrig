@@ -43,7 +43,7 @@ Voxrigは接続、プロトコル、状態cache、クライアント物理、観
 目標、資源の意味付け、経路の選択、製作するrecipe、ゲーム内の成功判定、利用側の状態revisionは
 呼出側が所有する。名称と型は特定のBody、planner、MCP serviceへ依存させない。
 
-package名・Rust crate名は`voxrig`、現在のpackage versionは`0.2.0`。
+package名・Rust crate名は`voxrig`、現在のpackage versionは`0.3.0`。
 crate rootでは共通の`Client` / `ConnectionConfig` / `Observation` / `ObservedBlock` / `Region`等を
 公開し、`voxrig::prelude`は共通の`client::prelude`を再公開する。
 Java 1.16.1型のroot再公開は`pub(crate)`であり、利用側の公開importではない。
@@ -97,10 +97,9 @@ native Java 1.16.1の`Bot::terminal_event(&self) -> Option<Event>`は、その�
 最初のwriteより前に全列の構造を検証する。4096クリック、各クリック16予測slotを上限とする。
 複数クリックはserver上のatomic transactionではなく、一部送信後の失敗は全体成功にしない。
 
-`WindowPrediction`は呼出側が与えるcache予測であり、serverが送ったslot値ではない。
-accepted confirmationの後、cacheが指定prestateと一致するときだけ適用する。
-観測されるinventoryはclient cacheであり、クリック予測を含み得る。server上の完了の独立証拠には
-しない。名称を`prediction`とし、製作の成功やserver observationと取り違えない。
+`WindowPrediction` は診断用予測であり在庫へ適用しない。`inventory()` / `inventory_snapshot()` は
+受信値だけを返す。次クリックは対応 action 応答と full contents/cursor の両方を待つ。
+値が見える時点は ACK 予測から server 受信へ遅くなる。[0.3 移行](migration-0.3.md)を参照。
 
 1.21.11の`swap_player_hotbar`は単純スタックの通常交換を送信する。
 `InventorySwap`は接続と受信境界に結び付いた送信記録であり、ackではない。
@@ -108,7 +107,7 @@ accepted confirmationの後、cacheが指定prestateと一致するときだけ�
 `InventorySwapObservation`を返す。local slotの予測更新は行わない。
 timeoutや取消ではpendingを維持し、同じ接続で読出し待機を再開できる。
 staleなscreen revisionでもserverはクリックを実行し得るため、自動再送しない。
-この受信記録も独立したserver確認ではなく、1.16.1のcache予測とは異なる契約である。
+この受信記録も独立したserver確認ではない。両版とも現在値はserver受信からのみ更新する。
 
 1.21.11の`PlayerState::local_player`は自身の体力・速度・姿勢・属性・effect更新を返す。
 `ValueBasis`でnative初期値と受信値を区別し、effectの残時間や一覧の完全性は推定しない。
@@ -209,8 +208,9 @@ captureの新しさは別途必要で、比較成功を操作許可や永続job�
 
 1.16.1の`Event::InventorySlotObserved(Snapshot<SlotUpdate>)`はserverのSet Slot受信を
 適用時のinventory revisionと共に保持する。queue内の古いイベントと現在のsnapshotを
-同一接続内で比較できる。`SlotUpdated`も引き続き発行する。inventory snapshotにはcache予測が
-含まれ得るため、このイベントと現在のcacheを混同しない。液体から壁を登るimpulseは
+同一接続内で比較できる。`SlotUpdated`も引き続き発行する。0.3.0 の inventory snapshot は
+受信値のみで、予測は `window_click_predictions()` の別履歴に保持する。古いイベントの値と
+現在の受信 snapshot はそれぞれの revision を使って比較する。液体から壁を登るimpulseは
 観測済みの乾いた衝突のない脱出領域を要求し、浅い液体で接地している場合は通常jumpを使う。
 
 装備操作、block properties、衝突geometry、採掘条件、entity寸法、item上限はclientの事実を返す。

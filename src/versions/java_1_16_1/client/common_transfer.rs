@@ -10,14 +10,16 @@ use contract::{
 #[derive(Clone)]
 pub(super) struct NativeInventoryTransfer {
     pub(super) record: InventoryTransferRecord,
-    pub(super) released: bool,
 }
 impl Bot {
     async fn common_transfer_send_owned(
         &self,
         id: InventoryTransferId,
         revision: u64,
-    ) -> Result<InventoryTransferRecord> {
+    ) -> Result<(
+        InventoryTransferRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
             let record = super::lock_packet_state(&self.common_inventory_transfer)
@@ -30,13 +32,7 @@ impl Bot {
                 return Err(contract::unavailable("transfer interrupted before I/O"));
             }
             let current = self.common_player_unlocked().await?;
-            let screen = self
-                .common_receipts
-                .lock()
-                .await
-                .container
-                .as_ref()
-                .map(|s| s.capture(current.session));
+            let screen = self.common_receipts.lock().await.screen(current.session);
             let registries = self
                 .common_receipts
                 .lock()
@@ -44,38 +40,10 @@ impl Bot {
                 .registries
                 .capture(current.session, current.receive_sequence);
             transfer::validate_predecessors(&record, &current, screen.as_ref(), &registries)?;
-            {
-                let inventory = self.inventory.read().await;
-                if !inventory.pending_clicks.is_empty()
-                    || inventory
-                        .open_window
-                        .as_ref()
-                        .map_or(0, |s| i32::from(s.id))
-                        != record.window_id()
-                    || current.inventory.cursor.as_ref().map(|v| &v.value)
-                        != Some(&api::legacy_slot(inventory.cursor.as_ref())?)
-                {
-                    return Err(contract::unavailable(
-                        "legacy transfer cache/owner changed before I/O",
-                    ));
-                }
-            }
             // QUICK_MOVE may return Empty on a complete first round, but a
             // nonempty predecessor after any partial internal round. These
             // predictions are separately audited, never received outcomes.
-            let comparison = if record
-                .legacy_return_prediction
-                .as_ref()
-                .is_some_and(|v| v.value == api::SlotKnowledge::Empty)
-            {
-                record.before_slots[usize::from(record.source_slot)]
-                    .as_ref()
-                    .expect("validated source")
-                    .value
-                    .clone()
-            } else {
-                api::SlotKnowledge::Empty
-            };
+            let comparison = self.inventory_resync_comparison()?;
             let native = super::common_click::legacy_comparison_stack(&comparison);
             let action = self
                 .connection
@@ -89,16 +57,35 @@ impl Bot {
                 r.send.legacy_comparison = Some(comparison);
                 r.send.after_sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
             }
+            self.begin_inventory_execution(record.initial.session, action, false)
+                .await?;
             self.connection
                 .bounded_inventory_transfer(id.attempt(), record.source_slot, 0, native)
                 .await?;
+            self.inventory_execution_written().await;
             let mut guard = super::lock_packet_state(&self.common_inventory_transfer).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
-            Ok(record.clone())
+            Ok((
+                record.clone(),
+                lock_packet_state(&self.inventory_executor)
+                    .await
+                    .record()
+                    .expect("retained original send"),
+            ))
         }
         .await;
         if let Err(e) = &result {
+            let boundary = super::lock_packet_state(&self.common_inventory_transfer)
+                .await
+                .as_ref()
+                .filter(|r| r.record.id == id)
+                .map(|r| r.record.send.after_sequence);
+            if let Some(after) = boundary {
+                lock_packet_state(&self.inventory_executor)
+                    .await
+                    .cancel_unsent(id.session(), after);
+            }
             self.interrupt_common_inventory_transfer(format!("transfer submission uncertain: {e}"))
                 .await;
         }
@@ -153,14 +140,8 @@ impl Bot {
                 return Ok(());
             }
             let current = self.common_player_unlocked().await?;
-            let screen = self
-                .common_receipts
-                .lock()
-                .await
-                .container
-                .as_ref()
-                .map(|s| s.capture(current.session));
-            let inventory = self.inventory.read().await;
+            let screen = self.common_receipts.lock().await.screen(current.session);
+            let inventory = self.inventory().await;
             let cache_cursor = api::legacy_slot(inventory.cursor.as_ref())?;
             let native_conflict = !inventory.pending_clicks.is_empty()
                 || inventory
@@ -190,25 +171,9 @@ impl Bot {
                 record.ready()
             };
             if complete {
-                match self
-                    .connection
-                    .finish_inventory_transfer(snapshot.record.id.attempt())
-                    .await
-                {
-                    Ok(()) => {
-                        let mut guard =
-                            super::lock_packet_state(&self.common_inventory_transfer).await;
-                        let run = guard.as_mut().expect("retained");
-                        run.released = true;
-                        run.record.stage = InventoryTransferStage::ObservedTransferred;
-                    }
-                    Err(e) => {
-                        self.interrupt_common_inventory_transfer(format!(
-                            "transfer completion gate: {e:?}"
-                        ))
-                        .await
-                    }
-                }
+                let mut guard = super::lock_packet_state(&self.common_inventory_transfer).await;
+                let run = guard.as_mut().expect("retained");
+                run.record.stage = InventoryTransferStage::ObservedTransferred;
             }
             Ok(())
         })
@@ -223,98 +188,9 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
         source: InventorySource,
         slot: u16,
     ) -> Result<InventoryTransferRecord> {
-        self.connection
-            .ledger()
-            .try_work()?
-            .run_scoped(async {
-                let gate = self.coherent_state_gate.lock().await;
-                self.common_motion_admission().await?;
-                if let InventorySource::Container { screen } = source {
-                    if super::lock_packet_state(&self.common_container_close)
-                        .await
-                        .as_ref()
-                        .is_some_and(|r| r.id.screen() == screen)
-                    {
-                        return Err(contract::unavailable(
-                            "old opening has a retained close intent",
-                        ));
-                    }
-                }
-                let revision = self
-                    .connection
-                    .motion_admission_revision()
-                    .await
-                    .map_err(|e| contract::unavailable(format!("transfer admission: {e:?}")))?;
-                if !self.inventory.read().await.pending_clicks.is_empty() {
-                    return Err(contract::unavailable("native inventory click unresolved"));
-                }
-                let attempt = super::lock_packet_state(&self.common_inventory_transfer)
-                    .await
-                    .as_ref()
-                    .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
-                    .ok_or_else(|| {
-                        contract::unavailable("inventory transfer attempts exhausted")
-                    })?;
-                let initial = self.common_player_unlocked().await?;
-                let screen = self
-                    .common_receipts
-                    .lock()
-                    .await
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session));
-                let registries = self
-                    .common_receipts
-                    .lock()
-                    .await
-                    .registries
-                    .capture(initial.session, initial.receive_sequence);
-                let record = transfer::prepare_received(
-                    (initial, registries, None),
-                    mode,
-                    source,
-                    slot,
-                    attempt,
-                    screen,
-                )?;
-                {
-                    let inventory = self.inventory.read().await;
-                    if inventory
-                        .open_window
-                        .as_ref()
-                        .map_or(0, |s| i32::from(s.id))
-                        != record.window_id()
-                        || api::legacy_slot(inventory.cursor.as_ref())?
-                            != record.cursor_before.value
-                    {
-                        return Err(contract::unavailable(
-                            "legacy transfer received/cache UI basis disagrees",
-                        ));
-                    }
-                }
-                let id = record.id;
-                let work = self.begin_finite(
-                    crate::client::ledger::finite::Family::Transfer,
-                    id.attempt(),
-                );
-                *super::lock_packet_state(&self.common_inventory_transfer).await =
-                    Some(NativeInventoryTransfer {
-                        record,
-                        released: false,
-                    });
-                let (reply, result) = tokio::sync::oneshot::channel();
-                let bot = self.clone_internal();
-                self.spawn_finite_work(work, async move {
-                    let _ = reply.send(crate::client::ledger::finite::checked(
-                        bot.common_transfer_send_owned(id, revision).await,
-                    ));
-                });
-                drop(gate);
-                result
-                    .await
-                    .map_err(|_| contract::unavailable("transfer owner result unavailable"))?
-            })
+        self.start_transfer_inventory(mode, source, slot, false)
             .await
+            .map(|(record, _)| record)
     }
     async fn inventory_transfer_record(&self) -> Result<Option<InventoryTransferRecord>> {
         // A stalled writer must not hide the already-retained intent. Complete
@@ -340,5 +216,113 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
             .await
             .as_ref()
             .map(|s| s.record.clone()))
+    }
+}
+
+impl Bot {
+    pub(super) async fn start_transfer_inventory(
+        &self,
+        mode: api::GameMode,
+        source: InventorySource,
+        slot: u16,
+        acceptance: bool,
+    ) -> Result<(
+        InventoryTransferRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
+        self.connection
+            .ledger()
+            .try_work()?
+            .run_scoped(async {
+                let gate = self.coherent_state_gate.lock().await;
+                self.common_domain_admission(
+                    false,
+                    None,
+                    if acceptance {
+                        api::domain::Domain::CurrentInventory
+                    } else {
+                        api::domain::Domain::Strict
+                    },
+                )
+                .await?;
+                if let InventorySource::Container { screen } = source {
+                    if super::lock_packet_state(&self.common_container_close)
+                        .await
+                        .as_ref()
+                        .is_some_and(|r| r.id.screen() == screen)
+                    {
+                        return Err(contract::unavailable(
+                            "old opening has a retained close intent",
+                        ));
+                    }
+                }
+                let revision = self
+                    .connection
+                    .motion_admission_revision()
+                    .await
+                    .map_err(|e| contract::unavailable(format!("transfer admission: {e:?}")))?;
+                if !self.inventory().await.pending_clicks.is_empty() {
+                    return Err(contract::unavailable("native inventory click unresolved"));
+                }
+                let attempt = super::lock_packet_state(&self.common_inventory_transfer)
+                    .await
+                    .as_ref()
+                    .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
+                    .ok_or_else(|| {
+                        contract::unavailable("inventory transfer attempts exhausted")
+                    })?;
+                let initial = self.common_player_unlocked().await?;
+                let screen = self.common_receipts.lock().await.screen(initial.session);
+                let registries = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .registries
+                    .capture(initial.session, initial.receive_sequence);
+                let record = transfer::prepare_received(
+                    (initial, registries, None),
+                    mode,
+                    source,
+                    slot,
+                    attempt,
+                    screen,
+                )?;
+                {
+                    let inventory = self.inventory().await;
+                    if inventory
+                        .open_window
+                        .as_ref()
+                        .map_or(0, |s| i32::from(s.id))
+                        != record.window_id()
+                        || api::legacy_slot(inventory.cursor.as_ref())?
+                            != record.cursor_before.value
+                    {
+                        return Err(contract::unavailable(
+                            "legacy transfer received/cache UI basis disagrees",
+                        ));
+                    }
+                }
+                self.reserve_inventory_execution(record.initial.session)
+                    .await?;
+                let id = record.id;
+                let work = self.begin_finite(
+                    crate::client::ledger::finite::Family::Transfer,
+                    id.attempt(),
+                );
+                *super::lock_packet_state(&self.common_inventory_transfer).await =
+                    Some(NativeInventoryTransfer { record });
+                let (reply, result) = tokio::sync::oneshot::channel();
+                let bot = self.clone_internal();
+                self.spawn_finite_work(work, async move {
+                    let _ = reply.send(crate::client::ledger::finite::checked(
+                        bot.common_transfer_send_owned(id, revision).await,
+                    ));
+                });
+                drop(gate);
+                result
+                    .await
+                    .map_err(|_| contract::unavailable("transfer owner result unavailable"))?
+            })
+            .await
     }
 }

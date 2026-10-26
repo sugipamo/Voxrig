@@ -909,7 +909,7 @@ fn common_player_screen_access(
     crate::client::container::player_screen_access(
         session,
         inventory.window_id,
-        inventory.container.as_ref().map(|s| s.capture(session).id),
+        inventory.container.as_ref().map(|s| s.id(session)),
         state.common_container_close.as_ref(),
     )
 }

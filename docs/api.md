@@ -169,8 +169,8 @@ async fn rotate(bot: &Bot) -> anyhow::Result<()> {
 | `motion()` | 速度と移動状態 |
 | `environment_state()` | fluid、眼の水没、climbable、特殊接触、足元block |
 | `survival_state()` | health、food、経験値、時間、天候、effect、attribute、dimension |
-| `inventory()` | player/window slot、cursor、property、click prediction metadata |
-| `open_window_state()` | 現在開いているwindow |
+| `inventory()` | 受信 player/window slot、cursor、property、transaction metadata（0.3.0 以降、予測を適用しない） |
+| `open_window_state()` | 最後に受信した opening（送信済み close の操作権は common close record で確認） |
 | `block(x, y, z)` | 読み込み済み座標のblock state |
 | `observe(radius)` | プレイヤー周囲のblock cube |
 | `loaded_chunks()`、`is_chunk_loaded(pos)` | local cacheにあるchunk一覧・存在確認 |

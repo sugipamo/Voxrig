@@ -115,13 +115,7 @@ impl Bot {
                 );
             }
             out.inventory_received(&receipts.inventory, event)?;
-            out.screen(
-                receipts
-                    .container
-                    .as_ref()
-                    .map(|screen| screen.capture(session)),
-                event,
-            )?;
+            out.screen(receipts.screen(session), event)?;
             if id == 0x14 && p.first() == Some(&0) && p.get(1..3) == Some(&46u16.to_be_bytes()) {
                 out.inventory.last_full_contents.set((), event);
             }
