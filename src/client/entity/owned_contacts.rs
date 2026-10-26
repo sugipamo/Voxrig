@@ -1850,10 +1850,10 @@ impl OwnedContacts {
                 return Err(unsupported("own contact pose unavailable"));
             };
             let pose = EntityPose::from_native(self.session.version, *id);
-            if !matches!(
+            if !(matches!(
                 pose,
                 Some(EntityPose::Standing | EntityPose::Crouching | EntityPose::Swimming)
-            ) && !(self.own_glide && pose == Some(EntityPose::FallFlying))
+            ) || (self.own_glide && pose == Some(EntityPose::FallFlying)))
             {
                 return Err(unsupported(
                     "own posture outside ground/held flight contact model",
@@ -2063,7 +2063,13 @@ pub(crate) fn team(
         .map(|t| (t.name.clone(), t.parameters.value.collision))
 }
 fn uuid_holder(uuid: [u8; 16]) -> String {
-    let h = uuid.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    use std::fmt::Write;
+    let h = uuid
+        .iter()
+        .fold(String::with_capacity(32), |mut text, byte| {
+            write!(&mut text, "{byte:02x}").expect("writing to String");
+            text
+        });
     format!(
         "{}-{}-{}-{}-{}",
         &h[..8],

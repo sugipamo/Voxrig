@@ -163,6 +163,14 @@ pub(crate) trait ChunkOps {
 
 /// Change notifications.
 pub(crate) trait EventOps {
+    async fn inventory_divergence(
+        &self,
+        send: super::inventory::InventorySendId,
+    ) -> Result<Option<super::inventory::InventoryDivergence>>;
+    async fn inventory_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<super::inventory::InventoryChangeLog>;
     async fn explosions_after(
         &self,
         _after_sequence: u64,

@@ -224,9 +224,9 @@ pub(super) fn compare(
             }
         }
         if !expected["bounds"].is_null() {
-            for axis in 0..3 {
+            for (axis, origin) in ORIGIN.iter().enumerate() {
                 for (key, offset) in [("bounds", 0), ("bounds_max", 3)] {
-                    let actual = body.bounds[axis + offset] - f64::from(ORIGIN[axis]);
+                    let actual = body.bounds[axis + offset] - f64::from(*origin);
                     let wanted = exact(&expected[key][axis]);
                     if actual.to_bits() != wanted.to_bits() {
                         return Ok(Some(format!(

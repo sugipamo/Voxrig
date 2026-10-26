@@ -49,9 +49,11 @@ async fn resync_inventory(&self) -> Result<InventorySendRecord>;
 
 `InventorySendRecord` contains its connection/world/opening-bound `InventorySendId`,
 native legacy action number, send boundary, separate response/contents/cursor
-ordinals, `InventorySendStatus` (`Pending`, `Received`, `ResyncRequired`), and a
-`resync` marker. `Received` means the protocol and state boundary is available;
-it does not certify the intended item transfer or heal a strict diagnostic.
+ordinals, `InventorySendStatus` (`Pending`, `Received`, `Diverged`, `ResyncRequired`), and a
+`resync` marker. `Received` now means the protocol/state boundary agrees with the declared intention.
+`Diverged` requires replanning from received current values and does not heal a
+strict diagnostic. See [divergence and history migration](inventory-divergence.md)
+for the added evidence getters, crafting intent scope, and exhaustive-match break.
 
 For Golemkit's click/transfer/crafting helpers, replace the strict completion
 loop with this send/current-state path, retain the same send's strict record for
@@ -68,13 +70,20 @@ loop {
     assert_eq!(progress.id, sent.id); // retain one caller's send identity
     match progress.status {
         InventorySendStatus::Received => break,
+        InventorySendStatus::Diverged => {
+            let divergence = client.inventory_divergence(sent.id).await?.unwrap();
+            // Rebuild the remaining plan from divergence.current.
+            return Ok(());
+        },
         InventorySendStatus::ResyncRequired => {
             // Stop this helper; explicitly resync and replan, never replay sent.
             let resync = ops.resync_inventory().await?;
-            // Poll resync.id until Received before starting a new explicit intent.
+            // Poll resync.id until Diverged, then replan from received current values.
             return Ok(());
         }
-        InventorySendStatus::Pending => {}
+        InventorySendStatus::Pending => {},
+        _ => return Err(voxrig::Error::new(voxrig::ErrorKind::State,
+            anyhow::anyhow!("new inventory send status"))),
     }
     tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 }

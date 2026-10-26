@@ -1704,6 +1704,7 @@ pub(super) const fn lookup(
     entity: EntityType,
     lane: OwnerLane,
 ) -> Profile {
+    let () = super::validate::VALIDATED;
     let row = ENTITY_POLICIES[entity.ordinal()];
     PROFILES[row.versions[version_index(version)].get(lane) as usize]
 }

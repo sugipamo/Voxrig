@@ -1,0 +1,236 @@
+//! Comparison-only intent and divergence evidence.
+use super::{InventoryCause, InventoryDelta, InventoryLocation, InventorySnapshot};
+use crate::client::{
+    SlotKnowledge,
+    crafting::{CraftingResultDestination, CraftingTakeRecord},
+};
+
+/// Intended effect derived only from the received pre-send basis.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum InventoryIntendedChange {
+    /// Exact ordinary PICKUP/QUICK_MOVE changes. Result previews are not stock.
+    Exact {
+        /// Separate comparison delta; its successors are explicitly Predicted.
+        delta: InventoryDelta,
+    },
+    /// Partial native result intention. Ingredient consumption, remainders and
+    /// repeated shift craft count cannot be inferred from a displayed result.
+    /// Completion conservatively yields Diverged: this is not an exact delta.
+    CraftingResult {
+        /// Original requested destination.
+        destination: CraftingResultDestination,
+        /// Displayed received output before the send.
+        result: SlotKnowledge,
+        /// Deterministic cursor change; material deltas are not predicted.
+        cursor: InventoryDelta,
+    },
+}
+/// A completed receive boundary requiring the caller to plan from current receipts.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct InventoryDivergence {
+    /// Original intent identity (may differ from the explicit resync probe's ID).
+    pub send: super::InventorySendId,
+    /// Immutable received values before sending, with original receipt ordinals.
+    pub before: InventorySnapshot,
+    /// Received values after the response/state boundary. Never a prediction.
+    pub current: InventorySnapshot,
+    /// Original comparison-only intention.
+    pub intended: InventoryIntendedChange,
+    /// Actual changes from the original received basis.
+    pub actual: InventoryDelta,
+    /// Received explanations; multiple hints can coexist.
+    pub causes: Vec<InventoryCause>,
+}
+#[derive(Clone)]
+pub(crate) struct Comparison {
+    pub(crate) send: super::InventorySendId,
+    pub(crate) before: InventorySnapshot,
+    pub(crate) expected: InventorySnapshot,
+    pub(crate) intended: InventoryIntendedChange,
+    pub(crate) causes: Vec<InventoryCause>,
+    pub(crate) interrupted: bool,
+    pub(crate) crafting: bool,
+    native_effects: Vec<InventoryLocation>,
+}
+impl Comparison {
+    pub(crate) fn click(
+        send: super::InventorySendId,
+        record: &super::InventoryClickRecord,
+        current: &crate::client::PlayerObservation,
+        screen: Option<crate::client::container::ContainerScreen>,
+    ) -> Self {
+        let before = InventorySnapshot::capture(current, screen);
+        let mut expected = before.clone();
+        expected.set(
+            before.screen_location(usize::from(record.source_slot)),
+            record.prediction.source.value.clone(),
+        );
+        expected.set(
+            InventoryLocation::Cursor,
+            record.prediction.cursor.value.clone(),
+        );
+        Self::exact(send, before, expected)
+    }
+    pub(crate) fn transfer(
+        send: super::InventorySendId,
+        record: &super::InventoryTransferRecord,
+        current: &crate::client::PlayerObservation,
+        screen: Option<crate::client::container::ContainerScreen>,
+    ) -> Self {
+        let before = InventorySnapshot::capture(current, screen);
+        let mut expected = before.clone();
+        for slot in &record.changed_slots {
+            expected.set(
+                before.screen_location(usize::from(slot.slot)),
+                slot.prediction.value.clone(),
+            );
+        }
+        Self::exact(send, before, expected)
+    }
+    pub(crate) fn exact(
+        send: super::InventorySendId,
+        before: InventorySnapshot,
+        expected: InventorySnapshot,
+    ) -> Self {
+        let intended = InventoryIntendedChange::Exact {
+            delta: before.delta(&expected),
+        };
+        Self {
+            send,
+            before,
+            expected,
+            intended,
+            causes: Vec::new(),
+            interrupted: false,
+            crafting: false,
+            native_effects: Vec::new(),
+        }
+    }
+    pub(crate) fn crafting(
+        send: super::InventorySendId,
+        record: &CraftingTakeRecord,
+        current: &crate::client::PlayerObservation,
+        screen: Option<crate::client::container::ContainerScreen>,
+    ) -> Self {
+        let before = InventorySnapshot::capture(current, screen);
+        let mut expected = before.clone();
+        expected.set(
+            InventoryLocation::Cursor,
+            record.cursor_prediction.value.clone(),
+        );
+        let intended = InventoryIntendedChange::CraftingResult {
+            destination: record.destination,
+            result: record
+                .before
+                .result()
+                .expect("validated result")
+                .value()
+                .clone(),
+            cursor: before.delta(&expected),
+        };
+        let mut native_effects = Vec::new();
+        let [width, height] = record.before.dimensions();
+        for y in 0..height {
+            for x in 0..width {
+                if let Ok((_, slot)) = record.before.input_source(x, y) {
+                    native_effects.push(before.screen_location(usize::from(slot)));
+                }
+            }
+        }
+        if record.destination == CraftingResultDestination::Inventory {
+            // Native repeated crafts and remainders are explicitly part of this
+            // declared intention, rather than an invented exact recipe delta.
+            native_effects.extend((9..=45).map(|slot| InventoryLocation::Player { slot }));
+        }
+        Self {
+            send,
+            before,
+            expected,
+            intended,
+            causes: Vec::new(),
+            interrupted: false,
+            crafting: true,
+            native_effects,
+        }
+    }
+    pub(crate) fn hint(&mut self, cause: InventoryCause) {
+        if !self.causes.contains(&cause) {
+            self.causes.push(cause);
+        }
+    }
+    pub(crate) fn inspect(
+        &mut self,
+        current: &InventorySnapshot,
+        crafting_complete: bool,
+        ready: bool,
+    ) -> bool {
+        if self.before.session != current.session || self.before.source != current.source {
+            return false;
+        }
+        let before = self.before.locations();
+        // expected is never used as received evidence; access its predicted fields directly.
+        let mut equal = true;
+        for (location, predecessor) in before {
+            // A result preview is not an ordinary click's physical effect.
+            if self.before.preview(location) {
+                continue;
+            }
+            let predicted = self.expected.value(location);
+            let now = current
+                .value(location)
+                .filter(|v| matches!(v.source, crate::client::ValueSource::Received { .. }));
+            if self.native_effects.contains(&location) {
+                // Native grid/result take semantics are checked by the original
+                // strict crafting record, rather than a fabricated recipe model.
+                continue;
+            }
+            let value = now.map(|v| &v.value);
+            let expected = predicted.map(|v| &v.value);
+            let previous = predecessor.as_ref().map(|v| &v.value);
+            if value != expected {
+                equal = false;
+            }
+            if value != previous && value != expected {
+                self.interrupted = true;
+                self.hint(InventoryCause::External);
+            }
+        }
+        if ready && self.crafting && !crafting_complete {
+            equal = false;
+        }
+        // Fresh native grid/result receipts establish delivery, not agreement
+        // with an exact pre-send material/slot delta. In particular, a /give in
+        // the native shift destination range must not be certified as Received.
+        // Until that full intention is known, even an otherwise ordinary craft
+        // requires the planner to use the newly received inventory.
+        equal && !self.interrupted && !self.crafting
+    }
+    pub(crate) fn divergence(&self, current: InventorySnapshot) -> InventoryDivergence {
+        let mut causes = self.causes.clone();
+        if causes.is_empty() {
+            causes.push(InventoryCause::External);
+        }
+        InventoryDivergence {
+            send: self.send,
+            before: self.before.clone(),
+            actual: self.before.delta(&current),
+            current,
+            intended: self.intended.clone(),
+            causes,
+        }
+    }
+}
+
+impl crate::Client {
+    /// Comparison evidence for the retained send (or its timed-out original after resync).
+    /// Returns None until Diverged. Retain the value before sending again; a
+    /// superseded send or retired world/opening returns State, never another send's data.
+    pub async fn inventory_divergence(
+        &self,
+        send: super::InventorySendId,
+    ) -> crate::Result<Option<InventoryDivergence>> {
+        crate::client::dispatch!(&self.adapter, a => crate::client::adapter::EventOps::inventory_divergence(a, send).await)
+    }
+}

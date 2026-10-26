@@ -40,6 +40,7 @@ pub enum EventKind {
         z: i32,
     },
     /// Player inventory, cursor or selected hotbar slot.
+    /// Read `Client::inventory_changes_after` for received stock/slot/cursor differences.
     InventoryChanged,
     /// An open screen, its contents or properties.
     ScreenChanged,

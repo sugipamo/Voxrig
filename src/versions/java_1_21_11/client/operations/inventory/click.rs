@@ -222,6 +222,14 @@ impl Operations {
                     .map(|v| if v == 0 { 1 } else { 0 });
                 let execution =
                     self.begin_inventory_execution(&mut state, record.initial.session, false)?;
+                state
+                    .inventory_executor
+                    .comparison(contract::outcome::Comparison::click(
+                        execution,
+                        &record,
+                        &record.initial,
+                        record.initial_screen.clone(),
+                    ));
                 let bytes = payload(&record)?;
                 let work = state.finite_work.begin(
                     &self.bot.session.ledger,

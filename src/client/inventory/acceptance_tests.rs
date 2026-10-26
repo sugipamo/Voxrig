@@ -10,8 +10,168 @@ pub(crate) trait Fixture {
     async fn slot(&mut self, slot: u16, value: &SlotKnowledge);
     async fn cursor(&mut self, value: &SlotKnowledge);
     async fn response(&mut self, send: &InventorySendRecord, accepted: bool);
+    async fn collect(&mut self, entity: i32, own: bool);
     /// Consume exactly one original click (and the modern response request).
     async fn click(&mut self);
+}
+pub(crate) async fn collect_and_external_log(f: &mut impl Fixture) {
+    let client = f.client();
+    let version = client.version();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    slots[9] = item(version, "minecraft:cobblestone", 3);
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let boundary = client
+        .inventory_changes_after(0)
+        .await
+        .unwrap()
+        .receive_sequence;
+    let send = client
+        .survival()
+        .send_inventory_click(InventorySource::Player, 9, Button::Left)
+        .await
+        .unwrap();
+    f.click().await;
+    f.collect(111, false).await; // another player's animation is not our pickup
+    f.collect(222, true).await;
+    f.collect(222, true).await; // deduplicate entity IDs
+    slots[9] = SlotKnowledge::Empty;
+    let cursor = item(version, "minecraft:cobblestone", 4);
+    f.inventory(&slots, &cursor).await;
+    f.response(&send, false).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        InventorySendStatus::Diverged
+    );
+    let divergence = client.inventory_divergence(send.id).await.unwrap().unwrap();
+    assert!(divergence.causes.contains(&InventoryCause::Collected {
+        entity_ids: vec![222]
+    }));
+    assert_eq!(divergence.actual.items.len(), 1);
+    assert_eq!(divergence.actual.items[0].change, 1);
+    let log = client.inventory_changes_after(boundary).await.unwrap();
+    assert!(
+        log.changes
+            .iter()
+            .any(|c| c.causes.contains(&InventoryCause::Send { id: send.id }))
+    );
+    assert!(
+        log.changes
+            .iter()
+            .any(|c| c.causes.contains(&InventoryCause::Collected {
+                entity_ids: vec![222]
+            }))
+    );
+    // /give-equivalent, after the in-flight operation has ended.
+    f.slot(19, &item(version, "minecraft:oak_log", 5)).await;
+    let external = client
+        .inventory_changes_after(log.receive_sequence)
+        .await
+        .unwrap();
+    assert_eq!(external.changes.len(), 1);
+    assert_eq!(external.changes[0].causes, [InventoryCause::External]);
+    assert_eq!(external.changes[0].delta.items[0].change, 5);
+    assert!(external.changes[0].delta.complete);
+    assert!(
+        client
+            .inventory_changes_after(external.receive_sequence)
+            .await
+            .unwrap()
+            .changes
+            .is_empty()
+    );
+}
+pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
+    use crate::client::crafting::CraftingResultDestination;
+    let client = f.client();
+    for destination in [
+        CraftingResultDestination::Cursor,
+        CraftingResultDestination::Inventory,
+    ] {
+        for interruption in 0..3 {
+            let collect = interruption == 1;
+            let external = interruption == 2;
+            let mut slots = vec![SlotKnowledge::Empty; 46];
+            slots[0] = item(client.version(), "minecraft:oak_planks", 4);
+            slots[1] = item(client.version(), "minecraft:oak_log", 1);
+            f.inventory(&slots, &SlotKnowledge::Empty).await;
+            let grid = client.received_crafting().await.unwrap().unwrap();
+            let sent = client
+                .survival()
+                .send_crafting_result(&grid, destination)
+                .await
+                .unwrap();
+            f.click().await;
+            if collect {
+                f.collect(333, true).await;
+            }
+            slots[0] = SlotKnowledge::Empty;
+            slots[1] = SlotKnowledge::Empty;
+            let cursor = if destination == CraftingResultDestination::Cursor {
+                item(client.version(), "minecraft:oak_planks", 4)
+            } else {
+                slots[44] = item(client.version(), "minecraft:oak_planks", 4);
+                SlotKnowledge::Empty
+            };
+            if external {
+                // An unrelated /give can land in the native shift destination
+                // range. A fresh full grid and output increase cannot certify it.
+                slots[19] = item(client.version(), "minecraft:dirt", 2);
+            }
+            f.inventory(&slots, &cursor).await;
+            f.response(&sent, false).await;
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_send_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .status,
+                InventorySendStatus::Diverged,
+                "{:?} {destination:?} interruption={interruption}",
+                client.version()
+            );
+            let divergence = client.inventory_divergence(sent.id).await.unwrap();
+            assert!(divergence.is_some());
+            if let Some(d) = divergence {
+                assert!(matches!(
+                    d.intended,
+                    InventoryIntendedChange::CraftingResult { .. }
+                ));
+                assert_eq!(
+                    d.causes.contains(&InventoryCause::Collected {
+                        entity_ids: vec![333]
+                    }),
+                    collect
+                );
+                assert_eq!(
+                    d.actual
+                        .items
+                        .iter()
+                        .any(|v| v.item.name == "minecraft:dirt" && v.change == 2),
+                    external
+                );
+                assert!(
+                    d.actual
+                        .items
+                        .iter()
+                        .any(|v| v.item.name == "minecraft:oak_log" && v.change == -1)
+                );
+                assert!(
+                    d.actual
+                        .items
+                        .iter()
+                        .any(|v| v.item.name == "minecraft:oak_planks" && v.change == 4)
+                );
+            }
+        }
+    }
 }
 fn item(version: MinecraftVersion, name: &str, count: u32) -> SlotKnowledge {
     let definition = Registry::for_version(version).item(name).unwrap();
@@ -121,9 +281,23 @@ pub(crate) async fn pickup_matrix(f: &mut impl Fixture) {
                                 .unwrap()
                                 .unwrap()
                                 .status,
-                            InventorySendStatus::Received,
+                            if matches!(timing, 1 | 2) {
+                                InventorySendStatus::Diverged
+                            } else {
+                                InventorySendStatus::Received
+                            },
                             "{version:?} transfer={transfer} grid={crafting_input} timing={timing} injection={injection}"
                         );
+                        let divergence = client.inventory_divergence(send.id).await.unwrap();
+                        assert_eq!(divergence.is_some(), matches!(timing, 1 | 2));
+                        if let Some(d) = divergence {
+                            assert_eq!(d.send, send.id);
+                            assert!(d.current.receive_sequence > d.before.receive_sequence);
+                            assert!(d.causes.contains(&InventoryCause::External));
+                            if version == MinecraftVersion::Java1_16_1 {
+                                assert!(d.causes.contains(&InventoryCause::Rejected));
+                            }
+                        }
                         let old = if transfer {
                             serde_json::to_value(
                                 client
@@ -250,8 +424,12 @@ pub(crate) async fn missing_response_resync_and_late_response(f: &mut impl Fixtu
             .unwrap()
             .unwrap()
             .status,
-        InventorySendStatus::Received
+        InventorySendStatus::Diverged
     );
+    let divergence = client.inventory_divergence(old.id).await.unwrap().unwrap();
+    assert!(divergence.causes.contains(&InventoryCause::TimedOutResync));
+    assert_eq!(divergence.send, old.id);
+    assert_eq!(divergence.before.receive_sequence, old.after_sequence);
     let next = client
         .survival()
         .send_inventory_click(source, 9, Button::Left)

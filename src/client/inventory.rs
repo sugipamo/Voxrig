@@ -3,9 +3,18 @@
 pub(crate) mod acceptance_tests;
 #[cfg(test)]
 pub(crate) mod armor_tests;
+pub(crate) mod changes;
 pub(crate) mod click;
+#[cfg(test)]
+mod divergence_tests;
 pub(crate) mod executor;
+pub(crate) mod outcome;
+pub use changes::{
+    InventoryCause, InventoryChange, InventoryChangeLog, InventoryDelta, InventoryItemDelta,
+    InventoryLocation, InventorySlotDelta, InventorySnapshot, MAX_RETAINED_INVENTORY_CHANGES,
+};
 pub use executor::{InventorySendId, InventorySendRecord, InventorySendStatus};
+pub use outcome::{InventoryDivergence, InventoryIntendedChange};
 #[cfg(test)]
 mod crafting_swap_tests;
 mod data;

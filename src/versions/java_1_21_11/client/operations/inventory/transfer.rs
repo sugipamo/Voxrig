@@ -200,6 +200,7 @@ impl Operations {
         record.send.request_full_resync = true;
         record.send.sent_screen_revision = record.send.screen_revision.map(|v| if v == 0 { 1 } else { 0 });
         let execution=self.begin_inventory_execution(&mut state,record.initial.session,false)?;
+        state.inventory_executor.comparison(contract::outcome::Comparison::transfer(execution, &record, &record.initial, record.initial_screen.clone()));
         let bytes = payload(&record)?;
         let work = state.finite_work.begin(&self.bot.session.ledger, crate::client::ledger::finite::Family::Transfer, record.id.attempt());
         state.common_inventory_transfer = Some(record);

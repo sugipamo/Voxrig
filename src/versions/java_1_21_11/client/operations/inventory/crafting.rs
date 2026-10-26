@@ -127,6 +127,15 @@ impl Operations {
             state
                 .inventory_executor
                 .refresh_boundary(execution, current.receive_sequence)?;
+            let basis_screen = state.operations.inventory.screen(current.session);
+            state.inventory_executor.comparison(
+                crate::client::inventory::outcome::Comparison::crafting(
+                    execution,
+                    &record,
+                    &current,
+                    basis_screen,
+                ),
+            );
             self.bot
                 .session
                 .send_with_attempt(

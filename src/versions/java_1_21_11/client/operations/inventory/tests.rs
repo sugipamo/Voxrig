@@ -5856,6 +5856,22 @@ mod single_owner {
         }
     }
     impl Fixture for CommonFixture {
+        async fn collect(&mut self, entity: i32, own: bool) {
+            self.api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .operations
+                .local_player
+                .entity_id = Some(42);
+            let mut p = Vec::new();
+            put_varint(&mut p, entity);
+            put_varint(&mut p, if own { 42 } else { 43 });
+            put_varint(&mut p, 1);
+            self.receive(ids::play_clientbound::COLLECT, &p).await;
+        }
         fn client(&self) -> crate::Client {
             CommonFixture::client(self)
         }
@@ -5899,6 +5915,13 @@ mod single_owner {
         let mut f = CommonFixture::new().await;
         script::pickup_matrix(&mut f).await;
         script::missing_response_resync_and_late_response(&mut f).await;
+        script::collect_and_external_log(&mut f).await;
+        crate::client::inventory::armor_tests::install(
+            &mut f.api.bot.session.state.lock().await.registries,
+            MinecraftVersion::Java1_21_11,
+            None,
+        );
+        script::crafting_result_outcomes(&mut f).await;
         f.stop().await;
     }
 }

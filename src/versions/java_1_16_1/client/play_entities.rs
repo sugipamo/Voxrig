@@ -331,6 +331,14 @@ impl Bot {
             .get(&collected_entity_id)
             .and_then(EntityState::item_drop)
             .and_then(ItemStack::name);
+        if self.player.lock().await.entity_id == Some(collector_entity_id) {
+            let (session, source) = self.inventory_execution_scope().await;
+            let mut executor = lock_packet_state(&self.inventory_executor).await;
+            executor
+                .changes
+                .collect(collected_entity_id, packet_sequence);
+            executor.collected(session, source, collected_entity_id);
+        }
         self.emit(Event::ItemCollected(ItemCollected {
             collected_entity_id,
             collector_entity_id,

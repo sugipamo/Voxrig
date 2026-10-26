@@ -27,14 +27,18 @@ impl InventorySendId {
         self.number
     }
 }
-/// Protocol progress; none of these states asserts an exact click effect.
+/// Receive progress and effect comparison for an inventory send.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum InventorySendStatus {
     /// Reserved or sent; native response and full received state are still required.
     Pending,
-    /// Native response and received full contents/cursor both arrived.
+    /// Native response/full state arrived and the declared intended effect agrees.
     Received,
+    /// Native response/full state arrived, but the plan must use current receipts.
+    /// Read `Client::inventory_divergence` for comparison and cause evidence.
+    Diverged,
     /// Deadline or opening change; stop clicks and request resynchronization.
     ResyncRequired,
 }
@@ -55,7 +59,7 @@ pub struct InventorySendRecord {
     pub contents_sequence: Option<u64>,
     /// Actual cursor receipt, independent of ACK/prediction.
     pub cursor_sequence: Option<u64>,
-    /// Protocol progress only.
+    /// Receive progress and declared effect comparison.
     pub status: InventorySendStatus,
     /// This is an explicit, no-effect resync probe, never a replay of the old intent.
     pub resync: bool,
@@ -71,23 +75,46 @@ impl InventorySendRecord {
 #[derive(Default)]
 pub(crate) struct Executor {
     next: u64,
+    pub(crate) changes: super::changes::InventoryChangeLedger,
     current: Option<InventorySendRecord>,
     deadline: Option<Instant>,
+    comparison: Option<super::outcome::Comparison>,
+    divergence: Option<super::InventoryDivergence>,
+    ready: bool,
+    timed_out: bool,
 }
 impl Executor {
     pub(crate) fn record(&mut self) -> Option<InventorySendRecord> {
         self.expire();
         self.current.clone()
     }
+    pub(crate) fn divergence(
+        &self,
+        id: InventorySendId,
+    ) -> Result<Option<super::InventoryDivergence>> {
+        if !self.current.as_ref().is_some_and(|r| r.id == id)
+            && !self.divergence.as_ref().is_some_and(|d| d.send == id)
+        {
+            return Err(unavailable(
+                "inventory send was superseded; retain divergence before the next send",
+            ));
+        }
+        Ok(self.divergence.clone())
+    }
     pub(crate) fn busy(&self) -> bool {
-        self.current
-            .as_ref()
-            .is_some_and(|r| r.status != InventorySendStatus::Received)
+        self.current.as_ref().is_some_and(|r| {
+            !matches!(
+                r.status,
+                InventorySendStatus::Received | InventorySendStatus::Diverged
+            )
+        })
     }
     pub(crate) fn owns(&self, session: SessionStamp, after: u64, action: Option<i16>) -> bool {
         self.current.as_ref().is_some_and(|r| {
-            r.status != InventorySendStatus::Received
-                && r.id.session == session
+            !matches!(
+                r.status,
+                InventorySendStatus::Received | InventorySendStatus::Diverged
+            ) && r.id.session == session
                 && r.after_sequence == after
                 && r.legacy_action == action
         })
@@ -132,6 +159,26 @@ impl Executor {
             source,
             number: self.next,
         };
+        let inherited = if resync {
+            self.comparison
+                .take()
+                .filter(|c| c.before.session == session && c.before.source == source)
+                .map(|mut c| {
+                    c.interrupted = true;
+                    c.hint(if self.timed_out {
+                        super::InventoryCause::TimedOutResync
+                    } else {
+                        super::InventoryCause::External
+                    });
+                    c
+                })
+        } else {
+            None
+        };
+        self.comparison = inherited;
+        self.divergence = None;
+        self.ready = false;
+        self.timed_out = false;
         self.current = Some(InventorySendRecord {
             id,
             legacy_action: action,
@@ -218,6 +265,7 @@ impl Executor {
                 .filter(|r| r.status == InventorySendStatus::Pending)
             {
                 r.status = InventorySendStatus::ResyncRequired;
+                self.timed_out = true;
             }
         }
     }
@@ -250,9 +298,113 @@ impl Executor {
                 && r.contents_sequence.is_some()
                 && r.cursor_sequence.is_some()
             {
-                r.status = InventorySendStatus::Received;
+                self.ready = true;
+                if self.comparison.is_none() {
+                    r.status = InventorySendStatus::Received;
+                }
                 self.deadline = None;
             }
+        }
+    }
+    pub(crate) fn comparison(&mut self, comparison: super::outcome::Comparison) {
+        if self
+            .current
+            .as_ref()
+            .is_some_and(|r| r.id == comparison.send && !r.dispatched)
+        {
+            self.comparison = Some(comparison);
+        }
+    }
+    pub(crate) fn rejected(&mut self) {
+        if let Some(c) = &mut self.comparison {
+            c.hint(super::InventoryCause::Rejected);
+        }
+    }
+    pub(crate) fn collected(
+        &mut self,
+        session: SessionStamp,
+        source: InventorySource,
+        entity: i32,
+    ) {
+        if self.current.as_ref().is_some_and(|r| {
+            r.id.session == session
+                && r.id.source == source
+                && r.dispatched
+                && matches!(
+                    r.status,
+                    InventorySendStatus::Pending | InventorySendStatus::ResyncRequired
+                )
+        }) {
+            if let Some(c) = &mut self.comparison {
+                c.interrupted = true;
+                if let Some(super::InventoryCause::Collected { entity_ids }) = c
+                    .causes
+                    .iter_mut()
+                    .find(|h| matches!(h, super::InventoryCause::Collected { .. }))
+                {
+                    if !entity_ids.contains(&entity)
+                        && entity_ids.len() < super::MAX_RETAINED_INVENTORY_CHANGES
+                    {
+                        entity_ids.push(entity);
+                    }
+                } else {
+                    c.hint(super::InventoryCause::Collected {
+                        entity_ids: vec![entity],
+                    });
+                }
+            }
+        }
+    }
+    pub(crate) fn active_send(&self) -> Option<InventorySendId> {
+        self.current
+            .as_ref()
+            .filter(|r| {
+                r.dispatched
+                    && matches!(
+                        r.status,
+                        InventorySendStatus::Pending | InventorySendStatus::ResyncRequired
+                    )
+            })
+            .map(|r| r.id)
+    }
+    pub(crate) fn receive(&mut self, current: super::InventorySnapshot, crafting_complete: bool) {
+        let send = self
+            .active_send()
+            .filter(|id| id.session() == current.session && id.source() == current.source);
+        self.observe(current.clone(), crafting_complete);
+        let hints = if send.is_some() {
+            self.comparison
+                .as_ref()
+                .map(|c| c.causes.as_slice())
+                .or_else(|| self.divergence.as_ref().map(|d| d.causes.as_slice()))
+                .unwrap_or_default()
+        } else {
+            &[]
+        };
+        self.changes.receive(current, send, hints);
+    }
+    pub(crate) fn observe(&mut self, current: super::InventorySnapshot, crafting_complete: bool) {
+        self.expire();
+        let Some(r) = self.current.as_mut().filter(|r| {
+            r.dispatched
+                && r.status == InventorySendStatus::Pending
+                && r.id.session == current.session
+                && r.id.source == current.source
+        }) else {
+            return;
+        };
+        let Some(comparison) = &mut self.comparison else {
+            return;
+        };
+        let agrees = comparison.inspect(&current, crafting_complete, self.ready);
+        if self.ready {
+            if agrees {
+                r.status = InventorySendStatus::Received;
+            } else {
+                r.status = InventorySendStatus::Diverged;
+                self.divergence = Some(comparison.divergence(current));
+            }
+            self.comparison = None;
         }
     }
     pub(crate) fn response(

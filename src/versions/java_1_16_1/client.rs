@@ -6092,6 +6092,7 @@ impl Bot {
         self.common_transfer_context_received().await?;
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;
+        self.inventory_changes_received(id).await;
         self.reconcile_finite().await;
         self.observe_stop_context().await;
         self.enforce_session_limits().await?;
@@ -7117,6 +7118,36 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
 }
 
 impl crate::client::adapter::EventOps for Bot {
+    async fn inventory_divergence(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+    ) -> Result<Option<crate::client::inventory::InventoryDivergence>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let (session, source) = self.inventory_execution_scope().await;
+        if send.session() != session || send.source() != source {
+            return Err(crate::client::inventory::unavailable(
+                "inventory send scope is retired",
+            ));
+        }
+        lock_packet_state(&self.inventory_executor)
+            .await
+            .divergence(send)
+    }
+
+    async fn inventory_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::inventory::InventoryChangeLog> {
+        let _gate = self.coherent_state_gate.lock().await;
+        lock_packet_state(&self.inventory_executor)
+            .await
+            .changes
+            .after(
+                after_sequence,
+                self.protocol_packet_sequence.load(Ordering::Acquire),
+            )
+    }
+
     async fn entity_history_after(
         &self,
         cursor: Option<crate::client::EntityHistoryCursor>,
@@ -8992,7 +9023,7 @@ mod tests {
         packet.extend(position.x.div_euclid(16).to_be_bytes());
         packet.extend(position.z.div_euclid(16).to_be_bytes());
         put_varint(&mut packet, 1);
-        packet.push((position.x.rem_euclid(16) << 4 | position.z.rem_euclid(16)) as u8);
+        packet.push(((position.x.rem_euclid(16) << 4) | position.z.rem_euclid(16)) as u8);
         packet.push(position.y.rem_euclid(16) as u8);
         put_varint(&mut packet, state_id);
         packet

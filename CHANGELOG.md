@@ -9,6 +9,15 @@
 
 ## Unreleased
 
+- BREAKING: `InventorySendStatus` gains `Diverged` and is now `#[non_exhaustive]`;
+  `Received` requires the declared effect to agree with current received values.
+  Add `Client::inventory_divergence` and bounded `inventory_changes_after` on both
+  versions, with received snapshots, item/slot/cursor differences and cause hints.
+  Timeout resync retains the original intent as `Diverged(TimedOutResync)`.
+  Crafting-result sends conservatively diverge because the displayed result alone
+  cannot establish an exact ingredient/remainder/repeated-craft delta.
+  Predictions remain comparison-only. See [usage and migration](docs/inventory-divergence.md).
+- Keep strict Clippy checks compatible with Rust 1.85, including const contact-policy proofs.
 - Added bounded unknown-terrain walking to `body::Move` and
   `PlayerControl::start_control_best_effort` on both versions, plus
   `start_path_best_effort` for connection-owned finite routes. Terrain warnings

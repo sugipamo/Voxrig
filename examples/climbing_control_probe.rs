@@ -657,6 +657,21 @@ async fn main() -> anyhow::Result<()> {
                 } else { survival.transfer_inventory(source, slot).await? })?
             }
             "inventory_transfer_record" => serde_json::to_value(survival.inventory_transfer_record().await?)?,
+            "inventory_changes" => serde_json::to_value(client.inventory_changes_after(request["after"].as_u64().unwrap_or(0)).await?)?,
+            "inventory_send_record" => {
+                let record = survival.inventory_send_record().await?;
+                let divergence = match &record {
+                    Some(record) => client.inventory_divergence(record.id).await?,
+                    None => None,
+                };
+                serde_json::json!({"record": record, "divergence": divergence})
+            }
+            "send_inventory_click" => {
+                use voxrig::client::inventory::{InventoryClickButton as Button, InventorySource};
+                let slot = request["slot"].as_u64().unwrap().try_into()?;
+                let button = if request["button"] == "right" { Button::Right } else { Button::Left };
+                serde_json::to_value(survival.send_inventory_click(InventorySource::Player, slot, button).await?)?
+            }
             "inventory_record" => serde_json::to_value(survival.inventory_click_record().await?)?,
             "inventory_click" => {
                 use voxrig::client::inventory::{

@@ -463,10 +463,10 @@ pub(super) fn receive(
                 bail!("unexpected player inventory size");
             }
             if window != 0
-                && !inventory
+                && inventory
                     .container
                     .as_ref()
-                    .is_some_and(|screen| screen.window == window)
+                    .is_none_or(|screen| screen.window != window)
             {
                 return Ok(()); // retired opening; its payload cannot invalidate the new opening
             }
@@ -563,10 +563,10 @@ pub(super) fn receive(
                 bail!("invalid screen slot");
             }
             if window != 0
-                && !inventory
+                && inventory
                     .container
                     .as_ref()
-                    .is_some_and(|screen| screen.window == window)
+                    .is_none_or(|screen| screen.window != window)
             {
                 return Ok(());
             }
@@ -657,7 +657,7 @@ pub(in crate::versions::java_1_21_11::client) fn creative_pending(state: &State,
     state.operations.inventory.pending_creative.contains(&slot)
 }
 
-fn execution_scope(
+pub(in crate::versions::java_1_21_11::client) fn execution_scope(
     state: &State,
 ) -> (
     crate::client::SessionStamp,
@@ -815,6 +815,18 @@ pub(in crate::versions::java_1_21_11::client) fn execution_received(
                 .inventory_executor
                 .contents(session, source, window, state.sequence, true);
         }
+        input::COLLECT => {
+            let mut reader = Reader::new(payload);
+            let entity = reader.varint()?;
+            let collector = reader.varint()?;
+            if state.operations.local_player.entity_id == Some(collector) {
+                state
+                    .inventory_executor
+                    .changes
+                    .collect(entity, state.sequence);
+                state.inventory_executor.collected(session, source, entity);
+            }
+        }
         input::TAB_COMPLETE => {
             let token = u64::try_from(Reader::new(payload).varint()?)
                 .context("invalid inventory fence token")?;
@@ -953,4 +965,41 @@ impl Inventory {
             .collect::<Vec<_>>();
         self.container.as_ref().map(|s| s.project(session, &player))
     }
+}
+
+pub(in crate::versions::java_1_21_11::client) fn changes_received(
+    state: &mut State,
+    id: i32,
+    in_play: bool,
+) -> Result<()> {
+    use ids::play_clientbound as input;
+    if !in_play
+        || !matches!(
+            id,
+            input::WINDOW_ITEMS
+                | input::SET_SLOT
+                | input::SET_PLAYER_INVENTORY
+                | input::SET_CURSOR_ITEM
+                | input::OPEN_WINDOW
+                | input::CLOSE_WINDOW
+                | input::LOGIN
+                | input::RESPAWN
+                | input::START_CONFIGURATION
+                | input::TAB_COMPLETE
+        )
+    {
+        return Ok(());
+    }
+    let player = super::common_player_in_state(state, state.connection_id, false)?;
+    let screen = state.operations.inventory.screen(player.session);
+    let current = crate::client::inventory::InventorySnapshot::capture(&player, screen);
+    let crafting_complete = state.common_crafting_take.as_ref().is_some_and(|r| {
+        matches!(
+            r.stage,
+            crate::client::crafting::CraftingTakeStage::ObservedTaken
+                | crate::client::crafting::CraftingTakeStage::ObservedTransferred
+        )
+    });
+    state.inventory_executor.receive(current, crafting_complete);
+    Ok(())
 }
