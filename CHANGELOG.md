@@ -14,6 +14,8 @@
   Add `Client::inventory_divergence` and bounded `inventory_changes_after` on both
   versions, with received snapshots, item/slot/cursor differences and cause hints.
   Timeout resync retains the original intent as `Diverged(TimedOutResync)`.
+  Crafting-result sends conservatively diverge because the displayed result alone
+  cannot establish an exact ingredient/remainder/repeated-craft delta.
   Predictions remain comparison-only. See [usage and migration](docs/inventory-divergence.md).
 - Added bounded unknown-terrain walking to `body::Move` and
   `PlayerControl::start_control_best_effort` on both versions, plus

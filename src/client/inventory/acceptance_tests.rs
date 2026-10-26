@@ -93,7 +93,9 @@ pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
         CraftingResultDestination::Cursor,
         CraftingResultDestination::Inventory,
     ] {
-        for collect in [false, true] {
+        for interruption in 0..3 {
+            let collect = interruption == 1;
+            let external = interruption == 2;
             let mut slots = vec![SlotKnowledge::Empty; 46];
             slots[0] = item(client.version(), "minecraft:oak_planks", 4);
             slots[1] = item(client.version(), "minecraft:oak_log", 1);
@@ -116,6 +118,11 @@ pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
                 slots[44] = item(client.version(), "minecraft:oak_planks", 4);
                 SlotKnowledge::Empty
             };
+            if external {
+                // An unrelated /give can land in the native shift destination
+                // range. A fresh full grid and output increase cannot certify it.
+                slots[19] = item(client.version(), "minecraft:dirt", 2);
+            }
             f.inventory(&slots, &cursor).await;
             f.response(&sent, false).await;
             assert_eq!(
@@ -126,24 +133,30 @@ pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
                     .unwrap()
                     .unwrap()
                     .status,
-                if collect {
-                    InventorySendStatus::Diverged
-                } else {
-                    InventorySendStatus::Received
-                },
-                "{:?} {destination:?} collect={collect}",
+                InventorySendStatus::Diverged,
+                "{:?} {destination:?} interruption={interruption}",
                 client.version()
             );
             let divergence = client.inventory_divergence(sent.id).await.unwrap();
-            assert_eq!(divergence.is_some(), collect);
+            assert!(divergence.is_some());
             if let Some(d) = divergence {
                 assert!(matches!(
                     d.intended,
                     InventoryIntendedChange::CraftingResult { .. }
                 ));
-                assert!(d.causes.contains(&InventoryCause::Collected {
-                    entity_ids: vec![333]
-                }));
+                assert_eq!(
+                    d.causes.contains(&InventoryCause::Collected {
+                        entity_ids: vec![333]
+                    }),
+                    collect
+                );
+                assert_eq!(
+                    d.actual
+                        .items
+                        .iter()
+                        .any(|v| v.item.name == "minecraft:dirt" && v.change == 2),
+                    external
+                );
                 assert!(
                     d.actual
                         .items

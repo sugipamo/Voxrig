@@ -84,13 +84,15 @@ finish `Received`.
 For ordinary PICKUP and QUICK_MOVE, `InventoryIntendedChange::Exact` contains the
 full comparison delta derived from the actual pre-send capture. Expected
 successors are tagged `Predicted`, and live only in this comparison. Crafting
-uses `CraftingResult`: received displayed output, destination and deterministic
-cursor delta. Native ingredient consumption, remainders, next-result previews
-and repeated shift crafts cannot be inferred from a displayed output. These
-remain explicitly native effects checked by the existing fresh-grid/result
-receipt contract; they are **not** fabricated exact ingredient deltas. Changes
-outside that native effect scope and collect interruptions still diverge.
-`actual` always includes all received slot/item/cursor changes.
+uses the partial `CraftingResult` intention: received displayed output,
+destination and deterministic cursor delta. Native ingredient consumption,
+remainders and repeated shift crafts cannot be inferred from a displayed output.
+Until the full material/slot intention can be established, **every completed
+crafting-result send conservatively yields `Diverged`**, including an ordinary
+successful craft. This avoids certifying an unrelated change inside the native
+crafting destination range as `Received`. The existing fresh-grid/result receipt
+contract still describes delivery independently. `actual` includes all received
+slot/item/cursor changes; replan from `current` without replaying the craft.
 
 `Rejected`, `Collected { entity_ids }`, `TimedOutResync` and `External` are hints,
 and multiple can coexist. A collect refers to an actual `collect_item` naming

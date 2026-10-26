@@ -15,8 +15,9 @@ pub enum InventoryIntendedChange {
         /// Separate comparison delta; its successors are explicitly Predicted.
         delta: InventoryDelta,
     },
-    /// Native result take: ingredient consumption, remainders, next result and
-    /// repeated shift craft count are received, not guessed from a displayed result.
+    /// Partial native result intention. Ingredient consumption, remainders and
+    /// repeated shift craft count cannot be inferred from a displayed result.
+    /// Completion conservatively yields Diverged: this is not an exact delta.
     CraftingResult {
         /// Original requested destination.
         destination: CraftingResultDestination,
@@ -199,7 +200,12 @@ impl Comparison {
         if ready && self.crafting && !crafting_complete {
             equal = false;
         }
-        equal && !self.interrupted
+        // Fresh native grid/result receipts establish delivery, not agreement
+        // with an exact pre-send material/slot delta. In particular, a /give in
+        // the native shift destination range must not be certified as Received.
+        // Until that full intention is known, even an otherwise ordinary craft
+        // requires the planner to use the newly received inventory.
+        equal && !self.interrupted && !self.crafting
     }
     pub(crate) fn divergence(&self, current: InventorySnapshot) -> InventoryDivergence {
         let mut causes = self.causes.clone();
