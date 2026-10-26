@@ -2187,3 +2187,92 @@ async fn body_dig_keeps_known_hardness_range_and_hand_fences_without_estimation(
     );
     f.stop().await;
 }
+
+#[tokio::test]
+async fn send_and_trust_requires_full_flush_and_missing_ack_still_expires() {
+    use crate::body::{Action, ActionStatus, Body, BodyConfig, HeadlessBody, SendStatus};
+    for complete in [true, false] {
+        let f = Fixture::new().await;
+        let control = crate::client::ledger::testing::Control::default();
+        f.api
+            .bot
+            .session
+            .writer
+            .lock()
+            .await
+            .stream
+            .test_replace(control.writer());
+        let body = Body::new(
+            HeadlessBody::new(
+                crate::Client::from_java_1_21_11(f.api.bot.clone()),
+                BodyConfig {
+                    settle_window: Duration::from_millis(20),
+                    action_timeout: Duration::from_millis(250),
+                    ..Default::default()
+                },
+            )
+            .unwrap(),
+        );
+        control.release(1, false);
+        let sender = body.backend().clone();
+        let mut waiter = tokio::spawn(async move {
+            sender
+                .send_and_trust(Action::ActivateBlock {
+                    pos: SUPPORT,
+                    face: crate::BlockFace::West,
+                    cursor: [0.5; 3],
+                    hand: crate::Hand::Main,
+                })
+                .await
+                .unwrap()
+        });
+        control.until(|w| w.bytes().len() == 1).await;
+        assert!(
+            timeout(Duration::from_millis(10), &mut waiter)
+                .await
+                .is_err()
+        );
+        if complete {
+            control.release(usize::MAX, false);
+            control.until(|w| w.progress().1 > 0).await;
+            // Even complete bytes without the final flush are not Sent.
+            assert!(
+                timeout(Duration::from_millis(10), &mut waiter)
+                    .await
+                    .is_err()
+            );
+            control.release(usize::MAX, true);
+            let sent = timeout(Duration::from_millis(100), waiter)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(matches!(sent.dispatch, SendStatus::Sent));
+            assert!(matches!(
+                body.action_status(sent.id).await.unwrap(),
+                ActionStatus::Pending
+            ));
+            // No server ACK: Sent must not replace the bounded acceptance task.
+            tokio::time::sleep(Duration::from_millis(260)).await;
+            assert!(matches!(
+                body.action_status(sent.id).await.unwrap(),
+                ActionStatus::Unknown { .. }
+            ));
+        } else {
+            let unsent = timeout(Duration::from_secs(1), waiter)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(matches!(
+                unsent.dispatch,
+                SendStatus::NotSent {
+                    outcome: ActionStatus::Unknown { .. }
+                }
+            ));
+            assert_eq!(control.bytes().len(), 1);
+            control.fail(Some(1), true);
+        }
+        body.release_control().await.unwrap();
+        drop(body);
+        f.stop().await;
+    }
+}

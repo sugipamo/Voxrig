@@ -1,0 +1,718 @@
+{
+  "date": "2026-10-25",
+  "base": "9ee2546",
+  "features": "native",
+  "settle_window_ms": 300,
+  "action_timeout_ms": 2000,
+  "authority": "SHA-1 verified official servers; original-byte proxy; independent RCON. No fabricated packets or SDK cache edits. after_send_seconds measures proxy observation to probe return (clamped at zero when proxy observes later); admission time is separately included in seconds. ACK/result gates remain closed until send_and_trust returns.",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "binary_sha256": "7714c17d486e9f66a1bb65208c4e74b0530c67d20c6706051e89f4483885dd40",
+      "checks": [
+        {
+          "name": "look_full_send",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 1
+            }
+          },
+          "seconds": 0.0013634850038215518,
+          "after_send_seconds": 0.00029150297632440925,
+          "native_rotation": "ClimbingProbe has the following entity data: [37.0f, 13.0f]",
+          "outcome": "accepted",
+          "original_action_packets": [
+            {
+              "ordinal": 90,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000421400004150000000",
+              "wire_sha256": "e6780da7bf94ec7513e23e4f6838e9dc3f8d379b156771b0283c8836d3c97244"
+            }
+          ]
+        },
+        {
+          "name": "late_teleport_after_accepted",
+          "events": [
+            {
+              "id": {
+                "backend": 1,
+                "number": 1
+              },
+              "ordinal": 1,
+              "status": "pending"
+            },
+            {
+              "id": {
+                "backend": 1,
+                "number": 1
+              },
+              "ordinal": 2,
+              "status": "accepted"
+            },
+            {
+              "id": {
+                "backend": 1,
+                "number": 1
+              },
+              "ordinal": 3,
+              "status": "corrected",
+              "correction": {
+                "Pose": {
+                  "position": {
+                    "source": {
+                      "Received": {
+                        "sequence": 78
+                      }
+                    },
+                    "value": [
+                      0.5,
+                      65.0,
+                      0.5
+                    ]
+                  },
+                  "rotation": {
+                    "source": {
+                      "Received": {
+                        "sequence": 78
+                      }
+                    },
+                    "value": [
+                      0.0,
+                      0.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "original_action_packets": []
+        },
+        {
+          "name": "finite_move_first_tick",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 2
+            }
+          },
+          "seconds": 0.01038254302693531,
+          "after_send_seconds": 0.006586064992006868,
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 2.830889549636968d]",
+          "outcome": "accepted",
+          "first_dispatched_ticks": 1,
+          "original_action_packets": [
+            {
+              "ordinal": 100,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe322d0e72f1aa0000000000000000001",
+              "wire_sha256": "b4acf2fb216926a0bcc5c94a0ceac6dda9386158062aae6bca0be4b598d353e3"
+            }
+          ]
+        },
+        {
+          "name": "held_move_first_tick",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 3
+            }
+          },
+          "seconds": 0.007358430011663586,
+          "after_send_seconds": 0.0021359770325943828,
+          "released_status": "stopped",
+          "original_action_packets": [
+            {
+              "ordinal": 116,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe322d0e72f1aa0000000000000000000",
+              "wire_sha256": "9c7d8792d80e19cc8cb8f8c24c3bc6215de59865f06aa21ad2f8e4606ae3e7ec"
+            }
+          ]
+        },
+        {
+          "name": "place_full_send_before_reply",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 5
+            }
+          },
+          "seconds": 0.015509000979363918,
+          "after_send_seconds": 0.014420559979043901,
+          "returned_before_original_reply": true,
+          "native_block": "Test passed",
+          "outcome": "accepted",
+          "original_action_packets": [
+            {
+              "ordinal": 141,
+              "packet_id": 45,
+              "body_hex": "000000008000000040013e2e147b3f8000003f547ae100",
+              "wire_sha256": "c4f73ef9a988d5291ff6005d896b351bf670b61d2194de21ba223da584532c99"
+            }
+          ]
+        },
+        {
+          "name": "occupied_cell_later_corrected",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 6
+            }
+          },
+          "seconds": 0.0011544609442353249,
+          "after_send_seconds": 0.0,
+          "returned_before_original_reply": true,
+          "outcome": "corrected",
+          "correction": {
+            "Block": {
+              "position": [
+                2,
+                65,
+                0
+              ],
+              "state": {
+                "source": {
+                  "Received": {
+                    "sequence": 104
+                  }
+                },
+                "value": {
+                  "name": "minecraft:diamond_block",
+                  "properties": {}
+                }
+              }
+            }
+          },
+          "receive_revision": 104,
+          "original_action_packets": [
+            {
+              "ordinal": 159,
+              "packet_id": 45,
+              "body_hex": "000000008000000040013e2e147b3f8000003f547ae100",
+              "wire_sha256": "c4f73ef9a988d5291ff6005d896b351bf670b61d2194de21ba223da584532c99"
+            },
+            {
+              "ordinal": 160,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001",
+              "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d"
+            },
+            {
+              "ordinal": 162,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001",
+              "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d"
+            }
+          ]
+        },
+        {
+          "name": "survival_break_start_before_ack",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 7
+            }
+          },
+          "seconds": 0.4019966550404206,
+          "after_send_seconds": 0.0,
+          "returned_before_original_reply": true,
+          "native_air": "Test passed",
+          "outcome": "accepted",
+          "original_action_packets": [
+            {
+              "ordinal": 174,
+              "packet_id": 27,
+              "body_hex": "00000000800000004104",
+              "wire_sha256": "3ba08581d68e7dd02de59069f7295a73af0c723146d47c0ac73c9c3b7b581b75"
+            },
+            {
+              "ordinal": 175,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001",
+              "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d"
+            },
+            {
+              "ordinal": 176,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001",
+              "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d"
+            },
+            {
+              "ordinal": 178,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001",
+              "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d"
+            }
+          ]
+        },
+        {
+          "name": "sent_but_missing_ack_deadline",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 8
+            }
+          },
+          "seconds": 0.006031021999660879,
+          "after_send_seconds": 0.0,
+          "dig_statuses": [
+            0,
+            1
+          ],
+          "outcome": "unknown",
+          "original_action_packets": [
+            {
+              "ordinal": 223,
+              "packet_id": 27,
+              "body_hex": "00000000800000004104",
+              "wire_sha256": "3ba08581d68e7dd02de59069f7295a73af0c723146d47c0ac73c9c3b7b581b75"
+            },
+            {
+              "ordinal": 224,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001",
+              "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d"
+            },
+            {
+              "ordinal": 226,
+              "packet_id": 19,
+              "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001",
+              "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d"
+            }
+          ]
+        },
+        {
+          "name": "k1_reach",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "body dig exceeds official six-block server range",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 9
+            }
+          },
+          "original_action_packets": []
+        },
+        {
+          "name": "k1_coordinates",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "invalid region bounds",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 10
+            }
+          },
+          "original_action_packets": []
+        },
+        {
+          "name": "k2_world",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "stale body world",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 11
+            }
+          },
+          "original_action_packets": []
+        },
+        {
+          "name": "k2_slot",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "hotbar slot must be 0..8",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 12
+            }
+          },
+          "original_action_packets": []
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "binary_sha256": "7714c17d486e9f66a1bb65208c4e74b0530c67d20c6706051e89f4483885dd40",
+      "checks": [
+        {
+          "name": "look_full_send",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 1
+            }
+          },
+          "seconds": 0.001030546030960977,
+          "after_send_seconds": 0.0002548040356487036,
+          "native_rotation": "ClimbingProbe has the following entity data: [37.0f, 13.0f]",
+          "outcome": "accepted",
+          "original_action_packets": [
+            {
+              "ordinal": 138,
+              "packet_id": 31,
+              "body_hex": "421400004150000001",
+              "wire_sha256": "8f5eed543c1fc534bd2e88e5de7edb460c3511616429660a2d865ede9e04125a"
+            }
+          ]
+        },
+        {
+          "name": "late_teleport_after_accepted",
+          "events": [
+            {
+              "id": {
+                "backend": 1,
+                "number": 1
+              },
+              "ordinal": 1,
+              "status": "pending"
+            },
+            {
+              "id": {
+                "backend": 1,
+                "number": 1
+              },
+              "ordinal": 2,
+              "status": "accepted"
+            },
+            {
+              "id": {
+                "backend": 1,
+                "number": 1
+              },
+              "ordinal": 3,
+              "status": "corrected",
+              "correction": {
+                "Pose": {
+                  "position": {
+                    "source": {
+                      "Received": {
+                        "sequence": 120
+                      }
+                    },
+                    "value": [
+                      0.5,
+                      65.0,
+                      0.5
+                    ]
+                  },
+                  "rotation": {
+                    "source": {
+                      "Received": {
+                        "sequence": 120
+                      }
+                    },
+                    "value": [
+                      0.0,
+                      0.0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "original_action_packets": []
+        },
+        {
+          "name": "finite_move_first_tick",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 2
+            }
+          },
+          "seconds": 0.007825584965758026,
+          "after_send_seconds": 0.004588290001265705,
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 2.5314966986156713d]",
+          "outcome": "accepted",
+          "first_dispatched_ticks": 1,
+          "original_action_packets": [
+            {
+              "ordinal": 143,
+              "packet_id": 42,
+              "body_hex": "01",
+              "wire_sha256": "4701075508e8feb9d65cea2d8af7b4f6406aef72e0c0966336c429c8353c40f3"
+            },
+            {
+              "ordinal": 144,
+              "packet_id": 30,
+              "body_hex": "3fe000000000000040504000000000003fe0a0902dd844d0000000000000000000",
+              "wire_sha256": "491711e8dea5499b1ca5093814959f085e588b92824b1bc51b816809d4001b53"
+            }
+          ]
+        },
+        {
+          "name": "held_move_first_tick",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 3
+            }
+          },
+          "seconds": 0.013397180999163538,
+          "after_send_seconds": 0.0007589139859192073,
+          "released_status": "stopped",
+          "original_action_packets": [
+            {
+              "ordinal": 161,
+              "packet_id": 42,
+              "body_hex": "01",
+              "wire_sha256": "4701075508e8feb9d65cea2d8af7b4f6406aef72e0c0966336c429c8353c40f3"
+            },
+            {
+              "ordinal": 162,
+              "packet_id": 30,
+              "body_hex": "3fe000000000000040504000000000003fe322d0e72f1aa0000000000000000000",
+              "wire_sha256": "a5c398f3127e1375f519e1430a408f539f5a5588125c0e42253022b171d90e1c"
+            }
+          ]
+        },
+        {
+          "name": "place_full_send_before_reply",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 5
+            }
+          },
+          "seconds": 0.0010459519689902663,
+          "after_send_seconds": 0.0003918440197594464,
+          "returned_before_original_reply": true,
+          "native_block": "Test passed",
+          "outcome": "accepted",
+          "original_action_packets": [
+            {
+              "ordinal": 181,
+              "packet_id": 63,
+              "body_hex": "000000008000000040013e2e147b3f8000003f547ae1000001",
+              "wire_sha256": "553edb6a77615f9d154b8fc4dc069572df3e18292e769d24af3fe93e3b9a1b77"
+            }
+          ]
+        },
+        {
+          "name": "occupied_cell_later_corrected",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 6
+            }
+          },
+          "seconds": 0.001346674980595708,
+          "after_send_seconds": 0.0006799119873903692,
+          "returned_before_original_reply": true,
+          "outcome": "corrected",
+          "correction": {
+            "Block": {
+              "position": [
+                2,
+                65,
+                0
+              ],
+              "state": {
+                "source": {
+                  "Received": {
+                    "sequence": 136
+                  }
+                },
+                "value": {
+                  "name": "minecraft:diamond_block",
+                  "properties": {}
+                }
+              }
+            }
+          },
+          "receive_revision": 137,
+          "original_action_packets": [
+            {
+              "ordinal": 189,
+              "packet_id": 63,
+              "body_hex": "000000008000000040013e2e147b3f8000003f547ae1000002",
+              "wire_sha256": "7b7f565d6dd12819ddfdb7e1b487fa995d9af6bde25a6fa858f11b5f61862662"
+            }
+          ]
+        },
+        {
+          "name": "survival_break_start_before_ack",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 7
+            }
+          },
+          "seconds": 0.4015397710027173,
+          "after_send_seconds": 0.00031755794771015644,
+          "returned_before_original_reply": true,
+          "native_air": "Test passed",
+          "outcome": "accepted",
+          "original_action_packets": [
+            {
+              "ordinal": 195,
+              "packet_id": 40,
+              "body_hex": "0000000080000000410403",
+              "wire_sha256": "79e1da7e99e88981b74b67f1baefd1a46359d7c41d374070a271b37fa0438bff"
+            }
+          ]
+        },
+        {
+          "name": "sent_but_missing_ack_deadline",
+          "response": {
+            "dispatch": {
+              "status": "sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 8
+            }
+          },
+          "seconds": 0.0016076180036179721,
+          "after_send_seconds": 0.000644439016468823,
+          "dig_statuses": [
+            0,
+            1
+          ],
+          "outcome": "unknown",
+          "original_action_packets": [
+            {
+              "ordinal": 211,
+              "packet_id": 40,
+              "body_hex": "0000000080000000410405",
+              "wire_sha256": "2a32447bf1dda609c28edcd8ebb807f65b5317bc44792c4e11722c6a2249efeb"
+            }
+          ]
+        },
+        {
+          "name": "k1_reach",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "body dig exceeds official server range",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 9
+            }
+          },
+          "original_action_packets": []
+        },
+        {
+          "name": "k1_coordinates",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "invalid region bounds",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 10
+            }
+          },
+          "original_action_packets": []
+        },
+        {
+          "name": "k2_world",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "stale body world",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 11
+            }
+          },
+          "original_action_packets": []
+        },
+        {
+          "name": "k2_slot",
+          "refusal": {
+            "dispatch": {
+              "outcome": {
+                "reason": "hotbar slot must be 0..8",
+                "status": "rejected"
+              },
+              "status": "not_sent"
+            },
+            "id": {
+              "backend": 1,
+              "number": 12
+            }
+          },
+          "original_action_packets": []
+        }
+      ]
+    }
+  ]
+}

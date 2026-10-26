@@ -1269,4 +1269,113 @@ mod tests {
             .unwrap()
             .unwrap();
     }
+    #[tokio::test]
+    async fn send_and_trust_returns_at_write_then_reports_late_correction_once() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = body(&bot);
+        let sent = body
+            .send_and_trust(Action::Look {
+                yaw: 12.,
+                pitch: 4.,
+            })
+            .await
+            .unwrap();
+        assert!(matches!(sent.dispatch, crate::body::SendStatus::Sent));
+        assert_eq!(packets.recv().await.unwrap().0, 0x13);
+        assert!(matches!(
+            body.action_status(sent.id).await.unwrap(),
+            ActionStatus::Pending
+        ));
+        assert!(matches!(
+            complete(&body, sent.id).await,
+            ActionStatus::Accepted
+        ));
+        wait_release(&body).await;
+        bot.body_evidence.lock().await.push(
+            100,
+            Update::Pose {
+                position: [1., 65., 0.],
+                rotation: [0.; 2],
+            },
+        );
+        // events_after alone refreshes late evidence, without a status poll.
+        let events = body.events_after(Default::default(), 100).await.unwrap();
+        assert_eq!(
+            events
+                .events
+                .iter()
+                .filter(
+                    |e| e.action == sent.id && matches!(e.status, ActionStatus::Corrected { .. })
+                )
+                .count(),
+            1
+        );
+        for _ in 0..2 {
+            assert!(matches!(
+                body.action_status(sent.id).await.unwrap(),
+                ActionStatus::Corrected { .. }
+            ));
+        }
+        assert_eq!(
+            body.events_after(events.cursor, 100)
+                .await
+                .unwrap()
+                .events
+                .len(),
+            0
+        );
+        drop(release);
+        drop(body);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn send_and_trust_keeps_k1_k2_refusals_and_no_packets() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = body(&bot);
+        let mut stale = body.observe(Default::default()).await.unwrap().world;
+        stale.generation += 1;
+        let mut out_of_bounds = action();
+        if let Action::PlaceBlock { pos, .. } = &mut out_of_bounds {
+            pos[0] = 33_554_432;
+        }
+        for request in [
+            ActionRequest {
+                action: action(),
+                world: Some(stale),
+            },
+            out_of_bounds.into(),
+            Action::SelectHotbar(9).into(),
+            Action::BreakBlock {
+                pos: [30, 65, 8],
+                face: crate::BlockFace::Up,
+            }
+            .into(),
+        ] {
+            let dispatch = body.send_and_trust(request).await.unwrap();
+            assert!(matches!(
+                dispatch.dispatch,
+                crate::body::SendStatus::NotSent {
+                    outcome: ActionStatus::Rejected { .. }
+                }
+            ));
+            wait_release(&body).await;
+        }
+        assert!(packets.try_recv().is_err());
+        drop(release);
+        drop(body);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 }

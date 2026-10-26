@@ -15,7 +15,7 @@
 | `Unknown` | ACK 不足、送信の不確実性、切断、world 変更、履歴欠落、期限切れ等により受理を決定できない |
 | `Cancelled` | 取消を要求し、未完了の操作を終端にした。既送信の効果は巻き戻せない |
 
-状態は一度終端になると変わらない。遅い server 更新は次の観測に現れる。`Unknown` を成功にも再送許可にも読み替えない。サーバーが全操作について個別の成功 receipt を送る、という前提を置かない（#70、#73、#61 のような待ち続ける経路を作らない）。
+従来の `submit` 経路の状態は一度終端になると変わらない。遅い server 更新は次の観測に現れる（後述の追加 `send_and_trust` 経路では遅延訂正 view も有効にする）。`Unknown` を成功にも再送許可にも読み替えない。サーバーが全操作について個別の成功 receipt を送る、という前提を置かない（#70、#73、#61 のような待ち続ける経路を作らない）。
 
 ### ブロック操作
 
@@ -60,6 +60,62 @@ headless の movement は既存の ground/fluid/climbing physics と geometry co
 `cancel` は Pending を終端にし、既送信を取り消せない。終端 action の cancel でも残っている入力 lease は解除する。`release_control` は body が所有する action を取消し、選択された movement owner/dig の解除完了を有限に待つ。失敗時は `Unknown`。不確実な cleanup では既存 disconnect を有限に試み、以後 body の新規操作を拒否する。正常な release は underlying game connection を切断しない。
 
 保持上限（既定256、最大4096）を越えた古い terminal action ID は失効する。`events_after` は Minecraft 受信 stream と別のローカル状態遷移ログで、instance 付き cursor、取得最大数、明示的 `gap` を返す。gap 時は再観測し、履歴の完全性を仮定しない。block/訂正の内部 evidence も4096件に制限し、欠落時は `Unknown` にする。無条件の再送や exactly-once server effect は提供しない。
+
+## 送って信じる経路
+
+`Body<HeadlessBody>::send_and_trust(request: impl Into<ActionRequest>) -> Result<ActionDispatch>`
+（`HeadlessBody` にも同名・同 signature）は、ACK・300ms の settle を待たず、
+最初の送信境界が完全に書き込まれたら返す追加 API である。
+`ActionDispatch { id: ActionId, dispatch: SendStatus }` の `SendStatus::Sent` は
+送信済みの意味だけを持つ。未完送信・ローカル拒否・送信前の取消・期限は
+`SendStatus::NotSent { outcome: ActionStatus }` を返す。不確実な送信は成功としない。
+既存の公開 enum に variant は追加せず、`BodyBackend` の実装要件も増やさない。
+
+| action | Sent の境界 | 返却後も続く処理 |
+| --- | --- | --- |
+| Look / SelectHotbar / Chat / Command / UseItem | 操作の全 packet の完全送信 | 従来の quiet window と訂正監視 |
+| PlaceBlock / ActivateBlock | 指定 hit の全 packet の完全送信 | 従来の ACK／結果観測と quiet window |
+| BreakBlock | START の完全送信（Creative・Survival 共通） | Survival の処理 ACK→一度の STOP、結果監視、必要時の ABORT |
+| Move Some(N) / None | 設定した入力で最初の client tick の全 packet を完全送信 | Some(N) は N tick・入力解除・監視、None は従来の bounded lease |
+
+送信は操作の終端・所有権の解放ではない。返却後も同時 action は従来どおり拒否され、
+future を drop しても backend の task は消えない。cancel・release_control、submit 起点の
+絶対期限、cleanup／disconnect fallback は既存と同じ。K1（既知の server 拒否、公式距離・
+座標上限）と K2（connection/world/spawn/screen/slot identity、対象・item 照合）の
+既存拒否は同じ送信関数内に残す。自動再送はしない。
+
+新経路の ID は `action_status` と `events_after` の読取り時にも保持済みの元受信証拠を
+有限 budget で調べる。Pending 中の訂正に加え、Accepted／Unknown 後の訂正も
+`Corrected` として読み出し、遷移ログへ一度だけ追記する。これは既存の
+`HeadlessBody::action_outcome` と同じ遅延 rollback notice で、元の受理結果や lease を
+再開する意味ではない。イベント読取りは対象 ID をまとめた一度の bounded capture を使う。
+action／受信 evidence の保持上限、gap、world 変更後には訂正の完全性を保証できない。
+後続の無関係な server 操作との因果を protocol から証明することもできない。
+
+呼出し側が送信を完了扱いして先へ進み、後から訂正に反応する用途ではこの経路を使う。
+有限期間の受理を確認してから進む用途では従来の `submit` と `action_status` の
+終端待ちを使う。こちらの終端不変性・300ms settle・ACK 条件・イベントは変更しない。
+厳密な材料／inventory／採掘時間などの診断には既存 Client の strict receipt API を使う。
+Golemkit の既存経路には変更がない。
+
+```rust,no_run
+# async fn example(body: &voxrig::body::Body<voxrig::body::HeadlessBody>) -> voxrig::Result<()> {
+use voxrig::body::{Action, SendStatus};
+let sent = body.send_and_trust(Action::Look { yaw: 37., pitch: 13. }).await?;
+match sent.dispatch {
+    SendStatus::Sent => { /* 呼出し側は送信完了として先へ進む */ }
+    SendStatus::NotSent { outcome } => println!("{outcome:?}"),
+}
+// 後から同じ ID の Corrected を監視する。
+let status = body.action_status(sent.id).await?;
+# let _ = status;
+# Ok(()) }
+```
+
+再現用 runner は `scripts/run_body_send_trust_live.py`。SHA-1 検査付きの両版公式 server、
+原本 packet proxy と RCON を使用し、ACK／対象更新を保留した状態でも返ること、
+占有セルの訂正・Accepted 後の teleport・期限の ABORT と K1/K2 拒否を検査する。
+両版各12ケースの実機結果は [`body-send-trust-live-20261025.json`](../evidence/body-send-trust-live-20261025.json)。
 
 ## 観測と後続 backend
 
