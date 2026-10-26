@@ -17,6 +17,7 @@
   Crafting-result sends conservatively diverge because the displayed result alone
   cannot establish an exact ingredient/remainder/repeated-craft delta.
   Predictions remain comparison-only. See [usage and migration](docs/inventory-divergence.md).
+- Keep strict Clippy checks compatible with Rust 1.85, including const contact-policy proofs.
 - Added bounded unknown-terrain walking to `body::Move` and
   `PlayerControl::start_control_best_effort` on both versions, plus
   `start_path_best_effort` for connection-owned finite routes. Terrain warnings
