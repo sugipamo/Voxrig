@@ -1,0 +1,349 @@
+//! F96 receipt order and bounded history, independent of adapter packet encoding.
+use super::changes::InventoryChangeLedger;
+use super::executor::Executor;
+use super::outcome::Comparison;
+use super::*;
+use crate::MinecraftVersion;
+use crate::client::container::{ScreenReceipts, ScreenTitle};
+use crate::client::registry::Registry;
+use crate::client::{InventoryObservation, ItemData, ItemStack, received};
+use tokio::time::Duration;
+
+fn item(version: MinecraftVersion, name: &str, count: u32) -> SlotKnowledge {
+    let item = Registry::for_version(version).item(name).unwrap();
+    SlotKnowledge::Item {
+        item: ItemStack {
+            id: item.id,
+            name: item.name,
+            count,
+            data: ItemData::Default,
+        },
+    }
+}
+fn snapshot(version: MinecraftVersion, sequence: u64) -> InventorySnapshot {
+    InventorySnapshot::from_inventory(
+        SessionStamp {
+            version,
+            connection_id: 17,
+            world_generation: 1,
+        },
+        sequence,
+        &InventoryObservation {
+            slots: vec![Some(received(SlotKnowledge::Empty, sequence)); 46],
+            cursor: Some(received(SlotKnowledge::Empty, sequence)),
+            window_id: Some(0),
+            ..Default::default()
+        },
+        None,
+    )
+}
+fn begin(
+    e: &mut Executor,
+    before: &InventorySnapshot,
+    expected: InventorySnapshot,
+    action: i16,
+) -> InventorySendId {
+    let legacy = before.session.version == MinecraftVersion::Java1_16_1;
+    let id = e
+        .begin(
+            before.session,
+            before.source,
+            before.receive_sequence,
+            legacy.then_some(action),
+            Duration::from_secs(1),
+            false,
+        )
+        .unwrap();
+    e.comparison(Comparison::exact(id, before.clone(), expected));
+    e.written(id, Duration::from_secs(1));
+    id
+}
+fn response(e: &mut Executor, id: InventorySendId, action: i16, sequence: u64) {
+    if id.session().version == MinecraftVersion::Java1_16_1 {
+        e.response(id.session(), id.source(), action, sequence);
+    } else {
+        e.fence(id.session(), id.source(), id.number(), sequence);
+    }
+}
+fn finish(e: &mut Executor, id: InventorySendId, action: i16, current: InventorySnapshot) {
+    let seq = current.receive_sequence;
+    let window = e.record().unwrap().window();
+    e.contents(current.session, current.source, window, seq, true);
+    response(e, id, action, seq + 1);
+    e.receive(current, false);
+}
+
+#[test]
+fn f96_seed2_action23_preserves_received_table_and_conflicting_log_cursor() {
+    // F96_CLICK_CONFLICT.md: original 9201, invalidation 9214, ACK 9215,
+    // table source 9216, oak_log cursor 9217. No collect packet is in that log.
+    let version = MinecraftVersion::Java1_16_1;
+    let mut before = snapshot(version, 9201);
+    before.player_slots[37] = Some(received(SlotKnowledge::Empty, 9200));
+    before.cursor = Some(received(item(version, "minecraft:crafting_table", 1), 9201));
+    let mut expected = before.clone();
+    expected.set(
+        InventoryLocation::Player { slot: 37 },
+        item(version, "minecraft:crafting_table", 1),
+    );
+    expected.set(InventoryLocation::Cursor, SlotKnowledge::Empty);
+    let mut e = Executor::default();
+    let id = begin(&mut e, &before, expected, 23);
+    let mut current = before.clone();
+    current.receive_sequence = 9214;
+    e.receive(current.clone(), false);
+    e.rejected();
+    response(&mut e, id, 23, 9215);
+    current.player_slots[37] = Some(received(item(version, "minecraft:crafting_table", 1), 9216));
+    current.receive_sequence = 9216;
+    e.receive(current.clone(), false);
+    assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
+    current.cursor = Some(received(item(version, "minecraft:oak_log", 1), 9217));
+    current.receive_sequence = 9217;
+    finish(&mut e, id, 23, current);
+    assert_eq!(e.record().unwrap().status, InventorySendStatus::Diverged);
+    let d = e.divergence(id).unwrap().unwrap();
+    assert_eq!(d.before.receive_sequence, 9201);
+    assert_eq!(d.current.receive_sequence, 9217);
+    assert!(d.causes.contains(&InventoryCause::Rejected));
+    assert!(d.causes.contains(&InventoryCause::External));
+    assert!(
+        !d.causes
+            .iter()
+            .any(|c| matches!(c, InventoryCause::Collected { .. }))
+    );
+    assert_eq!(d.actual.items.len(), 1);
+    assert_eq!(d.actual.items[0].item.name, "minecraft:oak_log");
+    assert_eq!(d.actual.items[0].change, 1);
+}
+
+fn table(version: MinecraftVersion, sequence: u64) -> InventorySnapshot {
+    let mut before = snapshot(version, sequence);
+    let menu = crate::client::crafting::native_menu(version, "minecraft:crafting").unwrap();
+    let mut receipts = ScreenReceipts::open(
+        version,
+        4,
+        menu.native_id,
+        ScreenTitle::LegacyJson { json: "{}".into() },
+        49850,
+    );
+    receipts.slots = vec![Some(received(SlotKnowledge::Empty, 49852)); 46];
+    before.screen = Some(receipts.project(before.session, &before.player_slots));
+    before.source = InventorySource::Container {
+        screen: receipts.id(before.session),
+    };
+    before
+}
+
+#[test]
+fn f96_window4_three_to_four_and_explicit_collect_evidence_in_both_versions() {
+    // Historical source/cursor values are retained exactly. The historical
+    // diagnostic contains no collect entity ID: test both no evidence and an
+    // additional synthetic collect packet, never invent historical attribution.
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for collect in [false, true] {
+            let mut before = table(version, 49986);
+            let location = before.screen_location(38);
+            let InventoryLocation::Player { slot } = location else {
+                panic!("canonical player alias")
+            };
+            before.player_slots[slot] =
+                Some(received(item(version, "minecraft:cobblestone", 3), 49858));
+            before.cursor = Some(received(SlotKnowledge::Empty, 49852));
+            let mut expected = before.clone();
+            expected.set(location, SlotKnowledge::Empty);
+            expected.set(
+                InventoryLocation::Cursor,
+                item(version, "minecraft:cobblestone", 3),
+            );
+            let mut e = Executor::default();
+            let id = begin(&mut e, &before, expected, 1);
+            e.receive(before.clone(), false);
+            if collect {
+                e.collected(before.session, before.source, 314);
+                e.changes.collect(314, 50036);
+            }
+            if version == MinecraftVersion::Java1_16_1 {
+                e.rejected();
+            }
+            let mut current = before.clone();
+            current.player_slots[slot] = Some(received(SlotKnowledge::Empty, 50038));
+            current.cursor = Some(received(item(version, "minecraft:cobblestone", 4), 50039));
+            current.receive_sequence = 50039;
+            finish(&mut e, id, 1, current);
+            assert_eq!(e.record().unwrap().status, InventorySendStatus::Diverged);
+            let d = e.divergence(id).unwrap().unwrap();
+            assert_eq!(d.actual.items.len(), 1);
+            assert_eq!(d.actual.items[0].change, 1);
+            assert_eq!(d.actual.items[0].item.name, "minecraft:cobblestone");
+            assert_eq!(d.actual.slots.len(), 2);
+            assert_eq!(
+                d.causes.contains(&InventoryCause::Collected {
+                    entity_ids: vec![314]
+                }),
+                collect
+            );
+            let log = e.changes.after(49986, 50039).unwrap();
+            assert_eq!(log.changes.len(), 1);
+            assert!(log.changes[0].causes.contains(&InventoryCause::Send { id }));
+            assert_eq!(log.changes[0].delta.items[0].change, 1);
+        }
+    }
+}
+
+#[test]
+fn ordinary_click_and_transfer_match_while_transient_external_changes_latch() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for external in [false, true] {
+            let mut before = snapshot(version, 10);
+            before.player_slots[9] = Some(received(item(version, "minecraft:stone", 3), 10));
+            let mut expected = before.clone();
+            expected.set(InventoryLocation::Player { slot: 9 }, SlotKnowledge::Empty);
+            expected.set(
+                InventoryLocation::Cursor,
+                item(version, "minecraft:stone", 3),
+            );
+            let mut e = Executor::default();
+            let id = begin(&mut e, &before, expected, 2);
+            if external {
+                let mut temporary = before.clone();
+                temporary.player_slots[19] = Some(received(item(version, "minecraft:dirt", 1), 11));
+                temporary.receive_sequence = 11;
+                e.receive(temporary, false);
+            }
+            let mut current = before.clone();
+            current.player_slots[9] = Some(received(SlotKnowledge::Empty, 12));
+            current.cursor = Some(received(item(version, "minecraft:stone", 3), 12));
+            current.receive_sequence = 12;
+            finish(&mut e, id, 2, current);
+            assert_eq!(
+                e.record().unwrap().status,
+                if external {
+                    InventorySendStatus::Diverged
+                } else {
+                    InventorySendStatus::Received
+                }
+            );
+            assert_eq!(e.divergence(id).unwrap().is_some(), external);
+            assert!(!e.busy());
+        }
+    }
+}
+
+#[test]
+fn external_stock_aliases_preview_unknowns_gaps_and_retired_scopes() {
+    let version = MinecraftVersion::Java1_16_1;
+    let mut ledger = InventoryChangeLedger::default();
+    let before = snapshot(version, 10);
+    ledger.receive(before.clone(), None, &[]);
+    let mut next = before.clone();
+    next.receive_sequence = 11;
+    next.player_slots[9] = Some(received(item(version, "minecraft:stone", 3), 11));
+    ledger.receive(next.clone(), None, &[]);
+    let log = ledger.after(10, 11).unwrap();
+    assert_eq!(log.changes[0].causes, [InventoryCause::External]);
+    assert_eq!(log.changes[0].delta.items[0].change, 3);
+    assert!(log.changes[0].delta.complete);
+    assert!(ledger.after(11, 11).unwrap().changes.is_empty());
+    assert!(ledger.after(12, 11).is_err());
+    for seq in 12..=12 + MAX_RETAINED_INVENTORY_CHANGES as u64 {
+        next.receive_sequence = seq;
+        next.player_slots[9] = Some(received(
+            item(version, "minecraft:stone", (seq % 64 + 1) as u32),
+            seq,
+        ));
+        ledger.receive(next.clone(), None, &[]);
+    }
+    assert!(ledger.after(10, next.receive_sequence).is_err());
+    assert_eq!(
+        ledger
+            .after(12, next.receive_sequence)
+            .unwrap()
+            .changes
+            .len(),
+        MAX_RETAINED_INVENTORY_CHANGES
+    );
+    let mut opened = table(version, 2000);
+    ledger.receive(opened.clone(), None, &[]);
+    assert!(ledger.after(next.receive_sequence, 2000).is_err());
+    assert!(ledger.after(2000, 2000).unwrap().changes.is_empty());
+    opened.receive_sequence = 2001;
+    opened.player_slots[37] = Some(received(item(version, "minecraft:stone", 3), 2001));
+    let mut projected = opened.screen.clone().unwrap();
+    for mapping in &projected.layout.as_ref().unwrap().player_slots {
+        projected.slots[mapping.screen_slot] = opened.player_slots[mapping.player_slot].clone();
+    }
+    opened.screen = Some(projected);
+    ledger.receive(opened.clone(), None, &[]);
+    assert_eq!(
+        ledger.after(2000, 2001).unwrap().changes[0].delta.items[0].change,
+        3
+    ); // no alias doubling
+    let mut world = opened;
+    world.session.world_generation += 1;
+    world.receive_sequence = 2002;
+    ledger.receive(world, None, &[]);
+    assert!(ledger.after(2001, 2002).is_err());
+    assert!(ledger.after(2002, 2002).unwrap().changes.is_empty());
+    let mut unknown = before.clone();
+    unknown.player_slots[9] = None;
+    assert!(!unknown.delta(&next).complete);
+    let mut preview = before.clone();
+    preview.player_slots[0] = Some(received(item(version, "minecraft:stone", 3), 11));
+    assert!(before.delta(&preview).items.is_empty());
+    assert_eq!(before.delta(&preview).slots.len(), 1);
+}
+
+#[test]
+fn reused_window_is_a_new_scope_and_container_slot_zero_can_be_physical_stock() {
+    let version = MinecraftVersion::Java1_16_1;
+    let mut before = table(version, 50000);
+    let mut chest = ScreenReceipts::open(
+        version,
+        4,
+        Some(2),
+        ScreenTitle::LegacyJson { json: "{}".into() },
+        50000,
+    );
+    chest.slots = vec![Some(received(SlotKnowledge::Empty, 50000)); 63];
+    before.screen = Some(chest.project(before.session, &before.player_slots));
+    before.source = InventorySource::Container {
+        screen: chest.id(before.session),
+    };
+    let mut after = before.clone();
+    after.screen.as_mut().unwrap().slots[0] =
+        Some(received(item(version, "minecraft:stone", 4), 50001));
+    after.receive_sequence = 50001;
+    assert_eq!(before.delta(&after).items[0].change, 4);
+    let mut ledger = InventoryChangeLedger::default();
+    ledger.receive(before.clone(), None, &[]);
+    ledger.receive(after.clone(), None, &[]);
+    assert_eq!(ledger.after(50000, 50001).unwrap().changes.len(), 1);
+    chest.opened_sequence = 50002;
+    let mut reopened = before;
+    reopened.screen = Some(chest.project(reopened.session, &reopened.player_slots));
+    reopened.source = InventorySource::Container {
+        screen: chest.id(reopened.session),
+    };
+    reopened.receive_sequence = 50002;
+    ledger.receive(reopened, None, &[]);
+    assert!(ledger.after(50001, 50002).is_err());
+    assert!(ledger.after(50002, 50002).unwrap().changes.is_empty());
+}
+
+#[test]
+fn collect_hint_does_not_attach_to_arbitrary_later_give() {
+    let version = MinecraftVersion::Java1_16_1;
+    let mut ledger = InventoryChangeLedger::default();
+    let before = snapshot(version, 10);
+    ledger.receive(before.clone(), None, &[]);
+    ledger.collect(9, 11);
+    let mut after = before;
+    after.receive_sequence = 200;
+    after.player_slots[9] = Some(received(item(version, "minecraft:stone", 4), 200));
+    ledger.receive(after, None, &[]);
+    assert_eq!(
+        ledger.after(10, 200).unwrap().changes[0].causes,
+        [InventoryCause::External]
+    );
+}

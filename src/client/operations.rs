@@ -250,7 +250,8 @@ impl Survival {
     ) -> Result<super::inventory::InventorySendRecord> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_inventory_transfer(a, GameMode::Survival, source, slot).await)
     }
-    /// Protocol progress of the last send; never an exact-effect receipt.
+    /// Progress and intended-effect comparison of the last send.
+    /// On Diverged, read `Client::inventory_divergence` and replan from its current receipts.
     pub async fn inventory_send_record(
         &self,
     ) -> Result<Option<super::inventory::InventorySendRecord>> {
@@ -841,7 +842,8 @@ impl Creative {
     ) -> Result<super::inventory::InventorySendRecord> {
         crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_inventory_transfer(a, GameMode::Creative, source, slot).await)
     }
-    /// Protocol progress of the last send; never an exact-effect receipt.
+    /// Progress and intended-effect comparison of the last send.
+    /// On Diverged, read `Client::inventory_divergence` and replan from its current receipts.
     pub async fn inventory_send_record(
         &self,
     ) -> Result<Option<super::inventory::InventorySendRecord>> {

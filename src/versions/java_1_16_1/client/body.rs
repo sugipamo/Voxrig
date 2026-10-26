@@ -299,9 +299,13 @@ impl Bot {
             .await
             .record()
             .is_some_and(|r| {
-                r.status != api::inventory::InventorySendStatus::Received
-                    && r.legacy_action
-                        .is_some_and(|a| !expected.contains(&(r.window() as i8, a)))
+                !matches!(
+                    r.status,
+                    api::inventory::InventorySendStatus::Received
+                        | api::inventory::InventorySendStatus::Diverged
+                ) && r
+                    .legacy_action
+                    .is_some_and(|a| !expected.contains(&(r.window() as i8, a)))
             })
         {
             return Err(api::inventory::unavailable(

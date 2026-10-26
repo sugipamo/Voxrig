@@ -104,8 +104,19 @@ impl Bot {
                     submission.retain(record);
                 }
             }
-            self.begin_inventory_execution(record.initial.session, action, false)
+            let execution = self
+                .begin_inventory_execution(record.initial.session, action, false)
                 .await?;
+            let basis = self.common_player_unlocked().await?;
+            let basis_screen = self.common_receipts.lock().await.screen(basis.session);
+            lock_packet_state(&self.inventory_executor)
+                .await
+                .comparison(crate::client::inventory::outcome::Comparison::crafting(
+                    execution,
+                    &record,
+                    &basis,
+                    basis_screen,
+                ));
             self.connection
                 .bounded_crafting_result_click(
                     id.attempt(),

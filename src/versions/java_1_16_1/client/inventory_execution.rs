@@ -5,6 +5,37 @@ use crate::client::{
     inventory::{self as inv, InventorySource},
 };
 impl Bot {
+    pub(super) async fn inventory_changes_received(&self, packet: i32) {
+        if !matches!(packet, 0x12 | 0x13 | 0x14 | 0x16 | 0x25 | 0x2e | 0x3a) {
+            return;
+        }
+        use inv::InventorySnapshot;
+        let receipts = self.common_receipts.lock().await;
+        let session = api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: receipts.generation,
+        };
+        let current = InventorySnapshot::from_inventory(
+            session,
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+            &receipts.inventory,
+            receipts.screen(session),
+        );
+        drop(receipts);
+        let crafting_complete = lock_packet_state(&self.common_crafting_take)
+            .await
+            .as_ref()
+            .is_some_and(|r| {
+                matches!(
+                    r.record.stage,
+                    api::crafting::CraftingTakeStage::ObservedTaken
+                        | api::crafting::CraftingTakeStage::ObservedTransferred
+                )
+            });
+        let mut executor = lock_packet_state(&self.inventory_executor).await;
+        executor.receive(current, crafting_complete);
+    }
     pub(super) fn project_inventory(
         metadata: &InventoryState,
         receipts: &api::observation::LegacyReceipts,
@@ -288,6 +319,9 @@ impl Bot {
                 && reply.packet_sequence > r.after_sequence
         });
         if matches {
+            if !reply.accepted {
+                executor.rejected();
+            }
             executor.response(session, source, reply.action, reply.packet_sequence);
         }
         matches
@@ -442,6 +476,14 @@ mod tests {
         super::super::common_click::legacy_comparison_stack(v)
     }
     impl Fixture for LegacyFixture {
+        async fn collect(&mut self, entity: i32, own: bool) {
+            self.bot.player.lock().await.entity_id = Some(42);
+            let mut p = Vec::new();
+            crate::protocol::put_varint(&mut p, entity);
+            crate::protocol::put_varint(&mut p, if own { 42 } else { 43 });
+            crate::protocol::put_varint(&mut p, 1);
+            self.bot.apply_packet(0x55, p).await.unwrap();
+        }
         fn client(&self) -> crate::Client {
             crate::Client::from_java_1_16_1(self.bot.clone())
         }
@@ -492,6 +534,8 @@ mod tests {
         let mut f = LegacyFixture { bot, packets };
         script::pickup_matrix(&mut f).await;
         script::missing_response_resync_and_late_response(&mut f).await;
+        script::collect_and_external_log(&mut f).await;
+        script::crafting_result_outcomes(&mut f).await;
         release.send(()).unwrap();
         let LegacyFixture { bot, packets } = f;
         drop(bot);

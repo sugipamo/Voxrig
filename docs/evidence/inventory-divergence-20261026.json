@@ -1,0 +1,90 @@
+{
+  "description": "Both official servers, real collect during one delayed original click, give External, ordinary Received",
+  "synthetic_timing": "One unchanged original serverbound click was held; no packet injection/rewrite/replay. Item entity summoned on official server.",
+  "binary_sha256": "a46c25c95350fb7db99512b79bb09562458084538ed371862455444602aa0e39",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": [
+        "ordinary_click_received",
+        "give_external",
+        "real_collect_during_original_click"
+      ],
+      "report": "/home/dev/logs/contact/dv1-live-v3/1.16.1-20261026-134451/report.json",
+      "report_sha256": "d1e90748bb410c95fb0aa052db27b97d8ae369d4aa5786e04d76d36d94c2222b",
+      "packets_sha256": "d689a43405611bdfda45cdea57660864d7ae33f7c6df592570cad488c47eaea1"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "checks": [
+        "ordinary_click_received",
+        "give_external",
+        "real_collect_during_original_click"
+      ],
+      "report": "/home/dev/logs/contact/dv1-live-v3/1.21.11-20261026-134529/report.json",
+      "report_sha256": "6a506284f062b095bf2d784bc98dac6742e8c6062723d6e15b02119a5ae84766",
+      "packets_sha256": "2d09e38683b0f0b5678654d5ec593a6bd3d40f55c597228ece2a9def272e0104"
+    }
+  ],
+  "sources_at_live_build": {
+    "examples/climbing_control_probe.rs": "b961e24d76174d6e1a7360d0ecc78bef7c0372047e85ef52a41dbd5a8aa5ba8e",
+    "src/client/adapter.rs": "456c6ef0bfaf9c6c43d594c9ee2eef369c244491b47186f2f0354172f500c926",
+    "src/client/events.rs": "29d5e3bda265c4e6bde7c5bbe58b82668d07a2d28774722e88af87547d06e3bb",
+    "src/client/inventory/acceptance_tests.rs": "3143160747fb9651ed51a7f32e1e16fed85d74752ebbbd39b41a47adaef287de",
+    "src/client/inventory/changes.rs": "ed3e59435e4e87cb0c1e5338f0ffbbb8c3869029281df79de1f94892cbdfb5ac",
+    "src/client/inventory/divergence_tests.rs": "c89b4794dba8ca735b340cb182d42494866bb091c498de3826934bf4be17f227",
+    "src/client/inventory/executor.rs": "e9d18a9a0015760610fd61b56b539a82ad60c981a8cd3541d0f3e5a30362f447",
+    "src/client/inventory/outcome.rs": "ca1ab120b9a34cb921538ccbf0bc579920bafa8bc690b8ece5aeaaaf19c8310d",
+    "src/client/inventory.rs": "ac1d8e5977f2683be327ffdcb43c96bbc8b2e21c5e69e8449754f5d29db40ebd",
+    "src/client/operations.rs": "35173ed0c2a3a930261a1df004d553abccf4b5a0ae667dfff0ff2f107a236bcc",
+    "src/versions/java_1_16_1/client/body.rs": "9fc3b48ce504c11139abc8411b527688b401f4572816dbbe22c115f395ce01f2",
+    "src/versions/java_1_16_1/client/common_click.rs": "e93f973f835d4662998260ca5366d207e2bf7ca8f4d494669cf8ec106108aac0",
+    "src/versions/java_1_16_1/client/common_crafting.rs": "30c8b03317a5d09e1bfa9294f2be669d724e3742200f0c9735af5844f3cd380a",
+    "src/versions/java_1_16_1/client/common_transfer.rs": "7d8620cc3443a7ef396b54cc3a58144710553fc304ca7d7203406d48b94ed3ac",
+    "src/versions/java_1_16_1/client/finite_work.rs": "73e55c651a77d03788912dc1bd193f07ae709dde8e4d6720b268207a3fdf64d7",
+    "src/versions/java_1_16_1/client/inventory_execution.rs": "39e60440f60f8c8c17ca8bcdab923c5f26c2696f488b9a225e49452cb111fb11",
+    "src/versions/java_1_16_1/client/play_entities.rs": "8602d2761751ddddf36f8ee0512743262d0ef1cc151a9e0e039d436463308793",
+    "src/versions/java_1_16_1/client.rs": "47e8a56b726a802e43d7a6c025ee5dfa9ff086bce45ab2f7d8d6b6a955b3e691",
+    "src/versions/java_1_21_11/client/finite_work.rs": "1c13aa101ca949fa57d5d5354be11625d1da93e4ec2c7affad72e56325b71764",
+    "src/versions/java_1_21_11/client/operations/inventory/click.rs": "950377b3cec577bb410588039675de256923a6ab1726484b78c75b66eee06121",
+    "src/versions/java_1_21_11/client/operations/inventory/crafting.rs": "af4e0048f4cacd429f61cd48e821145443bb7b72c8ce4b5c26d01e7691e98248",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "28a756fd76efca320344e06973da441fe2acc67221bfbcf259239391590224eb",
+    "src/versions/java_1_21_11/client/operations/inventory/transfer.rs": "189fa5902f6723cdf4a520aa6314b74ebcf6a8c34dc97e0a011ca6b2b72ab54c",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "501b2c31980ccfdf50e90b60b3db4d5176d0028ccfd3559b981e353b3771a42f",
+    "src/versions/java_1_21_11/client.rs": "c8e077a52add47366c5189d171b1670e310939376d16ff95ac6f7249fc183426",
+    "scripts/run_inventory_divergence_live.py": "709d86b9dbfbce5edc3f24e3fb5b7c7bede4792f9b6d5f35fb00734db9561f31",
+    "scripts/run_inventory_click_receipts.py": "db76c1966af4e15cafbd6d39e0a639d1c3b9931bfede77a8344e7d727b810238",
+    "scripts/run_climbing_control.py": "3312615f26fff487aed3ea7bee8d32e289a9c18e62e843026acf95244fad9655",
+    "scripts/run_common_native.py": "776688741c32cbc6e10fe233338bf1ea85cf06fd4f93218c1bb83df42b5783a0"
+  },
+  "f96_historical_receipts": [
+    {
+      "source": "/home/dev/logs/rta-f96/legacy-02-seed-2.events.jsonl",
+      "sha256": "c3d5ca8e82988b7c4a6ea8b2510824a0c360655fca9955ea4c422db0baaaaede",
+      "window": 0,
+      "action": 23,
+      "after_sequence": 9201,
+      "accepted": false,
+      "reply_sequence": 9215,
+      "source_slot": 37,
+      "actual_cursor": "oak_log x1",
+      "collect_entity_ids_available": false
+    },
+    {
+      "source": "/home/dev/logs/rta-f96/village-02-seed--7207150731918145018.events.jsonl",
+      "sha256": "6d7fc8ea1cd71ebf223bbabb702e33fc6f86b0002899f56406b99348d269f803",
+      "window": 4,
+      "action": 1,
+      "after_sequence": 49986,
+      "accepted": false,
+      "reply_sequence": 50037,
+      "source_slot": 38,
+      "actual_cursor": "cobblestone x4",
+      "collect_entity_ids_available": false
+    }
+  ]
+}

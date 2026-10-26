@@ -316,6 +316,7 @@ impl State {
             operations::mining::common_mining_context_received(self);
             operations::placement::reconcile_ledger(self);
             operations::mining::reconcile_ledger(self);
+            operations::inventory::changes_received(self, id, in_play)?;
             self.reconcile_finite();
             if in_play {
                 for kind in event_kinds::kinds(id, payload) {
@@ -1513,6 +1514,31 @@ mod placement_native_trials;
 mod tests;
 
 impl crate::client::adapter::EventOps for operations::Operations {
+    async fn inventory_divergence(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+    ) -> Result<Option<crate::client::inventory::InventoryDivergence>> {
+        let state = self.bot.session.state.lock().await;
+        let (session, source) = operations::inventory::execution_scope(&state);
+        if send.session() != session || send.source() != source {
+            return Err(crate::client::inventory::unavailable(
+                "inventory send scope is retired",
+            ));
+        }
+        state.inventory_executor.divergence(send)
+    }
+
+    async fn inventory_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::inventory::InventoryChangeLog> {
+        let state = self.bot.session.state.lock().await;
+        state
+            .inventory_executor
+            .changes
+            .after(after_sequence, state.sequence)
+    }
+
     async fn code_of_conduct(&self) -> Result<Option<crate::client::ObservedValue<String>>> {
         Ok(self.bot.session.state.lock().await.code_of_conduct.clone())
     }

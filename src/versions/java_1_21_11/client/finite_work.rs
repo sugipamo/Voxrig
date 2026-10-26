@@ -49,7 +49,11 @@ impl State {
             execution.as_ref().filter(|r| r.resync).map(|r| {
                 (
                     r.id.number(),
-                    r.status == crate::client::inventory::InventorySendStatus::Received,
+                    matches!(
+                        r.status,
+                        crate::client::inventory::InventorySendStatus::Received
+                            | crate::client::inventory::InventorySendStatus::Diverged
+                    ),
                     r.status == crate::client::inventory::InventorySendStatus::ResyncRequired,
                 )
             }),

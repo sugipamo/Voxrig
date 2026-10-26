@@ -9,6 +9,12 @@
 
 ## Unreleased
 
+- BREAKING: `InventorySendStatus` gains `Diverged` and is now `#[non_exhaustive]`;
+  `Received` requires the declared effect to agree with current received values.
+  Add `Client::inventory_divergence` and bounded `inventory_changes_after` on both
+  versions, with received snapshots, item/slot/cursor differences and cause hints.
+  Timeout resync retains the original intent as `Diverged(TimedOutResync)`.
+  Predictions remain comparison-only. See [usage and migration](docs/inventory-divergence.md).
 - Added bounded unknown-terrain walking to `body::Move` and
   `PlayerControl::start_control_best_effort` on both versions, plus
   `start_path_best_effort` for connection-owned finite routes. Terrain warnings
