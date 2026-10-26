@@ -1,7 +1,7 @@
 {
   "description": "Both official servers, real collect during one delayed original click, give External, ordinary Received",
   "synthetic_timing": "One unchanged original serverbound click was held; no packet injection/rewrite/replay. Item entity summoned on official server.",
-  "binary_sha256": "a46c25c95350fb7db99512b79bb09562458084538ed371862455444602aa0e39",
+  "binary_sha256": "274d2ef4372de49d6b247b2696088d152e1fd343f4c2072bd2beb4e0a3365bd2",
   "runs": [
     {
       "version": "1.16.1",
@@ -12,9 +12,9 @@
         "give_external",
         "real_collect_during_original_click"
       ],
-      "report": "/home/dev/logs/contact/dv1-live-v3/1.16.1-20261026-134451/report.json",
-      "report_sha256": "d1e90748bb410c95fb0aa052db27b97d8ae369d4aa5786e04d76d36d94c2222b",
-      "packets_sha256": "d689a43405611bdfda45cdea57660864d7ae33f7c6df592570cad488c47eaea1"
+      "report": "/home/dev/logs/contact/dv1-live-verified/1.16.1-20261026-142706/report.json",
+      "report_sha256": "40d119b2d898e7d6f5b6f3be57c565dcea3407dad0fc63252d23a00a7c6c3038",
+      "packets_sha256": "db4f467ea8c730652cce7a6f03ba46cf038b08e3be17400f3a3b1254313d5946"
     },
     {
       "version": "1.21.11",
@@ -25,20 +25,20 @@
         "give_external",
         "real_collect_during_original_click"
       ],
-      "report": "/home/dev/logs/contact/dv1-live-v3/1.21.11-20261026-134529/report.json",
-      "report_sha256": "6a506284f062b095bf2d784bc98dac6742e8c6062723d6e15b02119a5ae84766",
-      "packets_sha256": "2d09e38683b0f0b5678654d5ec593a6bd3d40f55c597228ece2a9def272e0104"
+      "report": "/home/dev/logs/contact/dv1-live-verified/1.21.11-20261026-142757/report.json",
+      "report_sha256": "09c426ead5b53911a1e8476ed671cf72d58dff00168dd7f060a88293704c27e7",
+      "packets_sha256": "b423ab50421bfcbdd659abe1abfb6c9683f1f1544f5120c538d7fd771ca701fc"
     }
   ],
   "sources_at_live_build": {
     "examples/climbing_control_probe.rs": "b961e24d76174d6e1a7360d0ecc78bef7c0372047e85ef52a41dbd5a8aa5ba8e",
     "src/client/adapter.rs": "456c6ef0bfaf9c6c43d594c9ee2eef369c244491b47186f2f0354172f500c926",
     "src/client/events.rs": "29d5e3bda265c4e6bde7c5bbe58b82668d07a2d28774722e88af87547d06e3bb",
-    "src/client/inventory/acceptance_tests.rs": "3143160747fb9651ed51a7f32e1e16fed85d74752ebbbd39b41a47adaef287de",
+    "src/client/inventory/acceptance_tests.rs": "2cfc03e30477c3f8edb089c51f75d275cf331b0d2fba8f2dc8b491b561f5bb69",
     "src/client/inventory/changes.rs": "ed3e59435e4e87cb0c1e5338f0ffbbb8c3869029281df79de1f94892cbdfb5ac",
     "src/client/inventory/divergence_tests.rs": "c89b4794dba8ca735b340cb182d42494866bb091c498de3826934bf4be17f227",
     "src/client/inventory/executor.rs": "e9d18a9a0015760610fd61b56b539a82ad60c981a8cd3541d0f3e5a30362f447",
-    "src/client/inventory/outcome.rs": "ca1ab120b9a34cb921538ccbf0bc579920bafa8bc690b8ece5aeaaaf19c8310d",
+    "src/client/inventory/outcome.rs": "d56a212b725c1838e12b5b54fc163441124e85c2600f25d84e213882be82aaad",
     "src/client/inventory.rs": "ac1d8e5977f2683be327ffdcb43c96bbc8b2e21c5e69e8449754f5d29db40ebd",
     "src/client/operations.rs": "35173ed0c2a3a930261a1df004d553abccf4b5a0ae667dfff0ff2f107a236bcc",
     "src/versions/java_1_16_1/client/body.rs": "9fc3b48ce504c11139abc8411b527688b401f4572816dbbe22c115f395ce01f2",
@@ -46,20 +46,29 @@
     "src/versions/java_1_16_1/client/common_crafting.rs": "30c8b03317a5d09e1bfa9294f2be669d724e3742200f0c9735af5844f3cd380a",
     "src/versions/java_1_16_1/client/common_transfer.rs": "7d8620cc3443a7ef396b54cc3a58144710553fc304ca7d7203406d48b94ed3ac",
     "src/versions/java_1_16_1/client/finite_work.rs": "73e55c651a77d03788912dc1bd193f07ae709dde8e4d6720b268207a3fdf64d7",
-    "src/versions/java_1_16_1/client/inventory_execution.rs": "39e60440f60f8c8c17ca8bcdab923c5f26c2696f488b9a225e49452cb111fb11",
+    "src/versions/java_1_16_1/client/inventory_execution.rs": "a12318066e21ce48c4e9afaddae7eb46f13513b6b71cee5639a5dba660c6ad5c",
     "src/versions/java_1_16_1/client/play_entities.rs": "8602d2761751ddddf36f8ee0512743262d0ef1cc151a9e0e039d436463308793",
-    "src/versions/java_1_16_1/client.rs": "47e8a56b726a802e43d7a6c025ee5dfa9ff086bce45ab2f7d8d6b6a955b3e691",
+    "src/versions/java_1_16_1/client.rs": "7d984fc37e5e613a54eb71490d5827d8d5741a8355687edc291b89fb3f7fc27c",
     "src/versions/java_1_21_11/client/finite_work.rs": "1c13aa101ca949fa57d5d5354be11625d1da93e4ec2c7affad72e56325b71764",
     "src/versions/java_1_21_11/client/operations/inventory/click.rs": "950377b3cec577bb410588039675de256923a6ab1726484b78c75b66eee06121",
     "src/versions/java_1_21_11/client/operations/inventory/crafting.rs": "af4e0048f4cacd429f61cd48e821145443bb7b72c8ce4b5c26d01e7691e98248",
-    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "28a756fd76efca320344e06973da441fe2acc67221bfbcf259239391590224eb",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "a1b157db2297a94dd4a9ce2c54014c83c593faaf7dc6db3be2827c950c5bd527",
     "src/versions/java_1_21_11/client/operations/inventory/transfer.rs": "189fa5902f6723cdf4a520aa6314b74ebcf6a8c34dc97e0a011ca6b2b72ab54c",
-    "src/versions/java_1_21_11/client/operations/inventory.rs": "501b2c31980ccfdf50e90b60b3db4d5176d0028ccfd3559b981e353b3771a42f",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "1eff6b0892bcdf477d4d5185271049f9eb9b288abfa7115b7192c1657c2ef09d",
     "src/versions/java_1_21_11/client.rs": "c8e077a52add47366c5189d171b1670e310939376d16ff95ac6f7249fc183426",
     "scripts/run_inventory_divergence_live.py": "709d86b9dbfbce5edc3f24e3fb5b7c7bede4792f9b6d5f35fb00734db9561f31",
     "scripts/run_inventory_click_receipts.py": "db76c1966af4e15cafbd6d39e0a639d1c3b9931bfede77a8344e7d727b810238",
     "scripts/run_climbing_control.py": "3312615f26fff487aed3ea7bee8d32e289a9c18e62e843026acf95244fad9655",
-    "scripts/run_common_native.py": "776688741c32cbc6e10fe233338bf1ea85cf06fd4f93218c1bb83df42b5783a0"
+    "scripts/run_common_native.py": "776688741c32cbc6e10fe233338bf1ea85cf06fd4f93218c1bb83df42b5783a0",
+    "src/client/entity/contact_policy/table.rs": "3516dd623820930b04a1d583077c320eaf244c8a90bc41486e75dabd54ec3a7f",
+    "src/client/entity/contact_policy/validate.rs": "017a227bcc4771bbf502702c07d96ba9987729f7356571663f9678e43e2af45b",
+    "src/client/entity/owned_contacts.rs": "102f8da6d46c996a6f3cfeba9f0e4a1ad7fc3de0f748b8948761c350ab56e440",
+    "src/client/physics/oracle_tests.rs": "e4d812417c06f7d1ac185869630e1e1abd311257ec192f24f4dc7c3f9686ef87",
+    "src/versions/java_1_16_1/client/common_control.rs": "d8a39da5315f9408b4c980642c431f546fa95102787c6290ea392e0aa4011dc2",
+    "src/versions/java_1_16_1/world.rs": "24928c790f8ad4f0498469e5faee6c31c729b19aad589c17fb68a3daae3a1a94",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "090a80bb19bdc6628357d4dc1123b3700a4694467cd58e7ef4671d6d9d438ec0",
+    "src/versions/java_1_21_11/item_components/selector_tests.rs": "ca818779f67c834a2df93c08addc1e82a28f8432d4b465e8ca8237d0c5d8d69c",
+    "src/versions/table.rs": "b8c38fd0e8c91258ee0b0c7d5e19fe1b3af95245563e9e06b77a3fd6f093ee2a"
   },
   "f96_historical_receipts": [
     {
@@ -86,5 +95,218 @@
       "actual_cursor": "cobblestone x4",
       "collect_entity_ids_available": false
     }
-  ]
+  ],
+  "crafting_policy": "Conservative Diverged for every completed crafting-result send: full material/remainder/repeated-craft delta is not determined by displayed output.",
+  "validation": [
+    {
+      "toolchain": "stable",
+      "mode": "default",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 4.1,
+      "log": "/home/dev/logs/contact/dv1-verified-stable-default-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "toolchain": "stable",
+      "mode": "default",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 26.33,
+      "log": "/home/dev/logs/contact/dv1-verified-stable-default-clippy.log",
+      "log_sha256": "1bde4b9333a6c6cf248f46b9e548e5c600ab65d16b610676dab54c9108ed931f"
+    },
+    {
+      "toolchain": "stable",
+      "mode": "default",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "seconds": 283.99,
+      "log": "/home/dev/logs/contact/dv1-verified-stable-default-test.log",
+      "log_sha256": "b8af36826175c3db6561a1d8602a14880f44fdfc10841c904d26e18e29e278ca"
+    },
+    {
+      "toolchain": "stable",
+      "mode": "native",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 5.89,
+      "log": "/home/dev/logs/contact/dv1-verified-stable-native-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "toolchain": "stable",
+      "mode": "native",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 88.22,
+      "log": "/home/dev/logs/contact/dv1-verified-stable-native-clippy.log",
+      "log_sha256": "32c53a53481cab9cd832f413ba74f876f433a8744a267cabddbda9602a74c4b5"
+    },
+    {
+      "toolchain": "stable",
+      "mode": "native",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "seconds": 881.13,
+      "log": "/home/dev/logs/contact/dv1-verified-stable-native-test.log",
+      "log_sha256": "a4301f2265e37666d353e74f094e3498bf3b671905d60b8bf44ba12e02d17a6a"
+    },
+    {
+      "toolchain": "1.85.0",
+      "mode": "default",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 3.4,
+      "log": "/home/dev/logs/contact/dv1-verified-1.85.0-default-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "toolchain": "1.85.0",
+      "mode": "default",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 81.88,
+      "log": "/home/dev/logs/contact/dv1-verified-1.85.0-default-clippy.log",
+      "log_sha256": "24b918d0915e93f3863212391588698a569d35eeba3e32223021dc9c0131a35f"
+    },
+    {
+      "toolchain": "1.85.0",
+      "mode": "default",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "seconds": 444.33,
+      "log": "/home/dev/logs/contact/dv1-verified-1.85.0-default-test.log",
+      "log_sha256": "f706c38a5d1e2963558c4076449ad641d0865a3a6286483cd21ca7247c764774"
+    },
+    {
+      "toolchain": "1.85.0",
+      "mode": "native",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 5.92,
+      "log": "/home/dev/logs/contact/dv1-verified-1.85.0-native-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "toolchain": "1.85.0",
+      "mode": "native",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 156.36,
+      "log": "/home/dev/logs/contact/dv1-verified-1.85.0-native-clippy.log",
+      "log_sha256": "29ec6057f26109b842502e322819f4edf576326c1c142fce29ad8a1e56d7fc44"
+    },
+    {
+      "toolchain": "1.85.0",
+      "mode": "native",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "seconds": 730.86,
+      "log": "/home/dev/logs/contact/dv1-verified-1.85.0-native-test.log",
+      "log_sha256": "ab5692898015d37f51dd68754417fd9c1b185aed404533582689f3fc8a9e909c"
+    }
+  ],
+  "msrv_build_environment": {
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "2"
+  }
 }
