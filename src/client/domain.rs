@@ -3,6 +3,7 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Domain {
     Strict,
+    CurrentInventory,
     Motion,
     Dig,
     Screen,
@@ -12,7 +13,7 @@ pub(crate) enum Domain {
 }
 impl Domain {
     pub(crate) fn motion(self) -> bool {
-        matches!(self, Self::Strict | Self::Motion)
+        matches!(self, Self::Strict | Self::CurrentInventory | Self::Motion)
     }
     pub(crate) fn inventory(self) -> bool {
         matches!(self, Self::Strict | Self::Screen)

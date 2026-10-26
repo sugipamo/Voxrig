@@ -95,6 +95,7 @@ struct State {
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
     finite_work: crate::client::ledger::finite::Retained,
     pending_swap_work: Option<PendingWork>,
+    inventory_executor: crate::client::inventory::executor::Executor,
     common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
     common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
     common_recipe_placement: Option<crate::client::crafting::RecipePlacementRecord>,
@@ -177,6 +178,7 @@ impl Default for State {
             common_hand_swap: None,
             finite_work: Default::default(),
             pending_swap_work: None,
+            inventory_executor: Default::default(),
             common_inventory_click: None,
             common_crafting_take: None,
             common_recipe_placement: None,
@@ -301,7 +303,9 @@ impl State {
             operations::vehicle::context_received(self);
             operations::placement_context_received(self);
             operations::placement::common_placement_context_received(self);
+            operations::inventory::execution_received(self, id, payload)?;
             operations::inventory::common::context_received(self);
+            operations::inventory::retire_execution(self);
             operations::inventory::click::context_received(self);
             operations::inventory::hands::context_received(self);
             operations::inventory::drop::context_received(self);
@@ -1209,6 +1213,13 @@ fn apply_play(
             r.take(8)?;
             r.end()?;
             responses.push((output::KEEP_ALIVE, payload.to_vec()));
+        }
+        input::PING_RESPONSE => {
+            r.take(8)?;
+            r.end()?;
+        }
+        input::TAB_COMPLETE => {
+            r.varint()?;
         }
         input::PING => {
             r.take(4)?;

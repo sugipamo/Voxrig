@@ -43,9 +43,9 @@ impl Bot {
         }
         let (held_before, held_receive_sequence) = placement::selected_material(&query.initial)?;
         {
-            let inventory = self.inventory.read().await;
+            let inventory = self.inventory().await;
             if inventory.cursor.is_some()
-                || inventory.open_window.is_some()
+                || query.initial.inventory.player_screen.is_none()
                 || !inventory.pending_clicks.is_empty()
             {
                 return Err(placement::unavailable(

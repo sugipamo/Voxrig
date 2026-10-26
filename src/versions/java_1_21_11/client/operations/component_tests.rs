@@ -113,8 +113,7 @@ fn original_item_packets_preserve_components_following_slots_cursor_and_received
                 );
             }
             if storage {
-                let screen = state.operations.inventory.container.as_ref().unwrap();
-                let screen = screen.capture(received.session);
+                let screen = state.operations.inventory.screen(received.session).unwrap();
                 let screen_item = screen.slots[27].as_ref().unwrap();
                 assert_eq!(screen_item.value, expected_common);
                 assert_eq!(screen_item.source, ValueSource::Received { sequence: 13 });

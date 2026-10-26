@@ -490,6 +490,32 @@ impl ScreenReceipts {
         }
         Ok(())
     }
+    /// Move shared values into their canonical player entries at packet reduction.
+    pub(crate) fn take_shared(&mut self, player: &mut [Option<ObservedValue<SlotKnowledge>>]) {
+        if let Some(layout) = &self.layout {
+            for mapping in &layout.player_slots {
+                if let Some(value) = self.slots.get_mut(mapping.screen_slot) {
+                    player[mapping.player_slot] = value.take();
+                }
+            }
+        }
+    }
+    /// Materialize shared positions from the canonical player entries at capture.
+    pub(crate) fn project(
+        &self,
+        session: SessionStamp,
+        player: &[Option<ObservedValue<SlotKnowledge>>],
+    ) -> ContainerScreen {
+        let mut screen = self.capture(session);
+        if let Some(layout) = &self.layout {
+            for mapping in &layout.player_slots {
+                if let Some(out) = screen.slots.get_mut(mapping.screen_slot) {
+                    *out = player.get(mapping.player_slot).cloned().flatten();
+                }
+            }
+        }
+        screen
+    }
     pub fn id(&self, session: SessionStamp) -> ScreenId {
         ScreenId {
             session,

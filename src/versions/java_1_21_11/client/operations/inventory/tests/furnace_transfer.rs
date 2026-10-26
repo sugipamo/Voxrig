@@ -184,6 +184,7 @@ async fn furnace_transfer_partial_full_and_consumption_conflicts_never_heal() {
                 start(&f, mode, source, 2).await.unwrap_err().kind(),
                 crate::ErrorKind::InvalidInput
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -211,6 +212,7 @@ async fn furnace_transfer_partial_full_and_consumption_conflicts_never_heal() {
                         .await;
                 }
                 assert_eq!(record(&f).await.stage, Stage::RequiresInspection);
+                f.fence_response().await;
                 assert!(
                     timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                         .await
@@ -248,6 +250,7 @@ async fn furnace_transfer_missing_properties_tags_and_changed_ownership_are_not_
             }
         }
         assert!(start(&f, GameMode::Survival, source, 3).await.is_err());
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                 .await
@@ -350,6 +353,7 @@ async fn furnace_transfer_requires_every_destination_then_retains_completed_hist
             f.receive(ids::play_clientbound::DECLARE_RECIPES, &[0, 0])
                 .await;
             assert_eq!(serde_json::to_value(record(&f).await).unwrap(), historical);
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -395,6 +399,7 @@ async fn furnace_transfer_received_material_set_wins_over_fuel_even_when_input_b
                 result.unwrap_err().to_string(),
                 "shift transfer has no effect; no packet submitted"
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -442,6 +447,7 @@ async fn furnace_transfer_consumed_fuel_receipt_cannot_complete_or_heal() {
             assert_eq!(retained.stage, Stage::RequiresInspection);
             assert_eq!(retained.id, sent.id);
             assert!(retained.changed_slots.iter().all(|c| c.receipt.is_some()));
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -486,6 +492,7 @@ async fn furnace_transfer_reopened_window_requires_its_own_full_contents() {
                         .is_none()
                 );
             }
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await

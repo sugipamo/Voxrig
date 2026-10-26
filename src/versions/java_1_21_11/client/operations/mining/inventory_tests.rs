@@ -107,8 +107,8 @@ async fn inventory_diagnosis_distinguishes_selection_cursor_and_screen() {
             MiningInventoryChangeKind::PlayerScreenChanged,
         ),
         (
-            ids::play_clientbound::SET_SLOT,
-            vec![1, 2, 0, 36, 0],
+            ids::play_clientbound::OPEN_WINDOW,
+            vec![1, 0, 10, 0],
             MiningInventoryChangeKind::PlayerScreenChanged,
         ),
     ] {

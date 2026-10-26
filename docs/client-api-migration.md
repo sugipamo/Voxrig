@@ -103,7 +103,7 @@ legacyのdimension codecは個別entryも取得できる。新旧とも未受信
 `click_inventory`・`close_container`を使用します。native window/menu ID・player offsetを利用側で分岐せず、
 精錬結果は実output受信で確認します。詳しい条件は[共通かまど操作](common-furnaces.md)を参照。
 
-`WindowPrediction`はserver受信値ではありません。既存のcache予測の契約を維持しますが、
+`WindowPrediction`はserver受信値ではありません。0.3.0 では cache 予測の契約を変更し、受信値だけを返します（[移行ガイド](migration-0.3.md)）が、
 ackやcache更新だけを目的達成の証拠にしないでください。
 
 ## minetoolから
@@ -168,8 +168,9 @@ stackを上限までまとめます。player windowでは収納可能なoffhand�
 `craft_once`は製作前にこの整理を実行し、残ったgrid材料を戻してから新しいrecipeを置きます。
 製作結果は取得前に収納容量を確認し、空きslotだけでなく互換stackの残容量も使います。
 拒否・不一致では停止します。一部クリック後の失敗はrollbackや再試行許可ではなく、
-新しい観測で残ったcursor・grid・収納を確認してください。protocol確認後のcache予測を含む
-1.16.1の在庫契約は維持し、独立したゲーム内成功の証拠とは扱いません。
+新しい観測で残ったcursor・grid・収納を確認してください。0.3.0 以降の native 1.16.1
+在庫も受信値のみです。予測・protocol 応答・ゲーム内効果は別々に確認します。
+可視化時点の変更と Golemkit helper の移行は [0.3 移行](migration-0.3.md)を参照してください。
 
 ## 検査付きサバイバル入口と追加の互換性変更
 

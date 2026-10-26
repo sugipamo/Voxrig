@@ -133,6 +133,7 @@ async fn selected_drop_modes_amounts_one_send_fresh_receipt_ledger_and_history()
                     .unwrap(),
                 serde_json::to_value(Some(complete)).unwrap()
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
                     .await
@@ -171,6 +172,7 @@ async fn selected_drop_cancelled_before_writer_never_completes_or_resends() {
     assert_eq!(record.stage, Stage::RequiresInspection);
     assert!(client.survival().drop_selected(Amount::One).await.is_err());
     assert!(session.ledger.cut(false).wait().await.is_err());
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
             .await
@@ -274,6 +276,7 @@ async fn selected_drop_conflicts_are_sticky_and_do_not_replay() {
         assert_eq!(record.stage, Stage::RequiresInspection, "{conflict}");
         assert!(client.survival().drop_selected(Amount::All).await.is_err());
         assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
                 .await
@@ -376,6 +379,7 @@ async fn selected_drop_admission_rejects_empty_unknown_mode_and_competing_owner(
                 .unwrap()
                 .is_none()
         );
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
                 .await
@@ -730,6 +734,7 @@ async fn selected_drop_after_local_close_completes_from_actual_full_resync() {
         Some(0)
     );
     f.api.bot.session.ledger.cut(false).wait().await.unwrap();
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
             .await

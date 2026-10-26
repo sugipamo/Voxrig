@@ -198,3 +198,16 @@ accepted=true/false は受信の代わりにならず、消費競合によって
 独自 server の overstack が比較値と一致しても、足りない受信を補完しない。
 原版 PICKUP の戻り値と count=127 の packet roundtrip は、両 button × ordinary coal 0..64 の130ケースで確認する。
 Golemkit の通常経路は引き続き player storage で指定量を準備し、一括配置する。
+
+## 0.3.0 の情報所有権と移行
+
+受信 packet reducer が現在の slots/cursor/opening の唯一の正本となる。player/menu の共有
+slot は canonical player entry から導出し、native cache 予測と strict 診断を現在値へ書き戻さない。
+従来は受信値・予測 cache・共有 slot コピー・共通 released と actor owner が別々に保持して drift した。
+実行権は protocol response と必要な実状態の到着を待つ executor が持ち、strict inspection は診断履歴に残す。
+新受信は現在値を置換し、timeout/world/opening 変更は古い操作の継続権を失効させる。
+再導出は snapshot/transfer/crafting 計画について画面 slot 数に比例し、opening/action 照合は O(1)。
+Golemkit helpers は追加の send/current-state API を使い、同じ一回の送信の strict record を診断に使う。
+ACK だけでも slot 更新だけでも次を送らず、期限後は元の click を再送せず明示 resync と再計画へ進む。
+close の完全送信は SubmittedClose であり、受信 opening/cursor や close echo を生成しない。
+署名・最小例・BREAKING な native 受信タイミング変更は [0.3 migration](migration-0.3.md) を参照。

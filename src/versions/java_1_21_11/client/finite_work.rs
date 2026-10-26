@@ -43,6 +43,49 @@ impl Session {
 }
 impl State {
     pub(super) fn reconcile_finite(&mut self) {
+        let execution = self.inventory_executor.record();
+        self.finite_work.reconcile(
+            Family::InventoryResync,
+            execution.as_ref().filter(|r| r.resync).map(|r| {
+                (
+                    r.id.number(),
+                    r.status == crate::client::inventory::InventorySendStatus::Received,
+                    r.status == crate::client::inventory::InventorySendStatus::ResyncRequired,
+                )
+            }),
+        );
+
+        if let Some(execution) = self
+            .inventory_executor
+            .record()
+            .filter(|r| r.status == crate::client::inventory::InventorySendStatus::ResyncRequired)
+        {
+            if let Some(r) = self.common_inventory_click.as_mut().filter(|r| {
+                r.initial.session == execution.id.session()
+                    && r.send.after_sequence == execution.after_sequence
+            }) {
+                r.inspection(
+                    "inventory response/state deadline or opening boundary requires resync",
+                );
+            }
+            if let Some(r) = self.common_inventory_transfer.as_mut().filter(|r| {
+                r.initial.session == execution.id.session()
+                    && r.send.after_sequence == execution.after_sequence
+            }) {
+                r.inspection(
+                    "inventory response/state deadline or opening boundary requires resync",
+                );
+            }
+            if let Some(r) = self.common_crafting_take.as_mut().filter(|r| {
+                r.initial.session == execution.id.session()
+                    && r.send.after_sequence == execution.after_sequence
+            }) {
+                r.inspection(
+                    "inventory response/state deadline or opening boundary requires resync",
+                );
+            }
+        }
+
         self.finite_work.reconcile(
             Family::Swap,
             operations::inventory::common::swap_ledger_state(self),

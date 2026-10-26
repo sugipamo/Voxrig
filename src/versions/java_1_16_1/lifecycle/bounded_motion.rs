@@ -1,4 +1,11 @@
 //! Actor-owned exclusive normal-dispatch gate for bounded common movement/mining.
+fn comparison_supported(s: &crate::versions::java_1_16_1::ItemStack) -> bool {
+    let mut comparison = s.clone();
+    if comparison.count == i8::MAX {
+        comparison.count = 1;
+    }
+    crate::client::inventory::transfer_policy::legacy_comparison_supported(&comparison)
+}
 use super::*;
 type Admission<T> = Result<T, OperationAdmissionError>;
 
@@ -108,10 +115,12 @@ pub(super) enum MotionCommand {
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
         reply: oneshot::Sender<crate::Result<()>>,
     },
+    #[cfg(test)]
     FinishInventoryClick {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
     },
+    #[cfg(test)]
     FinishInventoryTransfer {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
@@ -123,6 +132,7 @@ pub(super) enum MotionCommand {
         comparison: crate::versions::java_1_16_1::ItemStack,
         reply: oneshot::Sender<crate::Result<()>>,
     },
+    #[cfg(test)]
     FinishInventorySwap {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
@@ -436,11 +446,9 @@ impl MotionGate {
                         || active.number != step
                         || active.sent
                         || slot >= 4096
-                        || comparison.as_ref().is_some_and(|s| {
-                            !crate::client::inventory::transfer_policy::legacy_comparison_supported(
-                                s,
-                            )
-                        })
+                        || comparison
+                            .as_ref()
+                            .is_some_and(|s| !comparison_supported(s))
                     {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
@@ -997,6 +1005,9 @@ impl MotionGate {
                             .map_err(crate::Error::from)
                     }
                 };
+                if result.is_ok() {
+                    self.owner = None;
+                } // only the packet executor owns response debt
                 let failed = admitted && result.is_err();
                 let _ = reply.send(result);
                 return failed;
@@ -1040,7 +1051,7 @@ impl MotionGate {
                                 })
                         } else {
                             comparison.as_ref().is_some_and(|s| {
-                                !crate::client::inventory::transfer_policy::legacy_comparison_supported(s)
+                                !comparison_supported(s)
                             })
                         }
                     {
@@ -1079,13 +1090,17 @@ impl MotionGate {
                             .map_err(crate::Error::from)
                     }
                 };
+                if result.is_ok() {
+                    self.owner = None;
+                } // write reservation ends; packet executor owns response debt
                 let failed = admitted && result.is_err();
                 let _ = reply.send(result);
                 return failed;
             }
+            #[cfg(test)]
             MotionCommand::FinishInventoryClick { run_id, reply } => {
                 let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
-                    if !matches!(self.owner, Some(Owner::InventoryClick { run_id: id, sent: true, .. }) if id == run_id) {
+                    if self.owner.is_some() && !matches!(self.owner, Some(Owner::InventoryClick { run_id: id, sent: true, .. }) if id == run_id) {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
                     self.owner = None; Ok(())
@@ -1121,11 +1136,9 @@ impl MotionGate {
                             .is_none())
                         || slot >= 4096
                         || button != 0
-                        || comparison.as_ref().is_some_and(|s| {
-                            !crate::client::inventory::transfer_policy::legacy_comparison_supported(
-                                s,
-                            )
-                        })
+                        || comparison
+                            .as_ref()
+                            .is_some_and(|s| !comparison_supported(s))
                     {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
@@ -1156,22 +1169,27 @@ impl MotionGate {
                             .map_err(crate::Error::from)
                     }
                 };
+                if result.is_ok() {
+                    self.owner = None;
+                } // write reservation ends; packet executor owns response debt
                 let failed = admitted && result.is_err();
                 let _ = reply.send(result);
                 return failed;
             }
+            #[cfg(test)]
             MotionCommand::FinishInventoryTransfer { run_id, reply } => {
                 let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
-                    if !matches!(self.owner, Some(Owner::InventoryTransfer { run_id: id, sent: true, .. }) if id == run_id) {
+                    if self.owner.is_some() && !matches!(self.owner, Some(Owner::InventoryTransfer { run_id: id, sent: true, .. }) if id == run_id) {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
                     self.owner = None; Ok(())
                 });
                 let _ = reply.send(result);
             }
+            #[cfg(test)]
             MotionCommand::FinishInventorySwap { run_id, reply } => {
                 let result=admit_lifecycle(state,OperationClass::Normal).and_then(|()|{
-                    if !matches!(self.owner,Some(Owner::InventorySwap{run_id:id,sent:true,..}) if id==run_id){return Err(OperationAdmissionError::InvalidOperation)}
+                    if self.owner.is_some() && !matches!(self.owner,Some(Owner::InventorySwap{run_id:id,sent:true,..}) if id==run_id){return Err(OperationAdmissionError::InvalidOperation)}
                     self.owner=None;Ok(())
                 });
                 let _ = reply.send(result);
@@ -1364,6 +1382,7 @@ impl ConnectionActor {
             crate::client::inventory::unavailable("inventory actor result unavailable")
         })?
     }
+    #[cfg(test)]
     pub(crate) async fn finish_inventory_swap(&self, run_id: u64) -> Admission<()> {
         self.motion_admission(|reply| MotionCommand::FinishInventorySwap { run_id, reply })
             .await
@@ -1482,6 +1501,7 @@ impl ConnectionActor {
             crate::client::inventory::unavailable("inventory click actor result unavailable")
         })?
     }
+    #[cfg(test)]
     pub(crate) async fn finish_inventory_click(&self, run_id: u64) -> Admission<()> {
         self.motion_admission(|reply| MotionCommand::FinishInventoryClick { run_id, reply })
             .await
@@ -1528,6 +1548,7 @@ impl ConnectionActor {
             crate::client::inventory::unavailable("inventory click actor result unavailable")
         })?
     }
+    #[cfg(test)]
     pub(crate) async fn finish_inventory_transfer(&self, run_id: u64) -> Admission<()> {
         self.motion_admission(|reply| MotionCommand::FinishInventoryTransfer { run_id, reply })
             .await

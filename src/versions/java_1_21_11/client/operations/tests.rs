@@ -180,20 +180,26 @@ fn inventory_is_received_only_and_recursive_components_never_become_empty_slots(
     assert!(!state.operations.inventory.unsupported_components);
     receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &full).unwrap();
     assert!(!state.operations.inventory.unsupported_components);
-    // Other windows cannot silently preserve stale player inventory knowledge.
+    // Contents without an opening cannot revoke current received player state.
+    let before = state.operations.inventory.slots.clone();
     receive(
         &mut state,
         ids::play_clientbound::WINDOW_ITEMS,
         &[1, 0, 0, 0],
     )
     .unwrap();
-    assert!(
-        state
-            .operations
-            .inventory
-            .slots
-            .iter()
-            .all(|v| *v == InventorySlot::Unavailable)
+    assert_eq!(state.operations.inventory.slots, before);
+    // The actual opening packet is authoritative and revokes player operation rights.
+    receive(
+        &mut state,
+        ids::play_clientbound::OPEN_WINDOW,
+        &[1, 0, 10, 0],
+    )
+    .unwrap();
+    assert_eq!(state.operations.inventory.window_id, Some(1));
+    assert_eq!(
+        state.operations.inventory.slots[9],
+        InventorySlot::Unavailable
     );
 }
 

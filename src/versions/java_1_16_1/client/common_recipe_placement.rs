@@ -14,10 +14,7 @@ impl Bot {
     async fn recipe_placement_capture(&self) -> Result<contract::ReceivedCraftingContext> {
         let player = self.common_player_unlocked().await?;
         let receipts = self.common_receipts.lock().await;
-        let table = receipts
-            .container
-            .as_ref()
-            .map(|s| s.capture(player.session));
+        let table = receipts.screen(player.session);
         let registries = receipts
             .registries
             .capture(player.session, player.receive_sequence);

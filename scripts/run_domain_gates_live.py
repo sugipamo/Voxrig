@@ -141,6 +141,152 @@ def check(version, command, request, trace, report):
     request('disconnect')
 
 
+class InventoryTrace(harness.PacketTraceProxy):
+    """Hold/drop selected original responses without rewriting their bytes."""
+    def __init__(self, *args):
+        self.ack_mode = None
+        self.held = []
+        super().__init__(*args)
+
+    def forward_frame(self, record, destination, wire):
+        self.before_forward(record)
+        response = 0x12 if self.version == '1.16.1' else 0x0f
+        if (record['phase'] == 'play' and record['direction'] == 'clientbound'
+                and record['packet_id'] == response and self.ack_mode):
+            mode, self.ack_mode = self.ack_mode, None
+            if mode == 'delay':
+                self.held.append((destination, wire))
+            return
+        destination.sendall(wire)
+
+    def release_responses(self):
+        held, self.held = self.held, []
+        for destination, wire in held:
+            destination.sendall(wire)
+
+
+def inventory_check(version, command, request, trace, report):
+    report['binary_sha256'] = hashlib.sha256(BINARY.read_bytes()).hexdigest()
+    click_id = 0x09 if version == '1.16.1' else 0x11
+    prefix = 'replaceitem entity' if version == '1.16.1' else 'item replace entity'
+    def replace(target, item, count=1):
+        command(prefix + ' ClimbingProbe ' + target +
+                (' ' if version == '1.16.1' else ' with ') + 'minecraft:' + item + ' ' + str(count))
+    def count(value):
+        return value['value'].get('item', {}).get('count', 0) if value and isinstance(value['value'], dict) else 0
+    def player_count(slot):
+        return count(request('player')['inventory']['slots'][slot])
+    def done():
+        return until(lambda: (r if r and r.get('status') == 'received' else None)
+                     if (r := request('inventory_send_record')) else None, 8)
+    def send(slot, **kw):
+        r = request('inventory_send', slot=slot, **kw)
+        assert 'error' not in r, r
+        return r
+    def send_wait(slot, **kw):
+        r=send(slot, **kw); done(); return r
+    def frames(mark):
+        return [f for f in trace.since(mark) if f['phase']=='play' and
+                f['direction']=='serverbound' and f['packet_id']==click_id]
+    command('gamemode survival ClimbingProbe')
+    command('tp ClimbingProbe 0.5 65 0.5 0 0')
+    request('prepare', position=[.5,65.,.5])
+    until(lambda: request('player')['game_mode']=='survival')
+    command('clear ClimbingProbe')
+    # Force the real pickup into source screen slot 9 (raw inventory slot 9).
+    for i in range(27): replace('inventory.'+str(i),'cobblestone',64)
+    for i in range(9): replace('hotbar.'+str(i),'cobblestone',64)
+    replace('inventory.0','stone',7)
+    until(lambda: player_count(9)==7)
+    entered, release=threading.Event(),threading.Event()
+    def hold_click(frame):
+        if frame['phase']=='play' and frame['direction']=='serverbound' and frame['packet_id']==click_id:
+            entered.set()
+            if not release.wait(15): raise RuntimeError('click byte hold expired')
+    trace.before_forward=hold_click
+    mark=trace.mark()
+    try:
+        original=send(9)
+        assert entered.wait(4), 'original click did not reach proxy'
+        item='{Item:{id:"minecraft:stone",Count:1b},PickupDelay:0s}' if version=='1.16.1' else '{Item:{id:"minecraft:stone",count:1},PickupDelay:0s}'
+        command('summon minecraft:item 0.5 65 0.5 '+item)
+        until(lambda: player_count(9)==8,5)
+        report['pickup_before_release']=request('player')['inventory']
+    finally:
+        trace.before_forward=lambda f:None
+        release.set()
+    completed=done()
+    strict=request('click_record')
+    assert strict['stage']=='requires_inspection', strict
+    assert count(request('player')['inventory']['cursor'])==8
+    assert len(frames(mark))==1, frames(mark)
+    send_wait(9) # explicit return, freshly derived from received cursor 8
+    native=command('data get entity ClimbingProbe Inventory')
+    assert 'minecraft:stone' in native and ('Count: 8b' in native or 'count: 8' in native),native
+    report['checks'].append(dict(name='pickup_race_original_once_next_return',send=original,protocol=completed,strict=strict,native=native,frames=frames(mark)))
+    # Missing response and late response during a new operation, independently
+    # from full state delivery. Legacy comparison rejection still applies once.
+    for mode in ['drop','delay']:
+        mark=trace.mark(); trace.ack_mode=mode
+        old=send(9)
+        until(lambda: request('inventory_send_record').get('status')=='resync_required',8)
+        blocked=request('inventory_send',slot=9)
+        assert 'error' in blocked,blocked
+        sync=request('inventory_resync'); assert 'error' not in sync,sync
+        done()
+        # Hold the next real response while releasing an expired response. The
+        # old ID must not complete the new intent even though state is received.
+        trace.ack_mode='delay'
+        newer=send(9)
+        if mode=='delay':
+            until(lambda: len(trace.held)>=2,5)
+            destination,wire=trace.held.pop(0); destination.sendall(wire)
+        else: until(lambda: len(trace.held)>=1,5)
+        request('wait',ms=100)
+        assert request('inventory_send_record')['status']=='pending'
+        trace.release_responses(); now=done()
+        assert newer['id']==now['id'] and old['id']!=now['id']
+        assert len(frames(mark))==3,frames(mark) # original, no-effect resync, explicit next
+        report['checks'].append(dict(name='ack_'+mode+'_resync_next_once',old=old,resync=sync,next=newer,received=now,frames=frames(mark)))
+    # Free cursor and use a real table, then close/reopen. Closing is a submitted
+    # fact and old ScreenId cannot be reused even if numeric window IDs repeat.
+    if count(request('player')['inventory']['cursor']): send_wait(9)
+    command('clear ClimbingProbe')
+    command('setblock 2 65 0 minecraft:crafting_table')
+    opened=request('submit',kind='activate',pos=[2,65,0],face='West',cursor=[0.,.5,.5])
+    until(lambda: request('status',id=opened)['status']!='pending',5)
+    until(lambda: request('screen').get('screen'))
+    # Place received planks into a table input using ordinary acceptance clicks.
+    replace('inventory.0','oak_planks',2)
+    until(lambda: player_count(9)==2)
+    # Table appends player raw 9 at screen slot 10.
+    send_wait(10,container=True)
+    send_wait(1,container=True)
+    result=request('crafting_send'); assert 'error' not in result,result
+    done()
+    closed=request('close_screen'); assert 'error' not in closed,closed
+    assert closed['dispatched'] and closed['stage'] in ['dispatched','observed_closed'],closed
+    denied=request('inventory_send',slot=1,old_screen=True)
+    assert 'error' in denied,denied
+    # A received player full-state boundary after SubmittedClose must retain
+    # Player execution scope even while the old screen remains diagnostic history.
+    replace('inventory.0','stone',1)
+    until(lambda: player_count(9)==1)
+    player_after_close=send_wait(9)
+    send_wait(9)
+    opened=request('submit',kind='activate',pos=[2,65,0],face='West',cursor=[0.,.5,.5])
+    until(lambda: request('status',id=opened)['status']!='pending',5)
+    fresh=until(lambda: (r if r.get('screen') and r['screen']['id']!=closed['initial_screen']['id'] else None)
+                if (r:=request('screen')) else None,5)
+    # A fresh independent source/cursor intent is allowed on the reopened screen.
+    # Find a received nonempty player slot rather than reuse an old plan.
+    candidate=next(i for i,v in enumerate(fresh['screen']['slots']) if i>=10 and count(v)>0)
+    send_wait(candidate,container=True)
+    send_wait(candidate,container=True)
+    report['checks'].append(dict(name='crafting_close_reopen_old_screen_revoked',crafting=result,closed=closed,player_after_close=player_after_close,fresh=fresh,old_denied=denied))
+    trace.expect_disconnect(); request('disconnect')
+
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--accept-eula', action='store_true', required=True)
@@ -148,15 +294,19 @@ if __name__ == '__main__':
     p.add_argument('--binary', type=Path, required=True)
     p.add_argument('--jars', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--inventory-single-owner',action='store_true')
     args = p.parse_args()
     BINARY = args.binary.resolve()
     os.environ['VOXRIG_BODY_TIMEOUT_MS'] = '2000'
     args.output.mkdir(parents=True, exist_ok=True)
     harness.ROOT = args.output.resolve() / 'runs'
     try:
-        harness.run(args.version, BINARY, args.jars.resolve(), check=check)
+        harness.run(args.version, BINARY, args.jars.resolve(), check=inventory_check if args.inventory_single_owner else check, trace_factory=InventoryTrace if args.inventory_single_owner else harness.PacketTraceProxy)
     finally:
         if harness.ROOT.exists():
-            for folder in harness.ROOT.iterdir():
+            folders = sorted(folder for folder in harness.ROOT.iterdir() if folder.is_dir())
+            if folders:
+                folder = folders[-1]
                 for name in ('report.json','packets.jsonl','probe.log','probe.stderr.log','server.log'):
+                    (args.output/name).unlink(missing_ok=True)
                     if (folder/name).exists(): shutil.copyfile(folder/name,args.output/name)

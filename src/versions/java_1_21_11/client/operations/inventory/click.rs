@@ -56,20 +56,14 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             player_screen: api::container::player_screen_access(
                 current.session,
                 inventory.window_id,
-                inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(current.session).id),
+                inventory.container.as_ref().map(|s| s.id(current.session)),
                 state.common_container_close.as_ref(),
             ),
             screen_revision: inventory.screen_revision,
             player_screen_revision: inventory.player_revision.clone(),
             local_cache: None,
         };
-        let screen = inventory
-            .container
-            .as_ref()
-            .map(|s| s.capture(current.session));
+        let screen = inventory.screen(current.session);
         let registries = state
             .registries
             .capture(current.session, current.receive_sequence);
@@ -131,13 +125,57 @@ impl crate::client::adapter::InventoryClickOps for Operations {
         slot: u16,
         button: InventoryClickButton,
     ) -> Result<InventoryClickRecord> {
+        self.start_click_inventory(mode, source, slot, button, false)
+            .await
+            .map(|(record, _)| record)
+    }
+    async fn inventory_click_record(&self) -> Result<Option<InventoryClickRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        context_received(&mut state);
+        if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {
+            if let Some(record) = state.common_inventory_click.as_mut() {
+                record.inspection("click connection closed or uncertain");
+            }
+        }
+        if let Some(record) = state.common_inventory_click.as_mut() {
+            if record.ready() {
+                record.stage = InventoryClickStage::ObservedClicked;
+            }
+        }
+        state.reconcile_finite();
+        Ok(state.common_inventory_click.clone())
+    }
+}
+
+impl Operations {
+    pub(super) async fn start_click_inventory(
+        &self,
+        mode: api::GameMode,
+        source: InventoryClickSource,
+        slot: u16,
+        button: InventoryClickButton,
+        acceptance: bool,
+    ) -> Result<(
+        InventoryClickRecord,
+        crate::client::inventory::InventorySendRecord,
+    )> {
         self.bot
             .session
             .ledger
             .try_work()?
             .run_scoped(async {
                 let mut state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
+                self.mutable_in_domain(
+                    &state,
+                    true,
+                    false,
+                    None,
+                    if acceptance {
+                        api::domain::Domain::CurrentInventory
+                    } else {
+                        api::domain::Domain::Strict
+                    },
+                )?;
                 if let InventoryClickSource::Container { screen } = source {
                     if state
                         .common_container_close
@@ -159,10 +197,7 @@ impl crate::client::adapter::InventoryClickOps for Operations {
                     ));
                 }
                 let initial = self.common_player_unlocked(&state)?;
-                let screen = inventory
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(initial.session));
+                let screen = inventory.screen(initial.session);
                 let attempt = state
                     .common_inventory_click
                     .as_ref()
@@ -171,7 +206,7 @@ impl crate::client::adapter::InventoryClickOps for Operations {
                 let registries = state
                     .registries
                     .capture(initial.session, initial.receive_sequence);
-                let record = click::prepare_received(
+                let mut record = click::prepare_received(
                     (initial, registries),
                     mode,
                     source,
@@ -180,6 +215,13 @@ impl crate::client::adapter::InventoryClickOps for Operations {
                     attempt,
                     screen,
                 )?;
+                record.send.request_full_resync = true;
+                record.send.sent_screen_revision = record
+                    .send
+                    .screen_revision
+                    .map(|v| if v == 0 { 1 } else { 0 });
+                let execution =
+                    self.begin_inventory_execution(&mut state, record.initial.session, false)?;
                 let bytes = payload(&record)?;
                 let work = state.finite_work.begin(
                     &self.bot.session.ledger,
@@ -198,30 +240,23 @@ impl crate::client::adapter::InventoryClickOps for Operations {
                 match result {
                     Ok(()) => {
                         record.send.dispatched = true;
-                        Ok(record.clone())
+                        let result = record.clone();
+                        self.send_inventory_fence(&mut state, execution).await?;
+                        Ok((
+                            result,
+                            state
+                                .inventory_executor
+                                .record()
+                                .expect("retained original send"),
+                        ))
                     }
                     Err(e) => {
                         record.inspection(format!("click submission uncertain: {e}"));
+                        state.inventory_executor.invalidate_owned(execution);
                         Err(e)
                     }
                 }
             })
             .await
-    }
-    async fn inventory_click_record(&self) -> Result<Option<InventoryClickRecord>> {
-        let mut state = self.bot.session.state.lock().await;
-        context_received(&mut state);
-        if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {
-            if let Some(record) = state.common_inventory_click.as_mut() {
-                record.inspection("click connection closed or uncertain");
-            }
-        }
-        if let Some(record) = state.common_inventory_click.as_mut() {
-            if record.ready() {
-                record.stage = InventoryClickStage::ObservedClicked;
-            }
-        }
-        state.reconcile_finite();
-        Ok(state.common_inventory_click.clone())
     }
 }

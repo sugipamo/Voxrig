@@ -77,6 +77,7 @@ async fn exact_equipment_pickup_both_modes_requires_fresh_slot_and_cursor() {
                 f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
                     .await;
                 crate::client::tests::common_pickup_complete_scenario(&client, record.id).await;
+                f.protocol_boundary().await;
             }
         }
     }
@@ -212,15 +213,20 @@ async fn player_screen_after_close_uses_same_consumer_and_actual_player_revision
         read_packet(&mut f.peer, None).await.unwrap(),
         (
             ids::play_serverbound::WINDOW_CLICK,
-            vec![0, 128, 1, 0, 9, 0, 2, 0, 0]
+            vec![0, 0, 0, 9, 0, 2, 0, 0]
         )
     );
     f.slot(9, plain("dirt", 2)).await;
     crate::client::tests::common_swap_pending_scenario(&client).await;
     f.slot(36, InventorySlot::Empty).await;
     crate::client::tests::common_swap_completed_scenario(&client, first.id).await;
-    crate::client::tests::common_closed_player_screen_scenario(&client, close.id).await;
     let updated = client.player_state().await.unwrap();
+    assert_eq!(
+        updated.inventory.player_screen,
+        Some(PlayerScreenAccess::SubmittedClose { close: close.id })
+    );
+    assert!(updated.pending_dispatch); // destination slots are strict evidence, never the protocol response
+
     assert_eq!(
         updated
             .inventory
@@ -236,6 +242,20 @@ async fn player_screen_after_close_uses_same_consumer_and_actual_player_revision
     mode.extend(1f32.to_be_bytes());
     f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
         .await;
+    // The server fixture supplies a full actual player state, including grid
+    // entries intentionally unknown to the client after opening the container.
+    f.fence_response().await;
+    let mut server_inventory = Inventory {
+        cursor: InventorySlot::Empty,
+        ..Default::default()
+    };
+    server_inventory.slots.fill(InventorySlot::Empty);
+    server_inventory.slots[9] = plain("dirt", 2);
+    f.receive(
+        ids::play_clientbound::WINDOW_ITEMS,
+        &full(&server_inventory, 130),
+    )
+    .await;
     let second =
         crate::client::tests::common_swap_start_scenario(&client, Mode::Creative, 9, 0).await;
     assert_eq!(second.send.screen_revision, Some(130));
@@ -243,9 +263,11 @@ async fn player_screen_after_close_uses_same_consumer_and_actual_player_revision
     f.slot(9, InventorySlot::Empty).await;
     f.slot(36, plain("dirt", 2)).await;
     crate::client::tests::common_swap_completed_scenario(&client, second.id).await;
-    assert!(
-        matches!(client.screen_state().await.unwrap().player_screen,Some(PlayerScreenAccess::SubmittedClose { close: owning }) if owning==close.id)
-    );
+    f.protocol_boundary().await;
+    assert!(matches!(
+        client.screen_state().await.unwrap().player_screen,
+        Some(PlayerScreenAccess::Received)
+    ));
     client.disconnect().await.unwrap();
     assert_eq!(
         client
@@ -350,6 +372,7 @@ async fn player_screen_after_close_never_uses_foreign_revision_when_player_revis
             .unwrap()
             .is_none()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -549,6 +572,7 @@ async fn common_container_close_cancelled_modern_waiter_keeps_one_owned_write_an
         .unwrap()
         .unwrap();
     assert_eq!(observed.stage, ContainerCloseStage::ObservedClosed);
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -630,6 +654,7 @@ async fn shulker_slot_refusal_is_shared_by_both_modes_before_owner_or_click() {
         let client = f.client();
         let screen = client.screen_state().await.unwrap().screen.unwrap().id;
         crate::client::tests::common_refused_shulker_swap_scenario(&client, mode, screen).await;
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                 .await
@@ -673,7 +698,7 @@ async fn container_swap_same_consumer_checks_fresh_destinations_and_next_creativ
         read_packet(&mut f.peer, None).await.unwrap(),
         (
             ids::play_serverbound::WINDOW_CLICK,
-            vec![3, 5, 0, 0, 0, 2, 0, 0]
+            vec![3, 0, 0, 0, 0, 2, 0, 0]
         )
     );
     assert!(
@@ -692,6 +717,7 @@ async fn container_swap_same_consumer_checks_fresh_destinations_and_next_creativ
     crate::client::tests::common_swap_pending_scenario(&client).await;
     f.container_slot(54, plain("stone", 3)).await;
     crate::client::tests::common_swap_completed_scenario(&client, record.id).await;
+    f.protocol_boundary().await;
     let mut mode = vec![3];
     mode.extend(1f32.to_be_bytes());
     f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
@@ -704,6 +730,7 @@ async fn container_swap_same_consumer_checks_fresh_destinations_and_next_creativ
     f.container_slot(0, plain("stone", 3)).await;
     f.container_slot(54, plain("dirt", 2)).await;
     crate::client::tests::common_swap_completed_scenario(&client, next.id).await;
+    f.protocol_boundary().await;
     client.disconnect().await.unwrap();
     assert_eq!(
         client
@@ -780,6 +807,7 @@ async fn container_swap_cancelled_before_writer_never_completes_from_later_match
         .unwrap();
     assert_eq!(result.stage, InventorySwapStage::Pending);
     assert!(!result.send.dispatched);
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -1013,6 +1041,7 @@ fn baseline() -> State {
 }
 
 struct CommonFixture {
+    fence_responses: std::collections::BTreeSet<u64>,
     api: Operations,
     peer: tokio::net::TcpStream,
     receiver: tokio::task::JoinHandle<()>,
@@ -1100,6 +1129,7 @@ async fn common_item_data_same_consumer_preserves_native_patch_and_refuses_defau
                     .unwrap()
                     .is_none()
             );
+            fixture.fence_response().await;
             assert!(
                 timeout(
                     Duration::from_millis(15),
@@ -1124,6 +1154,7 @@ impl CommonFixture {
         let mut state = baseline();
         state.phase = Phase::Play;
         let id = 42;
+        state.connection_id = id;
         let session = Arc::new(Session {
             operational_dig: Arc::default(),
             id,
@@ -1186,6 +1217,7 @@ impl CommonFixture {
             session.run_receiver(reader).await;
         });
         Self {
+            fence_responses: Default::default(),
             api,
             peer,
             receiver,
@@ -1230,7 +1262,7 @@ async fn common_swap_same_consumer_receives_both_destinations_then_next_creative
         read_packet(&mut f.peer, None).await.unwrap(),
         (
             ids::play_serverbound::WINDOW_CLICK,
-            vec![0, 128, 1, 0, 9, 0, 2, 0, 0]
+            vec![0, 0, 0, 9, 0, 2, 0, 0]
         )
     );
     assert!(record.send.legacy_action.is_none() && record.legacy_reply.is_none());
@@ -1261,6 +1293,7 @@ async fn common_swap_same_consumer_receives_both_destinations_then_next_creative
     f.receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &raw)
         .await;
     let complete = crate::client::tests::common_swap_completed_scenario(&client, record.id).await;
+    f.protocol_boundary().await;
     assert!(complete.legacy_reply.is_none());
     f.slot(9, InventorySlot::Empty).await;
     assert_eq!(
@@ -1296,6 +1329,7 @@ async fn common_swap_same_consumer_receives_both_destinations_then_next_creative
     f.slot(9, next_submission.hotbar_before).await;
     f.slot(36, next_submission.main_before).await;
     crate::client::tests::common_swap_completed_scenario(&client, next.id).await;
+    f.protocol_boundary().await;
     f.api.bot.disconnect().await.unwrap();
     assert_eq!(
         client
@@ -1404,6 +1438,7 @@ async fn common_swap_cancelled_before_writer_cannot_confirm_from_other_actor_upd
         .unwrap();
     assert_eq!(result.stage, InventorySwapStage::Pending);
     assert!(!result.send.dispatched);
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
             .await
@@ -1448,6 +1483,7 @@ async fn common_swap_requires_actual_empty_cursor_and_latches_transient_mode_cha
             .common_inventory_swap
             .is_none()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
             .await
@@ -1623,11 +1659,18 @@ fn confirmation_requires_both_post_submission_destinations() {
     let proof = observed(&state.operations.inventory, &submission, 12).unwrap();
     assert_eq!((proof.main_sequence, proof.hotbar_sequence), (11, 12));
     assert_eq!(proof.submission.connection_id, 42);
-    // A foreign container invalidates the cursor/revision and keeps uncertainty.
+    // Untagged contents cannot invent a different opening or revoke a received result.
     super::super::receive(
         &mut state,
         ids::play_clientbound::WINDOW_ITEMS,
         &[1, 0, 0, 0],
+    )
+    .unwrap();
+    assert!(observed(&state.operations.inventory, &submission, 13).is_some());
+    super::super::receive(
+        &mut state,
+        ids::play_clientbound::OPEN_WINDOW,
+        &[1, 0, 10, 0],
     )
     .unwrap();
     assert_eq!(
@@ -2123,6 +2166,7 @@ async fn common_container_open_reused_numeric_window_and_cursor_conflicts_latch_
         assert_eq!(history.stage, ContainerOpenStage::RequiresInspection);
         assert_eq!(history.observed_screen.unwrap().id, first);
         assert!(client.survival().open_container([8, 66, 11]).await.is_err());
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                 .await
@@ -2175,6 +2219,7 @@ async fn common_container_open_cancelled_modern_write_retains_unsent_intent_with
     assert_eq!(history.stage, ContainerOpenStage::RequiresInspection);
     assert!(!history.send.dispatched);
     assert!(client.survival().open_container([8, 66, 11]).await.is_err());
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -2408,6 +2453,7 @@ async fn ordinary_pickup_both_modes_player_storage_and_appended_player_require_a
                 f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &p).await;
                 let complete =
                     crate::client::tests::common_pickup_complete_scenario(&client, record.id).await;
+                f.protocol_boundary().await;
                 assert!(complete.legacy_reply.is_none());
             }
             assert!(matches!(
@@ -2470,6 +2516,7 @@ async fn ordinary_pickup_cancelled_before_full_write_retains_unsent_intent_and_l
             .await
             .is_err()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -2519,6 +2566,7 @@ async fn ordinary_pickup_native_bundle_override_refuses_before_record_or_io_and_
             .unwrap()
             .is_none()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -2653,6 +2701,7 @@ async fn shift_transfer_same_consumer_both_modes_storage_player_equipment_and_ol
             }
             let complete =
                 crate::client::tests::common_transfer_complete_scenario(&client, record.id).await;
+            f.protocol_boundary().await;
             assert_eq!(
                 complete.cursor_inspected.unwrap().source,
                 record.cursor_before.source
@@ -2705,6 +2754,7 @@ async fn shift_transfer_cancelled_before_full_write_retains_intent_and_cannot_co
             .await
             .is_err()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -2759,6 +2809,7 @@ async fn shift_transfer_partial_merge_needs_both_actual_receipts_without_cursor_
     );
     f.slot(36, plain("stone", 64)).await;
     crate::client::tests::common_transfer_complete_scenario(&client, record.id).await;
+    f.protocol_boundary().await;
     f.stop().await;
 }
 #[tokio::test]
@@ -2824,6 +2875,7 @@ async fn cursor_return_close_same_consumer_both_modes_waits_for_each_actual_step
             assert_eq!(step.source_slot, 27 + index as u16);
             assert!(client.survival().swap_hotbar(9, 0).await.is_err());
             assert!(f.api.swap_player_hotbar(9, 0).await.is_err());
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                     .await
@@ -2834,6 +2886,7 @@ async fn cursor_return_close_same_consumer_both_modes_waits_for_each_actual_step
                 plain("stone", if index == 0 { 64 } else { 4 }),
             )
             .await;
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                     .await
@@ -2873,6 +2926,7 @@ async fn cursor_return_close_same_consumer_both_modes_waits_for_each_actual_step
                 .all(|s| s.source_receipt.is_some() && s.cursor_receipt.is_some())
         );
         assert!(complete.server_close_sequence.is_none());
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                 .await
@@ -3064,6 +3118,7 @@ async fn data_swap_same_consumer_preserves_components_capacity_and_canonical_rec
         let complete =
             crate::client::tests::common_data_swap_completed_scenario(&client, record.id, &before)
                 .await;
+        f.protocol_boundary().await;
         assert_ne!(
             complete.hotbar_receipt.unwrap().value,
             record.source_before.value
@@ -3079,6 +3134,7 @@ async fn data_swap_refuses_effective_overstack_and_latches_changed_component_rec
     let client = f.client();
     f.slot(9, component_swap_item(3, 2, false)).await;
     assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -3182,6 +3238,7 @@ async fn data_pickup_same_consumer_both_modes_keeps_data_and_requires_fresh_resy
                 (source_count as u32, cursor_count as u32),
             )
             .await;
+            f.protocol_boundary().await;
         }
     }
     f.stop().await;
@@ -3239,6 +3296,7 @@ async fn crafting_input_same_consumer_modes_requires_fresh_source_and_cursor_not
         f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
             .await;
         crate::client::tests::common_crafting_input_complete_scenario(&client, record.id).await;
+        f.protocol_boundary().await;
         assert!(
             client
                 .survival()
@@ -3246,6 +3304,7 @@ async fn crafting_input_same_consumer_modes_requires_fresh_source_and_cursor_not
                 .await
                 .is_err()
         );
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                 .await
@@ -3370,7 +3429,7 @@ async fn data_transfer_same_consumer_both_modes_partial_merge_and_split_return_p
             let (id, packet) = read_packet(&mut f.peer, None).await.unwrap();
             assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
             assert_eq!(packet, super::transfer::payload(&record).unwrap());
-            assert!(!record.send.request_full_resync);
+            assert!(record.send.request_full_resync);
             for (ordinal, (slot, count)) in updates.iter().enumerate() {
                 f.slot(
                     *slot,
@@ -3398,6 +3457,7 @@ async fn data_transfer_same_consumer_both_modes_partial_merge_and_split_return_p
                 &client, record.id, &original, &expected,
             )
             .await;
+            f.protocol_boundary().await;
         }
         f.stop().await;
     }
@@ -3514,6 +3574,7 @@ async fn held_cursor_transfer_same_consumer_modes_requests_real_resync_and_prese
             &client, record.id, &before,
         )
         .await;
+        f.protocol_boundary().await;
         f.stop().await;
     }
 }
@@ -3574,6 +3635,7 @@ async fn armor_transfer_same_consumer_modes_preserves_data_and_requires_both_act
                         .unwrap()
                         .is_none()
                 );
+                f.fence_response().await;
                 assert!(
                     timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                         .await
@@ -3716,6 +3778,7 @@ async fn modified_equipment_transfer_same_consumer_both_modes_requires_each_actu
             &[(5, 1), (9, 0), (36, 2)],
         )
         .await;
+        f.protocol_boundary().await;
         f.stop().await;
     }
 }
@@ -3855,6 +3918,7 @@ async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_s
             assert_eq!(step.source_slot, 27 + index as u16);
             assert!(client.survival().swap_hotbar(9, 0).await.is_err());
             assert!(f.api.swap_player_hotbar(9, 0).await.is_err());
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                     .await
@@ -3865,6 +3929,7 @@ async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_s
                 component_swap_item(if index == 0 { 16 } else { 2 }, 16, false),
             )
             .await;
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                     .await
@@ -3907,6 +3972,7 @@ async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_s
             &[(9, 16), (10, 2)],
         )
         .await;
+        f.protocol_boundary().await;
         assert!(complete.dispatched);
         assert!(
             complete
@@ -3921,6 +3987,7 @@ async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_s
                 .all(|s| s.source_receipt.is_some() && s.cursor_receipt.is_some())
         );
         assert!(complete.server_close_sequence.is_none());
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                 .await
@@ -3960,6 +4027,7 @@ async fn data_cursor_close_no_capacity_refuses_before_any_return_or_close_frame(
             .unwrap()
             .is_none()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -4021,6 +4089,7 @@ async fn data_cursor_close_conflicting_fields_do_not_heal_or_submit_close() {
         .unwrap();
     assert!(record.requires_inspection.is_some() && !record.dispatched);
     assert_eq!(record.return_steps.len(), 1);
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -4091,6 +4160,7 @@ async fn crafting_take_cancelled_caller_retains_owned_write_and_prompt_history()
             .await
             .is_err()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -4203,6 +4273,7 @@ async fn recipe_placement_cancelled_waiter_keeps_one_write_conservation_and_revo
             read_packet(&mut f.peer, None).await.unwrap().0,
             ids::play_serverbound::HELD_ITEM_SLOT
         );
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                 .await
@@ -4349,6 +4420,7 @@ async fn recipe_ghost_requires_actual_returns_and_fresh_context_even_without_slo
             read_packet(&mut f.peer, None).await.unwrap().0,
             ids::play_serverbound::HELD_ITEM_SLOT
         );
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
                 .await
@@ -4463,11 +4535,13 @@ async fn crafting_take_merge_cancelled_waiter_preserves_one_write_combined_curso
     assert_eq!(complete.stage, CraftingTakeStage::ObservedTaken);
     assert!(complete.after.is_some() && complete.requires_inspection.is_none());
     assert!(client.survival().take_crafting_result(&grid).await.is_err());
+    f.protocol_boundary().await;
     client.survival().select_hotbar(0).await.unwrap();
     assert_eq!(
         read_packet(&mut f.peer, None).await.unwrap().0,
         ids::play_serverbound::HELD_ITEM_SLOT
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -4584,11 +4658,13 @@ async fn crafting_result_shift_cancelled_waiter_keeps_one_native_move_and_actual
             .await
             .is_err()
     );
+    f.protocol_boundary().await;
     client.survival().select_hotbar(0).await.unwrap();
     assert_eq!(
         read_packet(&mut f.peer, None).await.unwrap().0,
         ids::play_serverbound::HELD_ITEM_SLOT
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -5006,6 +5082,7 @@ mod craft_once_helpers {
             assert!(record.take.send.dispatched);
             assert!(record.take.after.is_none());
             // Deadline handling must not dispatch a replacement craft.
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
                     .await
@@ -5125,6 +5202,7 @@ mod helper_sequences {
         }
         async fn reply(&mut self, action: Option<i16>) {
             assert!(action.is_none());
+            Box::pin(self.protocol_boundary()).await;
         }
         async fn click_packet(&mut self, record: &crate::client::inventory::InventoryClickRecord) {
             let packet = script::ready(read_packet(&mut self.peer, None))
@@ -5149,6 +5227,7 @@ mod helper_sequences {
                     super::super::crafting::payload(record).unwrap()
                 )
             );
+            self.fence_response().await;
         }
         async fn replace_screen(&mut self) {
             self.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
@@ -5161,6 +5240,7 @@ mod helper_sequences {
         }
         async fn no_packets(&mut self) {
             // Poll the real socket with paused time; no arbitrary wall-clock delay.
+            self.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(1), read_packet(&mut self.peer, None))
                     .await
@@ -5369,6 +5449,7 @@ async fn crafting_input_transfer_packets_both_menus_modes_preserve_data_and_wait
                     assert!(current.changed_slots.iter().all(|s| s.receipt.as_ref().is_some_and(|r| matches!(r.source, crate::client::ValueSource::Received {sequence} if sequence > current.send.after_sequence))));
                 }
             }
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -5403,6 +5484,7 @@ async fn crafting_input_transfer_packets_full_no_effect_result_and_table_player_
                         .is_none()
                 );
             }
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -5470,6 +5552,7 @@ async fn crafting_input_transfer_packets_competing_input_and_replaced_or_closed_
                     .await
                     .is_err()
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -5547,6 +5630,7 @@ async fn crafting_input_transfer_packets_bound_table_inputs_are_not_player_armor
                 complete.cursor_inspected.as_ref().unwrap().value,
                 record.cursor_before.value
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -5578,6 +5662,7 @@ async fn domain_gates_keep_strict_cursor_conflicts_and_bound_the_additive_watch(
             read_packet(&mut f.peer, None).await.unwrap().0,
             ids::play_serverbound::WINDOW_CLICK
         );
+        f.fence_response().await;
         let backend = HeadlessBody::new(
             client.clone(),
             BodyConfig {
@@ -5712,4 +5797,218 @@ async fn domain_gates_pending_selected_slot_keeps_modern_dig_identity() {
         assert!(!crate::client::domain::click_changes_hand(&record, Some(1)));
     }
     f.stop().await;
+}
+
+#[tokio::test]
+async fn retired_window_contents_and_close_cannot_revoke_a_new_player_send() {
+    use crate::client::inventory::{InventoryClickButton, InventorySendStatus, InventorySource};
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    let sent = client
+        .survival()
+        .send_inventory_click(InventorySource::Player, 9, InventoryClickButton::Left)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let before = client.player_state().await.unwrap().inventory;
+    let mut stale = Vec::new();
+    put_varint(&mut stale, 3);
+    put_varint(&mut stale, 1);
+    put_varint(&mut stale, 1);
+    put_slot(&mut stale, &plain("stone", 64));
+    put_slot(&mut stale, &plain("dirt", 1));
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &stale).await;
+    let mut stale_slot = vec![3, 1, 0, 0];
+    put_slot(&mut stale_slot, &plain("stone", 64));
+    f.receive(ids::play_clientbound::SET_SLOT, &stale_slot)
+        .await;
+    f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await;
+    let after = client.player_state().await.unwrap().inventory;
+    assert_eq!(before.slots, after.slots);
+    assert_eq!(before.cursor, after.cursor);
+    assert_eq!(before.window_id, after.window_id);
+    let progress = client
+        .survival()
+        .inventory_send_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(progress.id, sent.id);
+    assert_eq!(progress.status, InventorySendStatus::Pending);
+    assert!(progress.contents_sequence.is_none());
+    f.stop().await;
+}
+
+mod single_owner {
+    use super::*;
+    use crate::client::{
+        SlotKnowledge,
+        inventory::acceptance_tests::{self as script, Fixture},
+    };
+    fn native(v: &SlotKnowledge) -> InventorySlot {
+        match v {
+            SlotKnowledge::Empty => InventorySlot::Empty,
+            SlotKnowledge::Item { item } => plain(
+                item.name.strip_prefix("minecraft:").unwrap(),
+                item.count as u8,
+            ),
+            _ => panic!("known test stack"),
+        }
+    }
+    impl Fixture for CommonFixture {
+        fn client(&self) -> crate::Client {
+            CommonFixture::client(self)
+        }
+        async fn inventory(&mut self, slots: &[SlotKnowledge], cursor: &SlotKnowledge) {
+            let mut inv = Inventory {
+                cursor: native(cursor),
+                ..Default::default()
+            };
+            inv.slots = slots.iter().map(native).collect();
+            self.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inv, 131))
+                .await;
+        }
+        async fn slot(&mut self, slot: u16, value: &SlotKnowledge) {
+            CommonFixture::slot(self, slot, native(value)).await;
+        }
+        async fn cursor(&mut self, value: &SlotKnowledge) {
+            let mut bytes = Vec::new();
+            put_slot(&mut bytes, &native(value));
+            self.receive(ids::play_clientbound::SET_CURSOR_ITEM, &bytes)
+                .await;
+        }
+        async fn response(
+            &mut self,
+            send: &crate::client::inventory::InventorySendRecord,
+            _: bool,
+        ) {
+            let mut p = Vec::new();
+            put_varint(&mut p, send.id.number() as i32);
+            p.extend([0, 0, 0]);
+            self.receive(ids::play_clientbound::TAB_COMPLETE, &p).await;
+        }
+        async fn click(&mut self) {
+            let packet = read_packet(&mut self.peer, None).await.unwrap();
+            assert_eq!(packet.0, ids::play_serverbound::WINDOW_CLICK);
+            let fence = read_packet(&mut self.peer, None).await.unwrap();
+            assert_eq!(fence.0, ids::play_serverbound::TAB_COMPLETE);
+        }
+    }
+    #[tokio::test]
+    async fn received_inventory_single_owner_pickup_transfer_crafting_matrix() {
+        let mut f = CommonFixture::new().await;
+        script::pickup_matrix(&mut f).await;
+        script::missing_response_resync_and_late_response(&mut f).await;
+        f.stop().await;
+    }
+}
+
+impl CommonFixture {
+    // Explicit server-side fixture step: the new full-state request and ordered
+    // response are emitted after tests have separately checked strict evidence.
+    async fn protocol_boundary(&mut self) {
+        crate::client::inventory_helper_tests::ready(async {
+            use crate::client::inventory::InventorySendStatus;
+            let pending = self
+                .api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .inventory_executor
+                .record();
+            let Some(send) = pending.filter(|r| r.status == InventorySendStatus::Pending) else {
+                return;
+            };
+            self.fence_response().await;
+            let bytes = {
+                let state = self.api.bot.session.state.lock().await;
+                let inv = &state.operations.inventory;
+                if send.window() == 0 {
+                    full(
+                        inv,
+                        inv.player_revision
+                            .as_ref()
+                            .map(|r| r.value)
+                            .or(inv.screen_revision)
+                            .unwrap_or(131),
+                    )
+                } else {
+                    let screen = inv.screen(send.id.session()).unwrap();
+                    let mut bytes = Vec::new();
+                    put_varint(&mut bytes, send.window());
+                    put_varint(&mut bytes, screen.revision.unwrap().value);
+                    put_varint(&mut bytes, screen.slots.len() as i32);
+                    for value in screen.slots {
+                        let native = match value.unwrap().value {
+                            crate::client::SlotKnowledge::Empty => InventorySlot::Empty,
+                            crate::client::SlotKnowledge::Item { item } => {
+                                let native = PlainItem {
+                                    name: item.name,
+                                    item_id: item.id.value(),
+                                    count: item.count as i32,
+                                };
+                                match item.data {
+                                    crate::client::ItemData::Default => {
+                                        InventorySlot::Item { item: native }
+                                    }
+                                    crate::client::ItemData::ModernComponents { patch } => {
+                                        InventorySlot::ItemWithComponents {
+                                            item: native,
+                                            components: patch,
+                                        }
+                                    }
+                                    _ => panic!("foreign test item"),
+                                }
+                            }
+                            _ => panic!("unknown fixture slot"),
+                        };
+                        put_slot(&mut bytes, &native);
+                    }
+                    put_slot(&mut bytes, &inv.cursor);
+                    bytes
+                }
+            };
+            self.receive(ids::play_clientbound::WINDOW_ITEMS, &bytes)
+                .await;
+        })
+        .await;
+    }
+}
+
+impl CommonFixture {
+    async fn fence_response(&mut self) {
+        crate::client::inventory_helper_tests::ready(async {
+            let pending = self
+                .api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .inventory_executor
+                .record();
+            let Some(send) = pending.filter(|r| {
+                r.dispatched && r.response_sequence.is_none() && r.legacy_action.is_none()
+            }) else {
+                return;
+            };
+            if !self.fence_responses.insert(send.id.number()) {
+                return;
+            }
+            let packet = read_packet(&mut self.peer, None).await.unwrap();
+            assert_eq!(packet.0, ids::play_serverbound::TAB_COMPLETE);
+            assert_eq!(
+                Reader::new(&packet.1).varint().unwrap(),
+                send.id.number() as i32
+            );
+            let mut response = Vec::new();
+            put_varint(&mut response, send.id.number() as i32);
+            response.extend([0, 0, 0]);
+            self.receive(ids::play_clientbound::TAB_COMPLETE, &response)
+                .await;
+        })
+        .await;
+    }
 }

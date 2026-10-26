@@ -75,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
     }
     let body = Body::new(HeadlessBody::new(client.clone(), config)?);
     let mut click_watch = None::<InventoryClickWatch>;
+    let mut saved_screen = None;
     println!("{}", json!({"ready":true}));
     std::io::stdout().flush()?;
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
@@ -82,6 +83,30 @@ async fn main() -> anyhow::Result<()> {
         let v: Json = serde_json::from_str(&line)?;
         let result: anyhow::Result<Json> = async {
             Ok(match v["command"].as_str().unwrap_or("") {
+                "inventory_send" | "inventory_transfer_send" => {
+                    use voxrig::client::inventory::{InventorySource, InventoryClickButton};
+                    let source=if v["old_screen"]==true {InventorySource::Container{screen:saved_screen.ok_or_else(||anyhow::anyhow!("no saved screen"))?}}
+                        else if v["container"]==true {InventorySource::Container{screen:client.screen_state().await?.screen.ok_or_else(||anyhow::anyhow!("no received screen"))?.id}} else {InventorySource::Player};
+                    let slot=v["slot"].as_u64().unwrap().try_into()?;
+                    let button=if v["right"]==true {InventoryClickButton::Right}else{InventoryClickButton::Left};
+                    let record=if v["command"]=="inventory_transfer_send" {client.survival().send_inventory_transfer(source,slot).await?}
+                        else {client.survival().send_inventory_click(source,slot,button).await?};
+                    serde_json::to_value(record)?
+                }
+                "inventory_send_record" => serde_json::to_value(client.survival().inventory_send_record().await?)?,
+                "inventory_resync" => serde_json::to_value(client.survival().resync_inventory().await?)?,
+                "transfer_record" => serde_json::to_value(client.survival().inventory_transfer_record().await?)?,
+                "crafting_record" => serde_json::to_value(client.survival().crafting_take_record().await?)?,
+                "crafting" => serde_json::to_value(client.received_crafting().await?)?,
+                "crafting_send" => {
+                    let grid=client.received_crafting().await?.ok_or_else(||anyhow::anyhow!("no crafting grid"))?;
+                    serde_json::to_value(client.survival().send_crafting_result(&grid,voxrig::client::crafting::CraftingResultDestination::Cursor).await?)?
+                }
+                "close_screen" => {
+                    let screen=client.screen_state().await?.screen.ok_or_else(||anyhow::anyhow!("no received screen"))?.id;
+                    saved_screen=Some(screen);
+                    serde_json::to_value(client.survival().close_container(screen).await?)?
+                }
                 "click" => {
                     let source = if v["container"].as_bool() == Some(true) {
                         voxrig::client::inventory::InventoryClickSource::Container {
@@ -257,10 +282,6 @@ async fn main() -> anyhow::Result<()> {
                         .await?,
                 )?,
                 "screen" => serde_json::to_value(client.screen_state().await?)?,
-                "close_screen" => {
-                    let screen = client.screen_state().await?.screen.unwrap().id;
-                    serde_json::to_value(client.survival().close_container(screen).await?)?
-                }
                 "placement_warnings" => {
                     let Action::PlaceBlock { pos, face, .. } = parse_action(&v)? else {
                         anyhow::bail!("expected placement");

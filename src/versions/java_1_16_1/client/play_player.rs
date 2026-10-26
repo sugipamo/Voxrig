@@ -52,6 +52,9 @@ impl Bot {
     }
 
     pub(super) async fn receive_join_game(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
+        lock_packet_state(&self.inventory_executor)
+            .await
+            .invalidate();
         let join = parse_join(p)?;
         {
             let mut receipts = self.common_receipts.lock().await;
@@ -260,6 +263,9 @@ impl Bot {
     }
 
     pub(super) async fn receive_respawn(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
+        lock_packet_state(&self.inventory_executor)
+            .await
+            .invalidate();
         let respawn = parse_respawn(p)?;
         // The receive/send gate is held. Revoke the old finite generation and
         // await Owner::Motion termination before any new-world protocol writes.

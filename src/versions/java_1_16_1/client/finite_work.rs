@@ -82,13 +82,68 @@ impl Bot {
         })
     }
     pub(super) async fn reconcile_finite(&self) {
+        let execution = lock_packet_state(&self.inventory_executor).await.record();
+        self.finite_work.lock().expect("finite work").reconcile(
+            Family::InventoryResync,
+            execution.as_ref().filter(|r| r.resync).map(|r| {
+                (
+                    r.id.number(),
+                    r.status == crate::client::inventory::InventorySendStatus::Received,
+                    r.status == crate::client::inventory::InventorySendStatus::ResyncRequired,
+                )
+            }),
+        );
+        if let Some(execution) = execution
+            .filter(|r| r.status == crate::client::inventory::InventorySendStatus::ResyncRequired)
+        {
+            if let Some(r) = super::lock_packet_state(&self.common_inventory_click)
+                .await
+                .as_mut()
+                .filter(|r| {
+                    r.record.initial.session == execution.id.session()
+                        && r.record.send.after_sequence == execution.after_sequence
+                })
+            {
+                r.record.inspection(
+                    "inventory response/state deadline or opening boundary requires resync",
+                );
+            }
+            if let Some(r) = super::lock_packet_state(&self.common_inventory_transfer)
+                .await
+                .as_mut()
+                .filter(|r| {
+                    r.record.initial.session == execution.id.session()
+                        && r.record.send.after_sequence == execution.after_sequence
+                })
+            {
+                r.record.inspection(
+                    "inventory response/state deadline or opening boundary requires resync",
+                );
+            }
+            if let Some(r) = super::lock_packet_state(&self.common_crafting_take)
+                .await
+                .as_mut()
+                .filter(|r| {
+                    r.record.initial.session == execution.id.session()
+                        && r.record.send.after_sequence == execution.after_sequence
+                })
+            {
+                r.record.inspection(
+                    "inventory response/state deadline or opening boundary requires resync",
+                );
+            }
+        }
+
         let state = super::lock_packet_state(&self.common_inventory_swap)
             .await
             .as_ref()
             .map(|r| {
                 (
                     r.record.id.attempt(),
-                    r.released,
+                    !self
+                        .inventory_executor
+                        .try_lock()
+                        .map_or(true, |e| e.busy()),
                     r.record.requires_inspection.is_some(),
                 )
             });
@@ -102,7 +157,10 @@ impl Bot {
             .map(|r| {
                 (
                     r.record.id.attempt(),
-                    r.released,
+                    !self
+                        .inventory_executor
+                        .try_lock()
+                        .map_or(true, |e| e.busy()),
                     r.record.requires_inspection.is_some(),
                 )
             });
@@ -116,7 +174,10 @@ impl Bot {
             .map(|r| {
                 (
                     r.record.id.attempt(),
-                    r.released,
+                    !self
+                        .inventory_executor
+                        .try_lock()
+                        .map_or(true, |e| e.busy()),
                     r.record.requires_inspection.is_some(),
                 )
             });
@@ -130,7 +191,10 @@ impl Bot {
             .map(|r| {
                 (
                     r.record.id.attempt(),
-                    r.released,
+                    !self
+                        .inventory_executor
+                        .try_lock()
+                        .map_or(true, |e| e.busy()),
                     r.record.requires_inspection.is_some(),
                 )
             });

@@ -462,6 +462,14 @@ pub(super) fn receive(
             if window == 0 && count != 46 {
                 bail!("unexpected player inventory size");
             }
+            if window != 0
+                && !inventory
+                    .container
+                    .as_ref()
+                    .is_some_and(|screen| screen.window == window)
+            {
+                return Ok(()); // retired opening; its payload cannot invalidate the new opening
+            }
             let mut slots = Vec::with_capacity(count);
             for _ in 0..count {
                 let Some(value) = slot(&mut r)? else {
@@ -508,15 +516,15 @@ pub(super) fn receive(
                     for mapping in &layout.player_slots {
                         inventory.slots[mapping.player_slot] = slots[mapping.screen_slot].clone();
                         inventory.slot_sequences[mapping.player_slot] = Some(sequence);
+                        screen.slots[mapping.screen_slot] = None;
                     }
                 }
                 inventory.cursor = cursor;
                 inventory.cursor_sequence = Some(sequence);
                 inventory.unsupported_components = false;
-            } else if inventory.container.is_none() {
-                // Actual contents without an opening cannot establish a menu/layout.
-                invalidate(inventory, Some(window));
             }
+            // Untagged contents for a different/retired window cannot establish
+            // an opening or invalidate the currently received player inventory.
             inventory.receive_sequence = Some(sequence);
         }
         input::SET_CURSOR_ITEM => {
@@ -554,6 +562,14 @@ pub(super) fn receive(
             if (window == 0 && index >= 46) || index >= 4096 {
                 bail!("invalid screen slot");
             }
+            if window != 0
+                && !inventory
+                    .container
+                    .as_ref()
+                    .is_some_and(|screen| screen.window == window)
+            {
+                return Ok(());
+            }
             let decoded = slot(&mut r)?;
             let value = if let Some(value) = decoded {
                 r.end()?;
@@ -588,10 +604,10 @@ pub(super) fn receive(
                         })
                         .map(|m| m.screen_slot);
                     if let Some(screen_index) = screen_index {
-                        let received = common_received_slot(&value, sequence)?;
+                        let _ = common_received_slot(&value, sequence)?;
                         inventory.container.as_mut().expect("active layout").slot(
                             screen_index,
-                            received,
+                            None,
                             None,
                             sequence,
                         )?;
@@ -604,7 +620,16 @@ pub(super) fn receive(
             {
                 let received = common_received_slot(&value, sequence)?;
                 let screen = inventory.container.as_mut().expect("matching opening");
-                screen.slot(index, received, revision, sequence)?;
+                let shared = screen
+                    .layout
+                    .as_ref()
+                    .is_some_and(|l| l.player_slots.iter().any(|m| m.screen_slot == index));
+                screen.slot(
+                    index,
+                    if shared { None } else { received },
+                    revision,
+                    sequence,
+                )?;
                 if let Some(mapping) = screen
                     .layout
                     .as_ref()
@@ -630,4 +655,302 @@ mod tests;
 
 pub(in crate::versions::java_1_21_11::client) fn creative_pending(state: &State, slot: u8) -> bool {
     state.operations.inventory.pending_creative.contains(&slot)
+}
+
+fn execution_scope(
+    state: &State,
+) -> (
+    crate::client::SessionStamp,
+    crate::client::inventory::InventorySource,
+) {
+    use crate::client::inventory::InventorySource;
+    let session = crate::client::SessionStamp {
+        version: crate::MinecraftVersion::Java1_21_11,
+        connection_id: state.connection_id,
+        world_generation: state.loading.generation,
+    };
+    let mut source =
+        state
+            .operations
+            .inventory
+            .container
+            .as_ref()
+            .map_or(InventorySource::Player, |s| InventorySource::Container {
+                screen: s.id(session),
+            });
+    if state.operations.inventory.window_id == Some(0)
+        || matches!(
+            crate::client::container::player_screen_access(
+                session,
+                state.operations.inventory.window_id,
+                state
+                    .operations
+                    .inventory
+                    .container
+                    .as_ref()
+                    .map(|s| s.id(session)),
+                state.common_container_close.as_ref()
+            ),
+            Some(crate::client::container::PlayerScreenAccess::SubmittedClose { .. })
+        )
+    {
+        source = InventorySource::Player;
+    }
+    (session, source)
+}
+impl Operations {
+    pub(super) fn begin_inventory_execution(
+        &self,
+        state: &mut State,
+        session: crate::client::SessionStamp,
+        resync: bool,
+    ) -> Result<crate::client::inventory::InventorySendId> {
+        let (current, source) = execution_scope(state);
+        if current != session {
+            return Err(unavailable("inventory generation changed before send"));
+        }
+        state.inventory_executor.begin(
+            session,
+            source,
+            state.sequence,
+            None,
+            Duration::from_secs(5),
+            resync,
+        )
+    }
+    pub(super) async fn send_inventory_fence(
+        &self,
+        state: &mut State,
+        id: crate::client::inventory::InventorySendId,
+    ) -> Result<()> {
+        state.inventory_executor.written(id, Duration::from_secs(5));
+        use crate::client::ledger::finite::Family;
+        let after = state
+            .inventory_executor
+            .record()
+            .expect("retained send")
+            .after_sequence;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        for (family, entry) in [
+            (
+                Family::Click,
+                state
+                    .common_inventory_click
+                    .as_ref()
+                    .map(|r| (r.id.attempt(), r.send.after_sequence)),
+            ),
+            (
+                Family::Transfer,
+                state
+                    .common_inventory_transfer
+                    .as_ref()
+                    .map(|r| (r.id.attempt(), r.send.after_sequence)),
+            ),
+            (
+                Family::Crafting,
+                state
+                    .common_crafting_take
+                    .as_ref()
+                    .map(|r| (r.id.attempt(), r.send.after_sequence)),
+            ),
+            (
+                Family::Swap,
+                state
+                    .common_inventory_swap
+                    .as_ref()
+                    .map(|r| (r.record.id.attempt(), r.record.send.after_sequence)),
+            ),
+        ] {
+            if let Some((attempt, _)) = entry.filter(|(_, boundary)| *boundary == after) {
+                state.finite_work.expire_at(family, attempt, deadline);
+            }
+        }
+        if state.inventory_executor.record().is_some_and(|r| r.resync) {
+            state
+                .finite_work
+                .expire_at(Family::InventoryResync, id.number(), deadline);
+        }
+
+        let token = i32::try_from(id.number())
+            .map_err(|_| unavailable("inventory fence identities exhausted"))?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, token);
+        put_string(&mut payload, "/");
+        let result = self
+            .bot
+            .session
+            .send(ids::play_serverbound::TAB_COMPLETE, &payload)
+            .await;
+        if result.is_err() {
+            state.inventory_executor.invalidate_owned(id);
+        }
+        result
+    }
+}
+pub(in crate::versions::java_1_21_11::client) fn execution_received(
+    state: &mut State,
+    id: i32,
+    payload: &[u8],
+) -> anyhow::Result<()> {
+    use ids::play_clientbound as input;
+    let (session, source) = execution_scope(state);
+    match id {
+        input::OPEN_WINDOW | input::RESPAWN | input::START_CONFIGURATION => {
+            state.inventory_executor.invalidate()
+        }
+        input::CLOSE_WINDOW => {
+            let window = Reader::new(payload).varint()?;
+            if state
+                .inventory_executor
+                .record()
+                .is_some_and(|r| r.window() == window)
+            {
+                state.inventory_executor.invalidate();
+            }
+        }
+        input::WINDOW_ITEMS => {
+            let mut r = Reader::new(payload);
+            let window = r.varint()?;
+            state
+                .inventory_executor
+                .contents(session, source, window, state.sequence, true);
+        }
+        input::TAB_COMPLETE => {
+            let token = u64::try_from(Reader::new(payload).varint()?)
+                .context("invalid inventory fence token")?;
+            state
+                .inventory_executor
+                .fence(session, source, token, state.sequence);
+        }
+        _ => {}
+    }
+    Ok(())
+}
+pub(in crate::versions::java_1_21_11::client) fn retire_execution(state: &mut State) {
+    if let Some(execution) = state
+        .inventory_executor
+        .record()
+        .filter(|r| r.status == crate::client::inventory::InventorySendStatus::Received)
+    {
+        if state.common_inventory_swap.as_ref().is_some_and(|s| {
+            s.record.send.after_sequence == execution.after_sequence
+                && s.record.id.session() == execution.id.session()
+        }) {
+            state.operations.inventory.pending_swap = None;
+            if let Some(work) = state.pending_swap_work.take() {
+                work.finish(Outcome::Complete);
+            }
+        }
+    }
+}
+impl crate::client::adapter::InventorySendOps for Operations {
+    async fn send_crafting_result(
+        &self,
+        mode: crate::client::GameMode,
+        grid: &crate::client::crafting::ReceivedCrafting,
+        destination: crate::client::crafting::CraftingResultDestination,
+    ) -> Result<crate::client::inventory::InventorySendRecord> {
+        Ok(self
+            .start_crafting_take(mode, grid, destination, None, true)
+            .await?
+            .1)
+    }
+
+    async fn send_inventory_click(
+        &self,
+        mode: crate::client::GameMode,
+        source: crate::client::inventory::InventorySource,
+        slot: u16,
+        button: crate::client::inventory::InventoryClickButton,
+    ) -> Result<crate::client::inventory::InventorySendRecord> {
+        Ok(self
+            .start_click_inventory(mode, source, slot, button, true)
+            .await?
+            .1)
+    }
+    async fn send_inventory_transfer(
+        &self,
+        mode: crate::client::GameMode,
+        source: crate::client::inventory::InventorySource,
+        slot: u16,
+    ) -> Result<crate::client::inventory::InventorySendRecord> {
+        Ok(self
+            .start_transfer_inventory(mode, source, slot, true)
+            .await?
+            .1)
+    }
+    async fn inventory_send_record(
+        &self,
+    ) -> Result<Option<crate::client::inventory::InventorySendRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        let record = state.inventory_executor.record();
+        state.reconcile_finite();
+        Ok(record)
+    }
+    async fn resync_inventory(&self) -> Result<crate::client::inventory::InventorySendRecord> {
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        let (session, source) = execution_scope(&state);
+        let window = match source {
+            crate::client::inventory::InventorySource::Player => 0,
+            crate::client::inventory::InventorySource::Container { screen } => screen.window_id(),
+        };
+        let revision = if window == 0 {
+            state.operations.inventory.screen_revision
+        } else {
+            state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .and_then(|s| s.revision.as_ref().map(|v| v.value))
+        }
+        .ok_or_else(|| unavailable("resync revision unavailable"))?;
+        let execution = self.begin_inventory_execution(&mut state, session, true)?;
+        let mut bytes = Vec::new();
+        put_varint(&mut bytes, window);
+        put_varint(&mut bytes, if revision == 0 { 1 } else { 0 });
+        bytes.extend((-1i16).to_be_bytes());
+        bytes.extend([0, 0, 0]);
+        put_default_cursor_hash(&mut bytes, &InventorySlot::Empty)?;
+        let work = state.finite_work.begin(
+            &self.bot.session.ledger,
+            crate::client::ledger::finite::Family::InventoryResync,
+            execution.number(),
+        );
+        if let Err(e) = work
+            .run(
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::WINDOW_CLICK, &bytes),
+            )
+            .await
+        {
+            state.inventory_executor.invalidate_owned(execution);
+            return Err(e);
+        }
+        self.send_inventory_fence(&mut state, execution).await?;
+        Ok(state.inventory_executor.record().expect("resync retained"))
+    }
+}
+
+impl Inventory {
+    pub(crate) fn screen(
+        &self,
+        session: crate::client::SessionStamp,
+    ) -> Option<crate::client::container::ContainerScreen> {
+        let player = self
+            .slots
+            .iter()
+            .zip(&self.slot_sequences)
+            .map(|(v, s)| {
+                s.and_then(|s| {
+                    super::common_slot(v)
+                        .ok()
+                        .map(|v| crate::client::received(v, s))
+                })
+            })
+            .collect::<Vec<_>>();
+        self.container.as_ref().map(|s| s.project(session, &player))
+    }
 }

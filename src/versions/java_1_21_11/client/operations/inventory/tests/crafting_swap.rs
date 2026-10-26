@@ -93,7 +93,7 @@ async fn crafting_input_swap_packets_all_inputs_modes_empty_occupied_hotbar_endp
                         let record = start(&client, mode, source, input, hotbar).await.unwrap();
                         assert!(record.send.dispatched);
                         assert_eq!(record.send.screen_revision, Some(7));
-                        let mut expected = vec![if table { 3 } else { 0 }, 7];
+                        let mut expected = vec![if table { 3 } else { 0 }, 0];
                         expected.extend(input.to_be_bytes());
                         expected.extend([hotbar, 2, 0, 0]);
                         assert_eq!(
@@ -201,7 +201,7 @@ async fn crafting_input_swap_packets_recover_data_into_empty_hotbar() {
                 let revision = if table { 6 } else { 130 };
                 assert_eq!(sent.send.screen_revision, Some(revision));
                 let mut expected = vec![if table { 3 } else { 0 }];
-                put_varint(&mut expected, revision);
+                put_varint(&mut expected, if revision == 0 { 1 } else { 0 });
                 expected.extend(1u16.to_be_bytes());
                 expected.extend([hotbar, 2, 0, 0]);
                 assert_eq!(
@@ -247,6 +247,7 @@ async fn crafting_input_swap_packets_recover_data_into_empty_hotbar() {
                     client.player_state().await.unwrap().inventory.cursor,
                     sent.initial.inventory.cursor
                 );
+                f.fence_response().await;
                 assert!(
                     timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                         .await
@@ -320,6 +321,7 @@ async fn crafting_input_swap_capture_rejects_preopening_and_future_receipts() {
             .unwrap()
             .is_none()
     );
+    f.fence_response().await;
     assert!(
         timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
             .await
@@ -363,6 +365,7 @@ async fn crafting_input_swap_packets_reject_result_appended_equipment_and_invali
                 .unwrap()
                 .is_none()
         );
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                 .await
@@ -442,6 +445,7 @@ async fn crafting_input_swap_packets_cursor_and_destination_conflicts_never_heal
                     .await
                     .is_err()
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await
@@ -550,6 +554,7 @@ async fn crafting_input_swap_packets_cancel_before_writer_retains_unsent_intent(
                 .await
                 .is_err()
         );
+        f.fence_response().await;
         assert!(
             timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                 .await
@@ -679,6 +684,7 @@ async fn crafting_input_swap_packets_missing_revision_capacity_cursor_and_old_cl
                     .unwrap()
                     .is_none()
             );
+            f.fence_response().await;
             assert!(
                 timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
                     .await

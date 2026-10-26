@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- BREAKING: native Java 1.16.1 inventory exposes received values only; ACK predictions never update inventory.
+- Add single-send inventory acceptance APIs with independent response/state progress and explicit timeout resync.
+- Canonical shared player/menu slots and received-basis container close. See [migration](docs/migration-0.3.md).
+
+
 ## Unreleased
 
 - Added bounded unknown-terrain walking to `body::Move` and

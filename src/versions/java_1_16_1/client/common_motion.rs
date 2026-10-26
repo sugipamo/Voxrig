@@ -279,6 +279,9 @@ impl Bot {
             || self.common_motion_pauses_physics().await
     }
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
+        if lock_packet_state(&self.inventory_executor).await.busy() {
+            return true;
+        }
         if self.common_control.lock().await.active() {
             return true;
         }
@@ -311,26 +314,10 @@ impl Bot {
         {
             return true;
         }
-        if super::lock_packet_state(&self.common_inventory_swap)
+        if super::lock_packet_state(&self.common_recipe_placement)
             .await
             .as_ref()
             .is_some_and(|s| !s.released)
-            || super::lock_packet_state(&self.common_inventory_click)
-                .await
-                .as_ref()
-                .is_some_and(|s| !s.released)
-            || super::lock_packet_state(&self.common_recipe_placement)
-                .await
-                .as_ref()
-                .is_some_and(|s| !s.released)
-            || super::lock_packet_state(&self.common_crafting_take)
-                .await
-                .as_ref()
-                .is_some_and(|s| !s.released)
-            || super::lock_packet_state(&self.common_inventory_transfer)
-                .await
-                .as_ref()
-                .is_some_and(|s| !s.released)
             || super::lock_packet_state(&self.common_mining)
                 .await
                 .is_some()
@@ -484,6 +471,9 @@ impl Bot {
                 ));
             }
         }
+        if domain.inventory() || domain == crate::client::domain::Domain::CurrentInventory {
+            lock_packet_state(&self.inventory_executor).await.admit()?;
+        }
         if domain.inventory() {
             if super::lock_packet_state(&self.common_container_open)
                 .await
@@ -506,7 +496,10 @@ impl Bot {
             if super::lock_packet_state(&self.common_inventory_swap)
                 .await
                 .as_ref()
-                .is_some_and(|s| !s.released)
+                .is_some_and(|s| {
+                    s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+                        && domain == crate::client::domain::Domain::Strict
+                })
             {
                 return Err(motion_state(
                     "common inventory swap unresolved; inspect without replay",
@@ -515,7 +508,9 @@ impl Bot {
             if super::lock_packet_state(&self.common_inventory_click)
                 .await
                 .as_ref()
-                .is_some_and(|s| !s.released)
+                .is_some_and(|s| {
+                    s.record.unresolved() && domain == crate::client::domain::Domain::Strict
+                })
             {
                 return Err(motion_state(
                     "common inventory click unresolved; inspect without replay",
@@ -533,7 +528,9 @@ impl Bot {
             if super::lock_packet_state(&self.common_crafting_take)
                 .await
                 .as_ref()
-                .is_some_and(|s| !s.released)
+                .is_some_and(|s| {
+                    s.record.unresolved() && domain == crate::client::domain::Domain::Strict
+                })
             {
                 return Err(motion_state(
                     "common crafting take unresolved; inspect without replay",
@@ -542,7 +539,9 @@ impl Bot {
             if super::lock_packet_state(&self.common_inventory_transfer)
                 .await
                 .as_ref()
-                .is_some_and(|s| !s.released)
+                .is_some_and(|s| {
+                    s.record.unresolved() && domain == crate::client::domain::Domain::Strict
+                })
             {
                 return Err(motion_state(
                     "common inventory transfer unresolved; inspect without replay",
