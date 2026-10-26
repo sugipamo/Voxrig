@@ -174,15 +174,15 @@ pub(super) const fn validate_policy(
             "locality proof missing"
         );
         assert!(
-            enabled == !local.lanes.is_empty(),
+            enabled != local.lanes.is_empty(),
             "locality lane applicability"
         );
         assert!(
-            enabled == !local.effects.is_empty(),
+            enabled != local.effects.is_empty(),
             "locality effect applicability"
         );
         assert!(
-            enabled == !local.revokes.is_empty(),
+            enabled != local.revokes.is_empty(),
             "locality revocation missing"
         );
         let mut seen_lanes = [false; OwnerLane::ALL.len()];
@@ -452,7 +452,9 @@ pub(super) const fn validate_policy(
     );
 }
 
-const _: () = validate_policy(
+// A named, referenced proof also keeps const-only dependencies live on MSRV
+// 1.85, whose dead-code analysis does not follow anonymous const initializers.
+pub(super) const VALIDATED: () = validate_policy(
     ENTITY_POLICIES,
     PROFILES,
     PACKET_POLICIES,

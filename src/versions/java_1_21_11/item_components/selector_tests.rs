@@ -19,8 +19,8 @@ fn string(value: &Json) -> nbt::NbtString {
 #[derive(PartialEq, Eq)]
 enum Key {
     Pattern(selector::Pattern),
-    Text(crate::client::text::FieldKey),
-    Profile(crate::client::profile::Profile),
+    Text(Box<crate::client::text::FieldKey>),
+    Profile(Box<crate::client::profile::Profile>),
 }
 #[test]
 fn original_selector_constructors_cursors_text_branches_profiles_and_pairs_match() {
@@ -74,7 +74,7 @@ fn original_selector_constructors_cursors_text_branches_profiles_and_pairs_match
                                     .collect::<Vec<_>>()
                             });
                         assert_eq!(profile_tests::fields(&p), expected, "{}", row["case"]);
-                        Ok(Key::Profile(*p))
+                        Ok(Key::Profile(p))
                     }
                     _ => anyhow::bail!("native profile root not normalized"),
                 })
@@ -89,10 +89,10 @@ fn original_selector_constructors_cursors_text_branches_profiles_and_pairs_match
                     if mismatches.is_empty() && row["accepted"] == true {
                         super::text_tests::describe(&v, &row["fields"]);
                     }
-                    Key::Text(
+                    Key::Text(Box::new(
                         v.modern_field_key()
                             .expect("complete selector/profile-only corpus key"),
-                    )
+                    ))
                 })
             }
             _ => panic!("unreviewed native row kind"),

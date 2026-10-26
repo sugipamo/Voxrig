@@ -2071,7 +2071,7 @@ mod tests {
             .apply_multi_block_change(&multi_block_change_packet(
                 0,
                 0,
-                &[(2 << 4 | 2, 4, stone), (3 << 4 | 2, 4, iron)],
+                &[((2 << 4) | 2, 4, stone), ((3 << 4) | 2, 4, iron)],
             ))
             .unwrap();
         assert_eq!(

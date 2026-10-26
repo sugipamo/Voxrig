@@ -74,7 +74,11 @@ pub(super) fn legacy_modifier(m: &super::super::survival::AttributeModifier) -> 
 }
 
 fn uuid_text(u: [u8; 16]) -> String {
-    let h: String = u.iter().map(|b| format!("{b:02x}")).collect();
+    use std::fmt::Write;
+    let h = u.iter().fold(String::with_capacity(32), |mut text, byte| {
+        write!(&mut text, "{byte:02x}").expect("writing to String");
+        text
+    });
     format!(
         "{}-{}-{}-{}-{}",
         &h[0..8],

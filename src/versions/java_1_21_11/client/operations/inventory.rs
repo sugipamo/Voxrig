@@ -463,10 +463,10 @@ pub(super) fn receive(
                 bail!("unexpected player inventory size");
             }
             if window != 0
-                && !inventory
+                && inventory
                     .container
                     .as_ref()
-                    .is_some_and(|screen| screen.window == window)
+                    .is_none_or(|screen| screen.window != window)
             {
                 return Ok(()); // retired opening; its payload cannot invalidate the new opening
             }
@@ -563,10 +563,10 @@ pub(super) fn receive(
                 bail!("invalid screen slot");
             }
             if window != 0
-                && !inventory
+                && inventory
                     .container
                     .as_ref()
-                    .is_some_and(|screen| screen.window == window)
+                    .is_none_or(|screen| screen.window != window)
             {
                 return Ok(());
             }

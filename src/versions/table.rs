@@ -532,10 +532,7 @@ mod tests {
                 &include_bytes!("../../data/client_api/entity_data-1.21.11.json")[..],
             ),
         ] {
-            let digest: String = Sha256::digest(source)
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect();
+            let digest = hex::encode(Sha256::digest(source));
             assert!(
                 generated.contains(&format!("(sha256 {digest})")),
                 "stale generated table"

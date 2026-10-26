@@ -5412,7 +5412,7 @@ async fn levitation_packets_update_running_ground_owners_and_ceiling_motion() {
             let mut state = session.state.lock().await;
             for x in 7..=10 {
                 for z in 7..=15 {
-                    let mut packet = ((x as i64) << 38 | (z as i64) << 12 | 68)
+                    let mut packet = (((x as i64) << 38) | ((z as i64) << 12) | 68)
                         .to_be_bytes()
                         .to_vec();
                     put_varint(&mut packet, 1);

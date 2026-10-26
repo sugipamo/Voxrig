@@ -28,7 +28,7 @@ locality checks, and proximity refusals remain its responsibility.
 
 ## Compile-time guarantees
 
-`const _: () = validate_policy(...)` runs with Rust 1.85-compatible integer
+`const VALIDATED: () = validate_policy(...)`, referenced by lookup, runs with Rust 1.85-compatible integer
 indices, while loops, and assertions/panics. It checks:
 
 - Complete, unique ordered entity and descriptor IDs; explicit presence/absence

@@ -9023,7 +9023,7 @@ mod tests {
         packet.extend(position.x.div_euclid(16).to_be_bytes());
         packet.extend(position.z.div_euclid(16).to_be_bytes());
         put_varint(&mut packet, 1);
-        packet.push((position.x.rem_euclid(16) << 4 | position.z.rem_euclid(16)) as u8);
+        packet.push(((position.x.rem_euclid(16) << 4) | position.z.rem_euclid(16)) as u8);
         packet.push(position.y.rem_euclid(16) as u8);
         put_varint(&mut packet, state_id);
         packet
