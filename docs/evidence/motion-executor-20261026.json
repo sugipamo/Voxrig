@@ -1,0 +1,274 @@
+{
+  "issue": "https://github.com/sugipamo/Voxrig/issues/265",
+  "base": "6415034911784d9eef121f9a8779139aaf4b0aff",
+  "public_api": "none",
+  "source_manifest_sha256": "c26d3fc4d7ec3180703afcdade6fd675c0230fca227f02ec107c2c19c98f9e8d",
+  "changed_sources": {
+    "Cargo.toml": "67bc93f16ac92f6c066a4bb4718310bbc7b07b63f7f135017fbcc5e3a76d77da",
+    "docs/common-survival-motion.md": "7ab5768d410573a3e3ecfba390b009a005666d9a7dde6dcebcc94e9603bfd1da",
+    "docs/design/body-api.md": "6eb0cfe4b126631696de494cac5f5aec3d18b2a1c172c9044bc7914f0cda05fb",
+    "examples/body_probe.rs": "2cc667cbabfd8ce88004897a42e7ddfc6491f3d710e149f79d051ddbb0c59fd5",
+    "scripts/run_motion_executor_live.py": "61df977250fd54c19ef3779c6a346134487213883d0cfa9e627b97bc0925ffdd",
+    "src/client/mod.rs": "731ed8a79f0b6d555a17935c9e8e9a05039c54562516cd338b6a1f47fcb91a7a",
+    "src/client/motion_executor.rs": "e50dad38448c9741fe1e701cbe3d21d2e0ee846c29bce9834d64d5aa74b606c0",
+    "src/versions/java_1_16_1/client.rs": "a21ae4fcb55043ac5c6c2cd607ad7fd4586f4dc286b27ae441339382224566e7",
+    "src/versions/java_1_16_1/client/common_api.rs": "ca9a9ebfa7790a9ed12614d6263bec41005e9280e3b20e92fb14b781cf8c955d",
+    "src/versions/java_1_16_1/client/common_control.rs": "5ffbcc02550b7f59fb8310ed08c55269b2d5c737f4d28cf8451bfda14a5eb30f",
+    "src/versions/java_1_16_1/client/common_motion.rs": "c674356588293226a3b71d9d08c69015b95e700fbe22228fd1f0ce1b5a10b73d",
+    "src/versions/java_1_16_1/client/play_player.rs": "6d18f7363b43e982ad41cb59af074d4f7a4682e4b86ec39f1cdd9ab0d167750f",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "ef7db5bd1e6f6fe1f042849fac5cf003197df4c180b9b728be355c3bc1c71ae8",
+    "src/versions/java_1_21_11/client.rs": "1c986d5e47746b4d5a9cc19b2e9de40ae4b390a909ba7f642d3e63d0811cb845",
+    "src/versions/java_1_21_11/client/operations.rs": "2736963ae89e74d2ad85f39569a9a837c962d5ee76ebc00a8d6ca781c59ef9b5",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "24de3cf67ee07a401b382402ec2d8f1d889bafe9c9e7ea1cd2354a97c867789f",
+    "src/versions/java_1_21_11/client/operations/flight.rs": "4f29c27c685faf528fc7e7df03ccbb1ebca40f4daffc452c334f69e2658fc171",
+    "src/versions/java_1_21_11/client/operations/mining/tests.rs": "ead49d0866d9df8e4b7d13e9441486d74d438d35cc006e14b46e0473bbdaa076",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "b33122348c365dd114ce6334c93fdf72bae248084ae88d5b9ba95464f24bab3f",
+    "src/versions/java_1_21_11/client/operations/movement/control.rs": "a5d60b4578e776524c08d4e6d8e7362db6ea03d8f0a98bcd6d61af20b3aa563c",
+    "src/versions/java_1_21_11/client/operations/vehicle.rs": "77f4d323f70234b6b9986b019fd4981b0b94d15bebff84fb809fe41c85e2dc0c",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "3686f9a02a1511ae5c98faee55f5d28917d9810e2bd16d5c76b110daaccb55e5",
+    "src/versions/java_1_21_11/client/outbound/tests/explosion.rs": "41f7e2c6ba6562eca260979f85e6ac63d2a739e67402c045dbbf3d0c56ee4672",
+    "src/versions/java_1_21_11/client/outbound/tests/motion_executor.rs": "8dd9019382b659f5ac7d6d5e1603f30dd4de4e4cfe13b101409f4474d2839818"
+  },
+  "fixtures": {
+    "passed": true,
+    "tick_boundary_causes": [
+      "correction",
+      "impulse",
+      "terrain",
+      "world"
+    ],
+    "sent_ticks": [
+      1,
+      2
+    ],
+    "versions": [
+      "1.16.1",
+      "1.21.11"
+    ],
+    "modern_input_position_boundary_causes": [
+      "correction",
+      "impulse",
+      "terrain",
+      "world"
+    ],
+    "stale_worker_new_owner": true,
+    "received_nonzero_velocity": true,
+    "completed_strict_body_strict": [
+      "1.21.11"
+    ],
+    "log_sha256": "50f594832dcf3ac5e6c0a43bf36af85d22fbcaa37c2d47ac6b65f7e23c81af33"
+  },
+  "checks": [
+    {
+      "name": "fmt",
+      "command": "cargo fmt --all -- --check",
+      "exit": 0,
+      "seconds": 4.3,
+      "log": "/home/dev/logs/contact/mv1-qualified-fmt.log"
+    },
+    {
+      "name": "test-default",
+      "command": "cargo test --locked --all-targets -j2 -- --test-threads=2",
+      "exit": 0,
+      "seconds": 452.6,
+      "log": "/home/dev/logs/contact/mv1-qualified-test-default.log"
+    },
+    {
+      "name": "doc-default",
+      "command": "cargo test --locked --doc -j2",
+      "exit": 0,
+      "seconds": 4.7,
+      "log": "/home/dev/logs/contact/mv1-qualified-doc-default.log"
+    },
+    {
+      "name": "clippy-default",
+      "command": "cargo clippy --locked --all-targets -j2 -- -D warnings",
+      "exit": 0,
+      "seconds": 20.1,
+      "log": "/home/dev/logs/contact/mv1-qualified-clippy-default.log"
+    },
+    {
+      "name": "msrv-default",
+      "command": "cargo +1.85.0 check --locked --all-targets -j2",
+      "exit": 0,
+      "seconds": 68.9,
+      "log": "/home/dev/logs/contact/mv1-qualified-msrv-default.log"
+    },
+    {
+      "name": "test-native",
+      "command": "cargo test --locked --all-targets --features native -j2 -- --test-threads=2",
+      "exit": 0,
+      "seconds": 492.1,
+      "log": "/home/dev/logs/contact/mv1-qualified-test-native.log"
+    },
+    {
+      "name": "doc-native",
+      "command": "cargo test --locked --doc --features native -j2",
+      "exit": 0,
+      "seconds": 5.3,
+      "log": "/home/dev/logs/contact/mv1-qualified-doc-native.log"
+    },
+    {
+      "name": "clippy-native",
+      "command": "cargo clippy --locked --all-targets --features native -j2 -- -D warnings",
+      "exit": 0,
+      "seconds": 65.3,
+      "log": "/home/dev/logs/contact/mv1-qualified-clippy-native.log"
+    },
+    {
+      "name": "msrv-native",
+      "command": "cargo +1.85.0 check --locked --all-targets --features native -j2",
+      "exit": 0,
+      "seconds": 53.8,
+      "log": "/home/dev/logs/contact/mv1-qualified-msrv-native.log"
+    }
+  ],
+  "live": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "binary_sha256": "744c21e94178f5d8c44de2ff5c2deea7605fe5aebd0c77a3d0a9e6071ad33798",
+      "trace_errors": [],
+      "report_sha256": "5071809c7d0a7f68a0785f863999e5ea575a6d486a5b4028ab15e107d94fe58d",
+      "packets_sha256": "2216913b2e17a8644fac53d0e7bdad07dbda4f6a66ebaffae5682e615f8cd1cb",
+      "cases": [
+        {
+          "cause": "correction",
+          "old_status": "requires_inspection",
+          "sent_ticks": 3,
+          "planned_ticks": 35,
+          "old_tail_packets": 0,
+          "rcon_before": [
+            8.5,
+            65.0,
+            0.5
+          ],
+          "rcon_after": [
+            9.224025304749665,
+            65.0,
+            0.5
+          ],
+          "body_status": "accepted",
+          "next_strict_status": "predicted",
+          "next_strict_sent": 35
+        },
+        {
+          "cause": "terrain",
+          "old_status": "requires_inspection",
+          "sent_ticks": 3,
+          "planned_ticks": 35,
+          "old_tail_packets": 0,
+          "rcon_before": [
+            0.5,
+            65.0,
+            0.8356363039273393
+          ],
+          "rcon_after": [
+            1.4444309247660847,
+            65.0,
+            1.0282627399737296
+          ],
+          "body_status": "accepted",
+          "next_strict_status": "predicted",
+          "next_strict_sent": 35
+        },
+        {
+          "cause": "world",
+          "old_status": "requires_inspection",
+          "sent_ticks": 2,
+          "planned_ticks": 35,
+          "old_tail_packets": 0,
+          "rcon_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "rcon_after": [
+            1.453519216094518,
+            65.0,
+            0.5
+          ],
+          "body_status": "accepted",
+          "next_strict_status": "predicted",
+          "next_strict_sent": 35
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "binary_sha256": "744c21e94178f5d8c44de2ff5c2deea7605fe5aebd0c77a3d0a9e6071ad33798",
+      "trace_errors": [],
+      "report_sha256": "de54b330047a3006e4e29006e4ac60528a9a738dfe74992f1a60c29f44af5bba",
+      "packets_sha256": "55952941d90c140436438f04c7f689a40d8060e6cab68bff00549bba928ce564",
+      "cases": [
+        {
+          "cause": "correction",
+          "old_status": "requires_inspection",
+          "sent_ticks": 3,
+          "planned_ticks": 35,
+          "old_tail_packets": 0,
+          "rcon_before": [
+            8.5,
+            65.0,
+            0.5
+          ],
+          "rcon_after": [
+            9.050090466546338,
+            65.0,
+            0.5
+          ],
+          "body_status": "accepted",
+          "next_strict_status": "predicted",
+          "next_strict_sent": 35
+        },
+        {
+          "cause": "terrain",
+          "old_status": "requires_inspection",
+          "sent_ticks": 4,
+          "planned_ticks": 35,
+          "old_tail_packets": 0,
+          "rcon_before": [
+            0.5,
+            65.0,
+            1.0234687654683823
+          ],
+          "rcon_after": [
+            1.3322909434879642,
+            65.0,
+            1.238402724619513
+          ],
+          "body_status": "accepted",
+          "next_strict_status": "predicted",
+          "next_strict_sent": 35
+        },
+        {
+          "cause": "world",
+          "old_status": "requires_inspection",
+          "sent_ticks": 3,
+          "planned_ticks": 35,
+          "old_tail_packets": 0,
+          "rcon_before": [
+            0.5,
+            65.0,
+            0.5
+          ],
+          "rcon_after": [
+            1.2782355056014174,
+            65.0,
+            0.5
+          ],
+          "body_status": "accepted",
+          "next_strict_status": "predicted",
+          "next_strict_sent": 35
+        }
+      ]
+    }
+  ],
+  "strict_proof_regressions": {
+    "observer": "ed711fffddd0c7af21181e44444e9cc53b0278cae0086f69822810b2ed178ba8",
+    "predicted": "f9e8622f767159104a2241e12a27524dd1bd11a2f3f555583426b508a82ecd39"
+  }
+}

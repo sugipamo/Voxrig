@@ -59,6 +59,7 @@ pub use entity::{
 pub mod flight;
 pub(crate) mod fraction;
 pub mod furnace;
+pub(crate) mod motion_executor;
 pub use flight::{FlightCommand, FlightLanding, FlightRecord, FlightStage};
 pub(crate) mod chunk_context;
 pub(crate) mod chunks;

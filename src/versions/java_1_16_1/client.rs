@@ -1136,7 +1136,7 @@ pub struct Bot {
     common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
     common_player_list: Arc<Mutex<crate::client::ui::player_list::PlayerListLedger>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
-    common_control: Arc<Mutex<common_control::ContinuousControl>>,
+    common_control: Arc<Mutex<common_control::MotionExecutor>>,
     operational_dig: Arc<crate::client::operational_dig::Coordinator>,
     /// Latest received own velocity (packet ordinal, value).
     own_velocity_receipt: Arc<Mutex<Option<VelocityReceipt>>>,

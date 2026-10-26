@@ -846,7 +846,7 @@ async fn explosion_after_finite_owner_admission_cannot_use_the_stopped_ground_mo
         let mut state = session.state.lock().await;
         assert_eq!(state.survival_motion.as_ref().unwrap().dispatched_ticks, 0);
         assert!(state.motion.last_submission.is_none());
-        let before = state.control.session.as_ref().unwrap().body.velocity;
+        let before = state.control.finite.as_ref().unwrap().model.frame.velocity;
         state
             .receive(
                 ids::play_clientbound::EXPLOSION,
@@ -855,7 +855,7 @@ async fn explosion_after_finite_owner_admission_cannot_use_the_stopped_ground_mo
             )
             .unwrap();
         assert_eq!(
-            state.control.session.as_ref().unwrap().body.velocity,
+            state.control.finite.as_ref().unwrap().model.frame.velocity,
             before
         );
         let interruption = state

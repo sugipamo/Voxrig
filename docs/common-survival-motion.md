@@ -68,7 +68,7 @@ previewは送信・在庫変更・positionの代入を行わず、再利用可�
 - 各tickで再取得した地形の結果が最初の予測と違う場合、位置補正・impulse・mode/姿勢/effect・属性の変更、
   送信失敗や接続終了は`RequiresInspection`へ保持し、入力を自動再開・再送しない。
 - `Predicted`は全入力の送信とmodel上の解放後静止を示す。次の操作は現在のcontextと支持を再検査する。
-  1.16.1の未解決runは現段階では再接続して調査後に再計画する。追加の観測/復旧契約は後続段階で統合する。
+  中断記録は失敗のまま保持するが、終了確認済みのexecutorを占有しない。新しい操作は現在のmodelから再検査する。
 
 1.16.1ではPosition+Look(0x13)とonGroundを送る。1.21.11ではnative PlayerInputとPosition+Look、
 onGround/horizontalCollision flagsを送る。1.16.1へ存在しないdigital-input packetやmodern flag/ACKを追加しない。
@@ -128,3 +128,29 @@ RCONで取得前後の実際の位置が`[0.5,65.0,0.5]`のままであること
 scenarioの結果であり、すべての条件の物理互換や独立observerによる追加の操作許可には読み替えない。
 fixtureでは同じconsumerで待機取消後の完了と次の有限run、版別packet形式、競合native操作の拒否、
 I/O前のintent、地形変更での停止、送信失敗、零impulseによる無効化、native-only移動へ切り替えた際の診断保持を検査する。
+
+## 実行権・受信 authority・破棄・再導出コスト
+
+1. **owner**: finite strict／Body／best-effort はconnectionの一つのmotion executorを共有する。
+   strict previewは検査条件、`MotionRecord`はattempt／完全送信／検査結果のprojectionである。
+   finite strategyのmodelはexecutorに置き、workerはロック内で次tickを計算する。
+   終了時にlegacy native model、modern Body modelへ最後の完全送信状態と運動量を引き継ぐ。
+2. **authority**: 受信補正・impulseが予測より優先する。その後の現在modelをexecutorで導出する。
+   完全送信位置の根拠はSubmitted／PredictedでありReceivedではない。
+   native `StandingPositionBasis::Predicted` は完全送信済みの現在model（中断runの送信済みprefixを含む）の数値的根拠であり、
+   中断したstrict `MotionRecord`の成功・静止・observer証明を意味しない。既存の引数・結果型・variantは変更しない。
+3. **discard**: 補正・world変更・preview検査失敗でrun ID＋world generationの送信権を失効し、未送信尾部を破棄する。
+   送信と失効は同じロック（legacy coherent gate、modern State）で直列化する。modern INPUT／POSITIONも同じ境界を共有する。
+   終了処理は必要なneutral inputの完全送信、legacy `Owner::Motion`のactor ACK、実行権解放を一か所で行う。
+   world変更後は旧worldのreleaseを送らない。旧workerは別run／worldの権利を更新・解放できない。
+   `RequiresInspection`は中断／未確認のまま保持し、新ownerや過去runの再開で成功へ書き換えない。
+   partial write／K1、未知・未監査のK2は従来どおり拒否する。待機futureの取消は実行停止ではない。
+4. **cost**: 受信補正時は受信姿勢・速度と近傍地形から再構成し、地形変更時は最後の完全送信modelを継承して再計算する。
+   通常は近傍地形に比例し、strict previewは既存上限120tickに比例する。通常終了に新たなserver echoを要求しない。
+
+回帰fixtureはtick kの前後の補正／impulse／地形／world変更を挿入する。
+`scripts/run_motion_executor_live.py` は既存original-byte proxyとRCONを使い、35tick strict run中の補正、
+地形変更、dimension変更後のbest-effort／Body／新strictを両版の公式serverで検証する。
+
+両版のpacket fixture・公式server実接続・ローカル検証の結果とsource／binary／JAR／trace hashは
+[`motion-executor-20261026.json`](evidence/motion-executor-20261026.json) に保存する。

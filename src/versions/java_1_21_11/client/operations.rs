@@ -1156,16 +1156,15 @@ impl Operations {
             ));
         }
         if domain.motion() {
-            if state
-                .survival_motion
-                .as_ref()
-                .is_some_and(|r| !r.status.is_continuation_candidate())
-            {
+            if state.control.finite.is_some() {
                 return Err(invalid(
                     "survival motion unresolved; inspect retained run before another mutation",
                 ));
             }
-            if ground && state.survival_motion.is_some() {
+            if ground
+                && domain == crate::client::domain::Domain::Strict
+                && state.survival_motion.is_some()
+            {
                 movement::standing_basis(state)?;
             }
             if state.motion.position_basis == PositionBasis::PendingSubmission {
@@ -1656,10 +1655,7 @@ pub(super) fn common_player_in_state(
                 .placement
                 .as_ref()
                 .is_some_and(|p| p.observation.is_none())
-            || state
-                .survival_motion
-                .as_ref()
-                .is_some_and(|m| !m.status.is_continuation_candidate()),
+            || state.control.finite.is_some(),
         dimension: state
             .world
             .dimension

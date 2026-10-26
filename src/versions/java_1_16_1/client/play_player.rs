@@ -261,6 +261,10 @@ impl Bot {
 
     pub(super) async fn receive_respawn(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
         let respawn = parse_respawn(p)?;
+        // The receive/send gate is held. Revoke the old finite generation and
+        // await Owner::Motion termination before any new-world protocol writes.
+        self.interrupt_common_motion("native world change interrupted finite motion")
+            .await;
         let selection = self
             .common_receipts
             .lock()

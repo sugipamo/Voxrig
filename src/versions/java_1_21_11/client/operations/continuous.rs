@@ -16,7 +16,8 @@ fn attribute(name: &str) -> Option<i32> {
 
 /// The connection's continuous control session and its task identity.
 #[derive(Default)]
-pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
+pub(in crate::versions::java_1_21_11::client) struct MotionExecutor {
+    pub(in crate::versions) finite: Option<crate::client::motion_executor::FiniteMotion>,
     pub session: Option<ControlSession>,
     next_id: u64,
     jump_work: Option<crate::client::ledger::WorkGuard>,
@@ -30,7 +31,46 @@ pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
     dead_ground: Option<u64>,
 }
 
-impl ContinuousControl {
+impl MotionExecutor {
+    pub(in crate::versions) fn install_finite(
+        &mut self,
+        finite: crate::client::motion_executor::FiniteMotion,
+    ) {
+        assert!(!self.active(), "motion executor already owned");
+        self.session = None;
+        self.finite = Some(finite);
+    }
+
+    pub(super) fn adopt_finite(
+        &mut self,
+        finite: crate::client::motion_executor::FiniteMotion,
+        received: &Received,
+        rotation: [f32; 2],
+        mode: GameMode,
+        attempt: Option<u64>,
+    ) {
+        let frame = finite.model.frame;
+        let mut body = crate::client::physics::Body::new(frame.position);
+        body.velocity = frame.velocity;
+        body.on_ground = frame.on_ground;
+        body.horizontal_collision = frame.horizontal_collision;
+        body.vertical_collision = frame.on_ground;
+        let mut session = ControlSession::from_model(
+            crate::MinecraftVersion::Java1_21_11,
+            self.next_id,
+            body,
+            rotation,
+            received,
+        );
+        session.mode = mode;
+        session.status = ControlStatus::Stopped {
+            reason: "finite executor terminated; strict proof retained separately".into(),
+        };
+        self.generation = Some(finite.generation);
+        self.model_attempt = attempt;
+        self.released_ground = Some(session.id);
+        self.session = Some(session);
+    }
     pub(super) fn observe_abilities(&mut self, flags: u8, sequence: u64) {
         if let Some(session) = &mut self.session {
             session.observe_abilities(flags, sequence);
@@ -43,7 +83,7 @@ impl ContinuousControl {
     }
     /// Whether a session currently owns the player's movement.
     pub(in crate::versions::java_1_21_11::client) fn active(&self) -> bool {
-        self.session.as_ref().is_some_and(ControlSession::running)
+        self.finite.is_some() || self.session.as_ref().is_some_and(ControlSession::running)
     }
 
     #[cfg(test)]
@@ -110,7 +150,7 @@ pub(super) fn observe_glide_equipment(state: &mut State) {
 }
 
 /// Received facts the engine needs, from the own-player projection.
-fn received(state: &State) -> Received {
+pub(super) fn received(state: &State) -> Received {
     let p = &state.operations.local_player;
     let mut environment = Environment::defaults(crate::MinecraftVersion::Java1_21_11);
     if let Some(speed) =
@@ -187,7 +227,7 @@ fn received(state: &State) -> Received {
 
 /// Only the current Ground model, including an explicitly stopped model whose
 /// momentum can be resumed. Failed writes and unrelated movement never qualify.
-fn ground_model_available(state: &State) -> bool {
+pub(super) fn ground_model_available(state: &State) -> bool {
     let Some(session) = state.control.session.as_ref() else {
         return false;
     };
@@ -214,10 +254,38 @@ fn ground_model_available(state: &State) -> bool {
         && stop_reason(state, generation, session.mode, session.kind).is_none()
 }
 
+pub(super) fn current_model_basis(state: &State) -> Option<super::movement::StandingPositionBasis> {
+    if !ground_model_available(state) {
+        return None;
+    }
+    let body = &state.control.session.as_ref()?.body;
+    Some(super::movement::StandingPositionBasis::Predicted {
+        run_id: state.survival_motion.as_ref()?.run_id,
+        received_pose_sequence: state.motion.received_pose.as_ref()?.receive_sequence,
+        planning_reserve: [1.0 / 16.0, 0.0, 1.0 / 16.0],
+        predicted: crate::client::survival::PredictedMotionFrame {
+            tick: 0,
+            position: body.position,
+            velocity: body.velocity,
+            on_ground: body.on_ground,
+            horizontal_collision: body.horizontal_collision,
+            resting: false,
+        },
+    })
+}
+
 /// Numerical baseline for native relative corrections; never a received sample.
 pub(in crate::versions::java_1_21_11::client) fn ground_velocity(
     state: &State,
 ) -> Option<[f64; 3]> {
+    if let Some(finite) = state
+        .control
+        .finite
+        .as_ref()
+        .filter(|f| f.generation == state.loading.generation)
+    {
+        return Some(finite.model.frame.velocity);
+    }
     ground_model_available(state).then(|| state.control.session.as_ref().unwrap().body.velocity)
 }
 
@@ -227,6 +295,31 @@ pub(in crate::versions::java_1_21_11::client) fn ground_motion_received(
     state: &mut State,
     id: i32,
 ) {
+    // Apply authority at receipt, before another relative correction can request
+    // a numerical baseline. An invalidated finite worker never advances again.
+    if let Some(finite) = state
+        .control
+        .finite
+        .as_mut()
+        .filter(|f| f.generation == state.loading.generation)
+    {
+        if id == ids::play_clientbound::POSITION {
+            if let Some(pose) = &state.motion.received_pose {
+                finite.model.frame.position = pose.position;
+                if let Some(velocity) = pose.velocity {
+                    finite.model.frame.velocity = velocity;
+                }
+                finite.model.frame.on_ground = false;
+            }
+        } else if id == ids::play_clientbound::ENTITY_VELOCITY {
+            if let Some(velocity) = &state.operations.local_player.velocity {
+                finite.model.frame.velocity = velocity.value;
+            }
+        }
+    }
+    super::movement::finite_context_received(state);
+    state.inspect_motion(false);
+
     if id == ids::play_clientbound::UPDATE_HEALTH
         && state
             .operations
@@ -765,6 +858,10 @@ impl Operations {
                     state.position = Some(output.position);
                     state.rotation = output.rotation;
                     state.motion.dispatched();
+                    // A new execution supersedes the old endpoint's standing
+                    // authority. Preserve its proof checks; current model
+                    // handoff must never bypass an observer's failed proof.
+                    state.inspect_motion(false);
                     state.motion.on_ground = Some(output.on_ground);
                     session.dispatched(&output);
                     let path_complete = session.path_complete();
@@ -922,11 +1019,7 @@ impl Operations {
             if state.control.active() {
                 return Err(invalid("a control session is already running"));
             }
-            if state
-                .survival_motion
-                .as_ref()
-                .is_some_and(|r| r.status == SurvivalMotionStatus::Running)
-            {
+            if state.control.finite.is_some() {
                 return Err(invalid("a finite motion run is in progress"));
             }
             let generation = state.loading.generation;

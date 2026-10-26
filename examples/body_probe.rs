@@ -218,6 +218,15 @@ async fn main() -> anyhow::Result<()> {
                             .await?,
                     )?
                 }
+                "finite_start" => {
+                    let controls: Vec<SurvivalControl> = serde_json::from_value(v["controls"].clone())?;
+                    json!({"record":client.survival().start_predicted_path(&controls).await?})
+                }
+                "finite_record" => serde_json::to_value(client.survival().motion_record().await?)?,
+                "path_best_effort" => {
+                    let controls: Vec<SurvivalControl> = serde_json::from_value(v["controls"].clone())?;
+                    json!({"record":client.player_control(GameMode::Survival).start_path_best_effort(&controls).await?})
+                }
                 "control_record" => {
                     serde_json::to_value(client.survival().control_record().await?)?
                 }
