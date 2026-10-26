@@ -615,7 +615,10 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
     let (mut peer, _) = listener.accept().await.unwrap();
     let (_, writer) = connection.into_split();
     let id = 42;
+    let state = state();
+    let health_log = state.health_log.clone();
     let session = Arc::new(Session {
+        health_log: Arc::clone(&health_log),
         operational_dig: Arc::default(),
         id,
         ledger: Ledger::tracking(GenerationKey {
@@ -627,7 +630,7 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
             stream: SocketWriter::new(writer),
             compression: None,
         })),
-        state: Mutex::new(state()),
+        state: Mutex::new(state),
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),

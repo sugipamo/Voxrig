@@ -21,7 +21,9 @@ async fn fixture() -> (Bot, OwnedReadHalf, TcpStream) {
         .select_dimension("minecraft:overworld".into(), dimension);
     state.loading.reset(1);
     let id = 900;
+    let health_log = state.health_log.clone();
     let session = Arc::new(Session {
+        health_log: Arc::clone(&health_log),
         operational_dig: Arc::default(),
         id,
         ledger: Ledger::tracking(GenerationKey {

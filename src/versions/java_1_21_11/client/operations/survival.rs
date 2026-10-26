@@ -217,12 +217,9 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     let sequence = state.sequence;
     match id {
         input::UPDATE_HEALTH => {
-            let health = r.f32()?;
+            let health = f32::from_be_bytes(r.take(4)?.try_into()?);
             let food = r.varint()?;
-            let saturation = r.f32()?;
-            if health < 0.0 || !(0..=20).contains(&food) || saturation < 0.0 {
-                bail!("invalid player health");
-            }
+            let saturation = f32::from_be_bytes(r.take(4)?.try_into()?);
             next.health = Some(PlayerHealth {
                 health,
                 food,
@@ -320,6 +317,23 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     r.end()?;
     state.posture_pose = posture_pose;
     state.posture_swimming = posture_swimming;
+    if id == input::UPDATE_HEALTH {
+        let value = next.health.as_ref().expect("decoded update_health");
+        if !state.health_log.record(
+            Some(sequence),
+            crate::client::HealthEvent::Vitals(crate::client::ReceivedHealth {
+                session: state.snapshot_session(),
+                receive_sequence: sequence,
+                health: crate::client::Health {
+                    health: value.health,
+                    food: value.food,
+                    saturation: value.saturation,
+                },
+            }),
+        ) {
+            bail!("health receipt source closed");
+        }
+    }
     state.operations.local_player = next;
     Ok(true)
 }

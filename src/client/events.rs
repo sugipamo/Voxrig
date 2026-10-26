@@ -377,6 +377,7 @@ mod tests {
         ))
         .await
         .unwrap();
+        let mut health = client.subscribe_health().unwrap();
         let cursor = client.events_after(0).await.unwrap().cursor;
         assert_eq!(
             client
@@ -412,6 +413,17 @@ mod tests {
             .unwrap();
             client.wait_for_events(cursor, limit).await.unwrap()
         };
+        assert_eq!(
+            tokio::time::timeout(limit, health.recv())
+                .await
+                .unwrap()
+                .unwrap(),
+            super::super::HealthEvent::Disconnected
+        );
+        assert_eq!(
+            health.recv().await,
+            Err(super::super::HealthRecvError::Closed)
+        );
         assert!(log.cursor > cursor);
         assert_eq!(log.events.len(), 1);
         assert_eq!(log.events[0].kind, EventKind::Disconnected);

@@ -123,6 +123,7 @@ struct State {
     scoreboard: crate::client::ui::ScoreboardLedger,
     boss_bars: crate::client::ui::boss_bar::BossBarLedger,
     chat: crate::client::chat::ChatLedger,
+    health_log: Arc<crate::client::health::HealthLedger>,
     events: crate::client::events::EventLedger,
     effects: crate::client::effects::EffectLedger,
     explosions: crate::client::explosions::ExplosionLedger,
@@ -204,6 +205,7 @@ impl Default for State {
             scoreboard: Default::default(),
             boss_bars: Default::default(),
             chat: Default::default(),
+            health_log: Arc::default(),
             events: Default::default(),
             effects: Default::default(),
             explosions: Default::default(),
@@ -354,6 +356,7 @@ struct LoginIdentity {
     server: crate::Server,
 }
 struct Session {
+    health_log: Arc<crate::client::health::HealthLedger>,
     operational_dig: Arc<crate::client::operational_dig::Coordinator>,
     id: u64,
     ledger: Ledger,
@@ -598,7 +601,9 @@ impl Bot {
             }
         };
         drop(login_work);
+        let health_log = Arc::default();
         let session = Arc::new(Session {
+            health_log: Arc::clone(&health_log),
             operational_dig: Arc::default(),
             id,
             ledger,
@@ -608,6 +613,7 @@ impl Bot {
                 compression,
             })),
             state: Mutex::new(State {
+                health_log,
                 connection_id: id,
                 identity: Some(identity),
                 trace,
@@ -1071,6 +1077,10 @@ fn apply_spawn_info(
         .world
         .select_dimension(entry.world_name.clone(), dimension);
     state.loading.reset(state.sequence);
+    state.health_log.record(
+        Some(state.sequence),
+        crate::client::HealthEvent::WorldChanged(state.snapshot_session()),
+    );
     state.context = Default::default();
     state.context.world_entry = Some(crate::client::received(entry.clone(), state.sequence));
     state.entities.history_context(
@@ -1430,6 +1440,10 @@ fn apply_play(
         input::START_CONFIGURATION => {
             r.end()?;
             state.loading.reset(state.sequence);
+            state.health_log.record(
+                Some(state.sequence),
+                crate::client::HealthEvent::WorldChanged(state.snapshot_session()),
+            );
             state.context = Default::default();
             state.entities.history_context(
                 MinecraftVersion::Java1_21_11,
@@ -1514,6 +1528,9 @@ mod placement_native_trials;
 mod tests;
 
 impl crate::client::adapter::EventOps for operations::Operations {
+    fn health_log(&self) -> &Arc<crate::client::health::HealthLedger> {
+        &self.bot.session.health_log
+    }
     async fn inventory_divergence(
         &self,
         send: crate::client::inventory::InventorySendId,

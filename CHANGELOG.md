@@ -9,6 +9,12 @@
 
 ## Unreleased
 
+- Add common received-health cursor log and independent push subscriptions for
+  Java 1.16.1 and 1.21.11, directly from update_health reducers. Atomic admission
+  baseline/tail, bounded health-only retention, explicit lag, ordered world/close
+  boundaries, and raw invalid HP are available without the native feature.
+  Existing public signatures/enums remain unchanged. See [usage and Golemkit example](docs/health-log.md).
+
 - BREAKING: `InventorySendStatus` gains `Diverged` and is now `#[non_exhaustive]`;
   `Received` requires the declared effect to agree with current received values.
   Add `Client::inventory_divergence` and bounded `inventory_changes_after` on both

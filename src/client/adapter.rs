@@ -163,6 +163,7 @@ pub(crate) trait ChunkOps {
 
 /// Change notifications.
 pub(crate) trait EventOps {
+    fn health_log(&self) -> &std::sync::Arc<super::health::HealthLedger>;
     async fn inventory_divergence(
         &self,
         send: super::inventory::InventorySendId,
