@@ -2060,7 +2060,11 @@ async fn terminal_recheck_requires_new_receipt_current_geometry_and_exact_run_wi
             .await
             .is_err()
     ); // still obstructed
-    assert!(mover.api.select_hotbar(1).await.is_err());
+    mover.api.select_hotbar(1).await.unwrap();
+    assert_eq!(
+        read_packet(&mut mover.peer, None).await.unwrap().0,
+        ids::play_serverbound::HELD_ITEM_SLOT
+    );
     mover
         .session
         .state

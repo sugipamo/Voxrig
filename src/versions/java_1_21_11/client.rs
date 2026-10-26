@@ -111,7 +111,7 @@ struct State {
         Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
     common_container_open: Option<crate::client::container::ContainerOpenRecord>,
     survival_motion: Option<operations::SurvivalMotionRecord>,
-    control: operations::continuous::ContinuousControl,
+    control: operations::continuous::MotionExecutor,
     retired_common_motion: Option<crate::client::survival::MotionRecord>,
     recording: Option<recording::Capture>,
     recording_ordinal: u64,

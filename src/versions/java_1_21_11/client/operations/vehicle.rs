@@ -346,6 +346,14 @@ impl Operations {
                 .ok_or_else(|| unavailable("ground identity unavailable"))?
                 .uuid;
             state.vehicles.admit_ground_after_dismount(id.mount())?;
+            state
+                .control
+                .install_finite(crate::client::motion_executor::FiniteMotion::new(
+                    crate::MinecraftVersion::Java1_21_11,
+                    run.run_id,
+                    run.generation,
+                    run.preview.initial_frame.clone(),
+                ));
             state.survival_motion = Some(run.clone());
             drop(state);
             self.run_survival_motion(&run, None, uuid).await

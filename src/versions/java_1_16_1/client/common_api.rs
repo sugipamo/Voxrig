@@ -2020,7 +2020,7 @@ mod tests {
         }
     }
     #[tokio::test]
-    async fn vehicle_control_cannot_retire_partially_sent_ground_run() {
+    async fn vehicle_control_starts_after_actual_mount_terminates_finite_run() {
         use api::{
             VehicleInput, VehicleRelation,
             survival::{MotionStatus, SurvivalControl},
@@ -2058,13 +2058,11 @@ mod tests {
         else {
             panic!()
         };
-        assert!(
-            client
-                .survival()
-                .start_vehicle_control(mount, &[VehicleInput::default()])
-                .await
-                .is_err()
-        );
+        client
+            .survival()
+            .start_vehicle_control(mount, &[VehicleInput::default()])
+            .await
+            .unwrap();
         let retained = timeout(Duration::from_secs(1), async {
             loop {
                 let record = client.survival().motion_record().await.unwrap().unwrap();
@@ -2079,7 +2077,9 @@ mod tests {
         assert_eq!(retained.run_id, started.run_id);
         assert_eq!(retained.dispatched_ticks, 1);
         assert_eq!(retained.status, MotionStatus::RequiresInspection);
-        assert!(client.vehicle_control_record().await.unwrap().is_none());
+        assert!(client.vehicle_control_record().await.unwrap().is_some());
+        // Native neutral vehicle input, never the discarded ground tail.
+        assert_eq!(packets.recv().await.unwrap(), (0x1d, vec![0; 9]));
         assert!(
             timeout(Duration::from_millis(20), packets.recv())
                 .await

@@ -211,18 +211,7 @@ impl Bot {
                 "persistent legacy controls must be released before a bounded preview",
             ));
         }
-        let player = self.player.lock().await.clone();
         let motion = **self.motion.lock().await;
-        if !player.on_ground
-            || motion.velocity.x != 0.0
-            || motion.velocity.z != 0.0
-            || (motion.velocity.y != 0.0
-                && (motion.velocity.y + 0.08 * f64::from(0.98f32)).abs() > 1e-8)
-        {
-            return Err(motion_state(
-                "dry preview requires locally stationary grounded context",
-            ));
-        }
         let position = initial
             .position
             .as_ref()
@@ -352,11 +341,7 @@ impl Bot {
         {
             return true;
         }
-        self.common_motion
-            .lock()
-            .await
-            .as_ref()
-            .is_some_and(|run| !run.record.status.is_continuation_candidate())
+        false // proof history does not own the executor
     }
     pub(super) async fn interrupt_common_posture(&self, pose: i32, receipt: u64) {
         self.common_click_posture_changed(pose, receipt).await;
@@ -401,12 +386,56 @@ impl Bot {
         self.interrupt_common_crafting_take(problem).await;
         self.interrupt_common_recipe_placement(problem).await;
         self.interrupt_common_inventory_transfer(problem).await;
-        if let Some(run) = self.common_motion.lock().await.as_mut() {
-            run.record.status = MotionStatus::RequiresInspection;
-            run.record
-                .problem
-                .get_or_insert_with(|| problem.to_string());
+        let key = self
+            .common_motion
+            .lock()
+            .await
+            .as_ref()
+            .map(|r| (r.record.run_id, r.record.session.world_generation));
+        if let Some((id, generation)) = key {
+            let _ = self
+                .terminate_common_motion(id, generation, Some(problem))
+                .await;
         }
+    }
+    // Caller holds coherent_state_gate through invalidation and actor acknowledgement.
+    // A position write also holds that gate until the actor confirms the write.
+    async fn terminate_common_motion(
+        &self,
+        id: u64,
+        generation: u64,
+        problem: Option<&str>,
+    ) -> Result<()> {
+        if let Some(run) =
+            self.common_motion.lock().await.as_mut().filter(|r| {
+                r.record.run_id == id && r.record.session.world_generation == generation
+            })
+        {
+            if let Some(problem) = problem {
+                run.record.status = MotionStatus::RequiresInspection;
+                run.record.problem.get_or_insert_with(|| problem.to_owned());
+            }
+            self.sync_owned_motion(&run.record);
+        }
+        let acquired = {
+            let mut executor = self.common_control.lock().await;
+            let Some(finite) = executor.finite.as_mut().filter(|f| f.owns(id, generation)) else {
+                return Ok(());
+            };
+            finite.valid = false; // permanently revoke every unsent frame before any await
+            finite.acquired
+        };
+        // Strict legacy sends only position/look, never held input commands. No
+        // synthetic position or zero velocity is sent on interruption. Actor ACK
+        // fences all earlier writes and releases precisely Owner::Motion(id).
+        if acquired {
+            self.connection
+                .finish_bounded_motion(id)
+                .await
+                .map_err(|e| motion_state(&format!("motion termination unconfirmed: {e:?}")))?;
+        }
+        self.common_control.lock().await.finite = None;
+        Ok(())
     }
     pub(super) async fn common_motion_admission(&self) -> Result<()> {
         self.common_motion_admission_inner(false).await
@@ -542,12 +571,15 @@ impl Bot {
         if domain.motion() {
             let run = self.common_motion.lock().await.clone();
             if let Some(run) = run {
-                if run.record.status != MotionStatus::Predicted {
+                if self.common_control.lock().await.finite.is_some() {
                     return Err(motion_state(
                         "common motion unresolved; inspect retained run without replay",
                     ));
                 }
                 let check = async {
+                    if run.record.status != MotionStatus::Predicted {
+                        return Ok(());
+                    }
                     self.legacy_stable_run(&run, false).await?;
                     let end = run.record.preview.frames.last().unwrap();
                     let world = self.world.lock().await;
@@ -559,8 +591,13 @@ impl Bot {
                 }
                 .await;
                 if let Err(error) = check {
-                    self.interrupt_common_motion(&error.to_string()).await;
-                    return Err(error);
+                    if let Some(current) = self.common_motion.lock().await.as_mut() {
+                        current.record.status = MotionStatus::RequiresInspection;
+                        current
+                            .record
+                            .problem
+                            .get_or_insert_with(|| error.to_string());
+                    }
                 }
             }
         }
@@ -658,20 +695,67 @@ impl Bot {
         crate::client::flight::sync_motion(&self.flight_history, record);
         crate::client::vehicle::dismount::sync_motion(&self.dismount_history, record);
     }
+    async fn authorize_common_frame(&self, run: &NativeMotionRun) -> Result<()> {
+        if self.common_receipts.lock().await.generation != run.record.session.world_generation
+            || self
+                .common_control
+                .lock()
+                .await
+                .finite
+                .as_ref()
+                .is_none_or(|f| {
+                    !f.authorizes(run.record.run_id, run.record.session.world_generation)
+                })
+        {
+            return Err(motion_state("finite generation invalidated"));
+        }
+        Ok(())
+    }
     pub(super) async fn run_common_path(
         &self,
         mut run: NativeMotionRun,
         revision: u64,
     ) -> Result<()> {
-        self.connection
-            .begin_bounded_motion(run.record.run_id, revision)
-            .await
-            .map_err(|e| motion_state(&format!("exclusive motion acquisition rejected: {e:?}")))?;
-        let mut model = model::Model::new(
-            crate::MinecraftVersion::Java1_16_1,
-            run.record.preview.initial_frame.position,
-        );
-        model.frame = run.record.preview.initial_frame.clone();
+        {
+            let _gate = self.coherent_state_gate.lock().await;
+            if self.common_motion.lock().await.as_ref().is_none_or(|r| {
+                r.record.run_id != run.record.run_id
+                    || r.record.session != run.record.session
+                    || r.record.status != MotionStatus::Running
+            }) {
+                return Err(motion_state("finite run superseded before acquisition"));
+            }
+            self.authorize_common_frame(&run).await?;
+        }
+        let result = self.run_common_path_inner(&mut run, revision).await;
+        let _gate = self.coherent_state_gate.lock().await;
+        let problem = result.as_ref().err().map(ToString::to_string);
+        self.terminate_common_motion(
+            run.record.run_id,
+            run.record.session.world_generation,
+            problem.as_deref(),
+        )
+        .await?;
+        result
+    }
+    async fn run_common_path_inner(&self, run: &mut NativeMotionRun, revision: u64) -> Result<()> {
+        {
+            let _gate = self.coherent_state_gate.lock().await;
+            self.authorize_common_frame(run).await?;
+            self.connection
+                .begin_bounded_motion(run.record.run_id, revision)
+                .await
+                .map_err(|e| {
+                    motion_state(&format!("exclusive motion acquisition rejected: {e:?}"))
+                })?;
+            self.common_control
+                .lock()
+                .await
+                .finite
+                .as_mut()
+                .unwrap()
+                .acquired = true;
+        }
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         for (control, expected) in run
@@ -684,7 +768,8 @@ impl Bot {
         {
             interval.tick().await;
             let _gate = self.coherent_state_gate.lock().await;
-            self.legacy_stable_run(&run, true).await?;
+            self.authorize_common_frame(run).await?;
+            self.legacy_stable_run(run, true).await?;
             if self
                 .common_motion
                 .lock()
@@ -697,9 +782,30 @@ impl Bot {
             {
                 return Err(motion_state("finite run superseded"));
             }
+            let mut model = self
+                .common_control
+                .lock()
+                .await
+                .finite
+                .as_ref()
+                .unwrap()
+                .model
+                .clone();
             let proposed = model.intent(control.input, control.yaw);
             {
                 let world = self.world.lock().await;
+                self.common_control
+                    .lock()
+                    .await
+                    .finite
+                    .as_mut()
+                    .unwrap()
+                    .recheck(
+                        |p| legacy_motion_block(&world, p),
+                        &run.record.preview.controls[usize::from(run.record.dispatched_ticks)..],
+                        &run.record.preview.frames[usize::from(run.record.dispatched_ticks)..],
+                        world.revision(),
+                    )?;
                 let boxes = model::geometry(
                     crate::MinecraftVersion::Java1_16_1,
                     &|p| legacy_motion_block(&world, p),
@@ -768,13 +874,20 @@ impl Bot {
             run.expected_motion_revision = motion.revision();
             run.record.attempted_tick = expected.tick;
             run.record.dispatched_ticks = expected.tick;
+            self.common_control
+                .lock()
+                .await
+                .finite
+                .as_mut()
+                .unwrap()
+                .model = model;
             *self.common_motion.lock().await = Some(run.clone());
             self.sync_owned_motion(&run.record);
             self.common_receipts.lock().await.position_source =
                 Some(crate::client::ValueSource::Predicted);
         }
         let _gate = self.coherent_state_gate.lock().await;
-        self.legacy_stable_run(&run, true).await?;
+        self.legacy_stable_run(run, true).await?;
         {
             let world = self.world.lock().await;
             legacy_clearance(
@@ -783,10 +896,7 @@ impl Bot {
                 1.0 / 16.0,
             )?;
         }
-        self.connection
-            .finish_bounded_motion(run.record.run_id)
-            .await
-            .map_err(|e| motion_state(&format!("motion completion rejected: {e:?}")))?;
+        self.authorize_common_frame(run).await?;
         self.common_motion
             .lock()
             .await
@@ -991,6 +1101,14 @@ impl Bot {
         self.player.lock().await.on_ground = true;
         self.common_receipts.lock().await.ground_source =
             Some(crate::client::ValueSource::Predicted);
+        self.common_control.lock().await.install_finite(
+            crate::client::motion_executor::FiniteMotion::new(
+                crate::MinecraftVersion::Java1_16_1,
+                run.record.run_id,
+                run.record.session.world_generation,
+                run.record.preview.initial_frame.clone(),
+            ),
+        );
         *self.common_motion.lock().await = Some(run.clone());
         run
     }
@@ -1119,28 +1237,27 @@ impl crate::client::adapter::PathMotionOps for Bot {
                         problem: None,
                     },
                 };
-                *self.common_motion.lock().await = Some(run.clone());
+                // Re-derived support is model evidence, never a server ground receipt.
+                self.player.lock().await.on_ground = run.record.preview.initial_frame.on_ground;
+                self.common_receipts.lock().await.ground_source =
+                    Some(crate::client::ValueSource::Predicted);
+                self.common_control.lock().await.install_finite(
+                    crate::client::motion_executor::FiniteMotion::new(
+                        crate::MinecraftVersion::Java1_16_1,
+                        run.record.run_id,
+                        run.record.session.world_generation,
+                        run.record.preview.initial_frame.clone(),
+                    ),
+                );
+                if let Some(previous) = self.common_motion.lock().await.replace(run.clone()) {
+                    *self.retired_common_motion.lock().await = Some(previous.record);
+                }
                 let owner = self.clone_internal();
                 let record = run.record.clone();
                 // No await between retaining the intent and spawning its finite owner.
                 self.spawn_finite(async move {
                     if let Err(error) = owner.run_common_path(run.clone(), revision).await {
                         let _ = crate::client::ledger::finite::checked::<(), _>(Err(&error));
-                        let _ = crate::client::ledger::finite::checked::<(), _>(Err(&error));
-                        let _gate = owner.coherent_state_gate.lock().await;
-                        if let Some(current) = owner
-                            .common_motion
-                            .lock()
-                            .await
-                            .as_mut()
-                            .filter(|current| current.record.run_id == run.record.run_id)
-                        {
-                            current.record.status = MotionStatus::RequiresInspection;
-                            current
-                                .record
-                                .problem
-                                .get_or_insert_with(|| error.to_string());
-                        }
                     }
                 });
                 Ok(record)
@@ -1657,14 +1774,15 @@ pub(super) mod tests {
             MotionStatus::RequiresInspection
         );
         bot.apply_packet(0x1e, creative).await.unwrap();
-        assert!(
-            client
-                .creative()
-                .start_predicted_path(&controls)
-                .await
-                .is_err()
-        );
-        assert!(packets.try_recv().is_err());
+        let fresh = client
+            .creative()
+            .start_predicted_path(&controls)
+            .await
+            .unwrap();
+        assert!(fresh.run_id > sent.run_id);
+        for _ in &controls {
+            assert_eq!(packets.recv().await.unwrap().0, 0x13);
+        }
         drop(release);
         drop(client);
         drop(bot);
@@ -1758,11 +1876,14 @@ pub(super) mod tests {
         bot.apply_packet(0x46, velocity).await.unwrap();
         let record = bot.motion_record().await.unwrap().unwrap();
         assert_eq!(record.status, MotionStatus::RequiresInspection);
-        assert!(
-            bot.start_predicted_path(GameMode::Survival, &controls)
-                .await
-                .is_err()
-        );
+        let fresh = bot
+            .start_predicted_path(GameMode::Survival, &controls)
+            .await
+            .unwrap();
+        assert!(fresh.run_id > record.run_id);
+        for _ in &controls {
+            assert_eq!(packets.recv().await.unwrap().0, 0x13);
+        }
         drop(release);
         drop(bot);
         server.await.unwrap();
@@ -1823,5 +1944,150 @@ pub(super) mod tests {
         drop(release);
         drop(bot);
         server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn executor_interruptions_release_actor_discard_tail_and_fence_stale_workers() {
+        use crate::client::adapter::ControlOps;
+        for cause in ["correction", "impulse", "terrain", "world"] {
+            for sent in [1, 2] {
+                // immediately before / after the second tick
+                let (bot, mut packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                seed_motion(&bot).await;
+                bot.player.lock().await.entity_id = Some(42);
+                let controls: Vec<_> = (0..35)
+                    .map(|tick| SurvivalControl {
+                        yaw: 0.0,
+                        input: crate::client::survival::SurvivalInput {
+                            forward: i8::from(tick < 10),
+                            ..Default::default()
+                        },
+                    })
+                    .collect();
+                let old = bot
+                    .start_predicted_path(GameMode::Survival, &controls)
+                    .await
+                    .unwrap();
+                for _ in 0..sent {
+                    assert_eq!(packets.recv().await.unwrap().0, 0x13);
+                }
+                let stale = bot.common_motion.lock().await.clone().unwrap();
+                match cause {
+                    "correction" => {
+                        let mut pose = Vec::new();
+                        for v in [9.5f64, 65.0, 8.5] {
+                            pose.extend(v.to_be_bytes());
+                        }
+                        pose.extend([0; 8]);
+                        pose.extend([0, 1]);
+                        bot.apply_packet(0x35, pose).await.unwrap();
+                        // Teleport confirmation and protocol position echo, not old run tail.
+                        assert_eq!(packets.recv().await.unwrap().0, 0x00);
+                        assert_eq!(packets.recv().await.unwrap().0, 0x13);
+                    }
+                    "impulse" => {
+                        let mut velocity = vec![42];
+                        velocity.extend(800i16.to_be_bytes());
+                        velocity.extend([0; 4]);
+                        bot.apply_packet(0x46, velocity).await.unwrap();
+                    }
+                    "terrain" => {
+                        let _gate = bot.coherent_state_gate.lock().await;
+                        bot.world
+                            .lock()
+                            .await
+                            .set_block_for_test(BlockPos { x: 8, y: 65, z: 10 }, 1);
+                    }
+                    _ => {
+                        bot.common_receipts.lock().await.selected_hotbar =
+                            Some(crate::client::received(0, 1));
+                        let mut respawn = Vec::new();
+                        put_string(&mut respawn, "minecraft:overworld");
+                        put_string(&mut respawn, "new-world");
+                        respawn.extend(0i64.to_be_bytes());
+                        respawn.extend([0, 0, 0, 0, 1]);
+                        bot.apply_packet(0x3a, respawn).await.unwrap();
+                        assert_eq!(packets.recv().await.unwrap().0, 0x24);
+                        seed_motion(&bot).await;
+                        *bot.positioned.lock().await = true;
+                        bot.common_receipts.lock().await.position_source =
+                            Some(crate::client::ValueSource::Received { sequence: 1 });
+                    }
+                }
+                timeout(Duration::from_secs(2), async {
+                    while bot.common_control.lock().await.finite.is_some() {
+                        tokio::time::sleep(Duration::from_millis(5)).await;
+                    }
+                })
+                .await
+                .unwrap();
+                let interrupted = bot.motion_record().await.unwrap().unwrap();
+                assert_eq!(
+                    interrupted.status,
+                    MotionStatus::RequiresInspection,
+                    "{cause}"
+                );
+                assert_eq!(interrupted.run_id, old.run_id);
+                assert_eq!(
+                    interrupted.dispatched_ticks, sent,
+                    "old tail was sent: {cause}"
+                );
+                assert!(
+                    packets.try_recv().is_err(),
+                    "unexpected old-tail packet: {cause}"
+                );
+                // Same actor accepts a fresh strict run, including current momentum.
+                let rest: Vec<_> = (0..35)
+                    .map(|tick| SurvivalControl {
+                        yaw: 180.0,
+                        input: crate::client::survival::SurvivalInput {
+                            forward: i8::from(tick < 5),
+                            ..Default::default()
+                        },
+                    })
+                    .collect();
+                let next = bot
+                    .start_predicted_path(GameMode::Survival, &rest)
+                    .await
+                    .unwrap_or_else(|e| panic!("{cause}/{sent}: {e}"));
+                assert!(next.run_id > old.run_id);
+                let current_velocity = bot.motion.lock().await.velocity;
+                assert_eq!(
+                    next.preview.initial_frame.velocity,
+                    [current_velocity.x, current_velocity.y, current_velocity.z]
+                );
+                let before = bot.common_motion.lock().await.clone().unwrap().record;
+                assert!(bot.run_common_path(stale, 0).await.is_err());
+                assert_eq!(
+                    bot.common_motion
+                        .lock()
+                        .await
+                        .as_ref()
+                        .unwrap()
+                        .record
+                        .run_id,
+                    before.run_id
+                );
+                for _ in &rest {
+                    assert_eq!(packets.recv().await.unwrap().0, 0x13);
+                }
+                timeout(Duration::from_secs(1), async {
+                    while bot.common_control.lock().await.finite.is_some() {
+                        tokio::task::yield_now().await;
+                    }
+                })
+                .await
+                .unwrap();
+                let control = bot
+                    .start_path_best_effort(GameMode::Survival, &rest[..2])
+                    .await
+                    .unwrap();
+                assert!(control.session_id > 0);
+                bot.stop_control().await.unwrap();
+                drop(release);
+                drop(bot);
+                server.await.unwrap();
+            }
+        }
     }
 }

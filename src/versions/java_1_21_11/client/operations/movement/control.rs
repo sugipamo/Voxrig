@@ -98,11 +98,13 @@ pub enum StandingPositionBasis {
         /// Position packet ordinal; no server-rest acknowledgement is implied.
         receive_sequence: u64,
     },
-    /// A fully dispatched dry-cube prediction, without independent corroboration.
+    /// A completely submitted dry-cube model, without independent corroboration.
+    /// This numerical basis is independent of a retained run's success status;
+    /// an interrupted run's sent prefix can still seed a new checked preview.
     Predicted {
-        /// Connection-local run identity.
+        /// Connection-local originating run identity (diagnostic, not authority).
         run_id: u64,
-        /// Simulated rest and next-tick gravity velocity.
+        /// Last complete model frame, including current momentum.
         predicted: PredictedMotionFrame,
         /// Last own pose receipt before this run, not a receipt of its endpoint.
         received_pose_sequence: u64,
@@ -147,6 +149,17 @@ impl StandingPositionBasis {
     }
 }
 fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
+    if matches!(
+        r.status,
+        SurvivalMotionStatus::Running | SurvivalMotionStatus::AwaitingObservation
+    ) && state
+        .control
+        .finite
+        .as_ref()
+        .is_none_or(|f| !f.authorizes(r.run_id, r.generation))
+    {
+        return Err(invalid("finite generation invalidated"));
+    }
     let before = &r.preview.initial.player;
     let now = &state.operations.local_player;
     if state.loading.generation != r.generation
@@ -190,7 +203,7 @@ pub(in super::super::super) fn standing_basis(state: &State) -> Result<StandingP
         ));
     }
     if let Some(r) = &state.survival_motion {
-        if !r.status.is_continuation_candidate() {
+        if !r.status.is_continuation_candidate() && state.control.finite.is_some() {
             return Err(invalid(
                 "survival motion has no settled continuation candidate; inspect retained run",
             ));
@@ -198,13 +211,17 @@ pub(in super::super::super) fn standing_basis(state: &State) -> Result<StandingP
         if r.status == SurvivalMotionStatus::Predicted {
             return predicted_basis(state, r);
         }
-        let watch = r
-            .final_watch
-            .as_ref()
-            .ok_or_else(|| invalid("motion observation watch missing"))?;
-        return observed_basis(state, r, watch);
+        if r.status.is_continuation_candidate() {
+            let watch = r
+                .final_watch
+                .as_ref()
+                .ok_or_else(|| invalid("motion observation watch missing"))?;
+            return observed_basis(state, r, watch);
+        }
     }
-
+    if let Some(basis) = super::super::continuous::current_model_basis(state) {
+        return Ok(basis);
+    }
     if state
         .motion
         .received_position(state.loading.generation, state.position)
@@ -526,6 +543,23 @@ impl Operations {
                         state.retired_common_motion = Some(retired);
                     }
                 }
+                state
+                    .control
+                    .install_finite(crate::client::motion_executor::FiniteMotion::new(
+                        crate::MinecraftVersion::Java1_21_11,
+                        record.run_id,
+                        record.generation,
+                        record.preview.initial_frame.clone(),
+                    ));
+                if let Some(previous) = state
+                    .survival_motion
+                    .as_ref()
+                    .filter(|r| r.common_initial.is_some())
+                {
+                    if common_mode.is_some() {
+                        state.retired_common_motion = Some(common_record(previous.clone())?);
+                    }
+                }
                 state.survival_motion = Some(record.clone());
                 let owner = self.clone();
                 let observer = observer.cloned();
@@ -537,16 +571,6 @@ impl Operations {
                         .await
                     {
                         let _ = crate::client::ledger::finite::checked::<(), _>(Err(&error));
-                        let mut state = owner.bot.session.state.lock().await;
-                        if let Some(r) = state
-                            .survival_motion
-                            .as_mut()
-                            .filter(|r| r.run_id == running.run_id)
-                        {
-                            r.status = SurvivalMotionStatus::RequiresInspection;
-                            r.problem = Some(error.to_string());
-                        }
-                        owner.bot.session.changed.notify_waiters();
                     }
                 });
                 Ok(record)
@@ -560,13 +584,87 @@ impl Operations {
         state.inspect_motion(self.bot.session.stopped.load(Ordering::Acquire));
         state.survival_motion.clone()
     }
-    pub(in super::super) async fn run_survival_motion(
+    pub(in crate::versions::java_1_21_11::client) async fn run_survival_motion(
         &self,
         run: &SurvivalMotionRecord,
         observer: Option<&Operations>,
         uuid: [u8; 16],
     ) -> Result<()> {
-        let mut model = Model::from_context(&run.preview.initial);
+        let result = self.run_survival_motion_inner(run, observer, uuid).await;
+        let mut state = self.bot.session.state.lock().await;
+        let problem = result.as_ref().err().map(ToString::to_string);
+        self.terminate_finite(&mut state, run, problem.as_deref())
+            .await?;
+        self.bot.session.changed.notify_waiters();
+        result
+    }
+    async fn terminate_finite(
+        &self,
+        state: &mut State,
+        run: &SurvivalMotionRecord,
+        problem: Option<&str>,
+    ) -> Result<()> {
+        let Some(finite) = state
+            .control
+            .finite
+            .as_mut()
+            .filter(|f| f.owns(run.run_id, run.generation))
+        else {
+            return Ok(());
+        };
+        finite.valid = false; // no future send, even if release fails (K1 stays held)
+        if let Some(record) = state
+            .survival_motion
+            .as_mut()
+            .filter(|r| r.run_id == run.run_id && r.generation == run.generation)
+        {
+            if let Some(problem) = problem {
+                record.status = SurvivalMotionStatus::RequiresInspection;
+                record.problem.get_or_insert_with(|| problem.into());
+            }
+        }
+        // All sends and packet receipt application share State. This awaited
+        // neutral write fences INPUT/POSITION; never write an old-world release.
+        if state.loading.generation == run.generation
+            && state.motion.position_basis != PositionBasis::PendingSubmission
+        {
+            self.ready(state)?;
+            let dispatched = state.survival_motion.as_ref().unwrap().dispatched_ticks;
+            if dispatched > 0
+                && run.preview.controls[usize::from(dispatched) - 1].input
+                    != SurvivalInput::default()
+            {
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::PLAYER_INPUT, &[0])
+                    .await?;
+            }
+        } else if state.loading.generation == run.generation {
+            return Err(invalid(
+                "finite write termination unconfirmed; connection inspection required",
+            ));
+        }
+        let finite = state.control.finite.take().unwrap();
+        if state.loading.generation == run.generation {
+            let received = super::super::continuous::received(state);
+            let attempt = state.motion.last_submission.as_ref().map(|s| s.attempt_id);
+            state.control.adopt_finite(
+                finite,
+                &received,
+                state.rotation,
+                state.operations.game_mode.unwrap_or(GameMode::Survival),
+                attempt,
+            );
+        }
+        sync_landing_motion(state);
+        Ok(())
+    }
+    async fn run_survival_motion_inner(
+        &self,
+        run: &SurvivalMotionRecord,
+        observer: Option<&Operations>,
+        uuid: [u8; 16],
+    ) -> Result<()> {
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         for (control, expected) in run.preview.controls.iter().zip(&run.preview.frames) {
@@ -603,6 +701,27 @@ impl Operations {
             {
                 return Err(invalid("motion reconstruction incomplete"));
             }
+            let mut finite = state
+                .control
+                .finite
+                .take()
+                .ok_or_else(|| invalid("finite executor missing"))?;
+            let check = finite.recheck(
+                |p| state.block(p),
+                &run.preview.controls[usize::from(finite.model.frame.tick)..],
+                &run.preview.frames[usize::from(finite.model.frame.tick)..],
+                state.world.revision,
+            );
+            state.control.finite = Some(finite);
+            check?;
+            let mut model = state
+                .control
+                .finite
+                .as_ref()
+                .filter(|f| f.authorizes(run.run_id, run.generation))
+                .ok_or_else(|| invalid("finite generation invalidated"))?
+                .model
+                .clone();
             let proposed = model.intent(input, control.yaw);
             let boxes = geometry(&*state, model.frame.position, proposed)?;
             model.advance(input, proposed, &boxes);
@@ -625,6 +744,12 @@ impl Operations {
                 .session
                 .send(ids::play_serverbound::PLAYER_INPUT, &[input_bits(input)])
                 .await?;
+            #[cfg(test)]
+            if let Some((entered, resume)) = &state.control.finite.as_ref().unwrap().between_packets
+            {
+                entered.notify_one();
+                resume.notified().await;
+            }
             let payload = position_packet(expected, rotation);
             self.bot
                 .session
@@ -633,6 +758,7 @@ impl Operations {
             state.position = Some(expected.position);
             state.rotation = rotation;
             state.motion.dispatched();
+            state.control.finite.as_mut().unwrap().model = model;
             state.motion.on_ground = Some(expected.on_ground);
             state.survival_motion.as_mut().unwrap().dispatched_ticks = expected.tick;
             sync_landing_motion(&state);
@@ -907,6 +1033,29 @@ fn common_record(record: SurvivalMotionRecord) -> Result<crate::client::survival
         status: record.status,
         problem: record.problem,
     })
+}
+
+/// Packet application holds the same State lock used across the entire
+/// INPUT/POSITION write pair. Once revoked this run can never authorize a send.
+pub(in super::super) fn finite_context_received(state: &mut State) {
+    let problem = state
+        .survival_motion
+        .as_ref()
+        .filter(|r| {
+            state
+                .control
+                .finite
+                .as_ref()
+                .is_some_and(|f| f.authorizes(r.run_id, r.generation))
+        })
+        .and_then(|r| stable_context(state, r).err());
+    if let Some(problem) = problem {
+        state.control.finite.as_mut().unwrap().valid = false;
+        if let Some(run) = &mut state.survival_motion {
+            run.status = SurvivalMotionStatus::RequiresInspection;
+            run.problem.get_or_insert_with(|| problem.to_string());
+        }
+    }
 }
 
 impl State {

@@ -151,6 +151,14 @@ impl Operations {
                 .as_ref()
                 .ok_or_else(|| unavailable("landing identity unavailable"))?
                 .uuid;
+            state
+                .control
+                .install_finite(crate::client::motion_executor::FiniteMotion::new(
+                    crate::MinecraftVersion::Java1_21_11,
+                    run.run_id,
+                    run.generation,
+                    run.preview.initial_frame.clone(),
+                ));
             state.survival_motion = Some(run.clone());
             drop(state);
             self.run_survival_motion(&run, None, uuid).await

@@ -1187,13 +1187,15 @@ impl MotionGate {
                 let _ = reply.send(result);
             }
             MotionCommand::Finish { run_id, reply } => {
-                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
-                    if self.owner != Some(Owner::Motion(run_id)) {
-                        return Err(OperationAdmissionError::InvalidOperation);
-                    }
+                // Termination performs no game mutation. It must release the old
+                // owner even while a received world transition suspends Normal
+                // admission. Actor order confirms every prior write has ended.
+                let result = if self.owner == Some(Owner::Motion(run_id)) {
                     self.owner = None;
                     Ok(())
-                });
+                } else {
+                    Err(OperationAdmissionError::InvalidOperation)
+                };
                 let _ = reply.send(result);
             }
         }

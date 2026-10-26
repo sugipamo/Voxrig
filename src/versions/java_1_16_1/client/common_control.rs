@@ -13,7 +13,8 @@ use std::time::Duration;
 
 /// The connection's continuous control session.
 #[derive(Default)]
-pub(crate) struct ContinuousControl {
+pub(crate) struct MotionExecutor {
+    pub(in crate::versions) finite: Option<crate::client::motion_executor::FiniteMotion>,
     session: Option<ControlSession>,
     next_id: u64,
     jump_work: Option<crate::client::ledger::WorkGuard>,
@@ -22,7 +23,16 @@ pub(crate) struct ContinuousControl {
     flight_disabled: Option<(u64, u64)>,
 }
 
-impl ContinuousControl {
+impl MotionExecutor {
+    pub(in crate::versions) fn install_finite(
+        &mut self,
+        finite: crate::client::motion_executor::FiniteMotion,
+    ) {
+        assert!(!self.active(), "motion executor already owned");
+        self.session = None;
+        self.finite = Some(finite);
+    }
+
     pub(super) fn observe_gliding(&mut self, value: bool, sequence: u64) {
         if let Some(owner) = &mut self.session {
             owner.observe_gliding(value, sequence);
@@ -40,7 +50,7 @@ impl ContinuousControl {
         }
     }
     pub(crate) fn active(&self) -> bool {
-        self.session.as_ref().is_some_and(ControlSession::running)
+        self.finite.is_some() || self.session.as_ref().is_some_and(ControlSession::running)
     }
     /// A release was sent: the running session stops applying the item-use slowdown.
     pub(crate) fn item_released(&mut self, received: &Received) {

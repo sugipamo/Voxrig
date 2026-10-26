@@ -1,5 +1,6 @@
 mod entity_at;
 mod explosion;
+mod motion_executor;
 use super::*;
 
 #[tokio::test]
@@ -2466,18 +2467,22 @@ async fn creative_ground_motion_keeps_mode_and_prediction_contract() {
         )
         .unwrap();
     }
-    assert!(
-        client
-            .creative()
-            .start_predicted_path(&controls)
-            .await
-            .is_err()
-    );
-    assert!(
-        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
-            .await
-            .is_err()
-    );
+    let fresh = client
+        .creative()
+        .start_predicted_path(&controls)
+        .await
+        .unwrap();
+    assert!(fresh.run_id > sent.run_id);
+    for _ in &controls {
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap().0,
+            ids::play_serverbound::PLAYER_INPUT
+        );
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap().0,
+            ids::play_serverbound::POSITION_LOOK
+        );
+    }
 }
 
 #[tokio::test(start_paused = true)]

@@ -264,3 +264,14 @@ eye height不明時でも、受信済みrangeと水平距離だけで確定す�
 START ACK欠落/STOP後のdeadline、実際のblock置換、K1維持とstrict互換性を検査した。
 再現にはnative featureでbuildした `body_probe` と `scripts/run_dig_estimate_live.py` を使う。
 modded stateは公式serverには存在しないため実機では作らず、未知hardnessの判定はunitで検査する。
+
+## Motion executorとの所有権境界
+
+有限strictとBody／best-effortの現在model・実行権はconnectionのmotion executorが所有する。
+`MotionRecord`の検査結果は実行権ではない。受信correction／impulseを最優先し、
+その後の完全送信状態はSubmitted／Predictedのmodelとして継承する（Receivedへ昇格しない）。
+補正・world変更・strict preview検査失敗でrun／world generationを同じsend lock内で失効する。
+必要なneutral writeとlegacy actor終了ACKが完了してから次ownerを認め、旧workerの終了は新ownerに作用しない。
+world変更後の旧入力解放は送らず、partial writeのK1と欠測・未監査K2の拒否は維持する。
+再導出は近傍地形と現在pose／momentumから行い、strict previewだけが最大120tick分の計算を行う。
+Golemkitの運用API、既存strictの引数・結果型・成功／observer証明条件は変更しない。
