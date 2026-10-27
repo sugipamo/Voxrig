@@ -178,7 +178,7 @@ pub(crate) trait EventOps {
     ) -> Result<super::explosions::ExplosionLog> {
         Err(crate::Error::new(
             crate::ErrorKind::Unsupported,
-            anyhow::anyhow!("explosion observation requires Java 1.21.11"),
+            anyhow::anyhow!("explosion observation is unsupported by this adapter"),
         ))
     }
     async fn effects_after(&self, _after_sequence: u64) -> Result<super::effects::EffectLog> {

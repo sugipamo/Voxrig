@@ -36,7 +36,7 @@ loop {
 
 | `EventKind` | 1.16.1（既存`Event`からの対応） | 1.21.11（パケット） |
 | --- | --- | --- |
-| `BlocksChanged { min, max }` | `BlockChanged`、`BlockEntityUpdated`、multi-block変更（変更位置の範囲） | `BLOCK_CHANGE`、`TILE_ENTITY_DATA`、`MULTI_BLOCK_CHANGE`（section全体の範囲） |
+| `BlocksChanged { min, max }` | `BlockChanged`、`BlockEntityUpdated`、multi-block変更、爆発の非空消失座標一覧（変更位置の範囲） | `BLOCK_CHANGE`、`TILE_ENTITY_DATA`、`MULTI_BLOCK_CHANGE`（section全体の範囲） |
 | `ChunkLoaded` / `ChunkUnloaded` | `ChunkLoaded` / `ChunkUnloaded` | `MAP_CHUNK` / `UNLOAD_CHUNK` |
 | `InventoryChanged` | `InventoryUpdated`、`SlotUpdated`、`HeldItemChanged` | window 0の`WINDOW_ITEMS`/`SET_SLOT`、`SET_PLAYER_INVENTORY`、`SET_CURSOR_ITEM`、`HELD_ITEM_SLOT` |
 | `ScreenChanged` | `WindowOpened`、`WindowClosed`、`WindowProperty`、`MerchantOffers` | それ以外のwindowの`WINDOW_ITEMS`/`SET_SLOT`、`OPEN_WINDOW`、`CLOSE_WINDOW`、`CRAFT_PROGRESS_BAR` |
@@ -47,7 +47,7 @@ loop {
 | `UiChanged` | `UiStateUpdated`、`PlayerListUpdated` | scoreboard・boss bar・teams・player info・title・tab list・world borderの各パケット |
 | `ResourcePackRequested { uuid }` | この共通通知は未対応 | configuration・playの`ADD_RESOURCE_PACK`。最新の要求は[`resource_pack_request`](common-resource-packs.md)で読む |
 | `CodeOfConductReceived` | このpacketは存在しない | configurationの`CODE_OF_CONDUCT`。最新の本文は[`code_of_conduct`](common-code-of-conduct.md)で読む。自動acceptの受理通知ではない |
-| `ExplosionReceived` | この共通通知は未対応 | `EXPLOSION`。payloadは[`explosions_after`](common-explosions.md) |
+| `ExplosionReceived` | `Explosion`。消失座標・運動量は[`explosions_after`](common-explosions.md) | `EXPLOSION`。payloadは同API |
 | `SoundReceived` / `SoundStopped` | この共通通知は未対応 | `SOUND` / `SOUND_ENTITY` / `STOP_SOUND` |
 | `ParticlesReceived` | この共通通知は未対応 | `LEVEL_PARTICLES` |
 | `LevelEventReceived` | この共通通知は未対応 | `LEVEL_EVENT`（world event） |

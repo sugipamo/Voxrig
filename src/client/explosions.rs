@@ -8,7 +8,9 @@ use std::collections::VecDeque;
 
 /// Maximum retained explosion packets per connection.
 pub const MAX_RETAINED_EXPLOSIONS: usize = 1024;
-/// Maximum decompressed explosion payload size, in bytes.
+/// Maximum total retained Java 1.16.1 affected-block positions per connection.
+pub const MAX_RETAINED_EXPLOSION_BLOCKS: usize = 65_536;
+/// Maximum decompressed Java 1.21.11 explosion payload size, in bytes.
 pub const MAX_EXPLOSION_PACKET_BYTES: usize = 16_384;
 
 /// Native particle type and options, without rendering.
@@ -31,10 +33,16 @@ pub struct ExplosionBlockParticle {
     /// Original nonnegative selection weight; zero is retained.
     pub weight: i32,
 }
-/// Presentation is separate from the optional impulse applied to the player.
+/// Version-specific context, separate from the impulse applied to the player.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub enum ExplosionPresentation {
+    /// Java 1.16.1 has no particle/sound fields. These are the received block
+    /// positions applied as air, in packet order, including duplicates.
+    Java1_16_1 {
+        /// Absolute positions, relative offsets decoded against the floored center.
+        affected_blocks: Vec<[i32; 3]>,
+    },
     /// All presentation fields decoded with the version's particle table.
     Decoded {
         /// Main explosion particle.
@@ -52,19 +60,21 @@ pub enum ExplosionPresentation {
         bytes: Vec<u8>,
     },
 }
-/// Original Java 1.21.11 explosion fields. Receipt does not prove destroyed blocks.
+/// Original explosion fields; interpretation depends on the received version.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ExplosionObservation {
     /// Explosion center, in blocks.
     pub center: [f64; 3],
     /// Original radius parameter.
     pub radius: f32,
-    /// Original signed block count, not a list of destroyed block positions.
+    /// Original signed block count. In Java 1.16.1 this is the position list length;
+    /// in Java 1.21.11 it does not establish destroyed block positions.
     pub block_count: i32,
-    /// Original optional player knockback. None and Some([0.0; 3]) are distinct.
+    /// Original player knockback; always Some in Java 1.16.1.
+    /// None and Some([0.0; 3]) are distinct in Java 1.21.11.
     /// This is an impulse, not a replacement velocity or an estimated displacement.
     pub player_knockback: Option<[f64; 3]>,
-    /// Presentation context, which does not determine the player's impulse.
+    /// Version-specific block/presentation context, independent of player impulse.
     pub presentation: ExplosionPresentation,
 }
 /// Immutable observation with receive order and world ownership.
@@ -86,9 +96,10 @@ pub struct ExplosionLog {
     pub explosions: Vec<ReceivedExplosion>,
 }
 impl crate::Client {
-    /// Read Java 1.21.11 explosions after a receive sequence (initially 0).
+    /// Read received explosions after a receive sequence (initially 0).
     /// Readable after disconnect. Retention gaps return `State`; future cursors
-    /// return `InvalidInput`. Java 1.16.1 returns `Unsupported`. Sends no packets.
+    /// return `InvalidInput`. Java 1.16.1 includes applied block positions and a
+    /// mandatory impulse; Java 1.21.11 includes presentation. Sends no packets.
     pub async fn explosions_after(&self, after_sequence: u64) -> Result<ExplosionLog> {
         super::dispatch!(&self.adapter, a => super::adapter::EventOps::explosions_after(a, after_sequence).await)
     }
@@ -97,16 +108,24 @@ impl crate::Client {
 pub(crate) struct ExplosionLedger {
     records: VecDeque<ReceivedExplosion>,
     dropped_through: u64,
+    retained_blocks: usize,
 }
 impl ExplosionLedger {
     pub(crate) fn record(&mut self, record: ReceivedExplosion) {
+        self.retained_blocks += Self::block_count(&record);
         self.records.push_back(record);
-        if self.records.len() > MAX_RETAINED_EXPLOSIONS {
-            self.dropped_through = self
-                .records
-                .pop_front()
-                .expect("nonempty explosions")
-                .receive_sequence;
+        while self.records.len() > MAX_RETAINED_EXPLOSIONS
+            || self.retained_blocks > MAX_RETAINED_EXPLOSION_BLOCKS
+        {
+            let dropped = self.records.pop_front().expect("nonempty explosions");
+            self.retained_blocks -= Self::block_count(&dropped);
+            self.dropped_through = dropped.receive_sequence;
+        }
+    }
+    fn block_count(record: &ReceivedExplosion) -> usize {
+        match &record.explosion.presentation {
+            ExplosionPresentation::Java1_16_1 { affected_blocks } => affected_blocks.len(),
+            _ => 0,
         }
     }
     pub(crate) fn after(&self, after_sequence: u64, receive_sequence: u64) -> Result<ExplosionLog> {

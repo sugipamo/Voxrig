@@ -55,7 +55,7 @@
 
 `EntityHistory`: 両版で8192件の受信履歴を保持し、1〜1024件ずつ読む。欠落とlifetimeを明示する。[詳細](common-entity-history.md)。
 
-`explosions_after`: Java 1.21.11限定の受信観測。optional impulseと表現文脈を分け、
-1024件の履歴に元ordinal・worldを保持する。1.16.1は`Unsupported`。
+`explosions_after`: 両版の受信観測。1024件の履歴に元ordinal・worldを保持する。
+1.16.1は消失座標一覧と必須impulse（位置は合計65,536件まで）、1.21.11はoptional impulseと表現文脈。
 同じworldの確定Ground ownerはimpulseを一度だけ加算する。Flight／Glide／vehicleや
 未decode・不確かなモデルでは移動中断を維持する。[詳細](common-explosions.md)。

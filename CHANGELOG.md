@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Java 1.16.1 explosions now emit common `BlocksChanged` bounds and
+  `ExplosionReceived` at the packet's application boundary. `explosions_after`
+  retains original context through the additive, version-specific
+  `ExplosionPresentation::Java1_16_1` variant, including affected positions and
+  mandatory impulse. Packet/position retention gaps are explicit `State` errors;
+  oversized observations do not add receive/send rejections. Existing signatures
+  and Java 1.21.11 behavior are unchanged. See [usage](docs/common-explosions.md).
+
 - Add common received-health cursor log and independent push subscriptions for
   Java 1.16.1 and 1.21.11, directly from update_health reducers. Atomic admission
   baseline/tail, bounded health-only retention, explicit lag, ordered world/close
