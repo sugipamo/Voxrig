@@ -67,12 +67,16 @@ pub(super) async fn drop_selected(
             let mut record = contract::prepare(initial, registries, mode, attempt, 0, amount)?;
             record.send.interaction_sequence = ops.next_sequence()?;
             let bytes = payload(amount, record.send.interaction_sequence);
-            let work = state.finite_work.begin(
-                &ops.bot.session.ledger,
-                crate::client::ledger::finite::Family::SelectedDrop,
-                attempt,
-            );
+            let family = crate::client::ledger::finite::Family::SelectedDrop;
+            let work = state
+                .finite_work
+                .begin(&ops.bot.session.ledger, family, attempt);
+            // Bounded like the inventory executor: an unanswered drop is unknown,
+            // not refused, so the retained owner fails the connection at expiry.
+            let deadline = tokio::time::Instant::now() + RESPONSE_DEADLINE;
+            record.deadline = Some(deadline);
             state.common_selected_drop = Some(record);
+            state.finite_work.expire_at(family, attempt, deadline);
             let result: Result<()> = work
                 .run(async {
                     ops.bot
@@ -116,9 +120,12 @@ pub(super) async fn drop_selected(
         .await
 }
 
+/// Response deadline for a drop or hand swap and its resync, as the inventory executor.
+pub(super) const RESPONSE_DEADLINE: Duration = Duration::from_secs(5);
+
 // Player screen 0; revision -1 (native revisions are 0..32767); slot -1;
 // left PICKUP; no changed slots; empty cursor hash as resync marker.
-const RESYNC_PAYLOAD: [u8; 12] = [0, 255, 255, 255, 255, 15, 255, 255, 0, 0, 0, 0];
+pub(super) const RESYNC_PAYLOAD: [u8; 12] = [0, 255, 255, 255, 255, 15, 255, 255, 0, 0, 0, 0];
 
 fn payload(amount: SelectedDropAmount, sequence: i32) -> Vec<u8> {
     // Native enum ordinals: DROP_ITEM=4, DROP_ALL_ITEMS=3.

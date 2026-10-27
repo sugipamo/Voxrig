@@ -42,7 +42,7 @@ def check(version, command, request, trace, report):
             baseline = until(before, 5)
             boundary = trace.mark()
             sent = request("swap_hands")
-            assert sent["send"]["dispatched"] and sent["stage"] == "pending"
+            assert sent["send"]["dispatched"] and sent["resync_dispatched"] and sent["stage"] == "pending"
 
             def completed():
                 record = request("hand_swap_record")
@@ -73,8 +73,11 @@ def check(version, command, request, trace, report):
             sequence, offset = trace.varint(bytes.fromhex(swaps[0]["body_hex"])[10:])
             assert sequence == sent["send"]["interaction_sequence"]
             assert offset + 10 == len(bytes.fromhex(swaps[0]["body_hex"]))
-            assert not any(f["direction"] == "serverbound" and f["phase"] == "play"
-                           and f["packet_id"] == 0x11 for f in frames), "hand swap sent a container click"
+            # One no-op full resync follows the swap frame (audit I7), as for selected drop.
+            refresh = [f for f in frames if f["direction"] == "serverbound" and f["phase"] == "play"
+                       and f["packet_id"] == 0x11]
+            assert len(refresh) == 1 and refresh[0]["body_hex"] == "00ffffffff0fffff00000000", refresh
+            assert refresh[0]["ordinal"] > swaps[0]["ordinal"]
             report["checks"].append(dict(mode=mode, main=main, offhand=offhand,
                                          before=baseline, sent=sent, complete=complete,
                                          native=native, frames=frames))

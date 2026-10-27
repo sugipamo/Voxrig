@@ -55,6 +55,15 @@ pub enum SelectedDropStage {
     ObservedDecreased,
     /// First conflict or uncertain submission, retained even after restoration.
     RequiresInspection,
+    /// Complete drop/resync frames, then one fresh full player-contents boundary
+    /// (every slot and the cursor at one receive ordinal after the send) still shows
+    /// the selected stack and cursor equal to their pre-send values. The server
+    /// processed the drop without effect. Terminal; releases the inventory owner.
+    ObservedUnchanged,
+    /// Still `Pending` at the bounded response deadline. The outcome is unknown and
+    /// the server may still apply it; this is not a refusal. Terminal: the connection
+    /// ledger fails with `TransactionExpired`, so later work needs a new connection.
+    Expired,
 }
 
 /// Historical selected-stack drop, readable without submitting another action.
@@ -82,18 +91,45 @@ pub struct SelectedDropRecord {
     pub main_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// First conflict, never cleared by a later matching packet.
     pub requires_inspection: Option<String>,
+    /// Receive ordinal of the full player contents that showed no effect.
+    /// Set only together with `ObservedUnchanged`.
+    pub unchanged_boundary: Option<u64>,
     /// Outcome separate from current inventory state.
     pub stage: SelectedDropStage,
     #[serde(skip)]
     context: ItemContext,
+    /// Absolute response deadline, set when the record is retained for I/O.
+    #[serde(skip)]
+    pub(crate) deadline: Option<tokio::time::Instant>,
 }
 
 impl SelectedDropRecord {
+    /// Blocks other inventory owners. `Expired` keeps blocking; its connection is failed.
     pub(crate) fn unresolved(&self) -> bool {
-        self.stage != SelectedDropStage::ObservedDecreased
+        !matches!(
+            self.stage,
+            SelectedDropStage::ObservedDecreased | SelectedDropStage::ObservedUnchanged
+        )
+    }
+    fn open(&self) -> bool {
+        matches!(
+            self.stage,
+            SelectedDropStage::Pending | SelectedDropStage::RequiresInspection
+        )
+    }
+    /// `Pending` past its deadline becomes `Expired` before any later evidence is read.
+    pub(crate) fn expire_due(&mut self) {
+        if self.stage == SelectedDropStage::Pending
+            && self
+                .deadline
+                .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
+        {
+            self.stage = SelectedDropStage::Expired;
+        }
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
-        if self.unresolved() {
+        self.expire_due();
+        if self.open() {
             self.requires_inspection
                 .get_or_insert_with(|| reason.to_string());
             self.stage = SelectedDropStage::RequiresInspection;
@@ -198,8 +234,10 @@ pub(crate) fn prepare(
         cursor_before,
         main_receipt: None,
         requires_inspection: None,
+        unchanged_boundary: None,
         stage: SelectedDropStage::Pending,
         context,
+        deadline: None,
     })
 }
 
@@ -208,12 +246,18 @@ pub(crate) fn receive(
     current: &PlayerObservation,
     registries: &ServerRegistryObservation,
 ) {
-    if !record.unresolved() {
+    record.expire_due();
+    if !record.open() {
         return;
     }
-    let result = receive_inner(record, current, registries);
-    if let Err(error) = result {
-        record.inspection(error);
+    match receive_inner(record, current, registries) {
+        Err(error) => record.inspection(error),
+        Ok(Some(boundary)) if record.requires_inspection.is_none() => {
+            record.unchanged_boundary = Some(boundary);
+            record.stage = SelectedDropStage::ObservedUnchanged;
+            return;
+        }
+        Ok(_) => {}
     }
     if record.send.dispatched
         && record.send.resync_dispatched
@@ -223,11 +267,12 @@ pub(crate) fn receive(
         record.stage = SelectedDropStage::ObservedDecreased;
     }
 }
+/// `Some(boundary)` when the resync's full contents show the drop had no effect.
 fn receive_inner(
     record: &mut SelectedDropRecord,
     current: &PlayerObservation,
     registries: &ServerRegistryObservation,
-) -> Result<()> {
+) -> Result<Option<u64>> {
     if !record.send.dispatched || !record.send.resync_dispatched {
         return Err(unavailable(
             "selected drop submission incomplete or cancelled; do not resend",
@@ -303,7 +348,16 @@ fn receive_inner(
                     "selected drop destination conflicts with retained drop",
                 ));
             }
+            // Vanilla handles PLAYER_ACTION before the following resync click, so
+            // its full contents are the processed boundary for this drop.
+            if receipt.is_none()
+                && was_before
+                && super::hands::full_boundary(current, record.send.after_sequence)
+                    == Some(sequence)
+            {
+                return Ok(Some(sequence));
+            }
         }
     }
-    Ok(())
+    Ok(None)
 }
