@@ -5927,6 +5927,7 @@ mod single_owner {
         script::pickup_matrix(&mut f).await;
         script::missing_response_resync_and_late_response(&mut f).await;
         script::collect_and_external_log(&mut f).await;
+        script::no_effect_click_and_transfer(&mut f).await;
         crate::client::inventory::armor_tests::install(
             &mut f.api.bot.session.state.lock().await.registries,
             MinecraftVersion::Java1_21_11,

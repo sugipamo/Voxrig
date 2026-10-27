@@ -188,7 +188,8 @@ impl super::Survival {
     }
 
     /// One `click_inventory`, then wait until its record leaves `Pending`.
-    /// Anything but `ObservedClicked` is an error carrying the record's reason.
+    /// Anything but `ObservedClicked` is an error carrying the record's reason;
+    /// `ObservedUnchanged` (server-processed, no effect) is `Rejected`, never `Timeout`.
     async fn click_and_wait(
         &self,
         source: InventoryClickSource,
@@ -220,6 +221,14 @@ impl super::Survival {
         let stage = record.stage;
         let reason = record.requires_inspection.clone();
         clicks.push(record);
+        if stage == InventoryClickStage::ObservedUnchanged {
+            // The server processed the click and resent a full boundary equal
+            // to the pre-send inventory: a typed refusal, not a lost packet.
+            return Err(error(
+                ErrorKind::Rejected,
+                format!("click on slot {slot} had no effect: full received boundary unchanged"),
+            ));
+        }
         if stage != InventoryClickStage::ObservedClicked {
             return Err(error(
                 ErrorKind::Rejected,
@@ -628,6 +637,9 @@ async fn run_move(
                     .filter(|child| child.id == sent.id)
                     .ok_or_else(|| error(ErrorKind::State, "move child record replaced; inspect without replay"))?;
                 running.0.retain(latest);
+            }
+            if running.0.clicks.last().expect("retained child").stage == InventoryClickStage::ObservedUnchanged {
+                return Err(error(ErrorKind::Rejected, "move child had no effect: full received boundary unchanged; inspect cursor without rollback"));
             }
             if running.0.clicks.last().expect("retained child").stage != InventoryClickStage::ObservedClicked {
                 return Err(error(ErrorKind::Rejected, "move child requires inspection; inspect cursor without rollback"));

@@ -241,6 +241,10 @@ impl Bot {
             }
             let current = self.common_player_unlocked().await?;
             let screen = self.common_receipts.lock().await.screen(current.session);
+            // Read before the record lock; never nest the executor inside it.
+            let unchanged = lock_packet_state(&self.inventory_executor)
+                .await
+                .unchanged_boundary();
             let complete = {
                 let mut guard = super::lock_packet_state(&self.common_inventory_click).await;
                 let record = &mut guard.as_mut().expect("retained").record;
@@ -258,6 +262,8 @@ impl Bot {
                     record.inspection("click receipt deadline elapsed; inspect without replay");
                 }
                 click::receive_with_registries(record, &current, screen.as_ref(), &registries);
+                // After absorbing receipts: a fresh changed receipt wins.
+                record.observe_unchanged(unchanged);
                 // Complete at the receive boundary, before a later independent
                 // inventory update can overwrite this already-observed outcome.
                 // Inspection timing must not decide whether exact receipts count.

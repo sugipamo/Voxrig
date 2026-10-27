@@ -40,8 +40,44 @@ pub struct InventoryDivergence {
     pub intended: InventoryIntendedChange,
     /// Actual changes from the original received basis.
     pub actual: InventoryDelta,
-    /// Received explanations; multiple hints can coexist.
+    /// Received explanations; multiple hints can coexist. Empty when an
+    /// ordinary send had no observed effect and no hint was received.
     pub causes: Vec<InventoryCause>,
+}
+/// Observed effect of a diverged send at its full received boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum InventoryEffect {
+    /// The server-processed boundary still equals `before` at every captured
+    /// location, and every intended location was received. The send had no
+    /// observed effect (for example a vanilla refusal); no change is inferred
+    /// from a protocol bit such as a 1.16.1 negative comparison reply.
+    NoEffect,
+    /// Some received value differs from `before`, or an intended location is
+    /// still unknown. Compare `actual` with `intended`.
+    Different,
+}
+impl InventoryDivergence {
+    /// Classify `actual` at the response/full-state boundary that ended the send.
+    /// Derived only from received values; `causes` are not consulted.
+    pub fn effect(&self) -> InventoryEffect {
+        let intended = match &self.intended {
+            InventoryIntendedChange::Exact { delta } => delta,
+            InventoryIntendedChange::CraftingResult { cursor, .. } => cursor,
+        };
+        let received = intended.slots.iter().all(|slot| {
+            self.current.value(slot.location).is_some_and(|v| {
+                matches!(v.source, crate::client::ValueSource::Received { .. })
+                    && !matches!(v.value, SlotKnowledge::Unavailable)
+            })
+        });
+        if self.actual.slots.is_empty() && !intended.slots.is_empty() && received {
+            InventoryEffect::NoEffect
+        } else {
+            InventoryEffect::Different
+        }
+    }
 }
 #[derive(Clone)]
 pub(crate) struct Comparison {
@@ -224,18 +260,21 @@ impl Comparison {
         equal && !self.interrupted && !self.crafting
     }
     pub(crate) fn divergence(&self, current: InventorySnapshot) -> InventoryDivergence {
-        let mut causes = self.causes.clone();
-        if causes.is_empty() {
-            causes.push(InventoryCause::External);
-        }
-        InventoryDivergence {
+        let mut divergence = InventoryDivergence {
             send: self.send,
             before: self.before.clone(),
             actual: self.before.delta(&current),
             current,
             intended: self.intended.clone(),
-            causes,
+            causes: self.causes.clone(),
+        };
+        // An unchanged full boundary is the caller's own no-effect send, not an
+        // external change. Crafting keeps its fallback (strict take record owns it).
+        let unchanged = !self.crafting && divergence.effect() == InventoryEffect::NoEffect;
+        if divergence.causes.is_empty() && !unchanged {
+            divergence.causes.push(InventoryCause::External);
         }
+        divergence
     }
 }
 

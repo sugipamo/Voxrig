@@ -72,6 +72,8 @@ data付きcursorでは、保存した実revisionと異なる送信revisionを明
 この場合のEmpty比較markerを実カーソル値・カーソルhash・受信証拠として扱わない。
 
 `inventory_transfer_record()`の`ObservedTransferred`を確認してから次へ進む。
+send executorの応答・全量境界がI/O前の受信在庫と等しく`Diverged`/`NoEffect`で終わった場合は、
+changed slotのreceiptが一つもない記録を終端`ObservedUnchanged`にする（通常clickと同じ規則）。
 送信取消、world/mode/selection/元openingの変化、unplanned slot/cursorの変更、完了前の復元は
 `RequiresInspection`へ保持し、後で値が戻っても解消しない。完了履歴は切断後も保持する。
 legacyはactorが一度のwriteを所有する。modernの取消で未完了のwriteが残った場合も

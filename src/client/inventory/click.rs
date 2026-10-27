@@ -139,6 +139,10 @@ pub enum InventoryClickStage {
     ObservedClicked,
     /// First conflict or delivery uncertainty stays latched.
     RequiresInspection,
+    /// The send executor's response/full-state boundary still equals the
+    /// pre-send received inventory: the server processed the click without
+    /// an observed effect. Terminal; never inferred from a protocol bit alone.
+    ObservedUnchanged,
 }
 /// One retained ordinary click, accessible after cancellation/disconnection.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -192,7 +196,23 @@ impl InventoryClickRecord {
         }
     }
     pub(crate) fn unresolved(&self) -> bool {
-        self.stage != InventoryClickStage::ObservedClicked
+        !matches!(
+            self.stage,
+            InventoryClickStage::ObservedClicked | InventoryClickStage::ObservedUnchanged
+        )
+    }
+    /// Terminal when the executor proved `after` produced no observed effect.
+    /// A fresh changed receipt or a latched conflict keeps the existing stage.
+    pub(crate) fn observe_unchanged(&mut self, unchanged: Option<(SessionStamp, u64)>) {
+        if self.stage == InventoryClickStage::Pending
+            && self.send.dispatched
+            && self.requires_inspection.is_none()
+            && self.source_receipt.is_none()
+            && self.cursor_receipt.is_none()
+            && unchanged == Some((self.initial.session, self.send.after_sequence))
+        {
+            self.stage = InventoryClickStage::ObservedUnchanged;
+        }
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
         if self.unresolved() {
@@ -1007,6 +1027,56 @@ mod tests {
             record.inspection("disconnect");
             assert_eq!(record.stage, InventoryClickStage::ObservedClicked);
             assert!(record.requires_inspection.is_none());
+        }
+    }
+
+    #[test]
+    fn unchanged_executor_boundary_ends_click_without_receipts() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut record = fixture(version);
+            let boundary = Some((record.initial.session, record.send.after_sequence));
+            // Fresh receipts equal to `before` are neither outcome nor conflict.
+            let mut unchanged = record.initial.clone();
+            unchanged.receive_sequence = 12;
+            unchanged.inventory.slots[9] = Some(crate::client::received(
+                record.source_before.value.clone(),
+                12,
+            ));
+            unchanged.inventory.cursor = Some(crate::client::received(
+                record.cursor_before.value.clone(),
+                12,
+            ));
+            record.observe_unchanged(boundary);
+            assert_eq!(record.stage, InventoryClickStage::Pending, "undispatched");
+            record.send.dispatched = true;
+            receive(&mut record, &unchanged, None);
+            assert_eq!(record.stage, InventoryClickStage::Pending);
+            let other = (record.initial.session, record.send.after_sequence + 1);
+            record.observe_unchanged(Some(other));
+            record.observe_unchanged(None);
+            assert_eq!(record.stage, InventoryClickStage::Pending);
+            record.observe_unchanged(boundary);
+            assert_eq!(record.stage, InventoryClickStage::ObservedUnchanged);
+            assert!(!record.unresolved() && !record.ready());
+            // Terminal: later receipts and inspection cannot rewrite it.
+            let changed = after(&record, 13);
+            receive(&mut record, &changed, None);
+            record.inspection("disconnect");
+            assert_eq!(record.stage, InventoryClickStage::ObservedUnchanged);
+            assert!(record.requires_inspection.is_none() && record.source_receipt.is_none());
+
+            // A fresh changed receipt or a latched conflict is never overridden.
+            let mut partial = fixture(version);
+            partial.send.dispatched = true;
+            let mut current = after(&partial, 11);
+            current.inventory.cursor = partial.initial.inventory.cursor.clone();
+            receive(&mut partial, &current, None);
+            assert!(partial.source_receipt.is_some());
+            partial.observe_unchanged(Some((partial.initial.session, partial.send.after_sequence)));
+            assert_eq!(partial.stage, InventoryClickStage::Pending);
+            partial.inspection("conflict");
+            partial.observe_unchanged(Some((partial.initial.session, partial.send.after_sequence)));
+            assert_eq!(partial.stage, InventoryClickStage::RequiresInspection);
         }
     }
 }

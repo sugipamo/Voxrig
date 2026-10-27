@@ -153,6 +153,7 @@ pub(crate) enum Case {
     MissingSource,
     MissingCursor,
     Rejection,
+    Unchanged,
     Replacement,
     Full,
     UnavailableCursor,
@@ -186,6 +187,7 @@ pub(crate) const CASES: &[Case] = &[
     Case::MissingSource,
     Case::MissingCursor,
     Case::Rejection,
+    Case::Unchanged,
     Case::Replacement,
     Case::Full,
     Case::UnavailableCursor,
@@ -370,6 +372,8 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
             assert_eq!(error.to_string(), "no storage room for the cursor");
             assert!(ops.inventory_click_record().await.unwrap().is_none());
         }
+        // Separate boxed future: this script's future is already large.
+        Case::Unchanged => return Box::pin(run_unchanged_case(fixture)).await,
         Case::UnavailableCursor => {
             slots[9] = plank(3);
             fixture.inventory(&slots, &empty).await;
@@ -516,6 +520,55 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
             }
         }
     }
+    fixture.no_packets().await;
+}
+
+// The server processes the click but its full boundary still equals the
+// pre-send inventory: a typed no-effect refusal, not a timeout.
+async fn run_unchanged_case(fixture: &mut impl Fixture) {
+    let client = fixture.client();
+    let ops = client.survival();
+    let empty = SlotKnowledge::Empty;
+    let mut slots = vec![empty.clone(); 46];
+    slots[9] = item(&client, "stone", 3);
+    fixture.inventory(&slots, &empty).await;
+    let mut records = Vec::new();
+    let mut helper = Box::pin(ops.click_and_wait(
+        InventoryClickSource::Player,
+        9,
+        InventoryClickButton::Left,
+        &mut records,
+    ));
+    let sent = click(
+        fixture,
+        helper.as_mut(),
+        None,
+        9,
+        InventoryClickButton::Left,
+    )
+    .await;
+    fixture.inventory(&slots, &empty).await;
+    fixture.reply(sent.send.legacy_action).await;
+    tokio::time::advance(Duration::from_millis(21)).await;
+    let error = ready(helper.as_mut()).await.unwrap_err();
+    drop(helper);
+    assert_eq!(error.kind(), ErrorKind::Rejected);
+    assert_eq!(
+        error.to_string(),
+        "click on slot 9 had no effect: full received boundary unchanged"
+    );
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].id, sent.id);
+    assert_eq!(records[0].stage, Stage::ObservedUnchanged);
+    assert!(records[0].requires_inspection.is_none());
+    assert!(records[0].source_receipt.is_none() && records[0].cursor_receipt.is_none());
+    // Terminal: a later receipt neither completes nor latches it.
+    fixture.slot(9, &empty).await;
+    fixture.cursor(&item(&client, "stone", 3)).await;
+    let latest = ops.inventory_click_record().await.unwrap().unwrap();
+    assert_eq!(latest.id, sent.id);
+    assert_eq!(latest.stage, Stage::ObservedUnchanged);
+    assert!(latest.requires_inspection.is_none());
     fixture.no_packets().await;
 }
 
