@@ -64,6 +64,16 @@ impl Bot {
             Some((acknowledgement.status, acknowledgement.successful)),
         )
         .await?;
+        self.common_placement_block_received(
+            [
+                acknowledgement.position.x,
+                acknowledgement.position.y,
+                acknowledgement.position.z,
+            ],
+            acknowledgement.block_state_id,
+            packet_sequence,
+        )
+        .await?;
         self.emit(Event::DiggingAcknowledged(acknowledgement));
         Ok(())
     }

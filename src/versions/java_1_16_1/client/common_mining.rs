@@ -942,6 +942,70 @@ mod tests {
             .unwrap();
     }
     #[tokio::test]
+    async fn digging_ack_rejection_remains_in_common_mining_result_and_event_history() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.survival().select_hotbar(0).await.unwrap();
+        packets.recv().await.unwrap();
+        client
+            .survival()
+            .start_mining(TARGET, crate::BlockFace::North)
+            .await
+            .unwrap();
+        packets.recv().await.unwrap();
+        let cursor = client.events_after(0).await.unwrap().cursor;
+        bot.apply_packet(
+            0x07,
+            super::super::digging_ack_notification_tests::packet(TARGET, 1, 0, false),
+        )
+        .await
+        .unwrap();
+        let rejected = client.survival().mining_record().await.unwrap().unwrap();
+        assert_eq!(rejected.stage, MiningStage::RequiresInspection);
+        assert!(matches!(
+            rejected.protocol,
+            Some(MiningProtocolObservation::LegacyReply {
+                accepted: false,
+                action: 0,
+                ..
+            })
+        ));
+        bot.apply_packet(
+            0x07,
+            super::super::digging_ack_notification_tests::packet(TARGET, 0, 2, true),
+        )
+        .await
+        .unwrap();
+        let later = client.survival().mining_record().await.unwrap().unwrap();
+        assert_eq!(later.stage, MiningStage::RequiresInspection);
+        assert!(later.requires_inspection.is_some());
+        let log = client.events_after(cursor).await.unwrap();
+        assert_eq!(log.events.len(), 4);
+        assert!(matches!(
+            log.events[1].kind,
+            crate::client::EventKind::LegacyDiggingAcknowledged {
+                successful: false,
+                ..
+            }
+        ));
+        assert!(matches!(
+            log.events[3].kind,
+            crate::client::EventKind::LegacyDiggingAcknowledged {
+                successful: true,
+                ..
+            }
+        ));
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
     async fn common_mining_runs_identical_consumer_with_legacy_receipts_and_no_modern_sequence() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

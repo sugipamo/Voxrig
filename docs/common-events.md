@@ -36,7 +36,7 @@ loop {
 
 | `EventKind` | 1.16.1（既存`Event`からの対応） | 1.21.11（パケット） |
 | --- | --- | --- |
-| `BlocksChanged { min, max }` | `BlockChanged`、`BlockEntityUpdated`、multi-block変更、爆発の非空消失座標一覧（変更位置の範囲） | `BLOCK_CHANGE`、`TILE_ENTITY_DATA`、`MULTI_BLOCK_CHANGE`（section全体の範囲） |
+| `BlocksChanged { min, max }` | `BlockChanged`、`DiggingAcknowledged`、`BlockEntityUpdated`、multi-block変更、爆発の非空消失座標一覧（変更位置の範囲） | `BLOCK_CHANGE`、`TILE_ENTITY_DATA`、`MULTI_BLOCK_CHANGE`（section全体の範囲） |
 | `ChunkLoaded` / `ChunkUnloaded` | `ChunkLoaded` / `ChunkUnloaded` | `MAP_CHUNK` / `UNLOAD_CHUNK` |
 | `InventoryChanged` | `InventoryUpdated`、`SlotUpdated`、`HeldItemChanged` | window 0の`WINDOW_ITEMS`/`SET_SLOT`、`SET_PLAYER_INVENTORY`、`SET_CURSOR_ITEM`、`HELD_ITEM_SLOT` |
 | `ScreenChanged` | `WindowOpened`、`WindowClosed`、`WindowProperty`、`MerchantOffers` | それ以外のwindowの`WINDOW_ITEMS`/`SET_SLOT`、`OPEN_WINDOW`、`CLOSE_WINDOW`、`CRAFT_PROGRESS_BAR` |
@@ -47,6 +47,7 @@ loop {
 | `UiChanged` | `UiStateUpdated`、`PlayerListUpdated` | scoreboard・boss bar・teams・player info・title・tab list・world borderの各パケット |
 | `ResourcePackRequested { uuid }` | この共通通知は未対応 | configuration・playの`ADD_RESOURCE_PACK`。最新の要求は[`resource_pack_request`](common-resource-packs.md)で読む |
 | `CodeOfConductReceived` | このpacketは存在しない | configurationの`CODE_OF_CONDUCT`。最新の本文は[`code_of_conduct`](common-code-of-conduct.md)で読む。自動acceptの受理通知ではない |
+| `LegacyDiggingAcknowledged { position, block_state_id, status, successful }` | 掘削ACKの元の受信結果。拒否・遅延・未対応ACKも保存。[訂正の扱い](digging-ack-corrections.md) | 未発行（processing ACKには状態・成否がない） |
 | `ExplosionReceived` | `Explosion`。消失座標・運動量は[`explosions_after`](common-explosions.md) | `EXPLOSION`。payloadは同API |
 | `SoundReceived` / `SoundStopped` | この共通通知は未対応 | `SOUND` / `SOUND_ENTITY` / `STOP_SOUND` |
 | `ParticlesReceived` | この共通通知は未対応 | `LEVEL_PARTICLES` |
@@ -286,3 +287,11 @@ python3 scripts/run_native_event_capacity.py --accept-eula \
 実接続では1.16.1で6,806件のnativeイベント（entity payload 6,726件）を欠落なく保持し、
 共通履歴のoverflowと過去の位置payloadの違いを確認した。1.21.11の既定接続も通過した。
 [検証記録](evidence/native-event-capacity-20261008.json)に結果と元reportのhashを保存した。
+
+## 1.16.1 の掘削ACKによる訂正
+
+成功・拒否のいずれもACKのblock stateをworldへ適用し、同じ受信連番で
+`BlocksChanged`、`LegacyDiggingAcknowledged`の順に記録する。同じ値のACKも省略しない。
+前者は依存地形・経路の無効化、後者は元の成否とactionの履歴に使う。
+`successful=true`は除去成功の証明ではない。現在値は再観測する。
+詳細は[掘削ACKの訂正と結果](digging-ack-corrections.md)を参照。

@@ -6797,6 +6797,15 @@ fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
     };
     let mut kinds = match event {
         Event::BlockChanged { x, y, z, .. } => vec![block(*x, *y, *z)],
+        Event::DiggingAcknowledged(ack) => vec![
+            block(ack.position.x, ack.position.y, ack.position.z),
+            K::LegacyDiggingAcknowledged {
+                position: [ack.position.x, ack.position.y, ack.position.z],
+                block_state_id: ack.block_state_id,
+                status: ack.status,
+                successful: ack.successful,
+            },
+        ],
         Event::Explosion(explosion) => {
             let mut kinds = Vec::with_capacity(2);
             if let Some(bounds) = crate::client::events::bounds(
@@ -11090,6 +11099,9 @@ mod use_item_expect_tests;
 
 #[cfg(test)]
 mod explosion_notification_tests;
+
+#[cfg(test)]
+mod digging_ack_notification_tests;
 
 #[cfg(test)]
 mod use_on_block_expect_tests;
