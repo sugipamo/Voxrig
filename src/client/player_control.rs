@@ -35,6 +35,17 @@ impl Client {
 }
 
 impl PlayerControl {
+    /// Read Java 1.16.1 remote-model degradations after a connection-local log
+    /// cursor (initially 0), including replaced owners and after disconnect.
+    /// State reports eviction; InvalidInput reports a future cursor.
+    /// Java 1.21.11 returns Unsupported. Does not send or grant acceptance.
+    pub async fn control_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<super::control::ControlChangeLog> {
+        self.client.control_changes_after(after_sequence).await
+    }
+
     /// Own an Elytra start request with explicit first-tick aim/keys. Actual usable
     /// received chest equipment and an airborne model are required. The connection
     /// waits for the actual fall-flying flag before predicting or writing movement;
@@ -76,6 +87,8 @@ impl PlayerControl {
     /// With no vertical momentum, probes keep their height. Speculative probes
     /// never claim on-ground or apply jumps. See `walking_diagnostics_for`.
     /// World, owner, own-player and mode checks still apply.
+    /// On Java 1.16.1, the ordinary returned record carries `degradation`; later
+    /// withdrawals are retained by `control_changes_after`.
     /// Passenger/relationship history gaps, scope re-entry/reselection and
     /// sweep overruns are warnings through `contact_diagnostic_for`, never a
     /// request to replace this owner. Corrections re-anchor on the received pose

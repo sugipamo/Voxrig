@@ -9,6 +9,17 @@
 
 ## Unreleased
 
+- BREAKING (Rust struct literals): `ControlRecord` gains `degradation`, independent
+  of Running/Paused/Stopped and `movement_refusal`. Java 1.16.1 ordinary results
+  expose the first `RemoteStateDropped` with owner/world, receive boundary,
+  model tick and phase. Add `Client::control_changes_after` and the PlayerControl
+  equivalent: 256 retained withdrawals across owner replacement/disconnect,
+  explicit `State` on eviction and `InvalidInput` on future cursors. Best-effort
+  keeps sending, including after server corrections; no new rejection gates.
+  Java 1.21.11 uses the default Unsupported log and leaves the new field None.
+  See [contract](docs/control-degradation.md) and
+  [migration](docs/migration-control-degradation.md).
+
 - Java 1.16.1 chunk/light decode failures now withdraw observations and terminate
   the reader through the existing connection-failure path. Add non-exhaustive
   `EventKind::ObservationInvalidated` at the failed receive boundary; common

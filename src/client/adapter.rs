@@ -521,6 +521,15 @@ pub(crate) trait PathMotionOps {
 
 /// Continuous control: held keys and per-tick client physics.
 pub(crate) trait ControlOps {
+    async fn control_changes_after(
+        &self,
+        _after_sequence: u64,
+    ) -> Result<super::control::ControlChangeLog> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("control degradation log is unsupported by this adapter"),
+        ))
+    }
     async fn start_glide_control(
         &self,
         mode: GameMode,

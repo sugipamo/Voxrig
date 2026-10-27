@@ -15,6 +15,7 @@ use std::time::Duration;
 #[derive(Default)]
 pub(crate) struct MotionExecutor {
     pub(in crate::versions) finite: Option<crate::client::motion_executor::FiniteMotion>,
+    changes: std::sync::Arc<crate::client::control::ControlChangeLedger>,
     session: Option<ControlSession>,
     next_id: u64,
     jump_work: Option<crate::client::ledger::WorkGuard>,
@@ -419,6 +420,10 @@ impl Bot {
                         if session.glide_waiting() {
                             return true;
                         }
+                    }
+                    if let Some(source) = &mut session.contact_change_source {
+                        source.receive_sequence =
+                            self.protocol_packet_sequence.load(Ordering::Acquire);
                     }
                     session.apply_received(&received);
                     let contacts_ready: Result<()> = async {
@@ -847,6 +852,15 @@ impl Bot {
                 session.mode = mode;
                 session.kind = kind;
                 session.best_effort_contacts = best_effort_contacts;
+                session.contact_change_source = Some(crate::client::control::ControlChangeSource {
+                    ledger: control.changes.clone(),
+                    session: crate::client::SessionStamp {
+                        version: MinecraftVersion::Java1_16_1,
+                        connection_id: self.connection_id(),
+                        world_generation: generation,
+                    },
+                    receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+                });
                 if let Some(path) = path {
                     session.set_path(path);
                 }
@@ -892,7 +906,10 @@ impl Bot {
                         }
                         .await;
                         if let Err(error) = admission {
-                            if !session.omit_contacts(&error) {
+                            if !session.omit_contacts_at(
+                                &error,
+                                crate::client::control::DegradationPhase::Admission,
+                            ) {
                                 return Err(error);
                             }
                         }
@@ -943,6 +960,7 @@ impl Bot {
                     mode,
                     Some(id),
                 )?;
+                session.publish_admission_degradation();
                 control.session = Some(session);
                 drop(control);
                 let bot = self.clone();
@@ -1205,6 +1223,17 @@ impl crate::client::adapter::ControlOps for Bot {
             .await
     }
 
+    async fn control_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::control::ControlChangeLog> {
+        self.common_control
+            .lock()
+            .await
+            .changes
+            .after(after_sequence)
+    }
+
     async fn control_record(&self) -> Result<Option<ControlRecord>> {
         Ok(self
             .common_control
@@ -1258,6 +1287,282 @@ mod tests {
     use crate::client::adapter::ControlOps;
     use crate::client::control::Output;
     use tokio::time::timeout;
+
+    fn fox_packet(id: i32, position: [f64; 3]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        put_varint(&mut bytes, id);
+        bytes.extend([0; 16]);
+        // Protocol 736 fox ID from the generated version table.
+        let fox = (0..200)
+            .find(|id| super::super::super::registry::entity_name(*id) == Some("fox"))
+            .unwrap();
+        put_varint(&mut bytes, fox);
+        for v in position {
+            bytes.extend(v.to_be_bytes());
+        }
+        bytes.extend([0; 9]);
+        bytes
+    }
+
+    #[tokio::test]
+    async fn contact_degradation_reaches_results_and_bounded_log_across_owners() {
+        use crate::client::control::{DegradationPhase, MAX_RETAINED_CONTROL_CHANGES};
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        bot.apply_packet(0x02, fox_packet(7, [9.5, 65.0, 9.5]))
+            .await
+            .unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let api = client.player_control(GameMode::Survival);
+        // Strict still refuses; best-effort starts and warns through its ordinary result.
+        assert!(api.start_control().await.is_err());
+        let first = api.start_control_best_effort().await.unwrap();
+        let warning = first.degradation.clone().expect("admission warning");
+        assert_eq!(warning.phase, DegradationPhase::Admission);
+        assert_eq!(warning.model_tick, 0);
+        assert_eq!(warning.session_id, first.session_id);
+        assert_eq!(
+            warning.receive_sequence,
+            bot.protocol_packet_sequence.load(Ordering::Acquire)
+        );
+        assert_eq!(first.status, ControlStatus::Running);
+        assert!(first.movement_refusal.is_none());
+        assert_eq!(
+            api.contact_diagnostic_for(first.session_id).await.unwrap(),
+            Some(warning.reason.clone())
+        );
+        let changed = api
+            .set_controls_for(
+                first.session_id,
+                Controls {
+                    forward: 1,
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(changed.degradation, Some(warning.clone()));
+        let stopped = api.stop_control_for(first.session_id).await.unwrap();
+        assert_eq!(stopped.degradation, Some(warning.clone()));
+        let first_log = api.control_changes_after(0).await.unwrap();
+        assert_eq!(first_log.changes.len(), 1);
+        assert_eq!(first_log.changes[0].degradation, warning);
+        // Retention is per connection, not per current owner. At exactly the
+        // boundary cursor 1 remains readable, while cursor 0 explicitly loses 1.
+        for _ in 0..MAX_RETAINED_CONTROL_CHANGES {
+            let next = api.start_control_best_effort().await.unwrap();
+            assert_ne!(next.session_id, first.session_id);
+            api.stop_control_for(next.session_id).await.unwrap();
+        }
+        let error = api.control_changes_after(0).await.unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::State);
+        let gap = error
+            .diagnostic()
+            .downcast_ref::<crate::client::control::ControlChangeGap>()
+            .unwrap();
+        assert_eq!(gap.missed, 1);
+        assert_eq!(gap.resume_after, 1);
+        assert_eq!(gap.sequence, MAX_RETAINED_CONTROL_CHANGES as u64 + 1);
+        let retained = api.control_changes_after(1).await.unwrap();
+        assert_eq!(retained.changes.len(), MAX_RETAINED_CONTROL_CHANGES);
+        assert_eq!(retained.changes[0].sequence, 2);
+        assert_eq!(
+            api.control_changes_after(retained.sequence + 1)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::InvalidInput
+        );
+        assert!(
+            api.control_changes_after(retained.sequence)
+                .await
+                .unwrap()
+                .changes
+                .is_empty()
+        );
+        // Changing world and disconnecting cannot hide a previous retention gap.
+        bot.apply_packet(0x3a, super::super::tests::respawn_packet())
+            .await
+            .unwrap();
+        let _ = client.revoke_connection();
+        assert_eq!(
+            api.control_changes_after(0).await.unwrap_err().kind(),
+            crate::ErrorKind::State
+        );
+        assert_eq!(api.control_changes_after(1).await.unwrap(), retained);
+        drop(release);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn contact_degradation_after_start_and_correction_keep_same_owner() {
+        use crate::client::control::DegradationPhase;
+        for correction in [false, true] {
+            let (bot, _packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.player.lock().await.entity_id = Some(42);
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let api = client.player_control(GameMode::Survival);
+            let first = api.start_control_best_effort().await.unwrap();
+            assert!(first.degradation.is_none());
+            assert!(
+                api.control_changes_after(0)
+                    .await
+                    .unwrap()
+                    .changes
+                    .is_empty()
+            );
+            if correction {
+                let mut bytes = Vec::new();
+                for v in [8.75f64, 65.0, 8.5] {
+                    bytes.extend(v.to_be_bytes());
+                }
+                for v in [0.0f32; 2] {
+                    bytes.extend(v.to_be_bytes());
+                }
+                bytes.push(0);
+                put_varint(&mut bytes, 77);
+                bot.apply_packet(0x35, bytes).await.unwrap();
+            } else {
+                bot.apply_packet(0x02, fox_packet(7, [9.5, 65.0, 9.5]))
+                    .await
+                    .unwrap();
+            }
+            let log = timeout(Duration::from_secs(2), async {
+                loop {
+                    let log = api.control_changes_after(0).await.unwrap();
+                    if !log.changes.is_empty() {
+                        break log;
+                    }
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .unwrap();
+            let record = api.control_record().await.unwrap().unwrap();
+            let warning = record.degradation.clone().unwrap();
+            assert_eq!(
+                warning.phase,
+                if correction {
+                    DegradationPhase::Correction
+                } else {
+                    DegradationPhase::Refresh
+                }
+            );
+            assert_eq!(warning.session_id, first.session_id);
+            assert_eq!(log.changes[0].degradation, warning);
+            assert!(record.dispatched_ticks > 0);
+            assert_eq!(record.status, ControlStatus::Running);
+            assert!(record.movement_refusal.is_none());
+            assert!(record.entity_contacts.is_none());
+            assert!(
+                api.control_changes_after(log.sequence)
+                    .await
+                    .unwrap()
+                    .changes
+                    .is_empty()
+            );
+            assert_eq!(
+                api.stop_control_for(first.session_id)
+                    .await
+                    .unwrap()
+                    .degradation,
+                Some(warning)
+            );
+            let _ = client.revoke_connection();
+            drop(release);
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn contact_degradation_prediction_and_terrain_share_the_producer_boundary() {
+        use crate::client::control::DegradationPhase;
+        for terrain in [false, true] {
+            let (bot, _packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.player.lock().await.entity_id = if terrain { None } else { Some(42) };
+            if !terrain {
+                // A far fox is admissible under the finite exclusion model.
+                bot.apply_packet(0x02, fox_packet(7, [100.0, 65.0, 8.5]))
+                    .await
+                    .unwrap();
+            }
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let api = client.player_control(GameMode::Survival);
+            let first = api.start_control_best_effort().await.unwrap();
+            assert!(first.degradation.is_none());
+            {
+                let _gate = bot.coherent_state_gate.lock().await;
+                let received = bot.control_received().await;
+                let mut control = bot.common_control.lock().await;
+                let session = control.session.as_mut().unwrap();
+                if terrain {
+                    bot.world.lock().await.clear();
+                } else {
+                    // Force the staged sweep outside its admitted scope without
+                    // changing the received pose or committing a remote tick.
+                    session
+                        .body
+                        .teleport(MinecraftVersion::Java1_16_1, [100.0, 65.0, 8.5]);
+                }
+                let world = bot.world.lock().await;
+                let output = session
+                    .step(&received, &mut |p| {
+                        if terrain {
+                            super::super::common_motion::legacy_motion_block(&world, p)
+                        } else {
+                            (MinecraftVersion::Java1_16_1.table().registry.native_state)(
+                                if p[1] < 65 { 1 } else { 0 },
+                            )
+                        }
+                    })
+                    .unwrap();
+                assert!(output.is_some());
+                assert!(session.contacts.is_none());
+                assert!(session.entity_contacts.is_none());
+                assert_eq!(session.status, ControlStatus::Running);
+                // A later terrain fallback cannot overwrite the first reason or
+                // emit a second withdrawal for the same discarded model.
+                let warning = session.record().degradation.unwrap();
+                session.omit_contacts_at(
+                    &crate::error::state_error("later terrain failure"),
+                    DegradationPhase::Terrain,
+                );
+                assert_eq!(session.record().degradation, Some(warning));
+            }
+            let record = api.control_record().await.unwrap().unwrap();
+            let warning = record.degradation.unwrap();
+            assert_eq!(
+                warning.phase,
+                if terrain {
+                    DegradationPhase::Terrain
+                } else {
+                    DegradationPhase::Prediction
+                }
+            );
+            let log = client.control_changes_after(0).await.unwrap();
+            assert_eq!(log.changes.len(), 1);
+            assert_eq!(log.changes[0].degradation, warning);
+            api.stop_control_for(first.session_id).await.unwrap();
+            let _ = client.revoke_connection();
+            drop(release);
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
+    }
 
     #[tokio::test]
     async fn best_effort_unknown_body_and_route_use_owned_native_ticks() {

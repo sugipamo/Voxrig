@@ -6,7 +6,15 @@
 //! submission, never server acceptance; received corrections and velocity are
 //! applied as the vanilla client applies them and are counted separately.
 use crate::client::physics::{self, Body, Environment};
+
+#[path = "control_changes.rs"]
+mod changes;
 use crate::{MinecraftVersion, NativeBlockState, Result};
+pub use changes::{
+    ControlChange, ControlChangeGap, ControlChangeLog, ControlDegradation, DegradationPhase,
+    MAX_RETAINED_CONTROL_CHANGES,
+};
+pub(crate) use changes::{ControlChangeLedger, ControlChangeSource};
 
 pub use crate::client::physics::{Controls, ItemUse, Modifier, ModifierOperation, Pose};
 
@@ -222,6 +230,9 @@ pub struct ControlFrame {
 /// Observable record of the connection's control session.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlRecord {
+    /// Frozen remote-model degradation on Java 1.16.1; independent of status,
+    /// movement refusal and server acceptance. None on adapters without this log.
+    pub degradation: Option<ControlDegradation>,
     /// Structured cause retained when contact prediction stops this owner.
     pub movement_refusal: Option<crate::MovementRefusal>,
     /// Owned Elytra request and actual receipts; None for other control kinds.
@@ -330,6 +341,8 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    pub(crate) contact_change_source: Option<ControlChangeSource>,
+    degradation: Option<ControlDegradation>,
     terrain_diagnostic: Option<TerrainDiagnostic>,
     unproven_ticks: u16,
     path: Option<Vec<Controls>>,
@@ -410,6 +423,8 @@ impl ControlSession {
             body.set_scale(scale as f32);
         }
         Self {
+            contact_change_source: None,
+            degradation: None,
             terrain_diagnostic: None,
             unproven_ticks: 0,
             path: None,
@@ -551,6 +566,7 @@ impl ControlSession {
             }
         }
         ControlRecord {
+            degradation: self.degradation.clone(),
             movement_refusal: self.movement_refusal.clone(),
             glide: self.glide.clone(),
             entity_contacts: self.entity_contacts.clone(),
@@ -721,7 +737,7 @@ impl ControlSession {
                 context.owner_state = crate::MovementOwnerState::Invalidated;
                 context.receive_sequence = Some(sequence);
                 context.model_tick = Some(self.tick);
-                self.omit_contacts(&cause.into_error());
+                self.omit_contacts_at(&cause.into_error(), DegradationPhase::Correction);
             }
             self.last_pose = Some(sequence);
             self.body.teleport(self.version, position);
@@ -743,21 +759,66 @@ impl ControlSession {
     /// Discard an unprovable remote model only for explicitly opted-in ground owners.
     /// The original local body is retained; staged contact ticks never commit on error.
     pub(crate) fn omit_contacts(&mut self, error: &crate::Error) -> bool {
+        self.omit_contacts_at(error, DegradationPhase::Refresh)
+    }
+
+    pub(crate) fn omit_contacts_at(
+        &mut self,
+        error: &crate::Error,
+        phase: DegradationPhase,
+    ) -> bool {
         if !self.best_effort_contacts || self.kind != ControlKind::Ground {
             return false;
         }
-        self.contact_diagnostic = Some(crate::MovementRefusal::RemoteStateDropped {
-            refusal: Box::new(
-                error
-                    .movement_refusal()
-                    .cloned()
-                    .unwrap_or_else(|| crate::MovementRefusal::permanent(error.to_string())),
-            ),
-        });
+        if self.degradation.is_none() {
+            self.contact_diagnostic = Some(crate::MovementRefusal::RemoteStateDropped {
+                refusal: Box::new(
+                    error
+                        .movement_refusal()
+                        .cloned()
+                        .unwrap_or_else(|| crate::MovementRefusal::permanent(error.to_string())),
+                ),
+            });
+            if let Some(source) = &self.contact_change_source {
+                let degradation = ControlDegradation {
+                    session: source.session,
+                    session_id: self.id,
+                    receive_sequence: if phase == DegradationPhase::Correction {
+                        error
+                            .movement_refusal()
+                            .and_then(|r| r.context().receive_sequence)
+                            .unwrap_or(source.receive_sequence)
+                    } else {
+                        source.receive_sequence
+                    },
+                    model_tick: self.tick,
+                    phase,
+                    reason: self
+                        .contact_diagnostic
+                        .clone()
+                        .expect("omitted contact reason"),
+                };
+                if phase != DegradationPhase::Admission {
+                    source.ledger.record(degradation.clone());
+                }
+                self.degradation = Some(degradation);
+            }
+        }
         self.contacts = None;
         self.entity_contacts = None;
         self.contact_team = None;
         true
+    }
+
+    // Initial admission can still fail at movement binding. Publish only after
+    // that succeeds, while the adapter still owns the application gate.
+    pub(crate) fn publish_admission_degradation(&self) {
+        if let (Some(source), Some(degradation)) = (&self.contact_change_source, &self.degradation)
+        {
+            if degradation.phase == DegradationPhase::Admission {
+                source.ledger.record(degradation.clone());
+            }
+        }
     }
 
     /// Run one tick. `Ok(None)` while paused (nothing to send).
@@ -858,14 +919,16 @@ impl ControlSession {
                     self.entity_contacts = Some(frame);
                     Ok(outcome)
                 }
-                Err(error) if self.omit_contacts(&error) => physics::tick_with_ground_jump(
-                    self.version,
-                    &mut self.body,
-                    &environment,
-                    controls,
-                    ground_requested,
-                    block_at,
-                ),
+                Err(error) if self.omit_contacts_at(&error, DegradationPhase::Prediction) => {
+                    physics::tick_with_ground_jump(
+                        self.version,
+                        &mut self.body,
+                        &environment,
+                        controls,
+                        ground_requested,
+                        block_at,
+                    )
+                }
                 Err(error) => Err(error),
             }
         } else {
@@ -903,7 +966,7 @@ impl ControlSession {
                     };
                     return Ok(None);
                 }
-                self.omit_contacts(&error);
+                self.omit_contacts_at(&error, DegradationPhase::Terrain);
                 self.body
                     .walk_unproven(self.version, controls, &environment)?;
                 self.unproven_ticks += 1;

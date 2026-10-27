@@ -214,6 +214,10 @@ async fn main() -> anyhow::Result<()> {
                             .await?,
                     )?
                 }
+                "control_changes" => {
+                    serde_json::to_value(client.player_control(voxrig::client::GameMode::Survival)
+                        .control_changes_after(v["after"].as_u64().unwrap_or(0)).await?)?
+                }
                 "contact_diagnostic" => {
                     let mode = client.player_state().await?.game_mode.unwrap();
                     serde_json::to_value(
