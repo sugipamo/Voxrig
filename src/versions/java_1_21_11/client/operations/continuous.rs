@@ -19,6 +19,7 @@ fn attribute(name: &str) -> Option<i32> {
 pub(in crate::versions::java_1_21_11::client) struct MotionExecutor {
     pub(in crate::versions) finite: Option<crate::client::motion_executor::FiniteMotion>,
     pub session: Option<ControlSession>,
+    corrections: std::sync::Arc<crate::client::control::ControlCorrectionLedger>,
     next_id: u64,
     jump_work: Option<crate::client::ledger::WorkGuard>,
     generation: Option<u64>,
@@ -81,6 +82,16 @@ impl MotionExecutor {
     pub(super) fn observe_mode(&mut self, mode: GameMode, sequence: u64) {
         if let Some(session) = &mut self.session {
             session.observe_mode(mode, sequence);
+        }
+    }
+    pub(in crate::versions::java_1_21_11::client) fn observe_pose(
+        &mut self,
+        sequence: u64,
+        position: [f64; 3],
+        velocity: Option<[f64; 3]>,
+    ) {
+        if let Some(session) = &mut self.session {
+            session.observe_pose(sequence, position, velocity);
         }
     }
     /// Whether a session currently owns the player's movement.
@@ -1170,6 +1181,14 @@ impl Operations {
             session.mode = mode;
             session.kind = kind;
             session.best_effort_contacts = best_effort_contacts;
+            session.correction_source = Some(crate::client::control::ControlCorrectionSource {
+                ledger: state.control.corrections.clone(),
+                session: crate::client::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_21_11,
+                    connection_id: self.bot.session.id,
+                    world_generation: generation,
+                },
+            });
             if let Some(path) = path {
                 session.set_path(path);
             }
@@ -1504,6 +1523,20 @@ impl crate::client::adapter::ControlOps for Operations {
             .session
             .as_ref()
             .map(ControlSession::record))
+    }
+
+    async fn control_corrections_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::control::ControlCorrectionLog> {
+        self.bot
+            .session
+            .state
+            .lock()
+            .await
+            .control
+            .corrections
+            .after(after_sequence)
     }
 }
 

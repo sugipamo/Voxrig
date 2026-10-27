@@ -160,6 +160,18 @@
   impulses added to this owner after its start boundary, on both versions.
   No new refusal gates or retries. See [explosions](docs/common-explosions.md)
   and [common control](docs/common-control.md).
+- Add `Client::control_corrections_after` and the PlayerControl equivalent on
+  Java 1.16.1 and 1.21.11: a bounded (256) owner-scoped log of every received
+  own-pose packet over a running/paused control owner, recorded at the receive
+  boundary so several corrections between two ticks are no longer collapsed.
+  Each `ControlCorrection` carries the receive ordinal, model tick, last written
+  submission, replaced model position, received position, delta/distance and
+  applied velocity. It reports a superseded submission, never a teleport or
+  rejection cause. Same cursor/`ControlChangeGap` semantics as
+  `control_changes_after`, with independent retention. Additive: existing
+  structs, `corrections`, Running/stop policy and the degradation log are
+  unchanged; the new `ControlOps` method defaults to Unsupported.
+  See [contract](docs/control-corrections.md).
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.

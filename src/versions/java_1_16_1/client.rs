@@ -6624,6 +6624,11 @@ impl Bot {
                 receipts.entities.history_pose(pose, None);
             }
         }
+        // Log before any tick can collapse it into a later latest-only pose.
+        self.common_control.lock().await.observe_pose(
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+            [next_x, next_y, next_z],
+        );
         let mut positioned = self.positioned.lock().await;
         let was_positioned = *positioned;
         *positioned = true;

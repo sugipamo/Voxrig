@@ -16,6 +16,7 @@ use std::time::Duration;
 pub(crate) struct MotionExecutor {
     pub(in crate::versions) finite: Option<crate::client::motion_executor::FiniteMotion>,
     changes: std::sync::Arc<crate::client::control::ControlChangeLedger>,
+    corrections: std::sync::Arc<crate::client::control::ControlCorrectionLedger>,
     session: Option<ControlSession>,
     next_id: u64,
     /// Publishes the selected owner's committed status transitions.
@@ -72,6 +73,12 @@ impl MotionExecutor {
         };
         if !session.ground_explosion(sequence, Some(impulse), received) {
             self.explosion_stop = Some(session.id);
+        }
+    }
+    /// The packet resets velocity (`Received.pose` carries zero, as the tick applies).
+    pub(super) fn observe_pose(&mut self, sequence: u64, position: [f64; 3]) {
+        if let Some(session) = &mut self.session {
+            session.observe_pose(sequence, position, Some([0.0; 3]));
         }
     }
     pub(crate) fn active(&self) -> bool {
@@ -910,6 +917,14 @@ impl Bot {
                     },
                     receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
                 });
+                session.correction_source = Some(crate::client::control::ControlCorrectionSource {
+                    ledger: control.corrections.clone(),
+                    session: crate::client::SessionStamp {
+                        version: MinecraftVersion::Java1_16_1,
+                        connection_id: self.connection_id(),
+                        world_generation: generation,
+                    },
+                });
                 if let Some(path) = path {
                     session.set_path(path);
                 }
@@ -1300,6 +1315,17 @@ impl crate::client::adapter::ControlOps for Bot {
             .after(after_sequence)
     }
 
+    async fn control_corrections_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::control::ControlCorrectionLog> {
+        self.common_control
+            .lock()
+            .await
+            .corrections
+            .after(after_sequence)
+    }
+
     async fn control_record(&self) -> Result<Option<ControlRecord>> {
         Ok(self
             .common_control
@@ -1552,6 +1578,106 @@ mod tests {
                 .unwrap()
                 .unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn back_to_back_pose_packets_are_each_logged_for_the_running_owner() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let api = client.player_control(GameMode::Survival);
+        let other = client.player_control(GameMode::Creative);
+        let mut started = api.start_control().await.unwrap();
+        started.controls.forward = 1;
+        api.set_controls_for(started.session_id, started.controls)
+            .await
+            .unwrap();
+        assert!(
+            api.control_corrections_after(0)
+                .await
+                .unwrap()
+                .corrections
+                .is_empty()
+        );
+        timeout(Duration::from_secs(2), async {
+            while api
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .dispatched_ticks
+                == 0
+            {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let pose = |x: f64, teleport: i32| {
+            let mut bytes = Vec::new();
+            for v in [x, 65.0, 8.5] {
+                bytes.extend(v.to_be_bytes());
+            }
+            for v in [0.0f32; 2] {
+                bytes.extend(v.to_be_bytes());
+            }
+            bytes.push(0);
+            put_varint(&mut bytes, teleport);
+            bytes
+        };
+        bot.apply_packet(0x35, pose(8.5, 70)).await.unwrap();
+        bot.apply_packet(0x35, pose(10.5, 71)).await.unwrap();
+        let log = api.control_corrections_after(0).await.unwrap();
+        let [first, second] = &log.corrections[..] else {
+            panic!("{log:?}");
+        };
+        let (first, second) = (&first.correction, &second.correction);
+        assert_eq!(
+            (first.session_id, second.session_id),
+            (started.session_id, started.session_id)
+        );
+        assert_eq!(first.session.version, MinecraftVersion::Java1_16_1);
+        assert!(first.receive_sequence < second.receive_sequence);
+        assert!(first.submitted.is_some());
+        assert_eq!(first.received_position, [8.5, 65.0, 8.5]);
+        assert_eq!(first.received_velocity, Some([0.0; 3]));
+        // A tick may run between the two packets; the model then starts from
+        // the first received pose rather than the earlier submission.
+        let from_first = second.model_position[0] - 8.5;
+        assert!((0.0..0.5).contains(&from_first), "{second:?}");
+        for axis in 0..3 {
+            assert_eq!(
+                second.delta[axis],
+                second.received_position[axis] - second.model_position[axis]
+            );
+        }
+        // Policy is unchanged: the owner keeps running. The applied counter may
+        // collapse both receipts into one; the log never does. Continued
+        // sending after corrections is covered by the official-server LIVE run.
+        let record = api.control_record().await.unwrap().unwrap();
+        assert_eq!(record.status, ControlStatus::Running);
+        assert!(record.corrections <= 2);
+        // Readable through any handle and after the owner stops or disconnects.
+        api.stop_control_for(started.session_id).await.unwrap();
+        bot.apply_packet(0x35, pose(12.5, 72)).await.unwrap();
+        assert_eq!(other.control_corrections_after(0).await.unwrap(), log);
+        let _ = client.revoke_connection();
+        assert_eq!(client.control_corrections_after(0).await.unwrap(), log);
+        assert_eq!(
+            client
+                .control_corrections_after(3)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::InvalidInput
+        );
+        drop(release);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
     }
 
     #[tokio::test]

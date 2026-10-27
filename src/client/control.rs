@@ -11,10 +11,13 @@ use crate::client::physics::{self, Body, Environment};
 mod changes;
 use crate::{MinecraftVersion, NativeBlockState, Result};
 pub use changes::{
-    ControlChange, ControlChangeGap, ControlChangeLog, ControlDegradation, DegradationPhase,
+    ControlChange, ControlChangeGap, ControlChangeLog, ControlCorrection, ControlCorrectionChange,
+    ControlCorrectionLog, ControlDegradation, ControlSubmission, DegradationPhase,
     MAX_RETAINED_CONTROL_CHANGES,
 };
-pub(crate) use changes::{ControlChangeLedger, ControlChangeSource};
+pub(crate) use changes::{
+    ControlChangeLedger, ControlChangeSource, ControlCorrectionLedger, ControlCorrectionSource,
+};
 
 pub use crate::client::physics::{Controls, ItemUse, Modifier, ModifierOperation, Pose};
 
@@ -351,6 +354,12 @@ pub(crate) struct Output {
 
 pub(crate) struct ControlSession {
     pub(crate) contact_change_source: Option<ControlChangeSource>,
+    pub(crate) correction_source: Option<ControlCorrectionSource>,
+    /// Latest written position, superseded by a later received pose.
+    submitted: Option<ControlSubmission>,
+    /// Latest logged pose receipt, and one received but not yet applied.
+    logged_pose: Option<u64>,
+    observed_pose: Option<(u64, [f64; 3])>,
     degradation: Option<ControlDegradation>,
     terrain_diagnostic: Option<TerrainDiagnostic>,
     unproven_ticks: u16,
@@ -434,6 +443,10 @@ impl ControlSession {
         }
         Self {
             contact_change_source: None,
+            correction_source: None,
+            submitted: None,
+            logged_pose: received.pose.map(|p| p.0),
+            observed_pose: None,
             degradation: None,
             terrain_diagnostic: None,
             unproven_ticks: 0,
@@ -492,6 +505,7 @@ impl ControlSession {
         next.last_velocity = self.last_velocity;
         next.last_explosion = self.last_explosion;
         next.released_use = self.released_use;
+        next.logged_pose = received.pose.map(|p| p.0).max(self.logged_pose);
         next.apply_received(received);
         // The start boundary is part of the initial seed, just as it is for a
         // fresh model. Counters describe updates after that boundary.
@@ -735,8 +749,60 @@ impl ControlSession {
         true
     }
 
+    /// Log a received own pose at its receive boundary, before any tick applies
+    /// it, so several corrections between two ticks are each retained. The
+    /// adapter calls this under the state that published the pose; application
+    /// (and the `corrections` counter) still follows `Received.pose`.
+    pub(crate) fn observe_pose(
+        &mut self,
+        sequence: u64,
+        position: [f64; 3],
+        velocity: Option<[f64; 3]>,
+    ) {
+        if !self.running() || self.last_pose.is_some_and(|seen| sequence <= seen) {
+            return;
+        }
+        let model = self
+            .observed_pose
+            .filter(|(seen, _)| self.last_pose.is_none_or(|applied| *seen > applied))
+            .map_or(self.body.position, |(_, p)| p);
+        self.log_correction(sequence, model, position, velocity);
+        self.observed_pose = Some((sequence, position));
+    }
+
+    fn log_correction(
+        &mut self,
+        sequence: u64,
+        model: [f64; 3],
+        position: [f64; 3],
+        velocity: Option<[f64; 3]>,
+    ) {
+        if self.logged_pose.is_some_and(|seen| sequence <= seen) {
+            return;
+        }
+        self.logged_pose = Some(sequence);
+        let Some(source) = &self.correction_source else {
+            return;
+        };
+        let delta: [f64; 3] = std::array::from_fn(|axis| position[axis] - model[axis]);
+        source.ledger.record(ControlCorrection {
+            session: source.session,
+            session_id: self.id,
+            receive_sequence: sequence,
+            model_tick: self.tick,
+            submitted: self.submitted,
+            model_position: model,
+            received_position: position,
+            delta,
+            distance: delta.iter().map(|d| d * d).sum::<f64>().sqrt(),
+            received_velocity: velocity,
+        });
+    }
+
     fn apply_pose(&mut self, pose: Option<(u64, [f64; 3], Option<[f64; 3]>)>) {
         if let Some((sequence, position, velocity)) = pose {
+            // Fallback for a pose the receive path did not observe.
+            self.log_correction(sequence, self.body.position, position, velocity);
             self.terrain_evidence();
             // A corrected local origin cannot reuse remote numerical state
             // advanced against the old origin. Strict owners retain their
@@ -1073,6 +1139,10 @@ impl ControlSession {
             self.sent_input = Some(bits);
         }
         self.dispatched_ticks += 1;
+        self.submitted = Some(ControlSubmission {
+            model_tick: self.tick,
+            position: output.position,
+        });
         if self.path.is_some() {
             self.path_dispatched += 1;
         }
@@ -1566,6 +1636,128 @@ mod tests {
         session.step(&knockback, &mut blocks).unwrap();
         assert!(session.frame.as_ref().unwrap().position[1] > 64.0);
         assert_eq!((session.corrections, session.velocity_updates), (1, 2));
+    }
+
+    #[test]
+    fn every_received_correction_is_logged_with_submission_and_delta() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
+            let mut session = ControlSession::new(version, 3, [0.5, 64.0, 0.5], &start);
+            let ledger = std::sync::Arc::new(ControlCorrectionLedger::default());
+            let stamp = crate::client::SessionStamp {
+                version,
+                connection_id: 7,
+                world_generation: 2,
+            };
+            session.correction_source = Some(ControlCorrectionSource {
+                ledger: ledger.clone(),
+                session: stamp,
+            });
+            let mut blocks = world(false);
+            session.controls.forward = 1;
+            let output = session.step(&start, &mut blocks).unwrap().unwrap();
+            session.dispatched(&output);
+            let submitted = ControlSubmission {
+                model_tick: session.tick,
+                position: output.position,
+            };
+            // A stale or start-boundary receipt is never a correction.
+            session.observe_pose(5, [9.0, 64.0, 9.0], None);
+            assert_eq!(ledger.after(0).unwrap().corrections, vec![]);
+            // Two packets between ticks: latest-only Received.pose collapses
+            // them, the receive-boundary log keeps both in order.
+            session.observe_pose(8, [0.5, 64.0, 0.5], Some([0.0; 3]));
+            session.observe_pose(9, [2.5, 65.0, 0.5], None);
+            session.observe_pose(9, [2.5, 65.0, 0.5], None);
+            let latest = received(Some((9, [2.5, 65.0, 0.5], None)), None);
+            session.step(&latest, &mut blocks).unwrap();
+            assert_eq!(session.corrections, 1, "applied count is unchanged");
+            assert_eq!(session.status, ControlStatus::Running);
+            let log = ledger.after(0).unwrap();
+            assert_eq!(log.sequence, 2);
+            let [first, second] = &log.corrections[..] else {
+                panic!("{log:?}");
+            };
+            assert_eq!((first.sequence, second.sequence), (1, 2));
+            let first = &first.correction;
+            assert_eq!((first.session, first.session_id), (stamp, 3));
+            assert_eq!((first.receive_sequence, first.model_tick), (8, 1));
+            assert_eq!(first.submitted, Some(submitted));
+            assert_eq!(first.model_position, output.position);
+            assert_eq!(first.received_position, [0.5, 64.0, 0.5]);
+            assert_eq!(first.received_velocity, Some([0.0; 3]));
+            let pushed_back = output.position[2] - 0.5;
+            assert!(pushed_back > 0.0);
+            assert!((first.delta[2] + pushed_back).abs() < 1e-12);
+            assert!(
+                (first.distance - first.delta.iter().map(|d| d * d).sum::<f64>().sqrt()).abs()
+                    < 1e-12
+            );
+            let second = &second.correction;
+            assert_eq!(second.receive_sequence, 9);
+            assert_eq!(second.model_position, [0.5, 64.0, 0.5], "after the first");
+            assert_eq!(
+                (second.delta, second.distance),
+                ([2.0, 1.0, 0.0], 5f64.sqrt())
+            );
+            assert_eq!(second.received_velocity, None);
+            // A pose that reached only Received (no receive hook) is still
+            // logged once when applied; it is not logged again by observe.
+            let unobserved = received(Some((12, [4.5, 65.0, 0.5], None)), None);
+            session.step(&unobserved, &mut blocks).unwrap();
+            session.observe_pose(12, [4.5, 65.0, 0.5], None);
+            session.step(&unobserved, &mut blocks).unwrap();
+            let log = ledger.after(2).unwrap();
+            assert_eq!(log.corrections.len(), 1);
+            assert_eq!(log.corrections[0].correction.receive_sequence, 12);
+            assert_eq!(session.corrections, 2);
+            // Stopped owners are never relabelled by later receipts.
+            session.status = ControlStatus::Stopped {
+                reason: "test".into(),
+            };
+            session.observe_pose(13, [0.5, 64.0, 0.5], None);
+            assert_eq!(ledger.after(0).unwrap().sequence, 3);
+        }
+    }
+
+    #[test]
+    fn correction_log_reports_eviction_and_future_cursor() {
+        let ledger = ControlCorrectionLedger::default();
+        let stamp = crate::client::SessionStamp {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: 1,
+            world_generation: 1,
+        };
+        for sequence in 0..MAX_RETAINED_CONTROL_CHANGES as u64 + 3 {
+            ledger.record(ControlCorrection {
+                session: stamp,
+                session_id: 1,
+                receive_sequence: sequence,
+                model_tick: 0,
+                submitted: None,
+                model_position: [0.0; 3],
+                received_position: [0.0; 3],
+                delta: [0.0; 3],
+                distance: 0.0,
+                received_velocity: None,
+            });
+        }
+        let error = ledger.after(0).unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::State);
+        let gap = error
+            .diagnostic()
+            .downcast_ref::<ControlChangeGap>()
+            .copied()
+            .unwrap();
+        assert_eq!((gap.missed, gap.resume_after, gap.sequence), (3, 3, 259));
+        let retained = ledger.after(gap.resume_after).unwrap();
+        assert_eq!(retained.corrections.len(), MAX_RETAINED_CONTROL_CHANGES);
+        assert_eq!(retained.corrections[0].correction.receive_sequence, 3);
+        assert_eq!(
+            ledger.after(260).unwrap_err().kind(),
+            crate::ErrorKind::InvalidInput
+        );
+        assert_eq!(ledger.after(259).unwrap().corrections, vec![]);
     }
 
     #[test]

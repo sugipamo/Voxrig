@@ -38,6 +38,7 @@ include = [
     "/scripts/run_legacy_body_live.py",
     "/scripts/run_place_activation_live.py",
     "/scripts/run_contact_best_effort_live.py",
+    "/scripts/run_control_correction_live.py",
     "/scripts/run_contact_history_live.py",
     "/scripts/run_walk_unknown_live.py",
     "/scripts/run_domain_gates_live.py",

@@ -59,6 +59,19 @@ impl PlayerControl {
         self.client.control_changes_after(after_sequence).await
     }
 
+    /// Read received own-pose corrections over this connection's control owners
+    /// after a log cursor (initially 0), on both versions. Every packet is kept,
+    /// including several between two ticks; `ControlRecord.corrections` stays the
+    /// applied count. State reports eviction; InvalidInput a future cursor.
+    /// A record is a superseded submission, never a teleport/rejection cause, and
+    /// the owner keeps Running.
+    pub async fn control_corrections_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<super::control::ControlCorrectionLog> {
+        self.client.control_corrections_after(after_sequence).await
+    }
+
     /// Own an Elytra start request with explicit first-tick aim/keys. Actual usable
     /// received chest equipment and an airborne model are required. The connection
     /// waits for the actual fall-flying flag before predicting or writing movement;

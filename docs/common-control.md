@@ -3,6 +3,8 @@
 1.16.1のbest-effort接触モデル破棄は通常の`ControlRecord.degradation`と
 `control_changes_after`へ届く。[劣化通知の契約](control-degradation.md)と
 [移行方法](migration-control-degradation.md)を参照。
+実行中ownerが受けた位置訂正は両版で1件ずつ`control_corrections_after`へ届く。
+[訂正ログの契約](control-corrections.md)を参照。
 
 地上・held flightの継続モデルは、1.21.11の自分のplayerの実受信scaleを
 0.125〜4の範囲で扱う。寸法・目の高さは原版のfloat演算で姿勢とscaleから作り、
@@ -164,6 +166,7 @@ world変更時は旧worldの効果を破棄して旧ownerを終了する。元�
 - `ControlFrame::eye_in_water`は、予測した姿勢での目が水中かどうか（公式の`updateFluidOnEyes`）。
 - 受信したものは公式clientと同じように取り込み、続ける。
   - serverからの位置（テレポート・補正）: 位置を置き換える（`corrections`に数える）。
+    tick間の複数受信は適用で1回に潰れ得るが、`control_corrections_after`には受信ごとに残る。
   - 自分への速度（ノックバック等）: 速度を置き換える（`velocity_updates`に数える）。
   - 実行中のGround ownerは[爆発のoptional impulse](common-explosions.md)を受信順に一度だけ加算し、
     `explosion_impulses`に数える（両版。開始後の加算だけを数え、再開時は0から）。

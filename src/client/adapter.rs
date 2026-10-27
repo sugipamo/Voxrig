@@ -537,6 +537,15 @@ pub(crate) trait ControlOps {
             anyhow::anyhow!("control degradation log is unsupported by this adapter"),
         ))
     }
+    async fn control_corrections_after(
+        &self,
+        _after_sequence: u64,
+    ) -> Result<super::control::ControlCorrectionLog> {
+        Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("control correction log is unsupported by this adapter"),
+        ))
+    }
     async fn start_glide_control(
         &self,
         mode: GameMode,
