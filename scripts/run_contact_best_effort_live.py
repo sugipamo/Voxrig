@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import re
 from pathlib import Path
+import run_climbing_control as harness
 from run_climbing_control import run
 from run_common_native import until
 
@@ -33,8 +34,9 @@ def check(version, command, request, trace, report):
 
     keys = dict(forward=1, strafe=0, jump=False, sneak=False, sprint=False, yaw=0., pitch=0.)
 
-    def move(name, correct=False, diagnostic=True, during=None):
+    def move(name, correct=False, diagnostic=True, during=None, phase=None):
         prepare()
+        cursor = request("control_changes")["sequence"] if not modern else None
         before = position()
         boundary = trace.mark()
         if modern:
@@ -59,6 +61,7 @@ def check(version, command, request, trace, report):
         else:
             record = request('best_effort_start')
             assert 'error' not in record, record
+            initial_record = record
             owner = record['session_id']
             assert 'error' not in request('control_set', controls=keys)
             start = record['dispatched_ticks']
@@ -79,6 +82,24 @@ def check(version, command, request, trace, report):
         assert 'error' not in (cause or {}), cause
         if diagnostic:
             assert cause, (name, record)
+        if not modern:
+            latest = request('control_record')
+            changes = request('control_changes', after=cursor)
+            if diagnostic:
+                warning = latest['degradation']
+                assert warning and warning['reason'] == cause, (latest, cause)
+                assert warning['session_id'] == owner
+                expected_phase = phase or ('Refresh' if during else 'Admission')
+                assert warning['phase'] == expected_phase, warning
+                if expected_phase == 'Admission':
+                    assert initial_record['degradation'] == warning
+                else:
+                    assert initial_record['degradation'] is None, initial_record
+                assert len(changes['changes']) == 1, changes
+                assert changes['changes'][0]['degradation'] == warning
+                assert request('control_changes', after=changes['sequence'])['changes'] == []
+                report['checks'].append(dict(name=name + '_ordinary_result_and_log',
+                    initial=initial_record, stopped=latest, changes=changes))
         after = position() if modern or correct else after_move
         if not correct:
             assert after[2] > before[2] + .5, (before, after)
@@ -123,6 +144,9 @@ def check(version, command, request, trace, report):
     command('kill @e[type=minecraft:item]')
     until(lambda: 'minecraft:item' not in names(), 10)
 
+    if not modern:
+        move('clean_origin_server_correction', correct=True, phase='Correction')
+
     command('summon minecraft:pig 1.5 65 1.5 {Tags:["BestEffortPassenger"],NoAI:1b,NoGravity:1b,Passengers:[{id:"minecraft:zombie",IsBaby:1b,NoAI:1b,NoGravity:1b}]}')
     until(lambda: all('minecraft:' + n in names() for n in ['pig', 'zombie']), 10)
     move('near_living_passenger')
@@ -136,6 +160,9 @@ if __name__ == '__main__':
     p.add_argument('--binary', type=Path, required=True)
     p.add_argument('--jars', type=Path, required=True)
     p.add_argument('--version', choices=['1.16.1', '1.21.11'], required=True)
+    p.add_argument('--output', type=Path)
     args = p.parse_args()
+    if args.output:
+        harness.ROOT = args.output.resolve()
     BINARY = args.binary.resolve()
     run(args.version, BINARY, args.jars.resolve(), check=check)

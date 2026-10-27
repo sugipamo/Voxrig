@@ -1,5 +1,9 @@
 # 共通の継続操作（P7）
 
+1.16.1のbest-effort接触モデル破棄は通常の`ControlRecord.degradation`と
+`control_changes_after`へ届く。[劣化通知の契約](control-degradation.md)と
+[移行方法](migration-control-degradation.md)を参照。
+
 地上・held flightの継続モデルは、1.21.11の自分のplayerの実受信scaleを
 0.125〜4の範囲で扱う。寸法・目の高さは原版のfloat演算で姿勢とscaleから作り、
 段差の高さや移動・ジャンプ速度に独自の倍率を掛けない。
