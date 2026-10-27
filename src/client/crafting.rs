@@ -51,6 +51,21 @@ pub enum CraftingSource {
 }
 
 impl CraftingSource {
+    /// Whether a legacy native cache naming `open_window` (0 when none) belongs to
+    /// this source. Vanilla need not echo a local close, so after a submitted close
+    /// the native cache may still name the closed opening until a server close.
+    pub(crate) fn native_window_matches(self, open_window: i32) -> bool {
+        match self {
+            CraftingSource::Player {
+                access: PlayerScreenAccess::SubmittedClose { close },
+            } => open_window == 0 || open_window == close.screen().window_id(),
+            CraftingSource::Player { .. } => open_window == 0,
+            CraftingSource::Table { screen } => open_window == screen.window_id(),
+        }
+    }
+}
+
+impl CraftingSource {
     /// A received player screen can refine its submitted-close basis. Original
     /// table/close identities remain exact; this comparison grants no authority.
     pub(crate) fn accepts_received_source(self, actual: Self) -> bool {

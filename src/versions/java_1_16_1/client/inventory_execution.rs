@@ -718,6 +718,40 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn submitted_close_player_crafting_take_matches_unechoed_native_window() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let item = |name: &str, count: i8| {
+            api::legacy_slot(Some(&ItemStack {
+                item_id: crate::registry::item_id(name).unwrap(),
+                count,
+                nbt: None,
+            }))
+            .unwrap()
+        };
+        let mut slots = vec![api::SlotKnowledge::Empty; 46];
+        slots[9] = item("oak_planks", 2);
+        f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+        // Vanilla does not echo this local close; the native cache keeps window 3.
+        f.close_furnace(&slots[9].clone()).await;
+        assert_eq!(f.bot.inventory().await.open_window.map(|w| w.id), Some(3));
+        f.slot(1, &item("oak_planks", 1)).await;
+        f.slot(3, &item("oak_planks", 1)).await;
+        f.slot(0, &item("stick", 4)).await;
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        let take = client.survival().take_crafting_result(&grid).await.unwrap();
+        assert!(take.send.dispatched);
+        f.click().await;
+        drop(client);
+        f.bot.disconnect().await.unwrap();
+        drop(release);
+        server.await.unwrap();
+    }
+    #[tokio::test]
     async fn submitted_close_pickaxe_send_settles_at_response_state_boundary() {
         let (bot, packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

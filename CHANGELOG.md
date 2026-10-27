@@ -24,6 +24,11 @@
   offhand were already retained the same way; main/hotbar slots still come only
   from the opened screen's contents.
 
+- Java 1.16.1 player-grid crafting take and recipe placement accept the native
+  cache still naming a locally closed opening. Vanilla need not echo that close,
+  so a submitted-close player grid previously failed with
+  "received/native cache ownership disagrees" before any send.
+
 - Java 1.16.1 digging ACKs now emit common `BlocksChanged` and additive
   `EventKind::LegacyDiggingAcknowledged` with the received target, state, status
   and success flag, including rejected, late and unmatched replies. Corrections

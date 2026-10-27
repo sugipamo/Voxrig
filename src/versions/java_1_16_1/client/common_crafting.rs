@@ -15,11 +15,12 @@ impl Bot {
     async fn crafting_cache(&self, record: &CraftingTakeRecord) -> Result<()> {
         let inventory = self.inventory().await;
         if !inventory.pending_clicks.is_empty()
-            || inventory
-                .open_window
-                .as_ref()
-                .map_or(0, |s| i32::from(s.id))
-                != record.window_id()
+            || !record.before.source().native_window_matches(
+                inventory
+                    .open_window
+                    .as_ref()
+                    .map_or(0, |s| i32::from(s.id)),
+            )
             || api::legacy_slot(inventory.cursor.as_ref())? != record.cursor_before.value
         {
             return Err(unavailable(
@@ -218,11 +219,12 @@ impl Bot {
                 .capture(current.session, current.receive_sequence);
             let inventory = self.inventory().await;
             let cache_conflict = !inventory.pending_clicks.is_empty()
-                || inventory
-                    .open_window
-                    .as_ref()
-                    .map_or(0, |s| i32::from(s.id))
-                    != snapshot.record.window_id()
+                || !snapshot.record.before.source().native_window_matches(
+                    inventory
+                        .open_window
+                        .as_ref()
+                        .map_or(0, |s| i32::from(s.id)),
+                )
                 || current.inventory.cursor.as_ref().is_none_or(|c| {
                     api::legacy_slot(inventory.cursor.as_ref()).map_or(true, |v| c.value != v)
                 });
