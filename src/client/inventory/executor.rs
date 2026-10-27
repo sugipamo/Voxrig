@@ -6,6 +6,10 @@ use crate::Result;
 use crate::client::SessionStamp;
 use tokio::time::{Duration, Instant};
 
+// Reservation/write admission must remain possible even when callers request
+// an immediate post-write receipt timeout. Bound pre-write waiting separately.
+const MIN_RESERVATION_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// Identity of a single send. Never reusable across a connection/world/opening.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct InventorySendId {
@@ -192,7 +196,7 @@ impl Executor {
         });
         // Reservations are finite too; a complete write starts a fresh receipt
         // timeout via written(). No Pending record may lose its deadline.
-        self.deadline = Some(Instant::now() + timeout);
+        self.deadline = Some(Instant::now() + timeout.max(MIN_RESERVATION_TIMEOUT));
         Ok(id)
     }
     pub(crate) fn bind_legacy_action(
@@ -211,7 +215,7 @@ impl Executor {
         })?;
         r.legacy_action = Some(action);
         r.after_sequence = after;
-        self.deadline = Some(Instant::now() + timeout);
+        self.deadline = Some(Instant::now() + timeout.max(MIN_RESERVATION_TIMEOUT));
         Some(r.id)
     }
     pub(crate) fn cancel_unsent(&mut self, session: SessionStamp, after: u64) {
@@ -502,13 +506,30 @@ mod tests {
                     Some(id)
                 );
             }
-            tokio::time::advance(Duration::from_secs(1)).await;
+            tokio::time::advance(MIN_RESERVATION_TIMEOUT).await;
             assert_eq!(
                 e.record().unwrap().status,
                 InventorySendStatus::ResyncRequired
             );
             assert!(!e.record().unwrap().dispatched);
         }
+    }
+    #[tokio::test(start_paused = true)]
+    async fn zero_receipt_timeout_still_allows_one_complete_write() {
+        let s = session(MinecraftVersion::Java1_16_1);
+        let mut e = Executor::default();
+        let id = e
+            .begin(s, InventorySource::Player, 10, None, Duration::ZERO, false)
+            .unwrap();
+        assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
+        assert_eq!(
+            e.bind_legacy_action(s, InventorySource::Player, 1, 10, Duration::ZERO),
+            Some(id)
+        );
+        e.written(id, Duration::ZERO);
+        let record = e.record().unwrap();
+        assert!(record.dispatched);
+        assert_eq!(record.status, InventorySendStatus::ResyncRequired);
     }
     #[test]
     fn stale_worker_cannot_rebind_or_invalidate_replacement_reservation() {

@@ -15,6 +15,8 @@ scope. Only the executor settles a send at the completed response/contents/curso
 boundary. It retains the deadline until comparison also finishes. A changed
 scope invalidates a pending send as `ResyncRequired`; missing or late ACKs cannot
 leave it Pending indefinitely or acknowledge a replacement resync/send.
+Receipt timeouts, including zero, start after the complete frame write;
+reservations have a separate finite waiting budget.
 [The official 1.16.1 close/reopen LIVE evidence](evidence/inventory-pending-scope-live-1.16.1-20261027.json.gz)
 includes the original responses, comparison evidence, independent server
 inventory, packet hashes and source/binary hashes. Reproduce it with
