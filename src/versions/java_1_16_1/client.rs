@@ -5634,6 +5634,15 @@ impl Bot {
                 (sequence > before)
                     .then(|| crate::client::received_snapshot::Receipt::new(session, sequence)),
             );
+            if matches!(id, 0x21 | 0x24) {
+                // The entire connection is now unusable, including cached
+                // terrain/light. Publish the loss at the failed packet boundary
+                // before the supervisor appends the terminal Disconnected.
+                self.common_events
+                    .lock()
+                    .expect("event ledger poisoned")
+                    .record(sequence, crate::client::EventKind::ObservationInvalidated);
+            }
         }
         result
     }
@@ -9104,10 +9113,6 @@ mod tests {
         let position = BlockPos { x: 0, y: 0, z: 0 };
         assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 0);
 
-        // A malformed chunk never reaches the world mutation or revision gate.
-        assert!(bot.apply_packet(0x21, Vec::new()).await.unwrap());
-        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 0);
-
         assert!(
             bot.apply_packet(0x21, empty_chunk_packet(0, 0))
                 .await
@@ -9169,6 +9174,11 @@ mod tests {
             .unwrap();
         assert_eq!(observation.sensor_capture.block_geometry_revision, 8);
         assert_eq!(observation.generation, bot.connection_generation());
+
+        // A malformed chunk fails the connection without publishing geometry.
+        // Keep this last: subsequent valid packets cannot recover the reader.
+        assert!(bot.apply_packet(0x21, Vec::new()).await.is_err());
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 8);
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -11105,3 +11115,6 @@ mod digging_ack_notification_tests;
 
 #[cfg(test)]
 mod use_on_block_expect_tests;
+
+#[cfg(test)]
+mod world_decode_failure_tests;

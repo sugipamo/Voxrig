@@ -1,0 +1,254 @@
+{
+  "date": "2026-10-27T08:40:04.157836+00:00",
+  "base_sha": "91686bf9b4b17ba45e7ad9581aa69d3bba19e413",
+  "public_api": "additive",
+  "decision": "none",
+  "passed": true,
+  "toolchains": {
+    "stable": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)"
+  },
+  "environment": {
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "RUST_TEST_THREADS": "1"
+  },
+  "checks": [
+    {
+      "configuration": "stable-default-fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 5.74,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-stable-default-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "configuration": "stable-default-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 176.38,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-stable-default-clippy.log",
+      "log_sha256": "b200cf41238d1562b6bc50d44a89c546da4105cd1391343e4b0e3fbb7a638bd9"
+    },
+    {
+      "configuration": "stable-default-test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 992.57,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-stable-default-test.log",
+      "log_sha256": "24360e13608578d9b23fe1946041780e574f5059699787424f6aa3108b2a5b0d",
+      "test_summaries": [
+        "test result: ok. 1701 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 725.56s",
+        "test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s"
+      ]
+    },
+    {
+      "configuration": "stable-native-fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 6.84,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-stable-native-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "configuration": "stable-native-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 282.36,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-stable-native-clippy.log",
+      "log_sha256": "6d98007b1bb063f5e33ca7276445c918f3aa97ad8b4540425b2dfb3442cb8371"
+    },
+    {
+      "configuration": "stable-native-test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1318.47,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-stable-native-test.log",
+      "log_sha256": "de4f98749bf7f22c311f3a588835b6a4fa5780d969f78b010724cef6c3292aa2",
+      "test_summaries": [
+        "test result: ok. 1701 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 749.40s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s",
+        "test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s"
+      ]
+    },
+    {
+      "configuration": "1.85.0-default-fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 7.01,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-1.85.0-default-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "configuration": "1.85.0-default-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 163.96,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-1.85.0-default-clippy.log",
+      "log_sha256": "4e6e65e83b672ec3ce876dde5e7699e717d8e52edb9df2c97a67506fc36dd2b3"
+    },
+    {
+      "configuration": "1.85.0-default-test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1343.71,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-1.85.0-default-test.log",
+      "log_sha256": "91cbe7e65d4abb827c2bd2dd6a9541a7b4193ce556175c4cd945f45a7a60cfed",
+      "test_summaries": [
+        "test result: ok. 1701 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 822.03s",
+        "test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.21s"
+      ]
+    },
+    {
+      "configuration": "1.85.0-native-fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 7.35,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-1.85.0-native-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "configuration": "1.85.0-native-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 308.66,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-1.85.0-native-clippy.log",
+      "log_sha256": "f78d36d0922d9a273c859c35946f695b4c8b0bd30ff1a52bc5563830bfbfd2e3"
+    },
+    {
+      "configuration": "1.85.0-native-test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1774.54,
+      "log": "/home/dev/work/Voxrig-ns03/reports/ns03-final-1.85.0-native-test.log",
+      "log_sha256": "a2a26070bc63d18b64fa679875eb2ba084f0965a1ea8205d805ce204201122a9",
+      "test_summaries": [
+        "test result: ok. 1701 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 802.34s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s",
+        "test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.18s"
+      ]
+    }
+  ],
+  "source_sha256": {
+    "CHANGELOG.md": "dd7dc19cd357fccb6089994c64fef598f9bda8bb1d386fc8b5edf841091a5030",
+    "Cargo.toml": "f8032dce264ac363fce3b78a38ebad907870605a18a271704d87866468e9c1d2",
+    "Cargo.lock": "8bf7e3de1d117dc1b42243ac611431b022f09bc297f38160981c6979ead35668",
+    "docs/common-events.md": "a40bd671207d3bcdb6f6b46b6c066a002db5c9299fc3f01ced33ccafdf0e54c6",
+    "docs/world-decode-failures.md": "f33f934ac0a580e67fe1b5756b23e8425f792f3cfc419508eb8a4bf2b37d10c3",
+    "src/client/events.rs": "557a4fee6815cf262780e0c724c39e9f148df8ae2f46a34349f0331e4d27d064",
+    "src/versions/java_1_16_1/client.rs": "4da1ff53c3a53a3041c9eb79b90756bccfb59cc555bdbd5161e87ebb62662518",
+    "src/versions/java_1_16_1/client/common_chunks.rs": "ef3f140a9a2248989428c4115f50f7abb0be9cda726b9608b22dda5876683573",
+    "src/versions/java_1_16_1/client/play_world.rs": "c5a9982efdd01d4c567425661c44ca8189da67e51bcdff39e696d023c8ed0824",
+    "src/versions/java_1_16_1/client/world_decode_failure_tests.rs": "f7bc61bea93742fab6ac673b20c36ba4bb7d5e93f73b003c8a729dd2985acc67",
+    "examples/world_decode_failure_probe.rs": "6230c2066d691cf5e26830d793f8e409324fed035c1ffdac749ef817cfea28b6",
+    "scripts/run_world_decode_failure_live.py": "3c67926f913bffed2c4e3ea0ff470cae8123d6df41a6597b11c45b0a83adb852"
+  },
+  "initial_full_suite_failure": {
+    "test": "versions::java_1_16_1::client::tests::block_geometry_revision_tracks_only_geometry_packets",
+    "result": "1700 passed; 1 failed; 8 ignored",
+    "reason": "Existing fixture expected an empty CHUNK_DATA payload to return Ok. It now correctly returns Err.",
+    "resolution": "Keep normal geometry checks on a live observation first; assert malformed chunk error and unchanged revision last. Targeted regression passes; all four complete configurations rerun on final source."
+  },
+  "live": {
+    "passed": true,
+    "evidence": "docs/evidence/world-decode-failure-live-1.16.1-20261027.json.gz",
+    "sha256": "3a8ec2eb4616b9ee8f0028bf8ae134ec4c75ba0da8e5637c13024affce67be67",
+    "cases": [
+      "0x21",
+      "0x24"
+    ],
+    "authority_limits": "Unmodified SHA-1 verified official 1.16.1 server and real TCP/RCON. Normal reception checked before proxy-only payload truncation. Malformed packets are explicit fault injection; no claim that the official server naturally sends them. Bounded-log eviction is tested by deterministic fixtures, not by this LIVE run."
+  },
+  "additional": {
+    "native_trace_tests": "python3 -B scripts/test_native_trace.py: 6 passed",
+    "geometry_regression": "cargo test --locked --lib block_geometry_revision_tracks_only_geometry_packets: 1 passed"
+  }
+}

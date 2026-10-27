@@ -54,6 +54,7 @@ loop {
 | `LevelEventReceived` | この共通通知は未対応 | `LEVEL_EVENT`（world event） |
 | `BlockDestructionReceived` | この共通通知は未対応 | `BLOCK_DESTRUCTION`（他のbreakerのcrack進捗） |
 | `ItemPickupReceived` | この共通通知は未対応 | `TAKE_ITEM_ENTITY`（pickup animation） |
+| `ObservationInvalidated` | チャンク／光の受信失敗時に直接記録。接続全体の観測を撤回し、reader を終了。[回復と診断](world-decode-failures.md) | 未発行（既存の受信失敗動作を維持） |
 | `Disconnected` | `Disconnected`、接続エラー | 切断を検知した最初の読み出し時 |
 | `EntityUpdated { native_id }` | `EntityUpdated`（移動・向き・速度・metadata・装備） | `SYNC_ENTITY_POSITION`、`REL_ENTITY_MOVE`、`ENTITY_MOVE_LOOK`、`ENTITY_LOOK`、`ENTITY_HEAD_ROTATION`、`ENTITY_METADATA`、`ENTITY_VELOCITY`、`ENTITY_EQUIPMENT`、`ENTITY_TELEPORT` |
 | `EntityStatus { native_id, status }` | `EntityStatus` | `ENTITY_STATUS`（codeは版ごとに違う） |
