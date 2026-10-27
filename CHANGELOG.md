@@ -17,6 +17,7 @@
   gaps remain explicit `State` errors. Public signatures and normal send admission
   are unchanged; Java 1.21.11 is unchanged. See [recovery and ownership](docs/world-decode-failures.md).
 - Opening or closing a foreign screen no longer forgets the received player
+- Opening a foreign screen no longer forgets the received player
   2x2 crafting result/grid (slots 0..=4) on Java 1.16.1 and 1.21.11. The server
   keeps that grid while another menu is open and sends no player-menu contents on
   close, so `received_crafting()` previously reported every input as unreceived
@@ -25,6 +26,13 @@
   from the opened screen's contents. Java 1.16.1 crafting result takes also use
   the common received/submitted-close admission, so a historical native screen
   projection no longer rejects player crafting after a foreign screen close.
+
+- Java 1.16.1 foreign close now invalidates a nonempty (or incomplete) player
+  crafting grid and automatically requests actual window-0 full contents using
+  the inventory resync executor. While waiting, `received_crafting()` exposes
+  missing slots; only actual packets restore them. Admission/write and receipt
+  waits are bounded, and timeout never restores the preserved values. A fully
+  received empty result and four empty inputs need no resync.
 
 - Java 1.16.1 player-grid crafting take and recipe placement accept the native
   cache still naming a locally closed opening. Vanilla need not echo that close,

@@ -2,12 +2,10 @@
 //! Called only by the ordered dispatcher while its coherent-state gate is held.
 use super::*;
 
-/// Player-menu slots that a foreign screen opening neither re-supplies nor alters:
-/// the 2x2 crafting result/grid (0..=4), armor (5..=8) and offhand (45).
-/// The server keeps the player menu's grid while another menu is open and sends
-/// no window-0 contents on close, so dropping these would leave the grid unknown
-/// until a player-menu refresh. Actual window-0 slot updates still replace these
-/// receipts, including input clears after a player-menu close.
+/// Player-menu slots not re-supplied by foreign contents: crafting 0..=4,
+/// armor 5..=8 and offhand 45. Keep their receipts while hidden; after close,
+/// refresh_player_crafting_after_close invalidates any nonempty/incomplete grid
+/// and requests actual player contents. Actual window-0 updates always win.
 pub(super) const PLAYER_SLOTS_KEPT_BY_SCREENS: [usize; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 45];
 
 impl Bot {
@@ -98,6 +96,8 @@ impl Bot {
             ));
         }
         let window_id = *p.first().context("missing closed window ID")? as i8;
+        let (_, source) = self.inventory_execution_scope().await;
+        let returned_to_player = matches!(source, crate::client::inventory::InventorySource::Container { screen } if screen.window_id() == i32::from(window_id));
         let mut executor = lock_packet_state(&self.inventory_executor).await;
         if executor
             .record()
@@ -173,6 +173,9 @@ impl Bot {
         }
         drop(furnace_window_position);
         drop(inventory);
+        if returned_to_player {
+            self.refresh_player_crafting_after_close(None).await?;
+        }
         self.emit(Event::WindowClosed { window_id });
         Ok(())
     }

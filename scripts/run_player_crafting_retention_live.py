@@ -34,7 +34,11 @@ def check(version, command, request, trace, report):
 
     def returned():
         grid = request("crafting")
-        return grid if grid and grid["source"]["kind"] == "player" else None
+        if not (grid and grid["source"]["kind"] == "player"
+                and all(grid["inputs"]) and grid["result"]):
+            return None
+        record = request("inventory_send_record")["record"]
+        return grid if not record or record["status"] in ("received", "diverged") else None
 
     def settle(sent):
         def complete():
@@ -44,7 +48,7 @@ def check(version, command, request, trace, report):
             return record if record["stage"] != "pending" else None
         return until(complete, 5)
 
-    # No click/resync may repair window 0 before these checks: retain original receipts.
+    # Fully received empty grids need no probe: keep their original receipts.
     initial = request("crafting")
     assert initial and all(initial["inputs"]), initial
     for block in ("chest", "crafting_table"):
@@ -117,8 +121,8 @@ def check(version, command, request, trace, report):
     # Repeat across vanilla tick boundaries: last-slot broadcasts and explicit
     # full refreshes do not necessarily observe the same intermediate input.
     for clear_cycle in range(12):
-        # /clear also targets the hidden player crafting inputs. Their actual empty
-        # updates must replace retained receipts when the player menu becomes active.
+        # /clear also targets hidden inputs; automatic full resync must recover
+        # even when no input Set Slot follows close. No explicit repair is sent.
         command("replaceitem entity ClimbingProbe inventory.0 minecraft:oak_planks 1")
         until(lambda: item(player_slot(9), "oak_planks", 1), 5)
         request("inventory_click", slot=9)
@@ -149,6 +153,13 @@ def check(version, command, request, trace, report):
                                         frames=trace.since(boundary)))
             raise AssertionError("retained player input stayed nonempty after server /clear; explicit resync supplies empty inputs") from None
         assert after["inputs"][0]["receive_sequence"] > before["inputs"][0]["receive_sequence"]
+        frames = trace.since(boundary)
+        assert any(f["direction"] == "serverbound" and f["phase"] == "play"
+                   and f["packet_id"] == 0x09 and f.get("body_hex", "").startswith("00ffff")
+                   for f in frames), "missing automatic window 0 resync"
+        assert any(f["direction"] == "clientbound" and f["phase"] == "play"
+                   and f["packet_id"] == 0x14 and f.get("body_hex", "").startswith("00")
+                   for f in frames), "missing real window 0 full contents"
         report["checks"].append(dict(name="server_clear_hidden_player_grid", before=before,
                                     cycle=clear_cycle, removed=removed, while_foreign=hidden, after=after,
                                     frames=trace.since(boundary)))

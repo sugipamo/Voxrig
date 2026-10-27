@@ -367,6 +367,61 @@ impl api::adapter::InventorySendOps for Bot {
     }
     async fn resync_inventory(&self) -> Result<inv::InventorySendRecord> {
         let _gate = self.coherent_state_gate.lock().await;
+        self.resync_inventory_unlocked().await
+    }
+}
+impl Bot {
+    /// The close owner calls this after actual cursor return and close send,
+    /// under the same coherence gate used by every inventory sender/receiver.
+    /// Invalidate before I/O: timeout, rejection or caller cancellation can never
+    /// promote preserved values back to received knowledge. Actual packets alone
+    /// repopulate these slots, including packets preceding the resync response.
+    pub(super) async fn refresh_player_crafting_after_close(
+        &self,
+        close_parent: Option<u64>,
+    ) -> Result<()> {
+        let refresh = {
+            let mut receipts = self.common_receipts.lock().await;
+            let grid = &mut receipts.inventory.slots[..5];
+            // Vanilla InventoryMenu owns a separate CraftingContainer. Foreign
+            // clicks are checked against the active menu ID; they cannot add
+            // to an empty player grid. Server additions use setItem and normal
+            // slot broadcasts (ServerPlayer.slotChanged -> Set Slot). See
+            // docs/internal/player-crafting-refresh.md for the audited paths.
+            let empty = grid.iter().all(|s| {
+                s.as_ref()
+                    .is_some_and(|s| s.value == api::SlotKnowledge::Empty)
+            });
+            if !empty {
+                grid.fill(None);
+            }
+            !empty
+        };
+        // Publish missing knowledge even if releasing the already-sent close
+        // parent fails. Never send a probe while that parent owns the ledger.
+        if let Some(attempt) = close_parent {
+            tokio::time::timeout(
+                self.connection_options.inventory_click_receipt_timeout,
+                self.connection.finish_cursor_close(attempt),
+            )
+            .await
+            .map_err(|_| inv::unavailable("close parent release deadline elapsed"))?
+            .map_err(|e| inv::unavailable(format!("close parent release: {e:?}")))?;
+        }
+        if !refresh {
+            return Ok(());
+        }
+        // Bound admission/write too, rather than holding the receive gate
+        // indefinitely if the connection actor cannot accept this probe.
+        let _ = tokio::time::timeout(
+            self.connection_options.inventory_click_receipt_timeout,
+            self.resync_inventory_unlocked(),
+        )
+        .await;
+        Ok(())
+    }
+
+    async fn resync_inventory_unlocked(&self) -> Result<inv::InventorySendRecord> {
         let (session, source) = self.inventory_execution_scope().await;
         let window = match source {
             InventorySource::Player => 0,
@@ -427,8 +482,9 @@ impl api::adapter::InventorySendOps for Bot {
             execution.id.number(),
         );
         self.inventory_execution_written().await;
+        let receipt_timeout = self.connection_options.inventory_click_receipt_timeout;
         self.spawn_finite_work(work, async move {
-            let _ = transaction.wait().await;
+            let _ = tokio::time::timeout(receipt_timeout, transaction.wait()).await;
         });
         Ok(lock_packet_state(&self.inventory_executor)
             .await
@@ -773,6 +829,20 @@ mod tests {
         // Native history still describes the furnace. Admission belongs to the
         // common received projection, whose exact submitted close grants access.
         assert_eq!(f.bot.inventory().await.open_window.unwrap().id, 3);
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert!(grid.input(0, 0).unwrap().is_none());
+        let resync = client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(resync.resync && resync.dispatched);
+        assert_eq!(resync.id.source(), InventorySource::Player);
+        f.click().await;
+        f.response(&resync, false).await;
+        f.full_player(&slots).await;
+        f.cursor(&api::SlotKnowledge::Empty).await;
         let grid = client.received_crafting().await.unwrap().unwrap();
         assert_eq!(grid.input(0, 0).unwrap().unwrap().value(), &slots[1]);
         let take = client.survival().take_crafting_result(&grid).await.unwrap();
