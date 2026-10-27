@@ -6,6 +6,10 @@ use crate::Result;
 use crate::client::SessionStamp;
 use tokio::time::{Duration, Instant};
 
+// Reservation/write admission must remain possible even when callers request
+// an immediate post-write receipt timeout. Bound pre-write waiting separately.
+const MIN_RESERVATION_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// Identity of a single send. Never reusable across a connection/world/opening.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct InventorySendId {
@@ -190,8 +194,9 @@ impl Executor {
             status: InventorySendStatus::Pending,
             resync,
         });
-        self.deadline = None;
-        let _ = timeout; // receipt timeout starts at complete write, via written()
+        // Reservations are finite too; a complete write starts a fresh receipt
+        // timeout via written(). No Pending record may lose its deadline.
+        self.deadline = Some(Instant::now() + timeout.max(MIN_RESERVATION_TIMEOUT));
         Ok(id)
     }
     pub(crate) fn bind_legacy_action(
@@ -210,8 +215,7 @@ impl Executor {
         })?;
         r.legacy_action = Some(action);
         r.after_sequence = after;
-        self.deadline = None;
-        let _ = timeout;
+        self.deadline = Some(Instant::now() + timeout.max(MIN_RESERVATION_TIMEOUT));
         Some(r.id)
     }
     pub(crate) fn cancel_unsent(&mut self, session: SessionStamp, after: u64) {
@@ -301,8 +305,10 @@ impl Executor {
                 self.ready = true;
                 if self.comparison.is_none() {
                     r.status = InventorySendStatus::Received;
+                    self.deadline = None;
                 }
-                self.deadline = None;
+                // With an intention, only observe() can finish the comparison
+                // at the applied packet boundary. Keep its timeout until then.
             }
         }
     }
@@ -385,6 +391,16 @@ impl Executor {
     }
     pub(crate) fn observe(&mut self, current: super::InventorySnapshot, crafting_complete: bool) {
         self.expire();
+        if self.current.as_ref().is_some_and(|r| {
+            r.status == InventorySendStatus::Pending
+                && current.receive_sequence > r.after_sequence
+                && (r.id.session != current.session || r.id.source != current.source)
+        }) {
+            // This snapshot is from a new world/opening or local close scope.
+            // It cannot discharge the old response debt or compare its intent.
+            self.invalidate();
+            return;
+        }
         let Some(r) = self.current.as_mut().filter(|r| {
             r.dispatched
                 && r.status == InventorySendStatus::Pending
@@ -405,6 +421,7 @@ impl Executor {
                 self.divergence = Some(comparison.divergence(current));
             }
             self.comparison = None;
+            self.deadline = None;
         }
     }
     pub(crate) fn response(
@@ -467,6 +484,52 @@ mod tests {
             connection_id: 42,
             world_generation: 7,
         }
+    }
+    #[tokio::test(start_paused = true)]
+    async fn unwritten_reservation_and_bound_legacy_action_are_finite() {
+        let s = session(MinecraftVersion::Java1_16_1);
+        for bound in [false, true] {
+            let mut e = Executor::default();
+            let id = e
+                .begin(
+                    s,
+                    InventorySource::Player,
+                    10,
+                    None,
+                    Duration::from_secs(1),
+                    false,
+                )
+                .unwrap();
+            if bound {
+                assert_eq!(
+                    e.bind_legacy_action(s, InventorySource::Player, 1, 10, Duration::from_secs(1)),
+                    Some(id)
+                );
+            }
+            tokio::time::advance(MIN_RESERVATION_TIMEOUT).await;
+            assert_eq!(
+                e.record().unwrap().status,
+                InventorySendStatus::ResyncRequired
+            );
+            assert!(!e.record().unwrap().dispatched);
+        }
+    }
+    #[tokio::test(start_paused = true)]
+    async fn zero_receipt_timeout_still_allows_one_complete_write() {
+        let s = session(MinecraftVersion::Java1_16_1);
+        let mut e = Executor::default();
+        let id = e
+            .begin(s, InventorySource::Player, 10, None, Duration::ZERO, false)
+            .unwrap();
+        assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
+        assert_eq!(
+            e.bind_legacy_action(s, InventorySource::Player, 1, 10, Duration::ZERO),
+            Some(id)
+        );
+        e.written(id, Duration::ZERO);
+        let record = e.record().unwrap();
+        assert!(record.dispatched);
+        assert_eq!(record.status, InventorySendStatus::ResyncRequired);
     }
     #[test]
     fn stale_worker_cannot_rebind_or_invalidate_replacement_reservation() {

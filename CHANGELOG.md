@@ -23,6 +23,13 @@
   boundaries, and raw invalid HP are available without the native feature.
   Existing public signatures/enums remain unchanged. See [usage and Golemkit example](docs/health-log.md).
 
+- Fix Java 1.16.1 inventory sends staying Pending after a locally submitted
+  container close without a server close echo. Admission, pre-send comparison,
+  and receive snapshots share the same scope projection. Comparison retains its
+  deadline until terminal settlement; scope changes require explicit resync.
+  Existing public APIs are unchanged
+  ([Golemkit #415](https://github.com/sugipamo/Golemkit/issues/415)).
+
 - BREAKING: `InventorySendStatus` gains `Diverged` and is now `#[non_exhaustive]`;
   `Received` requires the declared effect to agree with current received values.
   Add `Client::inventory_divergence` and bounded `inventory_changes_after` on both

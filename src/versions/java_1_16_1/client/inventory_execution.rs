@@ -5,24 +5,45 @@ use crate::client::{
     inventory::{self as inv, InventorySource},
 };
 impl Bot {
-    pub(super) async fn inventory_changes_received(&self, packet: i32) {
-        if !matches!(packet, 0x12 | 0x13 | 0x14 | 0x16 | 0x25 | 0x2e | 0x3a) {
-            return;
-        }
-        use inv::InventorySnapshot;
+    // Caller holds coherent_state_gate and the receipts lock. This is the one
+    // legacy projection of local close authority onto received inventory. It
+    // never changes the reducer's original window/opening or value provenance.
+    pub(super) async fn received_inventory_projection(
+        &self,
+        receipts: &api::observation::LegacyReceipts,
+        session: api::SessionStamp,
+    ) -> api::InventoryObservation {
+        let mut inventory = receipts.inventory.clone();
+        inventory.player_screen = api::container::player_screen_access(
+            session,
+            inventory.window_id,
+            receipts.container.as_ref().map(|s| s.id(session)),
+            lock_packet_state(&self.common_container_close)
+                .await
+                .as_ref(),
+        );
+        inventory
+    }
+    async fn inventory_execution_snapshot(&self) -> inv::InventorySnapshot {
         let receipts = self.common_receipts.lock().await;
         let session = api::SessionStamp {
             version: crate::MinecraftVersion::Java1_16_1,
             connection_id: self.connection_id(),
             world_generation: receipts.generation,
         };
-        let current = InventorySnapshot::from_inventory(
+        let inventory = self.received_inventory_projection(&receipts, session).await;
+        inv::InventorySnapshot::from_inventory(
             session,
             self.protocol_packet_sequence.load(Ordering::Acquire),
-            &receipts.inventory,
+            &inventory,
             receipts.screen(session),
-        );
-        drop(receipts);
+        )
+    }
+    pub(super) async fn inventory_changes_received(&self, packet: i32) {
+        if !matches!(packet, 0x12 | 0x13 | 0x14 | 0x16 | 0x25 | 0x2e | 0x3a) {
+            return;
+        }
+        let current = self.inventory_execution_snapshot().await;
         let crafting_complete = lock_packet_state(&self.common_crafting_take)
             .await
             .as_ref()
@@ -102,32 +123,10 @@ impl Bot {
         inventory
     }
     pub(super) async fn inventory_execution_scope(&self) -> (api::SessionStamp, InventorySource) {
-        let receipts = self.common_receipts.lock().await;
-        let session = api::SessionStamp {
-            version: crate::MinecraftVersion::Java1_16_1,
-            connection_id: self.connection_id(),
-            world_generation: receipts.generation,
-        };
-        let mut source = receipts
-            .container
-            .as_ref()
-            .map_or(InventorySource::Player, |s| InventorySource::Container {
-                screen: s.id(session),
-            });
-        if receipts.inventory.window_id == Some(0)
-            || matches!(
-                api::container::player_screen_access(
-                    session,
-                    receipts.inventory.window_id,
-                    receipts.container.as_ref().map(|s| s.id(session)),
-                    self.common_container_close.lock().await.as_ref()
-                ),
-                Some(api::container::PlayerScreenAccess::SubmittedClose { .. })
-            )
-        {
-            source = InventorySource::Player;
-        }
-        (session, source)
+        // InventorySnapshot owns Player/Container selection for admission and
+        // comparison alike; do not reconstruct that decision from raw receipts.
+        let current = self.inventory_execution_snapshot().await;
+        (current.session, current.source)
     }
     pub(super) fn inventory_resync_comparison(&self) -> Result<api::SlotKnowledge> {
         api::legacy_slot(Some(&ItemStack {
@@ -508,7 +507,7 @@ mod tests {
             self.bot.apply_packet(0x16, p).await.unwrap();
         }
         async fn response(&mut self, r: &inv::InventorySendRecord, accepted: bool) {
-            let mut p = vec![0];
+            let mut p = vec![r.window() as u8];
             p.extend(r.legacy_action.unwrap().to_be_bytes());
             p.push(u8::from(accepted));
             self.bot.apply_packet(0x12, p).await.unwrap();
@@ -524,6 +523,373 @@ mod tests {
                 }
             }
         }
+    }
+    #[tokio::test]
+    async fn submitted_close_missing_late_ack_and_reopen_require_resync() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let stone = api::legacy_slot(Some(&ItemStack {
+            item_id: crate::registry::item_id("stone").unwrap(),
+            count: 7,
+            nbt: None,
+        }))
+        .unwrap();
+        let mut slots = vec![api::SlotKnowledge::Empty; 46];
+        slots[9] = stone.clone();
+        f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+        f.close_furnace(&stone).await;
+        let old = client
+            .survival()
+            .send_inventory_click(InventorySource::Player, 9, inv::InventoryClickButton::Left)
+            .await
+            .unwrap();
+        f.click().await;
+        slots[9] = api::SlotKnowledge::Empty;
+        f.inventory(&slots, &stone).await;
+        assert!(client.survival().resync_inventory().await.is_err());
+        tokio::time::pause();
+        tokio::time::advance(Duration::from_secs(6)).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            inv::InventorySendStatus::ResyncRequired
+        );
+        tokio::time::resume();
+        assert!(
+            client
+                .survival()
+                .send_inventory_click(InventorySource::Player, 9, inv::InventoryClickButton::Left,)
+                .await
+                .is_err()
+        );
+        let sync = client.survival().resync_inventory().await.unwrap();
+        f.click().await;
+        f.response(&old, false).await; // late original ACK cannot acknowledge resync
+        f.inventory(&slots, &stone).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            inv::InventorySendStatus::Pending
+        );
+        f.response(&sync, false).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            inv::InventorySendStatus::Diverged
+        );
+        assert!(
+            client
+                .inventory_divergence(old.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .causes
+                .contains(&inv::InventoryCause::TimedOutResync)
+        );
+        let next = client
+            .survival()
+            .send_inventory_click(InventorySource::Player, 9, inv::InventoryClickButton::Left)
+            .await
+            .unwrap();
+        f.click().await;
+        // A different received opening (even the same numeric window) retires the send.
+        let first = f.furnace(&stone).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            inv::InventorySendStatus::ResyncRequired
+        );
+        let second = f.furnace(&stone).await;
+        assert_ne!(first, second);
+        f.response(&next, false).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            inv::InventorySendStatus::ResyncRequired
+        );
+        let reopened = client.survival().resync_inventory().await.unwrap();
+        f.click().await;
+        assert_eq!(
+            reopened.id.source(),
+            InventorySource::Container { screen: second }
+        );
+        f.response(&reopened, false).await;
+        let mut full = vec![3, 0, 39];
+        full.extend([0; 39]);
+        f.bot.apply_packet(0x14, full).await.unwrap();
+        f.cursor(&api::SlotKnowledge::Empty).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            inv::InventorySendStatus::Received
+        );
+        release.send(()).unwrap();
+        drop(client);
+        drop(f.bot);
+        server.await.unwrap();
+    }
+    impl LegacyFixture {
+        async fn furnace(&mut self, item: &api::SlotKnowledge) -> api::container::ScreenId {
+            let menu =
+                api::furnace::native_menu(crate::MinecraftVersion::Java1_16_1, "minecraft:furnace")
+                    .unwrap();
+            let mut open = vec![3];
+            crate::protocol::put_varint(&mut open, menu.native_id);
+            put_string(&mut open, "{}");
+            self.bot.apply_packet(0x2e, open).await.unwrap();
+            let mut full = vec![3, 0, 39];
+            for slot in 0..39 {
+                crate::inventory::write_slot(
+                    &mut full,
+                    if slot == 3 { native(item) } else { None }.as_ref(),
+                );
+            }
+            self.bot.apply_packet(0x14, full).await.unwrap();
+            self.cursor(&api::SlotKnowledge::Empty).await;
+            self.client()
+                .screen_state()
+                .await
+                .unwrap()
+                .screen
+                .unwrap()
+                .id
+        }
+        async fn close_furnace(&mut self, item: &api::SlotKnowledge) {
+            let screen = self.furnace(item).await;
+            let close = self
+                .client()
+                .survival()
+                .close_container(screen)
+                .await
+                .unwrap();
+            assert!(close.dispatched);
+            assert!(close.server_close_sequence.is_none());
+            assert!(matches!(
+                self.client()
+                    .player_state()
+                    .await
+                    .unwrap()
+                    .inventory
+                    .player_screen,
+                Some(api::container::PlayerScreenAccess::SubmittedClose { .. })
+            ));
+        }
+        async fn full_player(&mut self, slots: &[api::SlotKnowledge]) {
+            let mut full = vec![0];
+            full.extend((slots.len() as i16).to_be_bytes());
+            for slot in slots {
+                crate::inventory::write_slot(&mut full, native(slot).as_ref());
+            }
+            self.bot.apply_packet(0x14, full).await.unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn submitted_close_pickaxe_send_settles_at_response_state_boundary() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let pickaxe = api::legacy_slot(Some(&ItemStack {
+            item_id: crate::registry::item_id("wooden_pickaxe").unwrap(),
+            count: 1,
+            nbt: None,
+        }))
+        .unwrap();
+        // Every order of ACK, full contents, and cursor, including ACK last.
+        for order in [
+            [0, 1, 2],
+            [0, 2, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [2, 0, 1],
+            [2, 1, 0],
+        ] {
+            for external in [false, true] {
+                let mut slots = vec![api::SlotKnowledge::Empty; 46];
+                slots[9] = pickaxe.clone();
+                f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+                f.close_furnace(&pickaxe).await;
+                let sent = client
+                    .survival()
+                    .send_inventory_click(
+                        InventorySource::Player,
+                        9,
+                        inv::InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap();
+                f.click().await;
+                slots[9] = api::SlotKnowledge::Empty;
+                if external {
+                    slots[19] = pickaxe.clone();
+                }
+                for (index, event) in order.into_iter().enumerate() {
+                    match event {
+                        0 => f.response(&sent, false).await,
+                        1 => f.full_player(&slots).await,
+                        _ => f.cursor(&pickaxe).await,
+                    }
+                    let done = client
+                        .survival()
+                        .inventory_send_record()
+                        .await
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(done.id, sent.id);
+                    if index < 2 {
+                        assert_eq!(done.status, inv::InventorySendStatus::Pending);
+                    } else if external {
+                        assert_eq!(done.status, inv::InventorySendStatus::Diverged);
+                    } else {
+                        // Opening the furnace invalidates player crafting slots.
+                        // Learning them again may conservatively diverge, but
+                        // must still settle this original send and release it.
+                        assert!(
+                            matches!(
+                                done.status,
+                                inv::InventorySendStatus::Received
+                                    | inv::InventorySendStatus::Diverged
+                            ),
+                            "order={order:?}, status={:?}",
+                            done.status
+                        );
+                    }
+                }
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_click_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    inv::InventoryClickStage::ObservedClicked
+                );
+                let evidence = client.inventory_divergence(sent.id).await.unwrap();
+                if external {
+                    assert!(evidence.is_some());
+                }
+                if let Some(evidence) = evidence {
+                    assert_eq!(evidence.before.source, InventorySource::Player);
+                    assert_eq!(evidence.current.source, InventorySource::Player);
+                    assert!(evidence.before.screen.is_none() && evidence.current.screen.is_none());
+                    assert!(evidence.causes.contains(&inv::InventoryCause::Rejected));
+                    assert!(evidence.causes.contains(&inv::InventoryCause::External));
+                    assert!(evidence.current.receive_sequence > sent.after_sequence);
+                    assert_eq!(
+                        evidence.current.player_slots[9].as_ref().unwrap().value,
+                        api::SlotKnowledge::Empty
+                    );
+                    assert_eq!(evidence.current.cursor.as_ref().unwrap().value, pickaxe);
+                }
+                let done = client
+                    .survival()
+                    .inventory_send_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let settled_evidence =
+                    serde_json::to_value(client.inventory_divergence(sent.id).await.unwrap())
+                        .unwrap();
+                f.response(&sent, false).await; // duplicate cannot finish a second time
+                f.cursor(&pickaxe).await;
+                assert_eq!(
+                    serde_json::to_value(&done).unwrap(),
+                    serde_json::to_value(
+                        client
+                            .survival()
+                            .inventory_send_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                    )
+                    .unwrap()
+                );
+                assert_eq!(
+                    settled_evidence,
+                    serde_json::to_value(client.inventory_divergence(sent.id).await.unwrap())
+                        .unwrap()
+                );
+                // Admission is released: a new original click and explicit resync both work.
+                let next = client
+                    .survival()
+                    .send_inventory_click(
+                        InventorySource::Player,
+                        9,
+                        inv::InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap();
+                f.click().await;
+                slots[9] = pickaxe.clone();
+                f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+                f.response(&next, false).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_send_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .status,
+                    inv::InventorySendStatus::Received
+                );
+                let resync = client.survival().resync_inventory().await.unwrap();
+                f.click().await;
+                f.response(&resync, false).await;
+                f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_send_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .status,
+                    inv::InventorySendStatus::Received
+                );
+            }
+        }
+        release.send(()).unwrap();
+        drop(client);
+        drop(f.bot);
+        server.await.unwrap();
     }
     #[tokio::test]
     async fn received_inventory_single_owner_pickup_transfer_crafting_matrix() {
