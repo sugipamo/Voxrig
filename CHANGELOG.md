@@ -17,18 +17,18 @@
   oversized observations do not add receive/send rejections. Existing signatures
   and Java 1.21.11 behavior are unchanged. See [usage](docs/common-explosions.md).
 
+- Add common received-health cursor log and independent push subscriptions for
+  Java 1.16.1 and 1.21.11, directly from update_health reducers. Atomic admission
+  baseline/tail, bounded health-only retention, explicit lag, ordered world/close
+  boundaries, and raw invalid HP are available without the native feature.
+  Existing public signatures/enums remain unchanged. See [usage and Golemkit example](docs/health-log.md).
+
 - Fix Java 1.16.1 inventory sends staying Pending after a locally submitted
   container close without a server close echo. Admission, pre-send comparison,
   and receive snapshots share the same scope projection. Comparison retains its
   deadline until terminal settlement; scope changes require explicit resync.
   Existing public APIs are unchanged
   ([Golemkit #415](https://github.com/sugipamo/Golemkit/issues/415)).
-
-- Add common received-health cursor log and independent push subscriptions for
-  Java 1.16.1 and 1.21.11, directly from update_health reducers. Atomic admission
-  baseline/tail, bounded health-only retention, explicit lag, ordered world/close
-  boundaries, and raw invalid HP are available without the native feature.
-  Existing public signatures/enums remain unchanged. See [usage and Golemkit example](docs/health-log.md).
 
 - BREAKING: `InventorySendStatus` gains `Diverged` and is now `#[non_exhaustive]`;
   `Received` requires the declared effect to agree with current received values.
