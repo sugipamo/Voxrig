@@ -29,15 +29,32 @@ World/generation/position/mode/selection changes, unsupported inventory, affecte
 chunk replacement and conflicting block or material updates latch inspection.
 A later matching update cannot erase an intermediate conflict. Timeout or
 cancellation is pending, not rollback or permission to retry. Closed history
-retains the attempt. Only observed completion releases this one-shot gate, and
-each subsequent placement rechecks its own predecessor and current geometry.
+retains the attempt. Only observed completion or observed rejection releases
+this one-shot gate, and each subsequent placement rechecks its own predecessor
+and current geometry.
 Raw `use_on_block` in survival refuses callers in favor of this checked path;
 creative packet submission retains its existing contract.
 
 The result reports observed outcomes, not attribution to an actor or a guarantee
 against future external edits. Server-side entity collisions, protection and
-other rejection can leave an unresolved attempt; they never become assumed
-success. No general entity simulation, walking, stairs/slabs, replaceable plants,
+other rejection never become assumed success.
+
+`PlacementStatus::ObservedRejected` is the terminal processed-without-effect
+result. It requires a fresh target update after submission that still equals
+`before` (the handler's own echo), a covering fresh ACK, unchanged support and
+stair neighbors, and an unconsumed selected stack (no consumption receipt).
+`PlacementRecord::rejection` keeps the ACK sequence/ordinal and the echo
+ordinal. Vanilla `handleUseItemOn` sends BlockUpdate(clicked) and
+BlockUpdate(clicked + face) before returning on every path past its early
+checks, and the ACK leaves later on the connection tick, so a target the
+handler placed always arrives before the ACK. The early returns (client not
+loaded, disabled item feature, out of range, bad cursor) send the ACK only;
+they stay `Pending` because nothing shows the target was examined. Rejection
+names no server reason and is never a retry instruction.
+
+`wait_survival_placement` still expires the connection when the attempt is
+unresolved at its deadline (a late ACK may yet place a block). An attempt that
+resolves placed or rejected by the deadline does not. No general entity simulation, walking, stairs/slabs, replaceable plants,
 fluids, automatic recovery/replay or autonomous Blueprint construction is added.
 
 The common additive `Survival::place_cube_replacing` has a separate explicit

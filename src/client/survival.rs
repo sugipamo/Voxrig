@@ -7,9 +7,10 @@ pub(crate) mod model;
 pub(crate) mod placement;
 pub(crate) mod terrain;
 pub use placement::{
-    FluidSlabPlacementRecord, PlacementId, PlacementProcessing, PlacementRecord, PlacementSend,
-    PlacementStage, ReplaceableCubePlacementRecord, SlabFluidState, SlabPlacementRecord,
-    StairNeighborUpdate, StairPlacementRecord, StairShapeInput,
+    FluidSlabPlacementRecord, PlacementId, PlacementProcessing, PlacementRecord,
+    PlacementRejection, PlacementSend, PlacementStage, ReplaceableCubePlacementRecord,
+    SlabFluidState, SlabPlacementRecord, StairNeighborUpdate, StairPlacementRecord,
+    StairShapeInput,
 };
 mod motion;
 mod recovery;

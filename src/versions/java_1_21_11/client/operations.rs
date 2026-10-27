@@ -1198,10 +1198,7 @@ impl Operations {
             }
         }
         if domain == crate::client::domain::Domain::Strict
-            && state
-                .placement
-                .as_ref()
-                .is_some_and(|p| p.observation.is_none())
+            && state.placement.as_ref().is_some_and(|p| !p.is_resolved())
         {
             return Err(Error::new(
                 ErrorKind::State,
@@ -1662,10 +1659,7 @@ pub(super) fn common_player_in_state(
             || inventory.pending_swap.is_some()
             || state.motion.position_basis == PositionBasis::PendingSubmission
             || state.mining.is_some()
-            || state
-                .placement
-                .as_ref()
-                .is_some_and(|p| p.observation.is_none())
+            || state.placement.as_ref().is_some_and(|p| !p.is_resolved())
             || state.control.finite.is_some(),
         dimension: state
             .world

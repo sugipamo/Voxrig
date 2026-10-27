@@ -342,6 +342,7 @@ pub(super) fn make_record(
         target_receipt: r.target_receipt,
         material_receipt: r.material_receipt,
         processing: r.processing,
+        rejection: r.rejection,
         requires_inspection: r.requires_inspection,
         stage: r.stage,
     })

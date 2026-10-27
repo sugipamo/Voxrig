@@ -189,7 +189,7 @@ impl State {
             self.placement.as_ref().map(|r| {
                 (
                     r.intent.sequence as u64,
-                    r.observation.is_some(),
+                    r.is_resolved(),
                     r.requires_inspection.is_some(),
                 )
             }),

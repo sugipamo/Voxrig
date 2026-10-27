@@ -332,6 +332,119 @@ async fn placement_requires_both_receipts_and_processed_sequence_in_either_order
     }
 }
 #[tokio::test]
+async fn processed_ack_with_unchanged_target_rejects_and_releases_the_gate() {
+    // Vanilla refusal: the handler echo pair, then the tick-time ACK. The
+    // reverse order also resolves; no vanilla placement hides behind it.
+    for ack_first in [false, true] {
+        let mut f = Fixture::new().await;
+        let i = f.start().await;
+        if ack_first {
+            f.ack(i.sequence).await;
+        }
+        f.block(SUPPORT, "stone").await;
+        f.block(TARGET, "air").await;
+        if !ack_first {
+            assert!(matches!(
+                f.api.observe_survival_placement(&i).await.unwrap(),
+                PlacementStatus::Pending { .. }
+            ));
+            assert!(f.api.select_hotbar(1).await.is_err());
+            f.ack(i.sequence).await;
+        }
+        let PlacementStatus::ObservedRejected { record } = f
+            .api
+            .wait_survival_placement(&i, Duration::from_secs(1))
+            .await
+            .unwrap()
+        else {
+            panic!("processed unchanged target must be rejected");
+        };
+        let rejection = record.rejection.clone().unwrap();
+        assert_eq!(rejection.acknowledged_sequence, i.sequence);
+        assert!(rejection.ack_receive_sequence > i.after_sequence);
+        assert!(rejection.target_receive_sequence > i.after_sequence);
+        assert!(record.observation.is_none() && record.requires_inspection.is_none());
+        // Terminal: later receipts never rewrite the historical rejection.
+        f.block(TARGET, "dirt").await;
+        f.stack(4).await;
+        assert!(matches!(
+            f.api.observe_survival_placement(&i).await.unwrap(),
+            PlacementStatus::ObservedRejected { .. }
+        ));
+        f.api.select_hotbar(1).await.unwrap();
+        assert_eq!(
+            f.expected_packet("HELD_ITEM_SLOT after rejected placement")
+                .await
+                .0,
+            ids::play_serverbound::HELD_ITEM_SLOT
+        );
+        timeout(
+            Duration::from_secs(1),
+            f.api.bot.session.ledger.cut(false).wait(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn consumed_material_stale_ack_or_missing_echo_is_not_a_rejection() {
+    // 0: material consumed; 1: stale ACK; 2: ACK without a handler echo (early return).
+    for case in 0..3 {
+        let mut f = Fixture::new().await;
+        let i = f.start().await;
+        if case == 0 {
+            f.stack(4).await;
+        }
+        if case != 2 {
+            f.block(TARGET, "air").await;
+        }
+        f.ack(if case == 1 {
+            i.sequence - 1
+        } else {
+            i.sequence
+        })
+        .await;
+        assert!(matches!(
+            f.api.observe_survival_placement(&i).await.unwrap(),
+            PlacementStatus::Pending { .. }
+        ));
+        assert!(f.api.select_hotbar(1).await.is_err());
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn common_placement_rejection_releases_owner_with_processed_evidence() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let record = crate::client::tests::common_placement_start_scenario(
+        &client,
+        SUPPORT,
+        crate::BlockFace::West,
+        TARGET,
+    )
+    .await;
+    f.expected_packet("BLOCK_PLACE after common placement")
+        .await;
+    f.block(SUPPORT, "stone").await;
+    f.block(TARGET, "air").await;
+    crate::client::tests::common_placement_pending_scenario(&client).await;
+    f.ack(record.send.interaction_sequence.unwrap()).await;
+    let rejected =
+        crate::client::tests::common_placement_rejected_scenario(&client, record.id).await;
+    let processing = rejected.processing.as_ref().unwrap();
+    let rejection = rejected.rejection.as_ref().unwrap();
+    assert_eq!(
+        rejection.boundary_receive_sequence,
+        processing.receive_sequence
+    );
+    assert!(rejection.support_receipt.is_none());
+    f.expected_packet("HELD_ITEM_SLOT after rejected placement")
+        .await;
+    f.stop().await;
+}
+#[tokio::test]
 async fn missing_ack_last_item_and_conflicting_receipts_do_not_silently_release() {
     let mut f = Fixture::new().await;
     f.stack(1).await;

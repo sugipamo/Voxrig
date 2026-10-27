@@ -72,6 +72,7 @@ impl Bot {
             ],
             acknowledgement.block_state_id,
             packet_sequence,
+            false,
         )
         .await?;
         self.emit(Event::DiggingAcknowledged(acknowledgement));
@@ -84,7 +85,7 @@ impl Bot {
         self.world_updated.notify_waiters();
         self.common_mining_target_received([x, y, z], state_id, packet_sequence, None)
             .await?;
-        self.common_placement_block_received([x, y, z], state_id, packet_sequence)
+        self.common_placement_block_received([x, y, z], state_id, packet_sequence, true)
             .await?;
         self.common_container_open_block_received([x, y, z], packet_sequence)
             .await;
@@ -124,6 +125,7 @@ impl Bot {
                 [position.x, position.y, position.z],
                 state_id,
                 packet_sequence,
+                false,
             )
             .await?;
             self.common_mining_target_received(

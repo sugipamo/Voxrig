@@ -385,7 +385,21 @@ async fn main() -> anyhow::Result<()> {
                 "strict_place" => serde_json::to_value(
                     client
                         .survival()
-                        .place_cube(serde_json::from_value(v["pos"].clone())?, BlockFace::South)
+                        .place_cube(
+                            serde_json::from_value(v["pos"].clone())?,
+                            if v["face"] == "Up" {
+                                BlockFace::Up
+                            } else {
+                                BlockFace::South
+                            },
+                        )
+                        .await?,
+                )?,
+                "placement_record" => serde_json::to_value(client.survival().placement_record().await?)?,
+                "strict_look" => serde_json::to_value(
+                    client
+                        .survival()
+                        .look(serde_json::from_value(v["rotation"].clone())?)
                         .await?,
                 )?,
                 "send_and_trust" => serde_json::to_value(

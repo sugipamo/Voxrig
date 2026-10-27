@@ -11,9 +11,14 @@ pub(super) struct NativePlacementRun {
     pub(super) released: bool,
     movement_revision: u64,
     movement_attribute: Option<Attribute>,
+    /// Latest fresh single-block support echo equal to its predecessor.
+    support_echo: Option<u64>,
+    /// Fresh target echo equal to `before`, received in the packet right after
+    /// `support_echo`: the end of the server's use-item-on handler pair.
+    unchanged_echo: Option<(u64, u64)>,
 }
 fn inspection(run: &mut NativePlacementRun, reason: impl std::fmt::Display) {
-    if run.record.stage != PlacementStage::ObservedPlaced {
+    if !run.record.stage.is_resolved() {
         run.record
             .requires_inspection
             .get_or_insert_with(|| reason.to_string());
@@ -111,6 +116,7 @@ impl Bot {
             target_receipt: None,
             material_receipt: None,
             processing: None,
+            rejection: None,
             requires_inspection: None,
             stage: PlacementStage::Pending,
         })
@@ -199,7 +205,7 @@ impl Bot {
         else {
             return Ok(());
         };
-        if snapshot.record.stage == PlacementStage::ObservedPlaced {
+        if snapshot.record.stage.is_resolved() {
             return Ok(());
         }
         if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
@@ -284,6 +290,7 @@ impl Bot {
             }
         }
         let mut complete = false;
+        let mut rejected = false;
         if run.record.requires_inspection.is_none() {
             let world = self.world.lock().await;
             let support = run.record.support;
@@ -307,9 +314,50 @@ impl Bot {
                     && run.record.target_receipt.is_some()
                     && run.record.material_receipt.is_some()
                     && target_state.as_ref() == Some(&run.record.expected);
+                // The 1.16.1 handler always ends with BlockUpdate(support) then
+                // BlockUpdate(support + face), even when it refuses. That
+                // adjacent pair still showing both predecessors, with the
+                // material unconsumed, is the processed boundary of no effect.
+                rejected = !complete
+                    && run.record.send.dispatched
+                    && run.unchanged_echo.is_some()
+                    && run.record.target_receipt.is_none()
+                    && run.record.material_receipt.is_none()
+                    && target_state.as_ref() == Some(&run.record.before)
+                    && matches!(hand, Some(ObservedValue { value, source: ValueSource::Received { .. } }) if *value == before);
             }
         }
         drop(guard);
+        if rejected {
+            // No gameplay packet. The refused attempt releases its exact owner once.
+            match self
+                .connection
+                .finish_bounded_placement(snapshot.record.id.attempt())
+                .await
+            {
+                Ok(()) => {
+                    let mut guard = super::lock_packet_state(&self.common_placement).await;
+                    let p = guard.as_mut().expect("retained");
+                    let (support, target) = p.unchanged_echo.expect("checked echo");
+                    p.released = true;
+                    p.record.rejection = Some(crate::client::survival::PlacementRejection {
+                        boundary_receive_sequence: target,
+                        target_receipt: crate::client::received(p.record.before.clone(), target),
+                        support_receipt: Some(crate::client::received(
+                            p.record.support_state.clone(),
+                            support,
+                        )),
+                    });
+                    p.record.stage = PlacementStage::ObservedRejected;
+                }
+                Err(error) => {
+                    self.interrupt_common_placement(format!(
+                        "placement completion gate unavailable: {error:?}"
+                    ))
+                    .await
+                }
+            }
+        }
         if complete {
             // No gameplay packet. Exact placement owner is released once after both receipts.
             match self
@@ -348,15 +396,18 @@ impl Bot {
             inspection(run, "placement target/support chunk unloaded or replaced");
         }
     }
+    /// `echo` marks a single-block BlockChange (0x0B), the only packet the
+    /// legacy use-item-on handler sends for support and target.
     pub(super) async fn common_placement_block_received(
         &self,
         position: [i32; 3],
         state_id: i32,
         sequence: u64,
+        echo: bool,
     ) -> Result<()> {
         let mut guard = super::lock_packet_state(&self.common_placement).await;
         let Some(run) = guard.as_mut().filter(|p| {
-            p.record.stage != PlacementStage::ObservedPlaced
+            !p.record.stage.is_resolved()
                 && (position == p.record.target || position == p.record.support)
         }) else {
             return Ok(());
@@ -386,7 +437,14 @@ impl Bot {
                 run.record
                     .target_receipt
                     .get_or_insert_with(|| crate::client::received(state, sequence));
+            } else if echo
+                && state == run.record.before
+                && run.support_echo.and_then(|s| s.checked_add(1)) == Some(sequence)
+            {
+                run.unchanged_echo = Some((sequence - 1, sequence));
             }
+        } else if echo && state == run.record.support_state {
+            run.support_echo = Some(sequence);
         }
         Ok(())
     }
@@ -430,6 +488,8 @@ impl crate::client::adapter::PlacementOps for Bot {
                             &**self.survival.read().await,
                         )
                         .cloned(),
+                        support_echo: None,
+                        unchanged_echo: None,
                     });
                 let (reply, result) = tokio::sync::oneshot::channel();
                 let bot = self.clone_internal();
@@ -573,6 +633,98 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+    }
+    #[tokio::test]
+    async fn adjacent_unchanged_handler_echo_rejects_and_releases_exact_actor() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.survival().select_hotbar(0).await.unwrap();
+        packets.recv().await.unwrap();
+        let record = crate::client::tests::common_placement_start_scenario(
+            &client,
+            SUPPORT,
+            crate::BlockFace::West,
+            TARGET,
+        )
+        .await;
+        assert_eq!(packets.recv().await.unwrap().0, 0x2d);
+        // handleUseItemOn's unconditional pair: BlockUpdate(clicked), BlockUpdate(clicked+face).
+        change(&bot, SUPPORT, 1).await;
+        crate::client::tests::common_placement_pending_scenario(&client).await;
+        change(&bot, TARGET, 0).await;
+        let rejected =
+            crate::client::tests::common_placement_rejected_scenario(&client, record.id).await;
+        packets.recv().await.unwrap();
+        let rejection = rejected.rejection.as_ref().unwrap();
+        let (Some(support), target) = (&rejection.support_receipt, &rejection.target_receipt)
+        else {
+            panic!("legacy rejection keeps both handler echoes");
+        };
+        assert_eq!(support.value, rejected.support_state);
+        let (ValueSource::Received { sequence: s }, ValueSource::Received { sequence: t }) =
+            (&support.source, &target.source)
+        else {
+            panic!("received echoes");
+        };
+        assert_eq!(*t, s + 1);
+        assert_eq!(rejection.boundary_receive_sequence, *t);
+        assert!(rejected.processing.is_none());
+        // Later receipts never rewrite the historical rejection.
+        stack(&bot, 4).await;
+        change(
+            &bot,
+            TARGET,
+            crate::versions::java_1_16_1::state_id(&record.expected).unwrap(),
+        )
+        .await;
+        let historical = client.survival().placement_record().await.unwrap().unwrap();
+        assert_eq!(historical.stage, PlacementStage::ObservedRejected);
+        assert!(historical.target_receipt.is_none());
+        client.survival().look([-90.0, 3.0]).await.unwrap();
+        packets.recv().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn non_adjacent_echo_or_consumed_material_is_not_a_rejection() {
+        for consumed in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            client.survival().select_hotbar(0).await.unwrap();
+            packets.recv().await.unwrap();
+            client
+                .survival()
+                .place_cube(SUPPORT, crate::BlockFace::West)
+                .await
+                .unwrap();
+            packets.recv().await.unwrap();
+            if consumed {
+                stack(&bot, 4).await;
+                change(&bot, SUPPORT, 1).await;
+            } else {
+                change(&bot, SUPPORT, 1).await;
+                change(&bot, [12, 66, 12], 0).await;
+            }
+            change(&bot, TARGET, 0).await;
+            crate::client::tests::common_placement_pending_scenario(&client).await;
+            assert!(client.survival().select_hotbar(0).await.is_err());
+            drop(release);
+            drop(client);
+            drop(bot);
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
     }
     #[tokio::test]
     async fn common_placement_same_consumer_requires_fresh_target_and_material_and_releases_exact_actor()

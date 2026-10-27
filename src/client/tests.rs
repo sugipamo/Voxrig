@@ -1386,6 +1386,27 @@ pub(crate) async fn common_placement_completed_scenario(
     client.survival().select_hotbar(0).await.unwrap();
     record
 }
+// A processed boundary with every predecessor kept is terminal and releases the owner.
+pub(crate) async fn common_placement_rejected_scenario(
+    client: &Client,
+    id: survival::PlacementId,
+) -> survival::PlacementRecord {
+    let record = client.survival().placement_record().await.unwrap().unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(record.stage, survival::PlacementStage::ObservedRejected);
+    assert!(record.stage.is_resolved());
+    assert!(record.target_receipt.is_none() && record.material_receipt.is_none());
+    assert!(record.requires_inspection.is_none());
+    let rejection = record.rejection.as_ref().unwrap();
+    assert!(rejection.boundary_receive_sequence > record.send.after_sequence);
+    let target = &rejection.target_receipt;
+    assert_eq!(target.value, record.before);
+    assert!(
+        matches!(target.source,ValueSource::Received{sequence} if sequence>record.send.after_sequence)
+    );
+    client.survival().select_hotbar(0).await.unwrap();
+    record
+}
 
 pub(crate) async fn common_crafting_input_start_scenario(
     client: &Client,

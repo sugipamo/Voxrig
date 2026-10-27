@@ -86,8 +86,34 @@ diagnostic_record! {
         pub requires_inspection: Option<String>,
         /// Historical completed result. Each next operation revalidates its own site.
         pub observation: Option<PlacementObservation>,
+        /// Latest fresh target update still equal to `before`; never rejection by itself.
+        pub unchanged_target_receive_sequence: Option<u64>,
+        /// Historical processed-without-effect result; exclusive with `observation`.
+        pub rejection: Option<PlacementRejection>,
     }
     diagnostic_serde {}
+}
+diagnostic_record! {
+    /// The handler's fresh target update still equal to `before`, plus a covering ACK,
+    /// while support, neighbors and material kept their predecessors. The handler
+    /// sends its block updates before the tick-time ACK, so a placed target cannot
+    /// hide behind this boundary. Names no server reason.
+    #[derive(Clone, Debug, PartialEq, Serialize)]
+    pub struct PlacementRejection => RecordedPlacementRejection {
+        /// Highest acknowledged native sequence, covering the intent.
+        pub acknowledged_sequence: i32,
+        /// Actual ACK packet ordinal.
+        pub ack_receive_sequence: u64,
+        /// Fresh target update equal to `before`.
+        pub target_receive_sequence: u64,
+    }
+    diagnostic_serde {}
+}
+impl PlacementRecord {
+    /// Observed placed or rejected; either releases the one-shot gate.
+    pub fn is_resolved(&self) -> bool {
+        self.observation.is_some() || self.rejection.is_some()
+    }
 }
 diagnostic_record! {
     /// Acknowledgement, target change and material consumption are distinct stages.
@@ -103,6 +129,12 @@ diagnostic_record! {
         ObservedPlaced {
             /// Received placement and material outcome.
             observation: PlacementObservation,
+        },
+        /// The server processed the sequence and left target and material unchanged.
+        /// Terminal; releases the one-shot gate. Not a retry instruction.
+        ObservedRejected {
+            /// Retained attempt with its `rejection` evidence.
+            record: PlacementRecord,
         },
         /// A conflict requires fresh inspection, not automatic retry.
         RequiresInspection {
@@ -631,6 +663,8 @@ impl Operations {
                     inventory_receive_sequence: None,
                     requires_inspection: None,
                     observation: None,
+                    unchanged_target_receive_sequence: None,
+                    rejection: None,
                 });
                 work.run(
                     self.bot
@@ -686,8 +720,18 @@ impl Operations {
         {
             Ok(result) => result,
             Err(_) => {
-                self.bot.session.ledger.fail(Failure::TransactionExpired);
-                self.observe_survival_placement(intent).await
+                // A resolution that raced the deadline does not poison the
+                // connection. An unresolved attempt still expires it: a late
+                // ACK may yet place a block nobody awaits.
+                let result = self.observe_survival_placement(intent).await;
+                if !matches!(
+                    result,
+                    Ok(PlacementStatus::ObservedPlaced { .. }
+                        | PlacementStatus::ObservedRejected { .. })
+                ) {
+                    self.bot.session.ledger.fail(Failure::TransactionExpired);
+                }
+                result
             }
         }
     }
@@ -698,9 +742,15 @@ fn observe_in(
     tick: u64,
     intent: &PlacementIntent,
 ) -> Result<PlacementStatus> {
-    if let Some(observation) = &state.placement.as_ref().expect("owner").observation {
+    let retained = state.placement.as_ref().expect("owner");
+    if let Some(observation) = &retained.observation {
         return Ok(PlacementStatus::ObservedPlaced {
             observation: observation.clone(),
+        });
+    }
+    if retained.rejection.is_some() {
+        return Ok(PlacementStatus::ObservedRejected {
+            record: retained.clone(),
         });
     }
     placement_context_received(state);
@@ -730,6 +780,8 @@ fn observe_in(
     let cell = state.reconstruction.cell(&state.world, intent.target);
     let require_fresh_ack = state.common_placement.is_some();
     let neighbors_received = stair::confirmed(state);
+    let neighbors_untouched = stair::untouched(state);
+    let support = state.reconstruction.cell(&state.world, intent.support);
     let State {
         placement,
         operations,
@@ -780,6 +832,50 @@ fn observe_in(
         }
         return Ok(PlacementStatus::ObservedPlaced { observation });
     }
+    // handleUseItemOn registers the ACK first, sends BlockUpdate(clicked) and
+    // BlockUpdate(clicked + face) before returning, and the ACK leaves on the
+    // next connection tick. A covering fresh ACK therefore follows any target
+    // the handler placed; its target echo still showing every predecessor means
+    // no effect. Early handler returns send no echo and stay Pending.
+    let processed = operations
+        .ack
+        .zip(operations.ack_receive_sequence)
+        .filter(|(s, r)| *s >= intent.sequence && *r > intent.after_sequence)
+        .zip(
+            record
+                .unchanged_target_receive_sequence
+                .filter(|s| *s > intent.after_sequence),
+        );
+    if let Some(((acknowledged_sequence, ack_receive_sequence), target_receive_sequence)) =
+        processed.filter(|_| {
+            record.dispatched
+                && neighbors_untouched
+                && record.target_receive_sequence.is_none()
+                && record.inventory_receive_sequence.is_none()
+                && cell.state.as_ref() == Some(&intent.before)
+                && support.moving.is_none()
+                && support.state.as_ref() == Some(&intent.support_state)
+                && inventory.slots[slot]
+                    == (InventorySlot::Item {
+                        item: intent.held_before.clone(),
+                    })
+        })
+    {
+        record.rejection = Some(PlacementRejection {
+            acknowledged_sequence,
+            ack_receive_sequence,
+            target_receive_sequence,
+        });
+        if let Some(c) = &mut state.common_placement {
+            c.processing = Some(crate::client::survival::PlacementProcessing {
+                sequence: acknowledged_sequence,
+                receive_sequence: ack_receive_sequence,
+            });
+        }
+        return Ok(PlacementStatus::ObservedRejected {
+            record: record.clone(),
+        });
+    }
     Ok(PlacementStatus::Pending {
         record: record.clone(),
     })
@@ -798,7 +894,7 @@ pub(in crate::versions::java_1_21_11::client) fn placement_context_received(stat
     let Some(r) = &mut state.placement else {
         return;
     };
-    if r.observation.is_some() {
+    if r.is_resolved() {
         return;
     }
     let i = &r.intent;
@@ -839,7 +935,7 @@ pub(in crate::versions::java_1_21_11::client) fn placement_chunk_changed(
 ) {
     stair::chunk_changed(state, chunk);
     if let Some(r) = state.placement.as_mut().filter(|r| {
-        r.observation.is_none()
+        !r.is_resolved()
             && [r.intent.target, r.intent.support]
                 .iter()
                 .any(|p| [p[0].div_euclid(16), p[2].div_euclid(16)] == chunk)
@@ -856,7 +952,7 @@ pub(in crate::versions::java_1_21_11::client) fn placement_received(
     let Some(r) = &mut state.placement else {
         return Ok(());
     };
-    if r.observation.is_some() {
+    if r.is_resolved() {
         return Ok(());
     }
     for (p, id) in changes {
@@ -881,6 +977,8 @@ pub(in crate::versions::java_1_21_11::client) fn placement_received(
             }
             if block == r.intent.expected {
                 r.target_receive_sequence = Some(state.sequence);
+            } else if block == r.intent.before {
+                r.unchanged_target_receive_sequence = Some(state.sequence);
             }
         }
     }
@@ -982,9 +1080,16 @@ fn common_record_in(state: &State) -> Result<Option<crate::client::survival::Pla
             .map(|s| common::received(i.expected.clone(), s)),
         material_receipt,
         processing,
+        rejection: native.rejection.as_ref().map(|r| api::PlacementRejection {
+            boundary_receive_sequence: r.ack_receive_sequence,
+            target_receipt: common::received(i.before.clone(), r.target_receive_sequence),
+            support_receipt: None,
+        }),
         requires_inspection: native.requires_inspection.clone(),
         stage: if native.observation.is_some() {
             api::PlacementStage::ObservedPlaced
+        } else if native.rejection.is_some() {
+            api::PlacementStage::ObservedRejected
         } else if native.requires_inspection.is_some() {
             api::PlacementStage::RequiresInspection
         } else {
@@ -998,11 +1103,7 @@ pub(in crate::versions::java_1_21_11::client) fn common_placement_context_receiv
     let Some(capture) = state.common_placement.clone() else {
         return;
     };
-    if state
-        .placement
-        .as_ref()
-        .is_none_or(|p| p.observation.is_some())
-    {
+    if state.placement.as_ref().is_none_or(|p| p.is_resolved()) {
         return;
     }
     let check = (|| -> Result<()> {
@@ -1209,7 +1310,7 @@ impl Operations {
             || !state.ready
             || !matches!(state.phase, Phase::Play)
         {
-            if let Some(p) = state.placement.as_mut().filter(|p| p.observation.is_none()) {
+            if let Some(p) = state.placement.as_mut().filter(|p| !p.is_resolved()) {
                 p.requires_inspection
                     .get_or_insert_with(|| "placement connection closed or uncertain".into());
             }
@@ -1273,6 +1374,7 @@ fn replacement_record_in(
             target_receipt: r.target_receipt,
             material_receipt: r.material_receipt,
             processing: r.processing,
+            rejection: r.rejection,
             requires_inspection: r.requires_inspection,
             stage: r.stage,
         },

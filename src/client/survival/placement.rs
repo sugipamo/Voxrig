@@ -43,14 +43,38 @@ pub struct PlacementProcessing {
 /// Historical state of an attempt; each next action revalidates its own context.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum PlacementStage {
     /// One or more required receipts have not arrived. Never retry.
     Pending,
     /// Complete submission and independent fresh block/material receipts agree.
     /// Modern additionally requires its actual processing ACK. Not actor attribution.
     ObservedPlaced,
+    /// A server-processed boundary arrived while the target, support and selected
+    /// material still equal their predecessors; see [`PlacementRecord::rejection`].
+    /// Terminal and releases the one-shot owner. It names no server reason
+    /// (protection, entity, range) and is never a retry instruction.
+    ObservedRejected,
     /// A conflict, missing context or uncertain write is retained for inspection.
     RequiresInspection,
+}
+impl PlacementStage {
+    /// The attempt no longer owns the one-shot gate (`ObservedPlaced` or `ObservedRejected`).
+    pub fn is_resolved(self) -> bool {
+        matches!(self, Self::ObservedPlaced | Self::ObservedRejected)
+    }
+}
+/// Received evidence that the server processed an attempt without changing its target.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[non_exhaustive]
+pub struct PlacementRejection {
+    /// Receive ordinal of the processed boundary: the covering modern
+    /// `BlockChangedAck`, or the legacy target echo that ends the handler's pair.
+    pub boundary_receive_sequence: u64,
+    /// The server handler's fresh target update, still equal to `before`.
+    pub target_receipt: ObservedValue<NativeBlockState>,
+    /// Legacy support echo received immediately before the target echo; absent on modern.
+    pub support_receipt: Option<ObservedValue<NativeBlockState>>,
 }
 /// Connection-owned diagnostic snapshot, also readable after closure.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -85,6 +109,8 @@ pub struct PlacementRecord {
     pub material_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual modern processing receipt; always absent on legacy.
     pub processing: Option<PlacementProcessing>,
+    /// Processed-without-effect evidence; present exactly when `stage` is `ObservedRejected`.
+    pub rejection: Option<PlacementRejection>,
     /// First latched conflict; restoration cannot erase it.
     pub requires_inspection: Option<String>,
     /// Retained outcome, separate from current world/slot contents.
@@ -127,6 +153,8 @@ pub struct ReplaceableCubePlacementRecord {
     pub material_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual modern processing receipt; always absent on legacy.
     pub processing: Option<PlacementProcessing>,
+    /// Processed-without-effect evidence; present exactly when `stage` is `ObservedRejected`.
+    pub rejection: Option<PlacementRejection>,
     /// First latched conflict; restoration cannot erase it.
     pub requires_inspection: Option<String>,
     /// Retained outcome, separate from current world/slot contents.
@@ -169,6 +197,8 @@ pub struct SlabPlacementRecord {
     pub material_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual modern processing receipt; always absent on legacy.
     pub processing: Option<PlacementProcessing>,
+    /// Processed-without-effect evidence; present exactly when `stage` is `ObservedRejected`.
+    pub rejection: Option<PlacementRejection>,
     /// First latched conflict; restoration cannot erase it.
     pub requires_inspection: Option<String>,
     /// Retained outcome, separate from current world/slot contents.
@@ -245,6 +275,8 @@ pub struct StairPlacementRecord {
     pub material_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual modern processing receipt; always absent on legacy.
     pub processing: Option<PlacementProcessing>,
+    /// Processed-without-effect evidence; present exactly when `stage` is `ObservedRejected`.
+    pub rejection: Option<PlacementRejection>,
     /// First latched conflict; restoration cannot erase it.
     pub requires_inspection: Option<String>,
     /// Retained outcome, separate from current world/slot contents.
