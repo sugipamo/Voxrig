@@ -38,8 +38,9 @@ main hand・offhand・cursor、未解決操作がないことを要求する。�
 main/hotbar/cursorはOPENで未確定となり、constructorで確認した実内容から再確立する。
 
 ロックされたchest、上部の遮蔽物、相方の不足などでnativeが画面を開かないことはあり得る。
-Voxrigは画面を捏造せず、その送信済みintentを保持する。返却timeoutや画面が来ないことは
-失敗・rollback・再送許可を意味しない。
+Voxrigは画面を捏造しない。返却timeoutや画面が来ないことだけでは失敗・rollback・再送許可を
+意味しない。サーバーが処理した境界が届き、その前に新しいOPENがなかった場合に限り
+`NoScreenObserved`で終端する（下記）。
 
 ## 送信と実受信
 
@@ -53,6 +54,9 @@ outline点から算出する。`send.dispatched`は完全なframeが書けた場
 * `ObservedScreen`: 新しいOPENを受信。期待menuと監査layoutを照合したが、結果は未完了。
 * `ObservedContents`: 同じOPENのfresh full contentsと実Empty cursorを受信。
   modernでは送信以後の実global processing ACKも必要。
+* `NoScreenObserved`: 完全送信後、サーバーが処理した境界が届き、その前に新しいOPENがなかった。
+  終端であり、ownerを解放する。理由（lock、遮蔽、plugin）は示さず、再送の指示でもない。
+  根拠は`no_screen`に入る。
 * `RequiresInspection`: session、mode、pose、選択・手、first outline、画面置換、cursor、
   送信不確実性等の最初の問題を保持。値が戻っても解除しない。
 
@@ -73,9 +77,30 @@ state・world revision・capture ordinalであり、そのblock更新packetのor
 facing・名前・その他propertiesはexactのまま検査し、送信前の変化は拒否する。
 このflagの受信も特定のplayerが開いたことの証明にはしない。
 
+## 画面が開かなかった場合（`NoScreenObserved`）
+
+公式server JAR（Mojang-mapped）の`ServerPlayer.openMenu`は、`handleUseItemOn`の中で
+OPENと内容を同期的に送る。したがって次の境界より後にOPENが来ることはない。
+
+* 1.21.11: `handleUseItemOn`は先頭（offset 25）でsequenceを登録し、ACKは次のconnection tick
+  （`ServerGamePacketListenerImpl.tick`）で送られる。送信以後に受信した、intentの
+  sequence以上を覆う`protocol_processing`が境界で、`no_screen.boundary_receive_sequence`は
+  そのACKの受信ordinal。古いACKは数えない。client未ロードの早期return（offset 19）は
+  ACKを登録しないので`Dispatched`のまま。
+* 1.16.1: ACKはない。`handleUseItemOn`は全経路の最後（offset 352-393）で
+  BlockUpdate(clicked)、BlockUpdate(clicked + face)の順に送る。送信以後の単独BlockChangeで
+  targetの位置が届き、**次の受信ordinal**でtarget + faceが届いた組を境界とする。
+  `clicked_echo_sequence + 1 == boundary_receive_sequence`。間にpacketが挟まった組、
+  multi-block change、dig ACKは数えない。quiet windowは使わない。
+
+どちらも、OPENを受信していれば（期待外のOPENでも）`NoScreenObserved`にはならない。
+終端後に届いたOPEN・内容は履歴を書き換えない。Body `ActivateBlock`の`Accepted`の意味は
+変えていない（menuが開いたことではない）。LIVE証跡は
+[container-open-refused-validation](evidence/container-open-refused-validation-20261027.json)。
+
 ## 排他と取消
 
-未完了intentは両modeの共通変更操作とnative変更操作を排他する。recordを読むだけでは
+未完了intent（`ObservedContents`・`NoScreenObserved`以外）は両modeの共通変更操作とnative変更操作を排他する。recordを読むだけでは
 新しいactivationを送らない。serializationからlive ownerを再生成する入口もない。
 `ObservedContents`の後はその実画面identityを用いてstorage SWAPやcloseを明示的に要求する。
 close後の再openは新attemptであり、実際に新しいOPENを受信する必要がある。

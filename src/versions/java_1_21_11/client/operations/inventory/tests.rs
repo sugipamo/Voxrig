@@ -2137,6 +2137,86 @@ async fn common_container_open_same_consumer_in_both_modes_needs_actual_contents
     f.stop().await;
 }
 #[tokio::test]
+async fn common_container_open_covering_ack_without_screen_ends_no_screen_observed() {
+    use crate::client::container::ContainerOpenStage;
+    let mut f = CommonFixture::new().await;
+    f.seed_common_open().await;
+    let client = f.client();
+    let record = crate::client::tests::common_open_start_scenario(
+        &client,
+        crate::client::GameMode::Survival,
+        [8, 66, 11],
+    )
+    .await;
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::BLOCK_PLACE
+    );
+    let sequence = record.send.interaction_sequence.unwrap();
+    // An older ACK does not cover this activation.
+    let mut stale = Vec::new();
+    put_varint(&mut stale, sequence - 1);
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &stale)
+        .await;
+    let pending = client
+        .survival()
+        .container_open_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pending.stage, ContainerOpenStage::Dispatched);
+    assert!(pending.no_screen.is_none());
+    // A refused native open (locked/blocked) sends no OPEN; the next connection
+    // tick still ACKs the processed handler sequence.
+    let mut ack = Vec::new();
+    put_varint(&mut ack, sequence);
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+        .await;
+    let refused = crate::client::tests::common_open_no_screen_scenario(&client, record.id).await;
+    let processing = refused.protocol_processing.as_ref().unwrap();
+    let no_screen = refused.no_screen.unwrap();
+    assert_eq!(
+        no_screen.boundary_receive_sequence,
+        processing.receive_sequence
+    );
+    assert!(no_screen.clicked_echo_sequence.is_none());
+    // The terminal intent released its owner: a new attempt is a new intent.
+    let again = client.survival().open_container([8, 66, 11]).await.unwrap();
+    assert_eq!(again.id.attempt(), record.id.attempt() + 1);
+    assert_eq!(again.stage, ContainerOpenStage::Dispatched);
+    assert!(again.no_screen.is_none());
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::BLOCK_PLACE
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_container_open_ack_after_screen_is_not_no_screen() {
+    use crate::client::container::ContainerOpenStage;
+    let mut f = CommonFixture::new().await;
+    f.seed_common_open().await;
+    let client = f.client();
+    let record = client.survival().open_container([8, 66, 11]).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    // OPEN precedes the ACK in vanilla; contents still pending at the ACK.
+    f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+        .await;
+    let mut ack = Vec::new();
+    put_varint(&mut ack, record.send.interaction_sequence.unwrap());
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+        .await;
+    let opened = client
+        .survival()
+        .container_open_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(opened.stage, ContainerOpenStage::ObservedScreen);
+    assert!(opened.no_screen.is_none());
+    f.stop().await;
+}
+#[tokio::test]
 async fn common_container_open_reused_numeric_window_and_cursor_conflicts_latch_before_restoration()
 {
     use crate::client::container::ContainerOpenStage;

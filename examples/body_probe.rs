@@ -324,6 +324,9 @@ async fn main() -> anyhow::Result<()> {
                         .open_container(serde_json::from_value(v["pos"].clone())?)
                         .await?,
                 )?,
+                "container_open_record" => {
+                    serde_json::to_value(client.survival().container_open_record().await?)?
+                }
                 "screen" => serde_json::to_value(client.screen_state().await?)?,
                 "placement_warnings" => {
                     let Action::PlaceBlock { pos, face, .. } = parse_action(&v)? else {

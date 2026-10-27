@@ -6,6 +6,11 @@ use crate::client::{self as api, container as contract};
 pub(super) struct NativeContainerOpen {
     pub(super) record: contract::ContainerOpenRecord,
     pub(super) released: bool,
+    /// Latest fresh single-block BlockChange at the clicked target.
+    clicked_echo: Option<u64>,
+    /// Clicked echo then clicked+face echo in the very next packet: the
+    /// unconditional end of the legacy use-item-on handler.
+    handler_echo: Option<(u64, u64)>,
 }
 
 impl Bot {
@@ -102,18 +107,20 @@ impl Bot {
                 };
                 {
                     let mut guard = super::lock_packet_state(&self.common_container_open).await;
-                    guard
-                        .as_mut()
-                        .expect("retained")
-                        .record
-                        .context_received(context);
+                    let open = guard.as_mut().expect("retained");
+                    open.record.context_received(context);
+                    if let Some((clicked, boundary)) = open.handler_echo {
+                        open.record
+                            .processed_without_screen(contract::ContainerOpenNoScreen {
+                                boundary_receive_sequence: boundary,
+                                clicked_echo_sequence: Some(clicked),
+                            });
+                    }
                 }
                 if super::lock_packet_state(&self.common_container_open)
                     .await
                     .as_ref()
-                    .is_some_and(|o| {
-                        o.record.stage == contract::ContainerOpenStage::ObservedContents
-                    })
+                    .is_some_and(|o| o.record.stage.is_resolved())
                 {
                     let outcome = self
                         .connection
@@ -132,6 +139,36 @@ impl Bot {
             },
         )
         .await
+    }
+    /// `handleUseItemOn` (offset 351-393) always ends with BlockUpdate(clicked)
+    /// then BlockUpdate(clicked + face), after `openMenu` has synchronously sent
+    /// OPEN and contents. Only single-block BlockChange packets are passed here.
+    pub(super) async fn common_container_open_block_received(
+        &self,
+        position: [i32; 3],
+        sequence: u64,
+    ) {
+        let mut guard = super::lock_packet_state(&self.common_container_open).await;
+        let Some(open) = guard.as_mut().filter(|o| {
+            !o.released
+                && matches!(
+                    o.record.stage,
+                    contract::ContainerOpenStage::Pending
+                        | contract::ContainerOpenStage::Dispatched
+                )
+                && sequence > o.record.send.after_sequence
+        }) else {
+            return;
+        };
+        let clicked = open.record.target.position;
+        if position == clicked {
+            open.clicked_echo = Some(sequence);
+        } else if position
+            == crate::client::placement_check::offset(clicked, open.record.target.face)
+            && open.clicked_echo.and_then(|s| s.checked_add(1)) == Some(sequence)
+        {
+            open.handler_echo = Some((sequence - 1, sequence));
+        }
     }
     async fn close_native_basis(&self, window: i8, player: &api::PlayerObservation) -> Result<()> {
         let receipts = self.common_receipts.lock().await;
@@ -456,6 +493,8 @@ impl crate::client::adapter::ContainerOps for Bot {
                     Some(NativeContainerOpen {
                         record,
                         released: false,
+                        clicked_echo: None,
+                        handler_echo: None,
                     });
                 let bot = self.clone_internal();
                 let (reply, result) = oneshot::channel();
@@ -661,6 +700,128 @@ mod tests {
         let mut full = vec![3, 0, 63];
         full.extend([0; 63]);
         bot.apply_packet(0x14, full).await.unwrap();
+    }
+    async fn echo(bot: &Bot, p: [i32; 3], state: i32) {
+        let mut payload = BlockPos {
+            x: p[0],
+            y: p[1],
+            z: p[2],
+        }
+        .packed()
+        .to_be_bytes()
+        .to_vec();
+        put_varint(&mut payload, state);
+        bot.apply_packet(0x0b, payload).await.unwrap();
+    }
+    async fn chest_state(_bot: &Bot) -> i32 {
+        crate::versions::java_1_16_1::state_id(&crate::NativeBlockState {
+            name: "minecraft:chest".into(),
+            properties: std::collections::BTreeMap::from([
+                ("facing".into(), "north".into()),
+                ("type".into(), "single".into()),
+                ("waterlogged".into(), "false".into()),
+            ]),
+        })
+        .unwrap()
+    }
+    #[tokio::test]
+    async fn adjacent_handler_echo_without_open_ends_no_screen_and_releases_owner() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_open(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let record = crate::client::tests::common_open_start_scenario(
+            &client,
+            api::GameMode::Survival,
+            [8, 66, 11],
+        )
+        .await;
+        assert_eq!(packets.recv().await.unwrap().0, 0x2d);
+        let chest = chest_state(&bot).await;
+        // Refused native open: no OPEN, only handleUseItemOn's closing pair
+        // BlockUpdate(clicked), BlockUpdate(clicked + North).
+        echo(&bot, [8, 66, 11], chest).await;
+        assert_eq!(
+            client
+                .survival()
+                .container_open_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            contract::ContainerOpenStage::Dispatched
+        );
+        echo(&bot, [8, 66, 10], 0).await;
+        let refused =
+            crate::client::tests::common_open_no_screen_scenario(&client, record.id).await;
+        assert!(
+            refused.no_screen.unwrap().clicked_echo_sequence.unwrap() > record.send.after_sequence
+        );
+        let again = client.survival().open_container([8, 66, 11]).await.unwrap();
+        assert_eq!(again.id.attempt(), record.id.attempt() + 1);
+        assert_eq!(again.stage, contract::ContainerOpenStage::Dispatched);
+        assert!(again.no_screen.is_none());
+        assert_eq!(packets.recv().await.unwrap().0, 0x2d);
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn interrupted_echo_pair_or_echo_after_open_is_not_no_screen() {
+        for opened in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed_open(&bot).await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let record = client.survival().open_container([8, 66, 11]).await.unwrap();
+            packets.recv().await.unwrap();
+            let chest = chest_state(&bot).await;
+            if opened {
+                // Success: openMenu sends OPEN/contents before the handler echoes.
+                received_open(&bot).await;
+                contents(&bot).await;
+            }
+            echo(&bot, [8, 66, 11], chest).await;
+            if !opened {
+                echo(&bot, [12, 66, 12], 0).await;
+            }
+            echo(&bot, [8, 66, 10], 0).await;
+            let r = client
+                .survival()
+                .container_open_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(r.id, record.id);
+            assert!(r.no_screen.is_none(), "{r:?}");
+            assert_eq!(
+                r.stage,
+                if opened {
+                    contract::ContainerOpenStage::ObservedScreen
+                } else {
+                    contract::ContainerOpenStage::Dispatched
+                }
+            );
+            if opened {
+                bot.apply_packet(0x16, vec![255, 255, 255, 0])
+                    .await
+                    .unwrap();
+                crate::client::tests::common_open_completed_scenario(&client, record.id).await;
+            } else {
+                assert!(client.survival().open_container([8, 66, 11]).await.is_err());
+            }
+            drop(release);
+            drop(client);
+            drop(bot);
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
     }
     #[tokio::test]
     async fn common_container_open_same_consumer_in_both_modes_needs_actual_contents_and_cursor() {

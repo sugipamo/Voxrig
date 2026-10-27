@@ -166,6 +166,10 @@ fn open_context_received(state: &mut State) {
                 player_screen: basis,
                 screen: screen.as_ref(),
             });
+            // handleUseItemOn registers the sequence and the next connection tick
+            // sends the ACK; openMenu sends OPEN and contents inside the handler.
+            // A covering ACK with no new OPEN before it is a processed no-screen.
+            record.modern_processed_without_screen();
             Ok(())
         })();
         if let Err(e) = outcome {

@@ -7,8 +7,8 @@ pub mod properties;
 use super::{ObservedValue, SessionStamp, SlotKnowledge, received};
 use crate::MinecraftVersion;
 pub use open::{
-    ContainerOpenId, ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend,
-    ContainerOpenStage, ContainerOpenTargetState,
+    ContainerOpenId, ContainerOpenNoScreen, ContainerOpenProcessing, ContainerOpenRecord,
+    ContainerOpenSend, ContainerOpenStage, ContainerOpenTargetState,
 };
 
 /// One close intent, bound to its received connection/world/opening.

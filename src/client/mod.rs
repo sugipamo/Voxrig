@@ -217,9 +217,9 @@ pub mod prelude {
     };
     pub use super::container::{
         ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerOpenId,
-        ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend, ContainerOpenStage,
-        ContainerOpenTargetState, ContainerScreen, CursorReturnPlanStep, PlayerScreenAccess,
-        ScreenId, ScreenObservation,
+        ContainerOpenNoScreen, ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend,
+        ContainerOpenStage, ContainerOpenTargetState, ContainerScreen, CursorReturnPlanStep,
+        PlayerScreenAccess, ScreenId, ScreenObservation,
     };
     pub use super::context::{
         CooldownKey, DeathLocation, DefaultSpawnPosition, Experience, ItemCooldown,
