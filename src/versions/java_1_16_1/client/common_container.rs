@@ -994,12 +994,35 @@ mod tests {
         };
         let grid = client.received_crafting().await.unwrap().unwrap();
         assert_eq!(received_inputs(&grid), [true; 4]);
+        let original = bot.common_receipts.lock().await.inventory.slots[..9].to_vec();
         received_open(&bot).await;
         contents(&bot).await;
         bot.apply_packet(0x13, vec![3]).await.unwrap();
         // The server sends no window-0 contents on close; the grid it kept stays known.
         let grid = client.received_crafting().await.unwrap().unwrap();
         assert_eq!(received_inputs(&grid), [true; 4]);
+        assert_eq!(
+            bot.common_receipts.lock().await.inventory.slots[..9],
+            original
+        );
+
+        // An actual window-0 update while a foreign menu is open wins over history.
+        received_open(&bot).await;
+        let mut update = vec![0, 0, 1, 1]; // window 0, slot 1, present stack
+        put_varint(&mut update, crate::item_id("oak_planks").unwrap());
+        update.extend([3, 0]); // count and absent NBT
+        bot.apply_packet(0x16, update).await.unwrap();
+        let changed = bot.common_receipts.lock().await.inventory.slots[1].clone();
+        assert_ne!(changed, original[1]);
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        assert_eq!(bot.common_receipts.lock().await.inventory.slots[1], changed);
+        // A server clear must replace the retained stack, never restore the old value.
+        bot.apply_packet(0x16, vec![0, 0, 1, 0]).await.unwrap();
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(
+            grid.input(0, 0).unwrap().unwrap().value(),
+            &api::SlotKnowledge::Empty
+        );
         bot.disconnect().await.unwrap();
         drop(release);
         drop(client);

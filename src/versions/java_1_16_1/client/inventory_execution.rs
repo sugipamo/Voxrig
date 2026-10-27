@@ -752,6 +752,57 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn submitted_close_allows_taking_retained_player_crafting_result() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let mut slots = vec![api::SlotKnowledge::Empty; 46];
+        for (index, name) in [(0, "oak_button"), (1, "oak_planks")] {
+            slots[index] = api::legacy_slot(Some(&ItemStack {
+                item_id: crate::registry::item_id(name).unwrap(),
+                count: 1,
+                nbt: None,
+            }))
+            .unwrap();
+        }
+        f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+        f.close_furnace(&api::SlotKnowledge::Empty).await;
+        // Native history still describes the furnace. Admission belongs to the
+        // common received projection, whose exact submitted close grants access.
+        assert_eq!(f.bot.inventory().await.open_window.unwrap().id, 3);
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(grid.input(0, 0).unwrap().unwrap().value(), &slots[1]);
+        let take = client.survival().take_crafting_result(&grid).await.unwrap();
+        assert!(take.send.dispatched);
+        assert_eq!(take.window_id(), 0);
+        f.click().await;
+        let mut reply = vec![0];
+        reply.extend(take.send.legacy_action.unwrap().to_be_bytes());
+        reply.push(0); // original rejected-comparison/full-resync response
+        f.bot.apply_packet(0x12, reply).await.unwrap();
+        f.full_player(&vec![api::SlotKnowledge::Empty; 46]).await;
+        f.cursor(&slots[0]).await;
+        let completed = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            completed.stage,
+            api::crafting::CraftingTakeStage::ObservedTaken
+        );
+        client.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(f);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn submitted_close_pickaxe_send_settles_at_response_state_boundary() {
         let (bot, packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
@@ -811,8 +862,7 @@ mod tests {
                     } else if external {
                         assert_eq!(done.status, inv::InventorySendStatus::Diverged);
                     } else {
-                        // Opening the furnace invalidates player crafting slots.
-                        // Learning them again may conservatively diverge, but
+                        // Fresh full contents can conservatively diverge, but
                         // must still settle this original send and release it.
                         assert!(
                             matches!(

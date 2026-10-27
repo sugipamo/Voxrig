@@ -12,23 +12,6 @@ pub(super) struct NativeCraftingTake {
     pub(super) record: CraftingTakeRecord,
 }
 impl Bot {
-    async fn crafting_cache(&self, record: &CraftingTakeRecord) -> Result<()> {
-        let inventory = self.inventory().await;
-        if !inventory.pending_clicks.is_empty()
-            || !record.before.source().native_window_matches(
-                inventory
-                    .open_window
-                    .as_ref()
-                    .map_or(0, |s| i32::from(s.id)),
-            )
-            || api::legacy_slot(inventory.cursor.as_ref())? != record.cursor_before.value
-        {
-            return Err(unavailable(
-                "crafting received/native cache ownership disagrees",
-            ));
-        }
-        Ok(())
-    }
     async fn common_crafting_send_owned(
         &self,
         id: contract::CraftingTakeId,
@@ -63,7 +46,8 @@ impl Bot {
                 &take::screen_observation(&current, table),
                 &registries,
             )?;
-            self.crafting_cache(&record).await?;
+            // validate_before owns source/cursor admission, including submitted
+            // closes. The native projection can still show the historical menu.
             let comparison = record.legacy_full_comparison()?;
             let native = match &comparison {
                 api::SlotKnowledge::Empty => None,
@@ -217,18 +201,6 @@ impl Bot {
                 .await
                 .registries
                 .capture(current.session, current.receive_sequence);
-            let inventory = self.inventory().await;
-            let cache_conflict = !inventory.pending_clicks.is_empty()
-                || !snapshot.record.before.source().native_window_matches(
-                    inventory
-                        .open_window
-                        .as_ref()
-                        .map_or(0, |s| i32::from(s.id)),
-                )
-                || current.inventory.cursor.as_ref().is_none_or(|c| {
-                    api::legacy_slot(inventory.cursor.as_ref()).map_or(true, |v| c.value != v)
-                });
-            drop(inventory);
             let complete = {
                 let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
                 let record = &mut guard.as_mut().expect("retained").record;
@@ -238,9 +210,6 @@ impl Bot {
                     &take::screen_observation(&current, table),
                     &registries,
                 );
-                if cache_conflict {
-                    record.inspection("crafting cache/ownership context changed");
-                }
                 record.ready()
             };
             if complete {
@@ -357,7 +326,8 @@ impl Bot {
                         take::prepare_transfer(initial, screen, registries, grid, mode, attempt)?
                     }
                 };
-                self.crafting_cache(&record).await?;
+                // prepare owns received source/cursor admission; reserve below
+                // independently excludes unresolved inventory execution.
                 self.reserve_inventory_execution(record.initial.session)
                     .await?;
                 let id = record.id;

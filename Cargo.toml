@@ -242,6 +242,7 @@ include = [
     "/scripts/run_furnace_transfer_live.py",
     "/scripts/export_crafting_input_transfers.py",
     "/scripts/run_crafting_input_transfer_live.py",
+    "/scripts/run_player_crafting_retention_live.py",
     "/scripts/ExportArmorTransfers.java",
     "/scripts/export_armor_transfers.py",
     "/scripts/ExportCraftingMenus.java",

@@ -6,8 +6,8 @@ use super::*;
 /// the 2x2 crafting result/grid (0..=4), armor (5..=8) and offhand (45).
 /// The server keeps the player menu's grid while another menu is open and sends
 /// no window-0 contents on close, so dropping these would leave the grid unknown
-/// for the rest of the connection. Our own window-0 close is followed by actual
-/// slot updates for whatever the server returns from the grid.
+/// until a player-menu refresh. Actual window-0 slot updates still replace these
+/// receipts, including input clears after a player-menu close.
 pub(super) const PLAYER_SLOTS_KEPT_BY_SCREENS: [usize; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 45];
 
 impl Bot {

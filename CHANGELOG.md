@@ -20,9 +20,11 @@
   2x2 crafting result/grid (slots 0..=4) on Java 1.16.1 and 1.21.11. The server
   keeps that grid while another menu is open and sends no player-menu contents on
   close, so `received_crafting()` previously reported every input as unreceived
-  for the rest of the connection after any chest or crafting-table use. Armor and
+  after chest or crafting-table use until another player-menu refresh. Armor and
   offhand were already retained the same way; main/hotbar slots still come only
-  from the opened screen's contents.
+  from the opened screen's contents. Java 1.16.1 crafting result takes also use
+  the common received/submitted-close admission, so a historical native screen
+  projection no longer rejects player crafting after a foreign screen close.
 
 - Java 1.16.1 player-grid crafting take and recipe placement accept the native
   cache still naming a locally closed opening. Vanilla need not echo that close,
