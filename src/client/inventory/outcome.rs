@@ -189,10 +189,26 @@ impl Comparison {
             let value = now.map(|v| &v.value);
             let expected = predicted.map(|v| &v.value);
             let previous = predecessor.as_ref().map(|v| &v.value);
+            if previous.is_none() {
+                let delta = match &self.intended {
+                    InventoryIntendedChange::Exact { delta } => delta,
+                    InventoryIntendedChange::CraftingResult { cursor, .. } => cursor,
+                };
+                if !delta.slots.iter().any(|slot| slot.location == location) {
+                    // An unrelated first receipt hydrates knowledge, not stock.
+                    // Keep the actual receipt/delta intact; only comparison is exempt.
+                    continue;
+                }
+                // An intended location with no received predecessor has no
+                // prediction basis. Keep it conservative even if the first
+                // receipt happens to match a guessed successor; hydration
+                // cannot establish that this send caused the intended change.
+                equal = false;
+            }
             if value != expected {
                 equal = false;
             }
-            if value != previous && value != expected {
+            if previous.is_some() && value != previous && value != expected {
                 self.interrupted = true;
                 self.hint(InventoryCause::External);
             }

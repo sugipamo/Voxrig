@@ -120,6 +120,36 @@ That bit alone is not a failed effect. A divergent result retains `Rejected`;
 an exactly matching ordinary result remains `Received`. No ACK rolls inventory
 back or commits a prediction.
 
+An unrelated location with no pre-send receipt can become known while a send is
+pending. This hydration is neither an external stock mutation nor an effect
+mismatch. `Comparison::inspect` owns this policy for both adapters; server
+receipts and the actual delta (including `complete=false`) are kept unchanged.
+An intended delta location without a received predecessor stays conservative:
+even a receipt matching a guessed successor cannot establish agreement without
+a prediction basis. Changes to known pre-send values still latch `External`, even if
+subsequently reverted. Response, contents and cursor boundaries remain required.
+
+The #424 packet fixture reproduces wooden-pickaxe pickup from slot 9, unrelated
+player slots 0..4 hydrating to Empty, and continuation to hotbar 36/37 in all six
+ACK/contents/cursor orders. The optional LIVE driver deliberately forgets only
+the client's grid knowledge, then checks unchanged official-server receipts and
+ordinary production sends, with and without a known external mutation:
+
+```sh
+cargo test -j2 --lib --no-run
+# Use the test executable printed by Cargo, not the .d dependency file.
+python3 scripts/run_inventory_hydration_live.py --accept-eula \
+  --test-binary target/debug/deps/voxrig-<hash> --output .local/hydration-live
+```
+
+This controlled knowledge fixture is not a claim to replay the original RTA run.
+See the [retained 1.16.1 qualification](evidence/inventory-hydration-1.16.1-20261027.json.gz).
+The test-only invalidation adds no public API. Discard the active comparison at
+its terminal response boundary or scope invalidation; retained immutable evidence
+follows the existing lifetime. Fresh capture/comparison and remaining swap planning
+are bounded local work over 46 player slots plus cursor, without another owner or
+server round trip for hydration.
+
 ## Read received differences with a cursor
 
 ```rust,no_run
