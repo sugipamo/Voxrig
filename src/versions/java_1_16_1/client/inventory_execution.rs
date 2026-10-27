@@ -520,6 +520,10 @@ impl Bot {
 }
 
 #[cfg(test)]
+#[path = "inventory_hydration_live.rs"]
+mod hydration_live;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use api::inventory::acceptance_tests::{self as script, Fixture};
@@ -873,6 +877,129 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn hd1_swap_9_to_hotbar_with_player_grid_hydration_is_received() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let pickaxe = api::legacy_slot(Some(&ItemStack {
+            item_id: crate::registry::item_id("wooden_pickaxe").unwrap(),
+            count: 1,
+            nbt: None,
+        }))
+        .unwrap();
+        // #424's retained values: source 9 -> cursor, with unrelated 0..4
+        // first received as Empty. Reconstruct the historical missing knowledge;
+        // the remaining response packets go through the real adapter/reducer.
+        for destination in [36, 37] {
+            for order in [
+                [0, 1, 2],
+                [0, 2, 1],
+                [1, 0, 2],
+                [1, 2, 0],
+                [2, 0, 1],
+                [2, 1, 0],
+            ] {
+                let mut slots = vec![api::SlotKnowledge::Empty; 46];
+                slots[9] = pickaxe.clone();
+                f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+                f.bot.common_receipts.lock().await.inventory.slots[..5].fill(None);
+                let before = client.player_state().await.unwrap();
+                assert!(before.inventory.slots[..5].iter().all(Option::is_none));
+                let sent = client
+                    .survival()
+                    .send_inventory_click(
+                        InventorySource::Player,
+                        9,
+                        inv::InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap();
+                f.click().await;
+                slots[9] = api::SlotKnowledge::Empty;
+                for (index, event) in order.into_iter().enumerate() {
+                    match event {
+                        0 => f.response(&sent, false).await,
+                        1 => f.full_player(&slots).await,
+                        _ => f.cursor(&pickaxe).await,
+                    }
+                    let done = client
+                        .survival()
+                        .inventory_send_record()
+                        .await
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(done.id, sent.id);
+                    assert_eq!(
+                        done.status,
+                        if index < 2 {
+                            inv::InventorySendStatus::Pending
+                        } else {
+                            inv::InventorySendStatus::Received
+                        },
+                        "destination={destination}, order={order:?}"
+                    );
+                }
+                let strict = client
+                    .survival()
+                    .inventory_click_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(strict.stage, inv::InventoryClickStage::ObservedClicked);
+                assert!(!strict.legacy_reply.unwrap().accepted);
+                assert!(
+                    client
+                        .inventory_divergence(sent.id)
+                        .await
+                        .unwrap()
+                        .is_none()
+                );
+                let after = client.player_state().await.unwrap();
+                assert!(after.inventory.slots[..5].iter().all(|v| {
+                    v.as_ref()
+                        .is_some_and(|v| v.value == api::SlotKnowledge::Empty)
+                }));
+                let delta = inv::InventorySnapshot::capture(&before, None)
+                    .delta(&inv::InventorySnapshot::capture(&after, None));
+                assert!(!delta.complete);
+                assert_eq!(delta.slots.len(), 7); // five hydrations, source, cursor
+                // Finish the swap from current receipts without replaying pickup.
+                let put = client
+                    .survival()
+                    .send_inventory_click(
+                        InventorySource::Player,
+                        destination,
+                        inv::InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap();
+                f.click().await;
+                slots[usize::from(destination)] = pickaxe.clone();
+                f.response(&put, false).await;
+                f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_send_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .status,
+                    inv::InventorySendStatus::Received
+                );
+            }
+        }
+        client.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(f);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn submitted_close_pickaxe_send_settles_at_response_state_boundary() {
         let (bot, packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
@@ -932,16 +1059,10 @@ mod tests {
                     } else if external {
                         assert_eq!(done.status, inv::InventorySendStatus::Diverged);
                     } else {
-                        // Fresh full contents can conservatively diverge, but
-                        // must still settle this original send and release it.
-                        assert!(
-                            matches!(
-                                done.status,
-                                inv::InventorySendStatus::Received
-                                    | inv::InventorySendStatus::Diverged
-                            ),
-                            "order={order:?}, status={:?}",
-                            done.status
+                        assert_eq!(
+                            done.status,
+                            inv::InventorySendStatus::Received,
+                            "order={order:?}"
                         );
                     }
                 }

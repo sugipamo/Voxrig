@@ -9,6 +9,13 @@
 
 ## Unreleased
 
+- Inventory send comparison no longer treats first receipts for unrelated,
+  previously unreceived slots/cursor as external changes or effect mismatches.
+  Actual server receipts and incomplete deltas are preserved. Intended locations
+  with no received basis remain conservative; known external mutations still diverge.
+  Fixes coherent Java 1.16.1 tool pickups diverging when player slots 0..4 hydrate
+  (sugipamo/Golemkit#424), without changing the public API.
+
 - Add Java 1.16.1 Body `action_observation` and `monitor_changes_after`, separating
   immutable acceptance from late corrections and evidence completeness. Internal
   evidence gaps, world/target-chunk loss and retryable timeout/read errors are

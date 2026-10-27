@@ -296,6 +296,115 @@ fn ordinary_click_and_transfer_match_while_transient_external_changes_latch() {
 }
 
 #[test]
+fn unrelated_hydration_accepts_intent_and_preserves_received_evidence() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for hydrate_item in [false, true] {
+            let mut before = table(version, 10);
+            before.player_slots[19] = None;
+            before.cursor = None;
+            before.screen.as_mut().unwrap().slots[1] = None;
+            let mut expected = before.clone();
+            expected.set(
+                InventoryLocation::Player { slot: 9 },
+                item(version, "minecraft:stone", 1),
+            );
+            let mut e = Executor::default();
+            let id = begin(&mut e, &before, expected, 2);
+            let mut current = before.clone();
+            let hydrated = if hydrate_item {
+                item(version, "minecraft:dirt", 1)
+            } else {
+                SlotKnowledge::Empty
+            };
+            current.player_slots[19] = Some(received(hydrated.clone(), 11));
+            current.cursor = Some(received(hydrated.clone(), 11));
+            current.screen.as_mut().unwrap().slots[1] = Some(received(hydrated, 11));
+            current.receive_sequence = 11;
+            // Hydration can precede the intended effect and must not latch interruption.
+            e.receive(current.clone(), false);
+            current.player_slots[9] = Some(received(item(version, "minecraft:stone", 1), 12));
+            current.receive_sequence = 12;
+            finish(&mut e, id, 2, current.clone());
+            assert_eq!(e.record().unwrap().status, InventorySendStatus::Received);
+            assert!(e.divergence(id).unwrap().is_none());
+            let delta = before.delta(&current);
+            assert!(!delta.complete); // None has not been rewritten as Empty.
+            assert_eq!(delta.slots.len(), 4);
+            assert_eq!(
+                current.player_slots[19].as_ref().unwrap().source,
+                crate::client::ValueSource::Received { sequence: 11 }
+            );
+            assert!(
+                e.changes
+                    .after(11, 12)
+                    .unwrap()
+                    .changes
+                    .iter()
+                    .all(|change| !change.causes.contains(&InventoryCause::External))
+            );
+        }
+    }
+}
+
+#[test]
+fn known_external_change_still_diverges_alongside_unrelated_hydration() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let mut before = snapshot(version, 10);
+        before.player_slots[1] = None;
+        let mut e = Executor::default();
+        let id = begin(&mut e, &before, before.clone(), 2);
+        let mut current = before.clone();
+        current.player_slots[1] = Some(received(SlotKnowledge::Empty, 11));
+        current.player_slots[19] = Some(received(item(version, "minecraft:dirt", 1), 11));
+        current.receive_sequence = 11;
+        e.receive(current.clone(), false);
+        // Even if the known external mutation is reverted before the response,
+        // its interruption remains latched; hydration does not mask it.
+        current.player_slots[19] = before.player_slots[19].clone();
+        current.receive_sequence = 12;
+        finish(&mut e, id, 2, current);
+        assert_eq!(e.record().unwrap().status, InventorySendStatus::Diverged);
+        assert_eq!(
+            e.divergence(id).unwrap().unwrap().causes,
+            [InventoryCause::External]
+        );
+    }
+}
+
+#[test]
+fn intended_unknown_location_is_not_exempt_from_agreement() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for received_value in [
+            None,
+            Some(SlotKnowledge::Empty),
+            Some(item(version, "minecraft:dirt", 1)),
+            Some(item(version, "minecraft:stone", 1)),
+        ] {
+            let mut before = snapshot(version, 10);
+            before.player_slots[9] = None;
+            let mut expected = before.clone();
+            expected.set(
+                InventoryLocation::Player { slot: 9 },
+                item(version, "minecraft:stone", 1),
+            );
+            let mut e = Executor::default();
+            let id = begin(&mut e, &before, expected, 2);
+            let mut current = before;
+            current.player_slots[9] = received_value.map(|v| received(v, 11));
+            current.receive_sequence = 11;
+            // Rejection is an independent hint; a first receipt must not add External.
+            e.rejected();
+            finish(&mut e, id, 2, current);
+            assert_eq!(e.record().unwrap().status, InventorySendStatus::Diverged);
+            assert_eq!(
+                e.divergence(id).unwrap().unwrap().causes,
+                [InventoryCause::Rejected]
+            );
+        }
+    }
+}
+
+#[test]
 fn external_stock_aliases_preview_unknowns_gaps_and_retired_scopes() {
     let version = MinecraftVersion::Java1_16_1;
     let mut ledger = InventoryChangeLedger::default();
