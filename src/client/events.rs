@@ -74,6 +74,12 @@ pub enum EventKind {
     /// Java 1.21.11 code of conduct received during configuration; read the latest
     /// text with `Client::code_of_conduct`. This is not an acceptance receipt.
     CodeOfConductReceived,
+    /// Java 1.16.1 chunk/light packet application failed. All observations from
+    /// this connection must be discarded; the reader terminates next. The
+    /// retained diagnostic is returned by `Client::received_player_snapshot`.
+    /// This is recorded directly at the failed receive boundary, independently
+    /// of native broadcast delivery. Java 1.21.11 does not emit this event.
+    ObservationInvalidated,
     /// The connection closed. No later event follows; the server's reason, when it
     /// sent one, is `Client::disconnect_reason`.
     Disconnected,

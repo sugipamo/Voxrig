@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Java 1.16.1 chunk/light decode failures now withdraw observations and terminate
+  the reader through the existing connection-failure path. Add non-exhaustive
+  `EventKind::ObservationInvalidated` at the failed receive boundary; common
+  chunk/light/context reads fail immediately, and `received_player_snapshot`
+  retains the original packet diagnostic after termination. Bounded event cursor
+  gaps remain explicit `State` errors. Public signatures and normal send admission
+  are unchanged; Java 1.21.11 is unchanged. See [recovery and ownership](docs/world-decode-failures.md).
+
 - Java 1.16.1 digging ACKs now emit common `BlocksChanged` and additive
   `EventKind::LegacyDiggingAcknowledged` with the received target, state, status
   and success flag, including rejected, late and unmatched replies. Corrections

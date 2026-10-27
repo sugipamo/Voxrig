@@ -8,12 +8,7 @@ impl crate::client::adapter::ChunkOps for Bot {
         position: [i32; 2],
     ) -> Result<Option<api::ChunkContextObservation>> {
         let _gate = self.coherent_state_gate.lock().await;
-        let session = api::SessionStamp {
-            version: crate::MinecraftVersion::Java1_16_1,
-            connection_id: self.connection_id(),
-            world_generation: self.common_receipts.lock().await.generation,
-        };
-        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        let (session, sequence) = self.chunk_session().await?;
         Ok(self.world.lock().await.context(position, session, sequence))
     }
     async fn loaded_chunks(&self) -> Result<api::LoadedChunks> {
@@ -83,7 +78,13 @@ impl Bot {
                 anyhow::anyhow!("connection closed"),
             ));
         }
-        let generation = self.common_receipts.lock().await.generation;
+        let receipts = self.common_receipts.lock().await;
+        // Packet failure is published under the coherent gate before the reader
+        // supervisor finishes closing. Never expose old terrain in that window.
+        if let Some((kind, error)) = &receipts.snapshot_failure {
+            return Err(crate::Error::new(*kind, anyhow::anyhow!("{error}")));
+        }
+        let generation = receipts.generation;
         Ok((
             api::SessionStamp {
                 version: crate::MinecraftVersion::Java1_16_1,

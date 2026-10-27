@@ -26,6 +26,7 @@ include = [
     "/scripts/run_health_log_live.py",
     "/scripts/run_explosion_changes_live.py",
     "/scripts/run_digging_ack_live.py",
+    "/scripts/run_world_decode_failure_live.py",
     "/scripts/run_body_send_trust_live.py",
     "/scripts/run_legacy_body_live.py",
     "/scripts/run_place_activation_live.py",
