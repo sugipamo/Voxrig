@@ -73,6 +73,71 @@ fn finish(e: &mut Executor, id: InventorySendId, action: i16, current: Inventory
     e.receive(current, false);
 }
 
+#[tokio::test(start_paused = true)]
+async fn completed_response_state_keeps_deadline_until_comparison_finishes() {
+    let before = snapshot(MinecraftVersion::Java1_16_1, 10);
+    let mut e = Executor::default();
+    let id = begin(&mut e, &before, before.clone(), 1);
+    e.response(before.session, before.source, 1, 11);
+    e.contents(before.session, before.source, 0, 12, true);
+    assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
+    // A missing comparison capture must never turn ready into an endless lock.
+    tokio::time::advance(Duration::from_secs(1)).await;
+    assert_eq!(
+        e.record().unwrap().status,
+        InventorySendStatus::ResyncRequired
+    );
+    assert!(e.admit().is_err());
+    e.begin(
+        before.session,
+        before.source,
+        13,
+        Some(2),
+        Duration::from_secs(1),
+        true,
+    )
+    .unwrap();
+    e.invalidate_owned(id); // retired worker cannot affect the recovery probe
+    assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
+}
+
+#[test]
+fn received_scope_change_invalidates_pending_comparison() {
+    let before = snapshot(MinecraftVersion::Java1_16_1, 10);
+    for ready in [false, true] {
+        for world_change in [false, true] {
+            let mut e = Executor::default();
+            begin(&mut e, &before, before.clone(), 1);
+            if ready {
+                e.response(before.session, before.source, 1, 11);
+                e.contents(before.session, before.source, 0, 12, true);
+            }
+            let mut changed = table(MinecraftVersion::Java1_16_1, 13);
+            if world_change {
+                changed = before.clone();
+                changed.session.world_generation += 1;
+                changed.receive_sequence = 13;
+            }
+            e.receive(changed, false);
+            assert_eq!(
+                e.record().unwrap().status,
+                InventorySendStatus::ResyncRequired
+            );
+            let id = e.record().unwrap().id;
+            assert!(e.divergence(id).unwrap().is_none());
+            assert!(e.admit().is_err());
+            // An old matching capture cannot revive a retired send.
+            let mut stale = before.clone();
+            stale.receive_sequence = 14;
+            e.receive(stale, false);
+            assert_eq!(
+                e.record().unwrap().status,
+                InventorySendStatus::ResyncRequired
+            );
+        }
+    }
+}
+
 #[test]
 fn f96_seed2_action23_preserves_received_table_and_conflicting_log_cursor() {
     // F96_CLICK_CONFLICT.md: original 9201, invalidation 9214, ACK 9215,

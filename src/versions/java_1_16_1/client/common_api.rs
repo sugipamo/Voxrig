@@ -34,20 +34,12 @@ impl Bot {
         let positioned = *self.positioned.lock().await;
         let survival = self.survival.read().await;
         let receipts = self.common_receipts.lock().await;
-        let mut received_inventory = receipts.inventory.clone();
         let session = api::SessionStamp {
             version: crate::MinecraftVersion::Java1_16_1,
             connection_id: self.connection_id(),
             world_generation: receipts.generation,
         };
-        received_inventory.player_screen = api::container::player_screen_access(
-            session,
-            received_inventory.window_id,
-            receipts.container.as_ref().map(|s| s.id(session)),
-            super::lock_packet_state(&self.common_container_close)
-                .await
-                .as_ref(),
-        );
+        let received_inventory = self.received_inventory_projection(&receipts, session).await;
         let dismount_pending = self
             .dismount_history
             .lock()

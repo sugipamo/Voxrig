@@ -666,6 +666,7 @@ async fn main() -> anyhow::Result<()> {
                 };
                 serde_json::json!({"record": record, "divergence": divergence})
             }
+            "resync_inventory" => serde_json::to_value(survival.resync_inventory().await?)?,
             "send_inventory_click" => {
                 use voxrig::client::inventory::{InventoryClickButton as Button, InventorySource};
                 let slot = request["slot"].as_u64().unwrap().try_into()?;

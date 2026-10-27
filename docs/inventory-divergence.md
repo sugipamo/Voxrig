@@ -7,6 +7,20 @@ inventory. Comparisons below are immutable evidence and never write predicted
 values into current slots, menus or the cursor. `EventKind::InventoryChanged`
 remains a `Copy` notification; read the separate change log for its payload.
 
+Java 1.16.1 uses the same received inventory projection for admission, pre-send
+comparison and every receive snapshot, including `SubmittedClose` when vanilla
+does not echo a local container close. The reducer retains the original opening
+receipt; the projection determines whether the send uses Player or Container
+scope. Only the executor settles a send at the completed response/contents/cursor
+boundary. It retains the deadline until comparison also finishes. A changed
+scope invalidates a pending send as `ResyncRequired`; missing or late ACKs cannot
+leave it Pending indefinitely or acknowledge a replacement resync/send.
+[The official 1.16.1 close/reopen LIVE evidence](evidence/inventory-pending-scope-live-1.16.1-20261027.json.gz)
+includes the original responses, comparison evidence, independent server
+inventory, packet hashes and source/binary hashes. Reproduce it with
+`scripts/run_inventory_pending_scope_live.py --accept-eula --output .local/pending-scope/live`
+after building `cargo build --locked --example climbing_control_probe`.
+
 ## Send once, then replan when the received result diverges
 
 `Survival` and `Creative` keep their existing `send_inventory_click`,
