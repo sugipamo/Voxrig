@@ -16,6 +16,13 @@
   retains the original packet diagnostic after termination. Bounded event cursor
   gaps remain explicit `State` errors. Public signatures and normal send admission
   are unchanged; Java 1.21.11 is unchanged. See [recovery and ownership](docs/world-decode-failures.md).
+- Opening or closing a foreign screen no longer forgets the received player
+  2x2 crafting result/grid (slots 0..=4) on Java 1.16.1 and 1.21.11. The server
+  keeps that grid while another menu is open and sends no player-menu contents on
+  close, so `received_crafting()` previously reported every input as unreceived
+  for the rest of the connection after any chest or crafting-table use. Armor and
+  offhand were already retained the same way; main/hotbar slots still come only
+  from the opened screen's contents.
 
 - Java 1.16.1 digging ACKs now emit common `BlocksChanged` and additive
   `EventKind::LegacyDiggingAcknowledged` with the received target, state, status

@@ -983,4 +983,27 @@ mod tests {
             server.await.unwrap();
         }
     }
+    #[tokio::test]
+    async fn foreign_screen_open_and_close_keep_received_player_crafting_grid() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_open(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let received_inputs = |grid: &api::ReceivedCrafting| {
+            [(0, 0), (1, 0), (0, 1), (1, 1)].map(|(x, y)| grid.input(x, y).unwrap().is_some())
+        };
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(received_inputs(&grid), [true; 4]);
+        received_open(&bot).await;
+        contents(&bot).await;
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        // The server sends no window-0 contents on close; the grid it kept stays known.
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(received_inputs(&grid), [true; 4]);
+        bot.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
 }

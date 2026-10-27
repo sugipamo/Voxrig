@@ -2,6 +2,14 @@
 //! Called only by the ordered dispatcher while its coherent-state gate is held.
 use super::*;
 
+/// Player-menu slots that a foreign screen opening neither re-supplies nor alters:
+/// the 2x2 crafting result/grid (0..=4), armor (5..=8) and offhand (45).
+/// The server keeps the player menu's grid while another menu is open and sends
+/// no window-0 contents on close, so dropping these would leave the grid unknown
+/// for the rest of the connection. Our own window-0 close is followed by actual
+/// slot updates for whatever the server returns from the grid.
+pub(super) const PLAYER_SLOTS_KEPT_BY_SCREENS: [usize; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 45];
+
 impl Bot {
     pub(super) async fn receive_window_confirmation(
         &self,
@@ -241,7 +249,7 @@ impl Bot {
             // Opening authority is ScreenReceipts; native view is a projection.
             let mut receipts = self.common_receipts.lock().await;
             for (i, value) in receipts.inventory.slots.iter_mut().enumerate() {
-                if ![5, 6, 7, 8, 45].contains(&i) {
+                if !PLAYER_SLOTS_KEPT_BY_SCREENS.contains(&i) {
                     *value = None;
                 }
             }
@@ -285,7 +293,7 @@ impl Bot {
             // Opening authority is ScreenReceipts; native view is a projection.
             let mut receipts = self.common_receipts.lock().await;
             for (i, value) in receipts.inventory.slots.iter_mut().enumerate() {
-                if ![5, 6, 7, 8, 45].contains(&i) {
+                if !PLAYER_SLOTS_KEPT_BY_SCREENS.contains(&i) {
                     *value = None;
                 }
             }

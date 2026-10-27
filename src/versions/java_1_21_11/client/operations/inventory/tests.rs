@@ -933,7 +933,7 @@ fn container_content_malformed_packets_are_atomic_and_do_not_guess_layout() {
     );
     // An unaudited menu keeps actual contents without an appended-player mapping.
     // Equipment is independent same-world history, with its original receive ordinals.
-    let equipment = [5, 6, 7, 8, 45].map(|i| {
+    let equipment = super::PLAYER_SLOTS_KEPT_BY_SCREENS.map(|i| {
         (
             i,
             state.operations.inventory.slots[i].clone(),
@@ -958,7 +958,7 @@ fn container_content_malformed_packets_are_atomic_and_do_not_guess_layout() {
         assert_eq!(state.operations.inventory.slot_sequences[index], sequence);
     }
     for index in 0..46 {
-        if ![5, 6, 7, 8, 45].contains(&index) {
+        if !super::PLAYER_SLOTS_KEPT_BY_SCREENS.contains(&index) {
             assert_eq!(
                 state.operations.inventory.slots[index],
                 InventorySlot::Unavailable
@@ -2284,7 +2284,7 @@ fn screen_open_close_preserves_only_same_world_received_equipment_with_original_
             },
         )
         .unwrap();
-        for index in [5, 6, 7, 8, 45] {
+        for index in super::PLAYER_SLOTS_KEPT_BY_SCREENS {
             assert_eq!(
                 state.operations.inventory.slots[index],
                 original.slots[index]
