@@ -933,7 +933,7 @@ fn container_content_malformed_packets_are_atomic_and_do_not_guess_layout() {
     );
     // An unaudited menu keeps actual contents without an appended-player mapping.
     // Equipment is independent same-world history, with its original receive ordinals.
-    let equipment = [5, 6, 7, 8, 45].map(|i| {
+    let equipment = super::PLAYER_SLOTS_KEPT_BY_SCREENS.map(|i| {
         (
             i,
             state.operations.inventory.slots[i].clone(),
@@ -958,7 +958,7 @@ fn container_content_malformed_packets_are_atomic_and_do_not_guess_layout() {
         assert_eq!(state.operations.inventory.slot_sequences[index], sequence);
     }
     for index in 0..46 {
-        if ![5, 6, 7, 8, 45].contains(&index) {
+        if !super::PLAYER_SLOTS_KEPT_BY_SCREENS.contains(&index) {
             assert_eq!(
                 state.operations.inventory.slots[index],
                 InventorySlot::Unavailable
@@ -2266,8 +2266,15 @@ async fn common_container_open_received_mode_conflict_survives_restoration_and_m
     f.stop().await;
 }
 #[test]
-fn screen_open_close_preserves_only_same_world_received_equipment_with_original_ordinals() {
+fn screen_open_close_preserves_player_crafting_and_equipment_with_original_ordinals() {
     let mut state = baseline();
+    state.sequence += 1;
+    super::super::receive(
+        &mut state,
+        ids::play_clientbound::SET_SLOT,
+        &slot_update(1, &plain("oak_planks", 3), 1),
+    )
+    .unwrap();
     let original = state.operations.inventory.clone();
     for id in [
         ids::play_clientbound::OPEN_WINDOW,
@@ -2284,7 +2291,7 @@ fn screen_open_close_preserves_only_same_world_received_equipment_with_original_
             },
         )
         .unwrap();
-        for index in [5, 6, 7, 8, 45] {
+        for index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 45] {
             assert_eq!(
                 state.operations.inventory.slots[index],
                 original.slots[index]
@@ -2302,7 +2309,7 @@ fn screen_open_close_preserves_only_same_world_received_equipment_with_original_
         assert!(state.operations.inventory.cursor_sequence.is_none());
     }
     state.operations.reset_world(0).unwrap();
-    for index in [5, 6, 7, 8, 45] {
+    for index in [0, 1, 2, 3, 4, 5, 6, 7, 8, 45] {
         assert!(matches!(
             state.operations.inventory.slots[index],
             InventorySlot::Unavailable

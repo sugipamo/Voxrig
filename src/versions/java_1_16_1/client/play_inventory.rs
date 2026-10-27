@@ -2,6 +2,12 @@
 //! Called only by the ordered dispatcher while its coherent-state gate is held.
 use super::*;
 
+/// Player-menu slots not re-supplied by foreign contents: crafting 0..=4,
+/// armor 5..=8 and offhand 45. Keep their receipts while hidden; after close,
+/// refresh_player_crafting_after_close invalidates any nonempty/incomplete grid
+/// and requests actual player contents. Actual window-0 updates always win.
+pub(super) const PLAYER_SLOTS_KEPT_BY_SCREENS: [usize; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 45];
+
 impl Bot {
     pub(super) async fn receive_window_confirmation(
         &self,
@@ -90,6 +96,8 @@ impl Bot {
             ));
         }
         let window_id = *p.first().context("missing closed window ID")? as i8;
+        let (_, source) = self.inventory_execution_scope().await;
+        let returned_to_player = matches!(source, crate::client::inventory::InventorySource::Container { screen } if screen.window_id() == i32::from(window_id));
         let mut executor = lock_packet_state(&self.inventory_executor).await;
         if executor
             .record()
@@ -165,6 +173,9 @@ impl Bot {
         }
         drop(furnace_window_position);
         drop(inventory);
+        if returned_to_player {
+            self.refresh_player_crafting_after_close(None).await?;
+        }
         self.emit(Event::WindowClosed { window_id });
         Ok(())
     }
@@ -241,7 +252,7 @@ impl Bot {
             // Opening authority is ScreenReceipts; native view is a projection.
             let mut receipts = self.common_receipts.lock().await;
             for (i, value) in receipts.inventory.slots.iter_mut().enumerate() {
-                if ![5, 6, 7, 8, 45].contains(&i) {
+                if !PLAYER_SLOTS_KEPT_BY_SCREENS.contains(&i) {
                     *value = None;
                 }
             }
@@ -285,7 +296,7 @@ impl Bot {
             // Opening authority is ScreenReceipts; native view is a projection.
             let mut receipts = self.common_receipts.lock().await;
             for (i, value) in receipts.inventory.slots.iter_mut().enumerate() {
-                if ![5, 6, 7, 8, 45].contains(&i) {
+                if !PLAYER_SLOTS_KEPT_BY_SCREENS.contains(&i) {
                     *value = None;
                 }
             }

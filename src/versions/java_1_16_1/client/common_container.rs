@@ -339,10 +339,8 @@ impl Bot {
             .expect("retained")
             .sent();
         self.clear_local_window_unlocked(window).await;
-        self.connection
-            .finish_cursor_close(id.attempt())
-            .await
-            .map_err(|e| api::inventory::unavailable(format!("close parent release: {e:?}")))?;
+        self.refresh_player_crafting_after_close(Some(id.attempt()))
+            .await?;
         Ok(super::lock_packet_state(&self.common_container_close)
             .await
             .as_ref()
@@ -553,6 +551,7 @@ impl crate::client::adapter::ContainerOps for Bot {
                     .motion_admission_revision()
                     .await
                     .map_err(|e| api::inventory::unavailable(format!("close admission: {e:?}")))?;
+                lock_packet_state(&self.inventory_executor).await.admit()?;
                 let initial = self.common_player_unlocked().await?;
                 let captured = self
                     .common_receipts
@@ -982,5 +981,127 @@ mod tests {
             drop(bot);
             server.await.unwrap();
         }
+    }
+    #[tokio::test]
+    async fn foreign_screen_open_and_close_keep_received_player_crafting_grid() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_open(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let received_inputs = |grid: &api::ReceivedCrafting| {
+            [(0, 0), (1, 0), (0, 1), (1, 1)].map(|(x, y)| grid.input(x, y).unwrap().is_some())
+        };
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(received_inputs(&grid), [true; 4]);
+        let original = bot.common_receipts.lock().await.inventory.slots[..9].to_vec();
+        received_open(&bot).await;
+        contents(&bot).await;
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        // The server sends no window-0 contents on close; the grid it kept stays known.
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(received_inputs(&grid), [true; 4]);
+        assert_eq!(
+            bot.common_receipts.lock().await.inventory.slots[..9],
+            original
+        );
+
+        // Nonempty hidden inputs may be cleared without a subsequent delta.
+        received_open(&bot).await;
+        let mut update = vec![0, 0, 1, 1];
+        put_varint(&mut update, crate::item_id("oak_planks").unwrap());
+        update.extend([3, 0]);
+        bot.apply_packet(0x16, update).await.unwrap();
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(received_inputs(&grid), [false; 4]);
+        let sent = lock_packet_state(&bot.inventory_executor)
+            .await
+            .record()
+            .unwrap();
+        assert!(sent.resync && sent.dispatched);
+        assert_eq!(sent.id.source(), api::inventory::InventorySource::Player);
+        let (packet, body) = timeout(Duration::from_secs(1), packets.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(packet, 0x09); // same no-effect full-contents probe as explicit resync
+        assert_eq!(body[0], 0);
+        assert_eq!(&body[1..3], &(-1i16).to_be_bytes());
+        // An actual Set Slot arriving before the full response is authoritative.
+        bot.apply_packet(0x16, vec![0, 0, 1, 0]).await.unwrap();
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(
+            grid.input(0, 0).unwrap().unwrap().value(),
+            &api::SlotKnowledge::Empty
+        );
+        assert!(grid.input(1, 0).unwrap().is_none());
+        let mut full = vec![0, 0, 46];
+        full.extend([0; 46]);
+        bot.apply_packet(0x14, full).await.unwrap();
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(received_inputs(&grid), [true; 4]);
+        for (x, y) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+            assert_eq!(
+                grid.input(x, y).unwrap().unwrap().value(),
+                &api::SlotKnowledge::Empty
+            );
+        }
+        bot.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn foreign_close_refresh_without_response_expires_and_never_restores_grid() {
+        let (mut bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        bot.connection_options.inventory_click_receipt_timeout = Duration::from_millis(30);
+        seed_open(&bot).await;
+        // Result alone is enough to require refresh, even with four empty inputs.
+        let mut update = vec![0, 0, 0, 1];
+        put_varint(&mut update, crate::item_id("oak_button").unwrap());
+        update.extend([1, 0]);
+        bot.apply_packet(0x16, update).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let old = client.received_crafting().await.unwrap().unwrap();
+        received_open(&bot).await;
+        contents(&bot).await;
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        let send = lock_packet_state(&bot.inventory_executor)
+            .await
+            .record()
+            .unwrap();
+        assert!(send.resync && send.dispatched);
+        assert_eq!(send.status, api::inventory::InventorySendStatus::Pending);
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        let expired = lock_packet_state(&bot.inventory_executor)
+            .await
+            .record()
+            .unwrap();
+        assert_eq!(expired.id, send.id);
+        assert_eq!(
+            expired.status,
+            api::inventory::InventorySendStatus::ResyncRequired
+        );
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert!(grid.result().is_none());
+        for (x, y) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+            assert!(grid.input(x, y).unwrap().is_none());
+        }
+        assert!(client.survival().take_crafting_result(&old).await.is_err());
+        // A late real packet remains authoritative after the local deadline.
+        bot.apply_packet(0x16, vec![0, 0, 1, 0]).await.unwrap();
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(
+            grid.input(0, 0).unwrap().unwrap().value(),
+            &api::SlotKnowledge::Empty
+        );
+        assert!(grid.result().is_none());
+        bot.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
     }
 }

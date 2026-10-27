@@ -220,7 +220,9 @@ impl State {
                 out.inventory_unavailable(
                     inventory.slots.iter().enumerate().map(|(index, slot)| {
                         matches!(slot, operations::InventorySlot::Unavailable)
-                            && (!screen_withdrawal || ![5, 6, 7, 8, 45].contains(&index))
+                            && (!screen_withdrawal
+                                || !operations::inventory::PLAYER_SLOTS_KEPT_BY_SCREENS
+                                    .contains(&index))
                     }),
                     matches!(inventory.cursor, operations::InventorySlot::Unavailable),
                     if inventory.unsupported_components && full_withdrawal {

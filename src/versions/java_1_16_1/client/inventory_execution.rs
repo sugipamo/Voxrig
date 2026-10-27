@@ -367,6 +367,61 @@ impl api::adapter::InventorySendOps for Bot {
     }
     async fn resync_inventory(&self) -> Result<inv::InventorySendRecord> {
         let _gate = self.coherent_state_gate.lock().await;
+        self.resync_inventory_unlocked().await
+    }
+}
+impl Bot {
+    /// The close owner calls this after actual cursor return and close send,
+    /// under the same coherence gate used by every inventory sender/receiver.
+    /// Invalidate before I/O: timeout, rejection or caller cancellation can never
+    /// promote preserved values back to received knowledge. Actual packets alone
+    /// repopulate these slots, including packets preceding the resync response.
+    pub(super) async fn refresh_player_crafting_after_close(
+        &self,
+        close_parent: Option<u64>,
+    ) -> Result<()> {
+        let refresh = {
+            let mut receipts = self.common_receipts.lock().await;
+            let grid = &mut receipts.inventory.slots[..5];
+            // Vanilla InventoryMenu owns a separate CraftingContainer. Foreign
+            // clicks are checked against the active menu ID; they cannot add
+            // to an empty player grid. Server additions use setItem and normal
+            // slot broadcasts (ServerPlayer.slotChanged -> Set Slot). See
+            // docs/internal/player-crafting-refresh.md for the audited paths.
+            let empty = grid.iter().all(|s| {
+                s.as_ref()
+                    .is_some_and(|s| s.value == api::SlotKnowledge::Empty)
+            });
+            if !empty {
+                grid.fill(None);
+            }
+            !empty
+        };
+        // Publish missing knowledge even if releasing the already-sent close
+        // parent fails. Never send a probe while that parent owns the ledger.
+        if let Some(attempt) = close_parent {
+            tokio::time::timeout(
+                self.connection_options.inventory_click_receipt_timeout,
+                self.connection.finish_cursor_close(attempt),
+            )
+            .await
+            .map_err(|_| inv::unavailable("close parent release deadline elapsed"))?
+            .map_err(|e| inv::unavailable(format!("close parent release: {e:?}")))?;
+        }
+        if !refresh {
+            return Ok(());
+        }
+        // Bound admission/write too, rather than holding the receive gate
+        // indefinitely if the connection actor cannot accept this probe.
+        let _ = tokio::time::timeout(
+            self.connection_options.inventory_click_receipt_timeout,
+            self.resync_inventory_unlocked(),
+        )
+        .await;
+        Ok(())
+    }
+
+    async fn resync_inventory_unlocked(&self) -> Result<inv::InventorySendRecord> {
         let (session, source) = self.inventory_execution_scope().await;
         let window = match source {
             InventorySource::Player => 0,
@@ -427,8 +482,9 @@ impl api::adapter::InventorySendOps for Bot {
             execution.id.number(),
         );
         self.inventory_execution_written().await;
+        let receipt_timeout = self.connection_options.inventory_click_receipt_timeout;
         self.spawn_finite_work(work, async move {
-            let _ = transaction.wait().await;
+            let _ = tokio::time::timeout(receipt_timeout, transaction.wait()).await;
         });
         Ok(lock_packet_state(&self.inventory_executor)
             .await
@@ -718,6 +774,105 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn submitted_close_player_crafting_take_matches_unechoed_native_window() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let item = |name: &str, count: i8| {
+            api::legacy_slot(Some(&ItemStack {
+                item_id: crate::registry::item_id(name).unwrap(),
+                count,
+                nbt: None,
+            }))
+            .unwrap()
+        };
+        let mut slots = vec![api::SlotKnowledge::Empty; 46];
+        slots[9] = item("oak_planks", 2);
+        f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+        // Vanilla does not echo this local close; the native cache keeps window 3.
+        f.close_furnace(&slots[9].clone()).await;
+        assert_eq!(f.bot.inventory().await.open_window.map(|w| w.id), Some(3));
+        f.slot(1, &item("oak_planks", 1)).await;
+        f.slot(3, &item("oak_planks", 1)).await;
+        f.slot(0, &item("stick", 4)).await;
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        let take = client.survival().take_crafting_result(&grid).await.unwrap();
+        assert!(take.send.dispatched);
+        f.click().await;
+        drop(client);
+        f.bot.disconnect().await.unwrap();
+        drop(release);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn submitted_close_allows_taking_retained_player_crafting_result() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let mut slots = vec![api::SlotKnowledge::Empty; 46];
+        for (index, name) in [(0, "oak_button"), (1, "oak_planks")] {
+            slots[index] = api::legacy_slot(Some(&ItemStack {
+                item_id: crate::registry::item_id(name).unwrap(),
+                count: 1,
+                nbt: None,
+            }))
+            .unwrap();
+        }
+        f.inventory(&slots, &api::SlotKnowledge::Empty).await;
+        f.close_furnace(&api::SlotKnowledge::Empty).await;
+        // Native history still describes the furnace. Admission belongs to the
+        // common received projection, whose exact submitted close grants access.
+        assert_eq!(f.bot.inventory().await.open_window.unwrap().id, 3);
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert!(grid.input(0, 0).unwrap().is_none());
+        let resync = client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(resync.resync && resync.dispatched);
+        assert_eq!(resync.id.source(), InventorySource::Player);
+        f.click().await;
+        f.response(&resync, false).await;
+        f.full_player(&slots).await;
+        f.cursor(&api::SlotKnowledge::Empty).await;
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        assert_eq!(grid.input(0, 0).unwrap().unwrap().value(), &slots[1]);
+        let take = client.survival().take_crafting_result(&grid).await.unwrap();
+        assert!(take.send.dispatched);
+        assert_eq!(take.window_id(), 0);
+        f.click().await;
+        let mut reply = vec![0];
+        reply.extend(take.send.legacy_action.unwrap().to_be_bytes());
+        reply.push(0); // original rejected-comparison/full-resync response
+        f.bot.apply_packet(0x12, reply).await.unwrap();
+        f.full_player(&vec![api::SlotKnowledge::Empty; 46]).await;
+        f.cursor(&slots[0]).await;
+        let completed = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            completed.stage,
+            api::crafting::CraftingTakeStage::ObservedTaken
+        );
+        client.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(f);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn submitted_close_pickaxe_send_settles_at_response_state_boundary() {
         let (bot, packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
@@ -777,8 +932,7 @@ mod tests {
                     } else if external {
                         assert_eq!(done.status, inv::InventorySendStatus::Diverged);
                     } else {
-                        // Opening the furnace invalidates player crafting slots.
-                        // Learning them again may conservatively diverge, but
+                        // Fresh full contents can conservatively diverge, but
                         // must still settle this original send and release it.
                         assert!(
                             matches!(

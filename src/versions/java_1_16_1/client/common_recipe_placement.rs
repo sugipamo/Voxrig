@@ -34,11 +34,12 @@ impl Bot {
     async fn recipe_placement_cache(&self, record: &RecipePlacementRecord) -> Result<()> {
         let inventory = self.inventory.read().await;
         if !inventory.pending_clicks.is_empty()
-            || inventory
-                .open_window
-                .as_ref()
-                .map_or(0, |s| i32::from(s.id))
-                != record.window_id()
+            || !record.plan.layout().source().native_window_matches(
+                inventory
+                    .open_window
+                    .as_ref()
+                    .map_or(0, |s| i32::from(s.id)),
+            )
             || api::legacy_slot(inventory.cursor.as_ref())? != api::SlotKnowledge::Empty
         {
             return Err(unavailable(

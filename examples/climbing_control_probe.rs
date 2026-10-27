@@ -628,6 +628,12 @@ async fn main() -> anyhow::Result<()> {
             }
             "screen" => serde_json::to_value(client.screen_state().await?)?,
             "screen_properties" => serde_json::to_value(client.screen_properties().await?)?,
+            "crafting" => serde_json::to_value(client.received_crafting().await?)?,
+            "take_crafting_result" => {
+                let grid = client.received_crafting().await?.ok_or_else(|| anyhow::anyhow!("no crafting grid"))?;
+                serde_json::to_value(survival.take_crafting_result(&grid).await?)?
+            }
+            "crafting_take_record" => serde_json::to_value(survival.crafting_take_record().await?)?,
             "close_screen" => {
                 let screen = client.screen_state().await?.screen.ok_or_else(|| anyhow::anyhow!("no active screen"))?.id;
                 serde_json::to_value(if client.player_state().await?.game_mode == Some(GameMode::Creative) {

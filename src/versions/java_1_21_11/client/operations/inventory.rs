@@ -364,14 +364,19 @@ fn invalidate(inventory: &mut Inventory, window: Option<i32>) {
     inventory.slot_sequences.fill(None);
 }
 
-// Regular screen OPEN/CLOSE does not supply or alter player equipment. Keep its
-// last actual values/ordinals, independently of foreign appended-player layouts.
+/// Player-menu slots that regular screen OPEN/CLOSE neither supplies nor alters:
+/// the 2x2 crafting result/grid (0..=4), armor (5..=8) and offhand (45). The
+/// server keeps the player menu's grid while another menu is open and sends no
+/// player-menu contents on close, so dropping these would leave the grid unknown.
+pub(crate) const PLAYER_SLOTS_KEPT_BY_SCREENS: [usize; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 45];
+
+// Keep their last actual values/ordinals, independently of foreign appended-player layouts.
 // Unsupported packet invalidation still clears all knowledge; world reset uses Default.
 fn invalidate_screen(inventory: &mut Inventory, window: Option<i32>) {
-    let equipment =
-        [5, 6, 7, 8, 45].map(|i| (i, inventory.slots[i].clone(), inventory.slot_sequences[i]));
+    let kept = PLAYER_SLOTS_KEPT_BY_SCREENS
+        .map(|i| (i, inventory.slots[i].clone(), inventory.slot_sequences[i]));
     invalidate(inventory, window);
-    for (i, value, sequence) in equipment {
+    for (i, value, sequence) in kept {
         inventory.slots[i] = value;
         inventory.slot_sequences[i] = sequence;
     }
