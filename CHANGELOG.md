@@ -9,6 +9,16 @@
 
 ## Unreleased
 
+- Java 1.21.11 `HeadlessBody` now supports `action_observation` and
+  `monitor_changes_after` (previously Unsupported), sharing the 1.16.1 monitor
+  reducer and semantics. The 1.21.11 `action_outcome`, send-and-trust
+  `action_status` and `events_after` refresh now go through the same monitor and
+  record evidence gaps, world/target-chunk loss and timeout/read errors in the
+  monitor log instead of silently skipping them; their return values are
+  unchanged (the historical result or a late Corrected). An ordinary 1.21.11
+  PlaceBlock/ActivateBlock monitor now starts at the sent evidence boundary.
+  See [Body monitoring](docs/body-monitoring.md).
+
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.
   Actual server receipts and incomplete deltas are preserved. Intended locations

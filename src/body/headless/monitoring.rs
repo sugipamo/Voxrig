@@ -1,20 +1,9 @@
 use super::*;
 
 impl HeadlessBody {
-    fn check_monitor_support(&self) -> Result<()> {
-        if self.inner.client.version() != MinecraftVersion::Java1_16_1 {
-            return Err(error(
-                ErrorKind::Unsupported,
-                "body monitoring requires Java 1.16.1",
-            ));
-        }
-        Ok(())
-    }
-
     /// Refresh one retained action. Acceptance stays immutable once terminal.
-    /// Java 1.16.1 only; other versions return Unsupported. No packets are sent.
+    /// Java 1.16.1 and 1.21.11 share this evidence reducer. No packets are sent.
     pub async fn action_observation(&self, id: ActionId) -> Result<ActionObservation> {
-        self.check_monitor_support()?;
         let job = self.inner.job(id)?;
         self.inner.update(id, |m| m.expire(Instant::now()));
         let _refresh = self.inner.monitor_refresh.lock().await;
@@ -42,7 +31,6 @@ impl HeadlessBody {
         cursor: MonitorCursor,
         maximum: usize,
     ) -> Result<MonitorChanges> {
-        self.check_monitor_support()?;
         if !(1..=4096).contains(&maximum)
             || (cursor.backend != 0 && cursor.backend != self.inner.id)
             || (cursor.backend == 0 && cursor.ordinal != 0)

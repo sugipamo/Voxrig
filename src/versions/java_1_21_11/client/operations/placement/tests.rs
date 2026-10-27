@@ -1941,6 +1941,8 @@ mod stairs;
 
 mod wet_slabs;
 
+mod body_monitor;
+
 #[tokio::test]
 async fn explicit_body_activation_ignores_outline_ground_and_default_item_and_waits_for_ack() {
     use crate::body::{Action, ActionStatus, Body, BodyConfig, HeadlessBody};
