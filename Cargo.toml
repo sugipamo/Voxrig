@@ -24,6 +24,7 @@ include = [
     "/scripts/run_body_live.py",
     "/scripts/run_health_log_live.py",
     "/scripts/run_explosion_changes_live.py",
+    "/scripts/run_digging_ack_live.py",
     "/scripts/run_body_send_trust_live.py",
     "/scripts/run_legacy_body_live.py",
     "/scripts/run_place_activation_live.py",
@@ -487,4 +488,8 @@ required-features = ["native"]
 
 [[test]]
 name = "assumed_survival_scene"
+required-features = ["native"]
+
+[[example]]
+name = "digging_ack_probe"
 required-features = ["native"]

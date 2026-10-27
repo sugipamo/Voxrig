@@ -119,6 +119,20 @@ pub enum EventKind {
         /// Native entity id of the player.
         native_id: i32,
     },
+    /// Java 1.16.1 digging response, after applying its authoritative state.
+    /// This is a received protocol fact, including unmatched/late responses;
+    /// `successful` alone proves neither block removal nor safe continuation.
+    /// Java 1.21.11 processing ACKs do not emit this event.
+    LegacyDiggingAcknowledged {
+        /// Response target in the world at this event's receive boundary.
+        position: [i32; 3],
+        /// Received Java 1.16.1 block-state ID, also applied on rejection.
+        block_state_id: i32,
+        /// Native action status: 0 START, 1 ABORT, 2 FINISH.
+        status: i32,
+        /// Original server success flag; false is an explicit rejection.
+        successful: bool,
+    },
 }
 
 /// One change notification.

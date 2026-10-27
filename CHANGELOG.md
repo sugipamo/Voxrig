@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Java 1.16.1 digging ACKs now emit common `BlocksChanged` and additive
+  `EventKind::LegacyDiggingAcknowledged` with the received target, state, status
+  and success flag, including rejected, late and unmatched replies. Corrections
+  also reach pending placement. Bounded `events_after` / `wait_for_events` retain
+  outcomes and report eviction as `State`; existing mining/transaction results
+  and send admission remain unchanged. Java 1.21.11 processing ACKs are unchanged.
+  See [usage and ownership](docs/digging-ack-corrections.md).
+
 - Java 1.16.1 explosions now emit common `BlocksChanged` bounds and
   `ExplosionReceived` at the packet's application boundary. `explosions_after`
   retains original context through the additive, version-specific

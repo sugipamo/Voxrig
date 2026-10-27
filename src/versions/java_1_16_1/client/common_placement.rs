@@ -539,6 +539,42 @@ mod tests {
         bot.apply_packet(0x16, payload).await.unwrap();
     }
     #[tokio::test]
+    async fn digging_ack_correction_reaches_pending_placement() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.survival().select_hotbar(0).await.unwrap();
+        packets.recv().await.unwrap();
+        client
+            .survival()
+            .place_cube(SUPPORT, crate::BlockFace::West)
+            .await
+            .unwrap();
+        packets.recv().await.unwrap();
+        bot.apply_packet(
+            0x07,
+            super::super::digging_ack_notification_tests::packet(SUPPORT, 0, 2, false),
+        )
+        .await
+        .unwrap();
+        let record = client.survival().placement_record().await.unwrap().unwrap();
+        assert_eq!(record.stage, PlacementStage::RequiresInspection);
+        assert!(
+            record
+                .requires_inspection
+                .unwrap()
+                .contains("support/target conflict")
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
     async fn common_placement_same_consumer_requires_fresh_target_and_material_and_releases_exact_actor()
      {
         let (bot, mut packets, release, server) =
