@@ -1,9 +1,9 @@
-# 爆発の受信文脈（Java 1.21.11）
+# 爆発の受信文脈（Java 1.16.1 / 1.21.11）
 
 `Client::explosions_after(after_sequence)`は、元の`EXPLOSION` packetを受信順に返す。
 `client::explosions`の専用型を使い、既存の`PlayEffect`と`EffectLog`の契約は維持する。
 `EventKind::ExplosionReceived`は同じ受信連番の変更通知で、payloadはこのAPIから読む。
-Java 1.16.1では`Unsupported`。この観測は送信を行わず、切断後も読める。
+両版で利用できる。この観測は送信を行わず、切断後も読める。
 
 ```rust,no_run
 use voxrig::client::prelude::*;
@@ -20,13 +20,13 @@ async fn read(client: &Client) -> Result<()> {
 }
 ```
 
-`ExplosionObservation`はcenter（3 doubles）、radius（float）、block count（固定長signed INT）、
+Java 1.21.11の`ExplosionObservation`はcenter（3 doubles）、radius（float）、block count（固定長signed INT）、
 optional player knockback（bool＋3 doubles）、presentationを分けて保持する。
 `None`はpacketでimpulseが省略された事実で、`Some([0.0; 3])`と異なる。
 impulseを既存velocityへ代入したり、playerの現在位置から推測したりしない。
 block countは元のsigned値であり、破壊位置の一覧やblock変更の確認ではない。
 
-`ExplosionPresentation::Decoded`には主particleのID/options、sound holder、重み付きの
+Java 1.21.11の`ExplosionPresentation::Decoded`には主particleのID/options、sound holder、重み付きの
 block particle一覧（particle・scaling・speed・weight）がある。weight 0や空一覧も保持する。
 soundはregistry IDまたはinlineの名前・optional固定距離で、未受信の名前を補わない。
 particle optionsは既存effectsと同じ1.21.11の115要素const tableでdecodeする。
@@ -39,13 +39,13 @@ soundなし・空一覧・既知のsimple particleとは扱わない。impulse�
 接続内の元packet ordinalである。respawn・再設定でも完了済み履歴を消したり、
 新worldの所有情報へ書き換えたりしない。通知の`EventLog::cursor`とは別の軸を使う。
 
-- 最新1024件（`MAX_RETAINED_EXPLOSIONS`）、展開後1 packet 16 KiB以下
+- 最新1024件（`MAX_RETAINED_EXPLOSIONS`）。Java 1.21.11は展開後1 packet 16 KiB以下
   （`MAX_EXPLOSION_PACKET_BYTES`）。block countやweightの分だけobjectを増やさない。
   元wire bytesの合計は最大16 MiB相当で、構造体・文字列・item component等の管理領域は別に必要。
 - 捨てた標本より古いcursorは`State`、現在受信より先のcursorは`InvalidInput`。
   欠測を空一覧で隠さない。欠測後は履歴が不完全であることを呼び手が扱い、
   現在の受信連番を明示取得して再開する。
-- 既知layoutの切り詰め・末尾余剰・不正bool・非有限float/double・負のlist count/weight・
+- Java 1.21.11の既知layoutの切り詰め・末尾余剰・不正bool・非有限float/double・負のlist count/weight・
   weight合計のoverflow・過大payloadはprotocol errorで、そのpacketの観測・通知を記録しない。
 - 1.21.11の現在のGround owner（Survival／Adventure／Creative）は、decode済みpacketの
   optional impulseをreaderの状態ロック内で一度だけ取り込む。省略は加算なし、明示ゼロはゼロの加算。
@@ -55,6 +55,51 @@ soundなし・空一覧・既知のsimple particleとは扱わない。impulse�
 粒子やsoundの描画・再生、爆発によるblock破壊予測、爆発源がTNT/creeper/風系のどれかを
 packetから断定する機能は含まない。受信順でのモデル適用はserver tick時計の再現ではない。
 #44の移動物理残件全体の完了も意味しない。
+
+## Java 1.16.1 の地形変更通知と履歴
+
+1.16.1のcenterは元の3 floatをf64へ損失なく拡張した値、radiusはfloat、
+block countは位置一覧の長さである。`player_knockback`は必須の3 floatを拡張した
+`Some`（明示ゼロも含む）。`ExplosionPresentation::Java1_16_1 { affected_blocks }`は、
+centerの各軸をfloorした座標へ元のsigned byte offsetを加えた絶対位置を保持する。
+重複とpacket内順序を保ち、未送信のparticle/soundを補わない。
+このvariantは表現情報に限らず、旧版の実際の地形適用情報を含む。
+`ExplosionPresentation`は既に`non_exhaustive`なので、既存利用者の`_`分岐を維持して追加対応できる。
+
+受信処理はworldの該当位置をairへ更新し、同じcoherent-state gate内で履歴を保存して
+`BlocksChanged { min, max }`と`ExplosionReceived`を発行する。両通知と履歴の
+`receive_sequence`は同じ。boundsは一覧の各位置を含むinclusiveな直方体であり、
+範囲内の全セルが破壊されたという意味ではない。未ロード座標を受けても既知地形を創作しない。
+空一覧では`ExplosionReceived`だけを発行する。イベントの再読・履歴の再読で
+地形適用や運動量加算を繰り返さない。既存の運動中断方針や送信の拒否条件は変更しない。
+
+旧版の位置一覧には件数に加え、接続全体で合計65,536位置の保持上限
+（`MAX_RETAINED_EXPLOSION_BLOCKS`）がある。超えると古いpacketから全体をevictする。
+単独で上限を超えるpacketも受信・地形適用・共通通知を行い、その履歴を保持できなかった
+ことを`State`で知らせる。途中までの一覧を完全な履歴として返さず、新たなprotocol拒否も加えない。
+既存decoderの受理範囲は維持する。16 KiBの制限は1.21.11専用である。
+共通イベントは独立した4096件の保持窓を使い、こちらの欠落も`events_after`の`State`になる。
+
+情報の所有はサーバーを正とし、Voxrig worldは受信済み地形の唯一の現在値を持つ。
+上位が複製した地形・遮蔽・経路の前提は、同じ受信境界の`BlocksChanged`で捨てて
+対象領域を再観測する（領域の体積に比例するコスト）。履歴欠落やworld変更でも旧前提を撤回する。
+最新worldの再読から過去の爆発位置・運動量は再導出できないため、元文脈は専用の有界履歴を使う。
+
+fixtureは`explosion_notification_tests`。公式1.16.1 JARのSHA-1を検査する既存の
+`run_climbing_control` harnessで、TNTの非空一覧、creeperの空一覧、原packetとの一致、
+通知の受信連番、全位置のworld上のairおよびRCON上のair、切断後の履歴を確認する。
+保持欠落はfixtureでpacket上限・位置上限・共通イベント上限を確認する。
+
+```sh
+cargo build --locked --example explosion_changes_probe
+python3 -B scripts/run_explosion_changes_live.py --accept-eula \
+  --binary target/debug/examples/explosion_changes_probe \
+  --jars /path/to/official-jars --output .local/explosion-changes-live
+```
+
+実接続証跡: [1.16.1 の検証記録](evidence/explosion-changes-live-1.16.1-20261027.json.gz)。
+stable / Rust 1.85.0 × default / native の fmt・Clippy・全テストの
+[検証結果](evidence/ns01-validation-20261027.json)も保存している。
 
 ## Codecと実接続の検証
 

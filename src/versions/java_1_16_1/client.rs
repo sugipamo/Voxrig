@@ -983,6 +983,7 @@ pub struct Bot {
     common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
     common_chat: Arc<Mutex<crate::client::chat::ChatLedger>>,
     health_log: Arc<crate::client::health::HealthLedger>,
+    common_explosions: Arc<Mutex<crate::client::explosions::ExplosionLedger>>,
     common_events: Arc<std::sync::Mutex<crate::client::events::EventLedger>>,
     common_display: Arc<Mutex<crate::client::ui::display::DisplayLedger>>,
     common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
@@ -1122,6 +1123,7 @@ impl Bot {
             common_boss_bars: self.common_boss_bars.clone(),
             common_chat: self.common_chat.clone(),
             health_log: self.health_log.clone(),
+            common_explosions: self.common_explosions.clone(),
             common_events: self.common_events.clone(),
             common_display: self.common_display.clone(),
             common_teams: self.common_teams.clone(),
@@ -1346,6 +1348,7 @@ impl Bot {
             common_boss_bars: Arc::new(Mutex::new(Default::default())),
             common_chat: Arc::new(Mutex::new(Default::default())),
             health_log: Arc::default(),
+            common_explosions: Arc::default(),
             common_events: Arc::new(std::sync::Mutex::new(Default::default())),
             common_display: Arc::new(Mutex::new(Default::default())),
             common_teams: Arc::new(Mutex::new(Default::default())),
@@ -6794,6 +6797,16 @@ fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
     };
     let mut kinds = match event {
         Event::BlockChanged { x, y, z, .. } => vec![block(*x, *y, *z)],
+        Event::Explosion(explosion) => {
+            let mut kinds = Vec::with_capacity(2);
+            if let Some(bounds) = crate::client::events::bounds(
+                explosion.affected_blocks.iter().map(|p| [p.x, p.y, p.z]),
+            ) {
+                kinds.push(bounds);
+            }
+            kinds.push(K::ExplosionReceived);
+            kinds
+        }
         Event::BlockEntityUpdated(data) => {
             vec![block(data.position.x, data.position.y, data.position.z)]
         }
@@ -7132,6 +7145,16 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
 impl crate::client::adapter::EventOps for Bot {
     fn health_log(&self) -> &Arc<crate::client::health::HealthLedger> {
         &self.health_log
+    }
+    async fn explosions_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::explosions::ExplosionLog> {
+        let _gate = self.coherent_state_gate.lock().await;
+        self.common_explosions.lock().await.after(
+            after_sequence,
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+        )
     }
     async fn inventory_divergence(
         &self,
@@ -8993,7 +9016,7 @@ mod tests {
         server.await.unwrap();
     }
 
-    fn empty_chunk_packet(x: i32, z: i32) -> Vec<u8> {
+    pub(super) fn empty_chunk_packet(x: i32, z: i32) -> Vec<u8> {
         let mut packet = Vec::new();
         packet.write_i32::<BigEndian>(x).unwrap();
         packet.write_i32::<BigEndian>(z).unwrap();
@@ -9057,7 +9080,7 @@ mod tests {
         packet
     }
 
-    fn respawn_packet() -> Vec<u8> {
+    pub(super) fn respawn_packet() -> Vec<u8> {
         let mut packet = Vec::new();
         put_string(&mut packet, "minecraft:overworld");
         put_string(&mut packet, "world");
@@ -11064,6 +11087,9 @@ mod quiesce;
 
 #[cfg(test)]
 mod use_item_expect_tests;
+
+#[cfg(test)]
+mod explosion_notification_tests;
 
 #[cfg(test)]
 mod use_on_block_expect_tests;

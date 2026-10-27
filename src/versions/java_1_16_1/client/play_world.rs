@@ -129,19 +129,19 @@ impl Bot {
     }
 
     pub(super) async fn receive_explosion(&self, p: &[u8]) -> Result<()> {
+        use crate::client::explosions::{
+            ExplosionObservation, ExplosionPresentation, ReceivedExplosion,
+        };
         let explosion = parse_explosion(p)?;
+        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
         self.common_receipts
             .lock()
             .await
             .vehicles
-            .interrupt_motion(self.protocol_packet_sequence.load(Ordering::Acquire));
+            .interrupt_motion(sequence);
         for pos in &explosion.affected_blocks {
-            self.body_block_received(
-                [pos.x, pos.y, pos.z],
-                0,
-                self.protocol_packet_sequence.load(Ordering::Acquire),
-            )
-            .await;
+            self.body_block_received([pos.x, pos.y, pos.z], 0, sequence)
+                .await;
         }
         self.world
             .lock()
@@ -156,6 +156,39 @@ impl Bot {
         drop(motion);
         self.interrupt_common_motion("native explosion interrupted finite motion")
             .await;
+        let session = crate::client::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: crate::client::adapter::SessionOps::connection_id(self),
+            world_generation: self.common_receipts.lock().await.generation,
+        };
+        self.common_explosions
+            .lock()
+            .await
+            .record(ReceivedExplosion {
+                session,
+                receive_sequence: sequence,
+                explosion: ExplosionObservation {
+                    center: [
+                        explosion.position.x,
+                        explosion.position.y,
+                        explosion.position.z,
+                    ],
+                    radius: explosion.radius,
+                    block_count: explosion.affected_blocks.len() as i32,
+                    player_knockback: Some([
+                        explosion.player_motion.x,
+                        explosion.player_motion.y,
+                        explosion.player_motion.z,
+                    ]),
+                    presentation: ExplosionPresentation::Java1_16_1 {
+                        affected_blocks: explosion
+                            .affected_blocks
+                            .iter()
+                            .map(|p| [p.x, p.y, p.z])
+                            .collect(),
+                    },
+                },
+            });
         self.emit(Event::Explosion(explosion));
         Ok(())
     }

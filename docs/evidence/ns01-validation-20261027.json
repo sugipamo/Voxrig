@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-27",
+  "base": "7015465415a61a343fb2281cb11db31f4544e5db",
+  "toolchains": {
+    "stable": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)"
+  },
+  "environment": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "source_sha256": {
+    "Cargo.toml": "b9a2c08b001a2b83d1ce3b00aa6255beb9f8476cbf52ad44df6e42b9eba54c19",
+    "Cargo.lock": "8bf7e3de1d117dc1b42243ac611431b022f09bc297f38160981c6979ead35668",
+    "src/client/adapter.rs": "d87a1c2e2aa2ad3e64482e23094e63d6a46cf4852f757f20413d3496393974fc",
+    "src/client/explosions.rs": "8431e040b20ce9d50249bd0e1d44868bfe0ac7d82bb10d81e8c74cf07888b1ba",
+    "src/versions/java_1_16_1/client.rs": "b492bf443cdb449437f57ae37e528297eb979b17fad40895299c7aa723303512",
+    "src/versions/java_1_16_1/client/play_world.rs": "f4c41063e32d762abf97dbcdddf3dd358368d3da496331eff8fb2aece894251f",
+    "src/versions/java_1_16_1/client/explosion_notification_tests.rs": "139bf88c13b48ccfd7f085f9ccd57373a3c8745bf7f60010b0fa30ac854d0a74",
+    "examples/explosion_changes_probe.rs": "9a729d4d9f71e441c3509e2d43ba197ab3527d0c84a502e7413c5acdff65cb21",
+    "scripts/run_explosion_changes_live.py": "f7a9291670a655052f751616e1274000f079ba85d8debd69becc72ce6313f25a"
+  },
+  "checks": [
+    {
+      "name": "stable-default-fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 3.34
+    },
+    {
+      "name": "stable-default-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 92.03
+    },
+    {
+      "name": "stable-default-test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "seconds": 266.67,
+      "test_results": [
+        "test result: ok. 1687 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 185.73s",
+        "test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s"
+      ]
+    },
+    {
+      "name": "stable-native-fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 5.06
+    },
+    {
+      "name": "stable-native-clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 73.36
+    },
+    {
+      "name": "stable-native-test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "seconds": 458.97,
+      "test_results": [
+        "test result: ok. 1687 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 212.49s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s",
+        "test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s"
+      ]
+    },
+    {
+      "name": "1.85.0-default-fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 3.83
+    },
+    {
+      "name": "1.85.0-default-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 190.64
+    },
+    {
+      "name": "1.85.0-default-test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "seconds": 262.24,
+      "test_results": [
+        "test result: ok. 1687 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 257.00s",
+        "test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.82s"
+      ]
+    },
+    {
+      "name": "1.85.0-native-fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 5.9
+    },
+    {
+      "name": "1.85.0-native-clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 301.89
+    },
+    {
+      "name": "1.85.0-native-test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "seconds": 220.6,
+      "test_results": [
+        "test result: ok. 1687 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 216.13s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s",
+        "test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.08s"
+      ]
+    }
+  ],
+  "live": {
+    "version": "1.16.1",
+    "passed": true,
+    "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "affected_blocks": 598,
+    "evidence": "explosion-changes-live-1.16.1-20261027.json.gz"
+  },
+  "public_api": "additive",
+  "decision": "none"
+}
