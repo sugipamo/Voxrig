@@ -94,9 +94,74 @@ impl Correction {
     }
 }
 
+/// Native `ClientboundPlayerRotationPacket`: a rotation-only correction with
+/// per-angle relative flags. Position and velocity are never part of it.
+pub(super) struct RotationCorrection {
+    pub rotation: [f32; 2],
+    pub relative: [bool; 2],
+}
+impl RotationCorrection {
+    pub fn read(r: &mut Reader<'_>) -> anyhow::Result<Self> {
+        let yaw = r.f32()?;
+        let relative_yaw = r.bool()?;
+        let pitch = r.f32()?;
+        let relative_pitch = r.bool()?;
+        r.end()?;
+        Ok(Self {
+            rotation: [yaw, pitch],
+            relative: [relative_yaw, relative_pitch],
+        })
+    }
+    /// Same angle rules as `Correction::resolve`: a relative angle adds to the
+    /// current local angle, pitch is clamped and non-finite results fail.
+    pub fn resolve(&self, rotation: [f32; 2]) -> anyhow::Result<[f32; 2]> {
+        let mut r = self.rotation;
+        for (axis, value) in r.iter_mut().enumerate() {
+            if self.relative[axis] {
+                *value += rotation[axis];
+            }
+        }
+        if r.iter().any(|v| !v.is_finite()) {
+            bail!("resolved rotation is not finite");
+        }
+        r[1] = r[1].clamp(-90.0, 90.0);
+        Ok(r)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn rotation_flags_match_native_resolution_and_wire_codec() {
+        let scenarios: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../data/java_1_21_11/player_rotations.json"
+        ))
+        .unwrap();
+        for scenario in scenarios.as_array().unwrap() {
+            let before: [f32; 2] = serde_json::from_value(scenario["before"].clone()).unwrap();
+            for case in scenario["cases"].as_array().unwrap() {
+                let bytes = hex::decode(case["hex"].as_str().unwrap()).unwrap();
+                let packet = RotationCorrection::read(&mut Reader::new(&bytes)).unwrap();
+                assert_eq!(
+                    packet.relative,
+                    [
+                        case["relative_yaw"].as_bool().unwrap(),
+                        case["relative_pitch"].as_bool().unwrap()
+                    ]
+                );
+                let expected: [f32; 2] = serde_json::from_value(case["expected"].clone()).unwrap();
+                assert_eq!(packet.resolve(before).unwrap(), expected);
+            }
+        }
+        assert!(RotationCorrection::read(&mut Reader::new(&[0; 9])).is_err());
+        assert!(RotationCorrection::read(&mut Reader::new(&[0; 11])).is_err());
+        let nan = RotationCorrection {
+            rotation: [f32::NAN, 0.0],
+            relative: [false; 2],
+        };
+        assert!(nan.resolve([0.0; 2]).is_err());
+    }
     #[test]
     fn every_flag_combination_matches_native_resolution_and_wire_codec() {
         let scenarios: serde_json::Value = serde_json::from_str(include_str!(

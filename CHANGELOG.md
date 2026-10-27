@@ -9,6 +9,19 @@
 
 ## Unreleased
 
+- Java 1.21.11 now decodes the server-forced rotation `PLAYER_ROTATION` (0x47;
+  yaw f32, relative bool, pitch f32, relative bool), which was a silent no-op.
+  Relative angles resolve against the local rotation as the native client does,
+  and the native look-only echo is sent. Position and its provenance are unchanged.
+  The rotation is reported through `player_state().rotation` (`Received`),
+  additive `OwnMotion.received_rotation`, additive
+  `ReceivedPlayerSnapshot::rotation_correction()` (also updating
+  `absolute_rotation()`), `EventKind::PlayerChanged`, and Body
+  `Corrected { ServerCorrection::Pose }` with the unchanged position under its own
+  source. A running PlayerControl adopts it, so its next movement packet no longer
+  overwrites it with the stale aim; scheduled paths and finite motion keep their
+  planned yaw. No public signature or enum changes. See [forced rotation](docs/forced-rotation.md).
+
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.
   Actual server receipts and incomplete deltas are preserved. Intended locations

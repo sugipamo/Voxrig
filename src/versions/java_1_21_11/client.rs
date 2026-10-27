@@ -273,12 +273,16 @@ impl State {
                 },
                 id,
                 payload,
-                (matches!(self.phase, Phase::Play) && id == ids::play_clientbound::POSITION)
-                    .then_some(LocalPlayerBasis {
-                        position: self.position,
-                        rotation: self.rotation,
-                        velocity: correction_velocity,
-                    }),
+                (matches!(self.phase, Phase::Play)
+                    && matches!(
+                        id,
+                        ids::play_clientbound::POSITION | ids::play_clientbound::PLAYER_ROTATION
+                    ))
+                .then_some(LocalPlayerBasis {
+                    position: self.position,
+                    rotation: self.rotation,
+                    velocity: correction_velocity,
+                }),
             );
         }
         let in_play = self.phase == Phase::Play;
@@ -1336,6 +1340,26 @@ fn apply_play(
             }
             moved.push(0);
             responses.push((output::POSITION_LOOK, moved));
+        }
+        input::PLAYER_ROTATION => {
+            // Native handleRotatePlayer: resolve against the current local
+            // rotation, keep position/velocity, then echo a look-only move
+            // with on_ground=false and horizontal_collision=false.
+            let packet = correction::RotationCorrection::read(&mut r)?;
+            let rotation = packet.resolve(state.rotation)?;
+            state.rotation = rotation;
+            state.motion.receive_rotation(motion::ReceivedRotation {
+                generation: state.loading.generation,
+                receive_sequence: state.sequence,
+                rotation,
+                relative: packet.relative,
+            });
+            let mut look = Vec::with_capacity(9);
+            for value in rotation {
+                look.extend(value.to_be_bytes());
+            }
+            look.push(0);
+            responses.push((output::LOOK, look));
         }
         input::UPDATE_LIGHT => {
             state.world.update_light(payload)?;

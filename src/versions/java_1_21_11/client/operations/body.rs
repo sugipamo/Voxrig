@@ -33,6 +33,34 @@ pub(in crate::versions::java_1_21_11::client) fn received(state: &mut State, id:
                 );
             }
         }
+        input::PLAYER_ROTATION => {
+            if let Some(rotation) = &state.motion.received_rotation {
+                // Same position provenance as the player observation; the
+                // rotation packet itself neither receives nor moves it.
+                use super::super::motion::PositionBasis as B;
+                let source = match state.motion.position_basis {
+                    B::Received => Some(body::ValueSource::Received {
+                        sequence: state
+                            .motion
+                            .received_pose
+                            .as_ref()
+                            .filter(|p| p.generation == state.loading.generation)
+                            .map_or(state.sequence, |p| p.receive_sequence),
+                    }),
+                    B::Submitted => Some(body::ValueSource::Submitted),
+                    B::Unavailable | B::PendingSubmission => None,
+                };
+                state.body_evidence.push(
+                    state.sequence,
+                    Update::Rotation {
+                        position: source
+                            .zip(state.position)
+                            .map(|(source, value)| Value { value, source }),
+                        rotation: rotation.rotation,
+                    },
+                );
+            }
+        }
         input::HELD_ITEM_SLOT => {
             if let Some(slot) = &state.operations.selected_hotbar {
                 state

@@ -1219,6 +1219,37 @@ fn correction(
                     },
                 )
             }
+            // Java 1.21.11 PLAYER_ROTATION. Reported through the existing Pose
+            // correction with the unchanged position under its own source.
+            Update::Rotation { position, rotation }
+                if !matches!(
+                    action,
+                    Action::Chat(_)
+                        | Action::Command(_)
+                        | Action::SelectHotbar(_)
+                        | Action::UseItem { .. }
+                ) =>
+            {
+                if matches!(action, Action::Look { yaw, pitch } if [*yaw, *pitch] == *rotation) {
+                    continue;
+                }
+                let Some(position) = position else {
+                    return Ok(Some(ActionStatus::Unknown {
+                        reason: "server rotation correction arrived without a current position"
+                            .into(),
+                    }));
+                };
+                (
+                    "server rotation correction superseded the action",
+                    ServerCorrection::Pose {
+                        position: position.clone(),
+                        rotation: Value {
+                            value: *rotation,
+                            source: received,
+                        },
+                    },
+                )
+            }
             Update::Selection(slot) if matches!(action, Action::SelectHotbar(_)) => {
                 if matches!(action, Action::SelectHotbar(wanted) if wanted == slot) {
                     continue;
@@ -1427,6 +1458,61 @@ mod tests {
         assert!(matches!(
             correction(&resync, None, &Action::UseItem { hand: Hand::Main }).unwrap(),
             Some(ActionStatus::Corrected { .. })
+        ));
+    }
+    #[test]
+    fn forced_rotation_corrects_aim_and_movement_with_unchanged_position_source() {
+        let position = Value {
+            value: [4., 65., 2.],
+            source: ValueSource::Submitted,
+        };
+        let batch = batch(vec![Update::Rotation {
+            position: Some(position.clone()),
+            rotation: [90., 15.],
+        }]);
+        for action in [
+            Action::Chat("test".into()),
+            Action::SelectHotbar(1),
+            Action::UseItem { hand: Hand::Main },
+            // The server forced exactly the requested aim: no contradiction.
+            Action::Look {
+                yaw: 90.,
+                pitch: 15.,
+            },
+        ] {
+            assert!(correction(&batch, None, &action).unwrap().is_none());
+        }
+        for action in [
+            Action::Look { yaw: 0., pitch: 0. },
+            Action::Move {
+                controls: Default::default(),
+                ticks: Some(1),
+            },
+        ] {
+            let Some(ActionStatus::Corrected {
+                reason,
+                correction:
+                    ServerCorrection::Pose {
+                        position: actual,
+                        rotation,
+                    },
+                ..
+            }) = correction(&batch, None, &action).unwrap()
+            else {
+                panic!("rotation correction")
+            };
+            assert_eq!(reason, "server rotation correction superseded the action");
+            assert_eq!(actual, position);
+            assert_eq!(rotation.value, [90., 15.]);
+            assert_eq!(rotation.source, ValueSource::Received { sequence: 10 });
+        }
+        let unknown = self::batch(vec![Update::Rotation {
+            position: None,
+            rotation: [90., 15.],
+        }]);
+        assert!(matches!(
+            correction(&unknown, None, &Action::Look { yaw: 0., pitch: 0. }).unwrap(),
+            Some(ActionStatus::Unknown { .. })
         ));
     }
     #[test]

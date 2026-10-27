@@ -15,6 +15,19 @@ pub struct ReceivedPose {
     /// Resolved packet velocity if its relative baseline was available.
     pub velocity: Option<[f64; 3]>,
 }
+/// Last own-player `PLAYER_ROTATION` packet, after native relative decoding.
+/// Position, velocity and the position basis are unchanged by this packet.
+#[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
+pub struct ReceivedRotation {
+    /// Login/respawn/configuration generation.
+    pub generation: u64,
+    /// Rotation-packet receive ordinal.
+    pub receive_sequence: u64,
+    /// Resolved yaw/pitch.
+    pub rotation: [f32; 2],
+    /// Literal per-angle relative flags (yaw, pitch).
+    pub relative: [bool; 2],
+}
 /// A locally submitted position. Not a physics prediction or server receipt.
 #[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
 pub struct PositionSubmission {
@@ -60,6 +73,9 @@ pub struct OwnMotion {
     pub position_basis: PositionBasis,
     /// Last actual position receipt, retained across local submissions/reset.
     pub received_pose: Option<ReceivedPose>,
+    /// Last server-forced rotation without a position, retained like `received_pose`.
+    #[serde(default)]
+    pub received_rotation: Option<ReceivedRotation>,
     /// Last local send attempt, including cancellation.
     pub last_submission: Option<PositionSubmission>,
     /// Latest invalidation reason; cleared by a supported position receipt.
@@ -79,6 +95,14 @@ impl OwnMotion {
         self.received_pose = Some(pose);
         self.position_basis = PositionBasis::Received;
         self.invalidation = None;
+    }
+    /// A rotation-only receipt. It neither supersedes a position submission
+    /// nor changes the position basis; only the rotation becomes received.
+    pub(super) fn receive_rotation(&mut self, rotation: ReceivedRotation) {
+        self.rotation_source = Some(crate::client::ValueSource::Received {
+            sequence: rotation.receive_sequence,
+        });
+        self.received_rotation = Some(rotation);
     }
     pub(super) fn invalidate(&mut self, sequence: u64, reason: &str) {
         self.rotation_source = None;

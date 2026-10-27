@@ -231,9 +231,11 @@ pub struct ActionId {
 pub enum ServerCorrection {
     /// Exact block update, including unchanged state rejecting a prediction.
     Block(BodyBlock),
-    /// Resolved received teleport/correction pose.
+    /// Resolved received teleport/correction pose. A rotation-only correction
+    /// (Java 1.21.11 `PLAYER_ROTATION`) reports the unchanged position here
+    /// with its own source, which is then not that packet's receipt.
     Pose {
-        /// Received feet position.
+        /// Received feet position, or the unchanged position for rotation-only corrections.
         position: Value<[f64; 3]>,
         /// Received yaw/pitch.
         rotation: Value<[f32; 2]>,
