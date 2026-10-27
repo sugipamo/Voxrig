@@ -6,10 +6,7 @@ use crate::versions::java_1_16_1::{
 };
 use std::{
     collections::{HashMap, HashSet},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::Arc,
 };
 use tokio::sync::{RwLock, broadcast};
 
@@ -79,7 +76,10 @@ impl BotManager {
             }),
         }
     }
-    /// Performs the `subscribe` operation.
+    /// Subscribes to native notifications, including source `Event::ManagerGap`.
+    /// A receiver's own `Lagged` means the aggregate stream lost events and
+    /// invalidates completeness for every managed connection. Subscribe before
+    /// connecting; events before the source subscription are not replayed.
     pub fn subscribe(&self) -> broadcast::Receiver<BotEvent> {
         self.inner.events.subscribe()
     }
@@ -114,53 +114,36 @@ impl BotManager {
         let events = self.inner.events.clone();
         let event_username = username.clone();
         let manager = Arc::downgrade(&self.inner);
-        let terminal_forwarded = Arc::new(AtomicBool::new(false));
-        let relay_terminal_forwarded = terminal_forwarded.clone();
-        let relay = tokio::spawn(async move {
+        let generation = bot.connection_generation();
+        // A connection may already have stopped while insertion was waiting.
+        // Drain its source, including Lagged, before replaying a missing terminal
+        // cause. Aborting the relay here would also discard evidence of gaps.
+        if bot.is_stopped() {
+            let mut terminal_forwarded = false;
             loop {
-                match receiver.recv().await {
-                    Ok(event) => {
-                        let terminal = matches!(
-                            event,
-                            Event::Disconnected { .. }
-                                | Event::Error {
-                                    kind: "connection",
-                                    ..
-                                }
-                        );
-                        if terminal {
-                            relay_terminal_forwarded.store(true, Ordering::Release);
-                        }
-                        let _ = events.send(BotEvent {
-                            username: event_username.clone(),
-                            event,
-                        });
-                        if terminal {
-                            if let Some(manager) = manager.upgrade() {
-                                let mut bots = manager.bots.write().await;
-                                if bots
-                                    .get(&event_username)
-                                    .is_some_and(|bot| bot.connection_id() == connection_id)
-                                {
-                                    bots.remove(&event_username);
-                                }
-                            }
-                            break;
-                        }
-                    }
-                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                    Err(broadcast::error::RecvError::Closed) => break,
+                let event = match receiver.try_recv() {
+                    Ok(event) => event,
+                    Err(broadcast::error::TryRecvError::Lagged(skipped)) => Event::ManagerGap {
+                        generation,
+                        skipped,
+                    },
+                    Err(
+                        broadcast::error::TryRecvError::Empty
+                        | broadcast::error::TryRecvError::Closed,
+                    ) => break,
+                };
+                terminal_forwarded |= is_terminal(&event);
+                let _ = events.send(BotEvent {
+                    username: username.clone(),
+                    event,
+                });
+                if terminal_forwarded {
+                    break;
                 }
             }
-        });
-        if bot.is_stopped() {
-            relay.abort();
-            // An abort may race a running relay. Wait until its synchronous
-            // flag-and-send section has finished before deciding to replay.
-            let _ = relay.await;
-            if !terminal_forwarded.load(Ordering::Acquire) {
+            if !terminal_forwarded {
                 if let Some(event) = bot.terminal_event() {
-                    let _ = self.inner.events.send(BotEvent {
+                    let _ = events.send(BotEvent {
                         username: username.clone(),
                         event,
                     });
@@ -173,7 +156,37 @@ impl BotManager {
             {
                 bots.remove(&username);
             }
+            return Ok(bot);
         }
+        tokio::spawn(async move {
+            loop {
+                let event = match receiver.recv().await {
+                    Ok(event) => event,
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => Event::ManagerGap {
+                        generation,
+                        skipped,
+                    },
+                    Err(broadcast::error::RecvError::Closed) => break,
+                };
+                let terminal = is_terminal(&event);
+                let _ = events.send(BotEvent {
+                    username: event_username.clone(),
+                    event,
+                });
+                if terminal {
+                    if let Some(manager) = manager.upgrade() {
+                        let mut bots = manager.bots.write().await;
+                        if bots
+                            .get(&event_username)
+                            .is_some_and(|bot| bot.connection_id() == connection_id)
+                        {
+                            bots.remove(&event_username);
+                        }
+                    }
+                    break;
+                }
+            }
+        });
         Ok(bot)
     }
     /// Performs the `get` operation.
@@ -257,11 +270,196 @@ impl BotManager {
     }
 }
 
+fn is_terminal(event: &Event) -> bool {
+    matches!(
+        event,
+        Event::Disconnected { .. }
+            | Event::Error {
+                kind: "connection",
+                ..
+            }
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::protocol::{read_packet, write_packet};
     use tokio::{io::AsyncReadExt, net::TcpListener, sync::oneshot, time::Duration};
+
+    // Real protocol fixture: hold registry insertion after source subscription,
+    // then use a keepalive reply to prove the reader applied the entire burst.
+    async fn source_overflow_is_visible(kick: bool) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let options = ConnectionOptions {
+            event_channel_capacity: 2,
+            ..ConnectionOptions::default()
+        };
+        let manager = BotManager::with_options(Server::new("127.0.0.1", port), options);
+        let mut events = manager.subscribe();
+        let mut previous_generation = None;
+        for _ in 0..2 {
+            let (login_tx, login_rx) = oneshot::channel();
+            let (success_tx, success_rx) = oneshot::channel();
+            let (burst_tx, burst_rx) = oneshot::channel();
+            let (applied_tx, applied_rx) = oneshot::channel();
+            let (close_tx, close_rx) = oneshot::channel();
+            let server = tokio::spawn({
+                let listener = &listener;
+                // Accept before spawning, so the listener need not be shared.
+                let connecting = {
+                    let manager = manager.clone();
+                    tokio::spawn(async move { manager.connect(Player::offline("GapBot")).await })
+                };
+                let (stream, _) = listener.accept().await.unwrap();
+                async move {
+                    let (mut reader, mut writer) = stream.into_split();
+                    read_packet(&mut reader, None).await.unwrap();
+                    let (_, login) = read_packet(&mut reader, None).await.unwrap();
+                    assert!(login_tx.send(connecting).is_ok());
+                    success_rx.await.unwrap();
+                    write_packet(
+                        &mut writer,
+                        None,
+                        2,
+                        &crate::client::login::test_legacy_success(&login),
+                    )
+                    .await
+                    .unwrap();
+                    burst_rx.await.unwrap();
+                    for hp in 1..=10 {
+                        let mut payload = (hp as f32).to_be_bytes().to_vec();
+                        payload.push(20);
+                        payload.extend_from_slice(&5_f32.to_be_bytes());
+                        write_packet(&mut writer, None, 0x49, &payload)
+                            .await
+                            .unwrap();
+                    }
+                    write_packet(&mut writer, None, 0x20, &71_i64.to_be_bytes())
+                        .await
+                        .unwrap();
+                    loop {
+                        let (id, _) = read_packet(&mut reader, None).await.unwrap();
+                        if id == 0x10 {
+                            break;
+                        }
+                    }
+                    if kick {
+                        write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
+                        let mut buf = [0; 4096];
+                        while matches!(reader.read(&mut buf).await, Ok(n) if n > 0) {}
+                    }
+                    applied_tx.send(()).unwrap();
+                    if !kick {
+                        let mut buf = [0; 4096];
+                        while matches!(reader.read(&mut buf).await, Ok(n) if n > 0) {}
+                    }
+                    drop(writer);
+                    drop(reader);
+                    close_rx.await.unwrap();
+                }
+            });
+            let connecting = login_rx.await.unwrap();
+            let registry_gate = manager.inner.bots.write().await;
+            success_tx.send(()).unwrap();
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while manager.inner.connecting.lock().await.contains("GapBot") {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            burst_tx.send(()).unwrap();
+            tokio::time::timeout(Duration::from_secs(5), applied_rx)
+                .await
+                .unwrap()
+                .unwrap();
+            drop(registry_gate);
+            let bot = connecting.await.unwrap().unwrap();
+            let generation = bot.connection_generation();
+            assert_ne!(previous_generation, Some(generation));
+            previous_generation = Some(generation);
+            let gap = events.recv().await.unwrap();
+            assert_eq!(
+                gap,
+                BotEvent {
+                    username: "GapBot".into(),
+                    event: Event::ManagerGap {
+                        generation,
+                        skipped: if kick { 9 } else { 8 }
+                    }
+                }
+            );
+            let retained = events.recv().await.unwrap();
+            assert!(
+                matches!(retained.event, Event::Vitals(v) if v.health == if kick { 10.0 } else { 9.0 })
+            );
+            if !kick {
+                assert!(
+                    matches!(events.recv().await.unwrap().event, Event::Vitals(v) if v.health == 10.0)
+                );
+                // Latest received truth is independent of lost notifications.
+                assert_eq!(bot.survival_state().await.vitals.unwrap().health, 10.0);
+                bot.disconnect().await.unwrap();
+            }
+            assert!(matches!(
+                events.recv().await.unwrap().event,
+                Event::Disconnected { .. }
+            ));
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while manager.get("GapBot").await.is_some() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert!(matches!(
+                events.try_recv(),
+                Err(broadcast::error::TryRecvError::Empty)
+            ));
+            close_tx.send(()).unwrap();
+            server.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn source_gap_precedes_retained_events_and_distinguishes_reconnects() {
+        source_overflow_is_visible(false).await;
+    }
+
+    #[tokio::test]
+    async fn stopped_source_preserves_gap_before_terminal_replay() {
+        source_overflow_is_visible(true).await;
+    }
+
+    #[tokio::test]
+    async fn aggregate_overflow_explicitly_lags_even_when_it_evicts_a_source_gap() {
+        let manager = BotManager::new(Server::default());
+        let mut slow = manager.subscribe();
+        let mut fast = manager.subscribe();
+        let generation = crate::versions::java_1_16_1::ConnectionGeneration::allocate();
+        for index in 0..513 {
+            let event = BotEvent {
+                username: "GapBot".into(),
+                event: if index == 0 {
+                    Event::ManagerGap {
+                        generation,
+                        skipped: 7,
+                    }
+                } else {
+                    Event::Login
+                },
+            };
+            manager.inner.events.send(event.clone()).unwrap();
+            assert_eq!(fast.recv().await.unwrap(), event);
+        }
+        assert_eq!(
+            slow.recv().await,
+            Err(broadcast::error::RecvError::Lagged(1))
+        );
+        assert_eq!(slow.recv().await.unwrap().event, Event::Login);
+    }
 
     async fn mock_login_server() -> (u16, tokio::task::JoinHandle<()>) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();

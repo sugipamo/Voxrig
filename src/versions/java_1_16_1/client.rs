@@ -676,6 +676,14 @@ pub struct SoundEvent {
 #[non_exhaustive]
 /// Possible values represented by `Event`.
 pub enum Event {
+    /// BotManager's source receiver lost native events. Emitted only by the
+    /// manager, before the next retained event from this connection.
+    ManagerGap {
+        /// Exact transport identity; usernames can be reused after reconnect.
+        generation: ConnectionGeneration,
+        /// Number of source events skipped since the previous relay read.
+        skipped: u64,
+    },
     /// A complete own-player context receipt was applied.
     PlayerContextUpdated,
     /// The `Login` variant.

@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Java 1.16.1 native BotManager now forwards source broadcast loss as additive
+  `Event::ManagerGap { generation, skipped }` before the next retained event,
+  including when a connection stopped during manager insertion. Connection
+  generations distinguish reused usernames. Aggregate overflow still reports
+  the subscriber's own `Lagged`, including loss of a gap notification. Existing
+  signatures, struct fields, send admission and Java 1.21.11 are unchanged.
+  See [completeness and recovery](docs/manager-event-gaps.md).
+
 - BREAKING (Rust struct literals): `ControlRecord` gains `degradation`, independent
   of Running/Paused/Stopped and `movement_refusal`. Java 1.16.1 ordinary results
   expose the first `RemoteStateDropped` with owner/world, receive boundary,
