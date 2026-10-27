@@ -73,6 +73,9 @@ async fn main() -> anyhow::Result<()> {
     if let Ok(ms) = std::env::var("VOXRIG_BODY_TIMEOUT_MS") {
         config.action_timeout = Duration::from_millis(ms.parse()?);
     }
+    if let Ok(retention) = std::env::var("VOXRIG_BODY_RETENTION") {
+        config.retention = retention.parse()?;
+    }
     let body = Body::new(HeadlessBody::new(client.clone(), config)?);
     let mut click_watch = None::<InventoryClickWatch>;
     let mut saved_screen = None;
@@ -147,6 +150,15 @@ async fn main() -> anyhow::Result<()> {
                 "click_status" => {
                     serde_json::to_value(click_watch.as_ref().unwrap().status().await)?
                 }
+                "action_observation" => serde_json::to_value(
+                    body.action_observation(serde_json::from_value(v["id"].clone())?).await?,
+                )?,
+                "monitor_changes" => serde_json::to_value(
+                    body.monitor_changes_after(
+                        if v["cursor"].is_null() { MonitorCursor::default() } else { serde_json::from_value(v["cursor"].clone())? },
+                        v["maximum"].as_u64().unwrap_or(4096).try_into()?,
+                    ).await?,
+                )?,
                 "outcome" => serde_json::to_value(
                     body.backend()
                         .action_outcome(serde_json::from_value(v["id"].clone())?)

@@ -592,7 +592,305 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ErrorKind;
     use crate::body::{Body, HeadlessBody};
+    // Fixture checks use the same evidence reducer and public Body facade as live.
+    async fn monitored_look(body: &Body<HeadlessBody>, trust: bool) -> ActionId {
+        let action = Action::Look {
+            yaw: 12.,
+            pitch: 4.,
+        };
+        let id = if trust {
+            let sent = body.backend().send_and_trust(action).await.unwrap();
+            assert!(matches!(sent.dispatch, SendStatus::Sent));
+            sent.id
+        } else {
+            body.submit(action).await.unwrap()
+        };
+        assert!(matches!(complete(body, id).await, ActionStatus::Accepted));
+        wait_release(body).await;
+        id
+    }
+
+    #[tokio::test]
+    async fn monitor_gap_reaches_upper_without_changing_original_acceptance() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = body(&bot);
+        let id = monitored_look(&body, true).await;
+        // Original block packets, unrelated to this look, evict its evidence.
+        for _ in 0..4097 {
+            change(&bot, "stone").await;
+        }
+        // A newer action in the same merged read still has a complete baseline.
+        let recent = monitored_look(&body, false).await;
+        let events = body.events_after(Default::default(), 100).await.unwrap();
+        assert!(matches!(
+            body.action_observation(recent).await.unwrap().monitoring,
+            MonitoringStatus::CompleteThrough { .. }
+        ));
+        assert!(!events.gap); // Body event retention is a different axis.
+        let changes = body
+            .monitor_changes_after(Default::default(), 100)
+            .await
+            .unwrap();
+        assert!(!changes.gap);
+        assert!(
+            changes
+                .changes
+                .iter()
+                .any(|c| c.action == id && matches!(c.monitoring, MonitoringStatus::Gap { .. }))
+        );
+        let observed = body.action_observation(id).await.unwrap();
+        assert!(matches!(observed.acceptance, ActionStatus::Accepted));
+        assert!(matches!(observed.outcome, ActionStatus::Accepted));
+        assert!(matches!(observed.monitoring, MonitoringStatus::Gap { .. }));
+        bot.common_receipts.lock().await.generation += 1;
+        assert_eq!(
+            observed.monitoring,
+            body.action_observation(id).await.unwrap().monitoring
+        );
+        assert!(
+            body.monitor_changes_after(changes.cursor, 100)
+                .await
+                .unwrap()
+                .changes
+                .iter()
+                .all(|change| change.action != id)
+        );
+        drop(release);
+        drop(body);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn monitor_timeout_and_error_are_visible_retryable_and_log_eviction_is_explicit() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = Body::new(
+            HeadlessBody::new(
+                crate::Client::from_java_1_16_1(bot.clone()),
+                BodyConfig {
+                    retention: 2,
+                    settle_window: Duration::from_millis(20),
+                    action_timeout: Duration::from_millis(180),
+                },
+            )
+            .unwrap(),
+        );
+        let id = monitored_look(&body, false).await;
+        let first = body.action_observation(id).await.unwrap();
+        assert!(matches!(
+            first.monitoring,
+            MonitoringStatus::CompleteThrough { .. }
+        ));
+        let gate = bot.coherent_state_gate.lock().await;
+        let failed = body.action_observation(id).await.unwrap();
+        assert!(matches!(failed.acceptance, ActionStatus::Accepted));
+        assert!(
+            matches!(failed.monitoring, MonitoringStatus::TemporarilyUnavailable { ref reason, .. } if reason.contains("timed out"))
+        );
+        drop(gate);
+        assert_eq!(
+            body.action_observation(id).await.unwrap().monitoring,
+            first.monitoring
+        );
+        // A malformed observed mode makes the evidence snapshot fail explicitly.
+        let mode = bot.survival.read().await.game_mode;
+        bot.survival.write().await.game_mode = Some(7);
+        let failed = body.action_observation(id).await.unwrap();
+        assert!(
+            matches!(failed.monitoring, MonitoringStatus::TemporarilyUnavailable { ref reason, .. } if reason.contains("invalid game mode"))
+        );
+        bot.survival.write().await.game_mode = mode;
+        assert_eq!(
+            body.action_observation(id).await.unwrap().monitoring,
+            first.monitoring
+        );
+        let log = body
+            .monitor_changes_after(Default::default(), 1)
+            .await
+            .unwrap();
+        assert!(log.gap);
+        assert_eq!(log.changes.len(), 1);
+        let tail = body.monitor_changes_after(log.cursor, 1).await.unwrap();
+        assert!(!tail.gap);
+        assert_eq!(tail.changes.len(), 1);
+        assert!(
+            body.monitor_changes_after(tail.cursor, 1)
+                .await
+                .unwrap()
+                .changes
+                .is_empty()
+        );
+        for cursor in [
+            MonitorCursor {
+                backend: id.backend + 1,
+                ordinal: 0,
+            },
+            MonitorCursor {
+                backend: 0,
+                ordinal: 1,
+            },
+            MonitorCursor {
+                backend: id.backend,
+                ordinal: u64::MAX,
+            },
+        ] {
+            assert_eq!(
+                body.monitor_changes_after(cursor, 1)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::InvalidInput
+            );
+        }
+        drop(release);
+        drop(body);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn monitor_world_loss_is_visible_for_ordinary_submit_and_deduplicated() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = body(&bot);
+        let id = monitored_look(&body, false).await;
+        let before = body.action_observation(id).await.unwrap();
+        bot.common_receipts.lock().await.generation += 1;
+        let events = body.events_after(Default::default(), 100).await.unwrap();
+        assert!(!events.gap);
+        let lost = body.action_observation(id).await.unwrap();
+        assert!(matches!(lost.acceptance, ActionStatus::Accepted));
+        assert!(
+            matches!(lost.monitoring, MonitoringStatus::WorldChanged { after, .. } if matches!(before.monitoring, MonitoringStatus::CompleteThrough { cursor } if after == cursor))
+        );
+        let changes = body
+            .monitor_changes_after(Default::default(), 100)
+            .await
+            .unwrap();
+        assert_eq!(
+            changes
+                .changes
+                .iter()
+                .filter(|c| c.action == id
+                    && matches!(c.monitoring, MonitoringStatus::WorldChanged { .. }))
+                .count(),
+            1
+        );
+        assert!(
+            body.monitor_changes_after(changes.cursor, 100)
+                .await
+                .unwrap()
+                .changes
+                .is_empty()
+        );
+        drop(release);
+        drop(body);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn monitor_chunk_loss_preserves_unknown_and_does_not_cross_lifetime() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = body(&bot);
+        let id = body.submit(action()).await.unwrap();
+        packets.recv().await.unwrap();
+        assert!(matches!(
+            complete(&body, id).await,
+            ActionStatus::Unknown { .. }
+        ));
+        wait_release(&body).await;
+        // UNLOAD_CHUNK is an original 1.16.1 packet.
+        let mut payload = 0i32.to_be_bytes().to_vec();
+        payload.extend_from_slice(&0i32.to_be_bytes());
+        bot.apply_packet(0x1d, payload).await.unwrap();
+        // A newer block cannot restore the missing lifetime or prove no rollback.
+        change(&bot, "stone").await;
+        let observed = body.action_observation(id).await.unwrap();
+        assert!(matches!(observed.acceptance, ActionStatus::Unknown { .. }));
+        assert!(matches!(observed.outcome, ActionStatus::Unknown { .. }));
+        assert!(matches!(
+            observed.monitoring,
+            MonitoringStatus::ChunkChanged { chunk: [0, 0], .. }
+        ));
+        let log = body
+            .monitor_changes_after(Default::default(), 100)
+            .await
+            .unwrap();
+        assert!(
+            log.changes
+                .iter()
+                .any(|c| c.action == id && c.monitoring == observed.monitoring)
+        );
+        drop(release);
+        drop(body);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn monitor_ordinary_submit_reports_rollback_and_advances_through_unrelated_evidence() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = body(&bot);
+        let id = monitored_look(&body, false).await;
+        for _ in 0..2 {
+            for _ in 0..2100 {
+                change(&bot, "stone").await;
+            }
+            assert!(matches!(
+                body.action_observation(id).await.unwrap().monitoring,
+                MonitoringStatus::CompleteThrough { .. }
+            ));
+        }
+        bot.body_evidence.lock().await.push(
+            5000,
+            Update::Pose {
+                position: [1., 65., 0.],
+                rotation: [0.; 2],
+            },
+        );
+        let (a, b) = tokio::join!(body.action_observation(id), body.action_observation(id));
+        let observed = a.unwrap();
+        assert_eq!(observed.monitoring, b.unwrap().monitoring);
+        assert!(matches!(observed.acceptance, ActionStatus::Accepted));
+        assert!(matches!(observed.outcome, ActionStatus::Corrected { .. }));
+        assert!(matches!(
+            observed.monitoring,
+            MonitoringStatus::CorrectionObserved { .. }
+        ));
+        // Compatibility action_status on an ordinary submit retains its result.
+        assert!(matches!(
+            body.action_status(id).await.unwrap(),
+            ActionStatus::Accepted
+        ));
+        let log = body
+            .monitor_changes_after(Default::default(), 100)
+            .await
+            .unwrap();
+        assert_eq!(
+            log.changes
+                .iter()
+                .filter(|c| matches!(c.monitoring, MonitoringStatus::CorrectionObserved { .. }))
+                .count(),
+            1
+        );
+        drop(release);
+        drop(body);
+        drop(bot);
+        server.await.unwrap();
+    }
+
     fn block(name: &str) -> crate::NativeBlockState {
         crate::NativeBlockState {
             name: format!("minecraft:{name}"),

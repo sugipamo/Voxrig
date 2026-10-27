@@ -1,0 +1,312 @@
+{
+  "date_utc": "2026-10-27T12:19:43.652254+00:00",
+  "base": "ce174697b030f5536d28417778b42ceb88d67b68",
+  "branch": "fix/ns-08",
+  "rustc": {
+    "stable": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "1.85.0": "rustc 1.85.0 (4d91de4e4 2025-02-17)"
+  },
+  "environment": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_TARGET_DIR": "target/<toolchain>"
+  },
+  "source_sha256": {
+    "src/body/headless.rs": "29f0c74480a893bd95e26343471e9dfdb51ca52bfecc6b65848470e3bb75d40a",
+    "src/body/mod.rs": "5225b563d8b4fb538d3a6d49aa6f1d31b47720ded3c61fffd326f8a18dafbd70",
+    "src/body/monitoring.rs": "d35e01dc69f6c6bf8c93f9ddc27864b59c0990f0115fe591aa10d0c3f813df15",
+    "src/body/headless/monitoring.rs": "e1168c4bdd8ab4e06b4135b78ceb45562778be810f9664147a02874135d7d6ff",
+    "src/versions/java_1_16_1/client/body.rs": "7afe5e5dd3354a53f2792118a063ac49530f058464b087bbf1cb372a67424c3c",
+    "examples/body_probe.rs": "333c09728294514dfc20fb18405fdd1604fb1505c334aa8c32cbb312a5b3ec53",
+    "scripts/run_body_monitor_live.py": "392abbcc6f146d7cfd2276b293b44b259e1216fd08a9b16579cd4d1235073775",
+    "Cargo.lock": "8bf7e3de1d117dc1b42243ac611431b022f09bc297f38160981c6979ead35668"
+  },
+  "checks": [
+    {
+      "toolchain": "1.85.0",
+      "feature": "default",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 151.46,
+      "log": ".local/ns08/1.85.0-default-clippy.log",
+      "log_sha256": "da567f62d8b6ce3a876be3e2ffff20ff9a0df44dd3cec1eba2ce460e12f2f318",
+      "summaries": [
+        "    Finished `dev` profile [unoptimized] target(s) in 2m 31s"
+      ]
+    },
+    {
+      "toolchain": "1.85.0",
+      "feature": "default",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 4.4,
+      "log": ".local/ns08/1.85.0-default-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summaries": []
+    },
+    {
+      "toolchain": "1.85.0",
+      "feature": "default",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "seconds": 811.81,
+      "log": ".local/ns08/1.85.0-default-test.log",
+      "log_sha256": "330001daf5a32b776d5bd56574ce4125a1b03dc0a8c293753ac698f7beb0a013",
+      "summaries": [
+        "    Finished `test` profile [unoptimized] target(s) in 9m 30s",
+        "test result: ok. 1716 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 237.26s",
+        "test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.84s"
+      ],
+      "monitor_fixtures": [
+        "test versions::java_1_16_1::client::body::tests::monitor_chunk_loss_preserves_unknown_and_does_not_cross_lifetime ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_gap_reaches_upper_without_changing_original_acceptance ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_timeout_and_error_are_visible_retryable_and_log_eviction_is_explicit ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_ordinary_submit_reports_rollback_and_advances_through_unrelated_evidence ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_world_loss_is_visible_for_ordinary_submit_and_deduplicated ... ok"
+      ]
+    },
+    {
+      "toolchain": "1.85.0",
+      "feature": "native",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 84.59,
+      "log": ".local/ns08/1.85.0-native-clippy.log",
+      "log_sha256": "8a125cad87cc993b3252866a0e720eeb94a1ff9b92057650a27f6dc5f9251322",
+      "summaries": [
+        "    Finished `dev` profile [unoptimized] target(s) in 1m 24s"
+      ]
+    },
+    {
+      "toolchain": "1.85.0",
+      "feature": "native",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 3.79,
+      "log": ".local/ns08/1.85.0-native-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summaries": []
+    },
+    {
+      "toolchain": "1.85.0",
+      "feature": "native",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+1.85.0",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "seconds": 664.53,
+      "log": ".local/ns08/1.85.0-native-test.log",
+      "log_sha256": "c84ff0d71878b6bd580972a069c01461266d02b0ace7a0c5a4d0f4c71e6b48db",
+      "summaries": [
+        "    Finished `test` profile [unoptimized] target(s) in 5m 58s",
+        "test result: ok. 1716 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 298.57s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s",
+        "test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.95s"
+      ],
+      "monitor_fixtures": [
+        "test versions::java_1_16_1::client::body::tests::monitor_chunk_loss_preserves_unknown_and_does_not_cross_lifetime ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_gap_reaches_upper_without_changing_original_acceptance ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_ordinary_submit_reports_rollback_and_advances_through_unrelated_evidence ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_timeout_and_error_are_visible_retryable_and_log_eviction_is_explicit ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_world_loss_is_visible_for_ordinary_submit_and_deduplicated ... ok"
+      ]
+    },
+    {
+      "toolchain": "stable",
+      "feature": "default",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 72.46,
+      "log": ".local/ns08/stable-default-clippy.log",
+      "log_sha256": "c1bcea34e90963282d7db95fba9a44d0b1ef8dbc1be7c1ec647c211bcfe82f15",
+      "summaries": [
+        "    Finished `dev` profile [unoptimized] target(s) in 1m 12s"
+      ]
+    },
+    {
+      "toolchain": "stable",
+      "feature": "default",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 5.29,
+      "log": ".local/ns08/stable-default-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summaries": []
+    },
+    {
+      "toolchain": "stable",
+      "feature": "default",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked"
+      ],
+      "exit_code": 0,
+      "seconds": 596.92,
+      "log": ".local/ns08/stable-default-test.log",
+      "log_sha256": "f7ad2d2a758293e2aadbc6ee6d0d764c622623fa29837a328cb7806c6706b144",
+      "summaries": [
+        "    Finished `test` profile [unoptimized] target(s) in 5m 32s",
+        "test result: ok. 1716 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 260.79s",
+        "test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s"
+      ],
+      "monitor_fixtures": [
+        "test versions::java_1_16_1::client::body::tests::monitor_chunk_loss_preserves_unknown_and_does_not_cross_lifetime ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_gap_reaches_upper_without_changing_original_acceptance ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_timeout_and_error_are_visible_retryable_and_log_eviction_is_explicit ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_ordinary_submit_reports_rollback_and_advances_through_unrelated_evidence ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_world_loss_is_visible_for_ordinary_submit_and_deduplicated ... ok"
+      ]
+    },
+    {
+      "toolchain": "stable",
+      "feature": "native",
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "native",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "seconds": 58.18,
+      "log": ".local/ns08/stable-native-clippy.log",
+      "log_sha256": "323867f9fe1786d06b95e8229bdfef215bbd3f1e07fe7166c8f47b1807f598c5",
+      "summaries": [
+        "    Finished `dev` profile [unoptimized] target(s) in 58.08s"
+      ]
+    },
+    {
+      "toolchain": "stable",
+      "feature": "native",
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "+stable",
+        "fmt",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 3.49,
+      "log": ".local/ns08/stable-native-fmt.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summaries": []
+    },
+    {
+      "toolchain": "stable",
+      "feature": "native",
+      "check": "test",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--locked",
+        "--features",
+        "native"
+      ],
+      "exit_code": 0,
+      "seconds": 575.81,
+      "log": ".local/ns08/stable-native-test.log",
+      "log_sha256": "5147b83eecf5ab2e662b397bcf080e757567725a4ce816b740a5159753565fac",
+      "summaries": [
+        "    Finished `test` profile [unoptimized] target(s) in 4m 41s",
+        "test result: ok. 1716 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 288.34s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s",
+        "test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s"
+      ],
+      "monitor_fixtures": [
+        "test versions::java_1_16_1::client::body::tests::monitor_chunk_loss_preserves_unknown_and_does_not_cross_lifetime ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_gap_reaches_upper_without_changing_original_acceptance ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_timeout_and_error_are_visible_retryable_and_log_eviction_is_explicit ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_world_loss_is_visible_for_ordinary_submit_and_deduplicated ... ok",
+        "test versions::java_1_16_1::client::body::tests::monitor_ordinary_submit_reports_rollback_and_advances_through_unrelated_evidence ... ok"
+      ]
+    }
+  ],
+  "live": {
+    "passed": true,
+    "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "binary_sha256": "5139ee163c642b98f24da000d79d1e16e9e0c0072ab25cdbc0845b594b1f19d8",
+    "checks": [
+      "accepted_then_original_teleport_correction",
+      "internal_evidence_gap_without_body_event_gap",
+      "dedicated_log_eviction_and_pagination",
+      "ordinary_submit_world_loss"
+    ]
+  },
+  "public_api": "additive",
+  "decision": "none"
+}
