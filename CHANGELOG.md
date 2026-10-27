@@ -9,6 +9,15 @@
 
 ## Unreleased
 
+- Add Java 1.16.1 Body `action_observation` and `monitor_changes_after`, separating
+  immutable acceptance from late corrections and evidence completeness. Internal
+  evidence gaps, world/target-chunk loss and retryable timeout/read errors are
+  visible independently of BodyEvent eviction. Permanent loss retains its first
+  boundary; successful reads advance the evidence cursor. Existing signatures,
+  structs and refusal gates are unchanged. New BodyBackend methods default to
+  Unsupported; Java 1.21.11 returns Unsupported for the new monitoring APIs.
+  See [contract and recovery](docs/body-monitoring.md).
+
 - Java 1.16.1 native BotManager now forwards source broadcast loss as additive
   `Event::ManagerGap { generation, skipped }` before the next retained event,
   including when a connection stopped during manager insertion. Connection

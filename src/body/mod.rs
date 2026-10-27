@@ -12,6 +12,8 @@ use crate::client::control::Controls;
 pub(crate) mod dig;
 pub(crate) mod evidence;
 mod headless;
+mod monitoring;
+pub use monitoring::*;
 pub(crate) mod interaction;
 mod state;
 pub use headless::HeadlessBody;
@@ -409,6 +411,31 @@ pub trait BodyBackend: Send + Sync {
     fn submit(&self, request: ActionRequest) -> impl Future<Output = Result<ActionId>> + Send;
     /// Read retained bounded outcome, including after disconnect.
     fn action_status(&self, id: ActionId) -> impl Future<Output = Result<ActionStatus>> + Send;
+    /// Refresh acceptance and late-monitor completeness. Unsupported by default.
+    fn action_observation(
+        &self,
+        _id: ActionId,
+    ) -> impl Future<Output = Result<ActionObservation>> + Send {
+        async {
+            Err(crate::Error::new(
+                crate::ErrorKind::Unsupported,
+                anyhow::anyhow!("body monitoring is unsupported"),
+            ))
+        }
+    }
+    /// Read the bounded monitor log. Unsupported by default.
+    fn monitor_changes_after(
+        &self,
+        _cursor: MonitorCursor,
+        _maximum: usize,
+    ) -> impl Future<Output = Result<MonitorChanges>> + Send {
+        async {
+            Err(crate::Error::new(
+                crate::ErrorKind::Unsupported,
+                anyhow::anyhow!("body monitoring is unsupported"),
+            ))
+        }
+    }
     /// Cancel work/release inputs; never undo effects already sent.
     fn cancel(&self, id: ActionId) -> impl Future<Output = Result<CancelStatus>> + Send;
     /// Read local transitions, with explicit retention gaps.
@@ -470,6 +497,18 @@ impl<B: BodyBackend> Body<B> {
     /// Read a retained outcome.
     pub async fn action_status(&self, id: ActionId) -> Result<ActionStatus> {
         self.backend.action_status(id).await
+    }
+    /// Refresh the original result, late rollback and monitoring completeness.
+    pub async fn action_observation(&self, id: ActionId) -> Result<ActionObservation> {
+        self.backend.action_observation(id).await
+    }
+    /// Refresh monitors and read their separate bounded transition log.
+    pub async fn monitor_changes_after(
+        &self,
+        cursor: MonitorCursor,
+        maximum: usize,
+    ) -> Result<MonitorChanges> {
+        self.backend.monitor_changes_after(cursor, maximum).await
     }
     /// Request cancellation.
     pub async fn cancel(&self, id: ActionId) -> Result<CancelStatus> {

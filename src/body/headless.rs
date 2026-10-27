@@ -1,3 +1,4 @@
+mod monitoring;
 use super::evidence::{EvidenceBatch, Update};
 use super::state::Acceptance;
 use super::*;
@@ -106,6 +107,7 @@ struct Job {
     use_item_refusal: Mutex<Option<crate::client::UseItemRefusal>>,
     monitor: Mutex<Option<Monitor>>,
     late_correction: Mutex<Option<ActionStatus>>,
+    monitoring: Mutex<MonitoringStatus>,
 }
 #[derive(Clone)]
 struct Monitor {
@@ -123,6 +125,9 @@ struct Records {
     ordinal: u64,
     dropped: u64,
     release_failed: bool,
+    monitor_changes: VecDeque<MonitorChange>,
+    monitor_ordinal: u64,
+    monitor_dropped: u64,
 }
 struct Inner {
     client: Client,
@@ -130,6 +135,7 @@ struct Inner {
     config: BodyConfig,
     records: Mutex<Records>,
     changed: watch::Sender<u64>,
+    monitor_refresh: tokio::sync::Mutex<()>,
 }
 /// Acceptance adapter around an existing headless Client. Clones share action/control ownership.
 ///
@@ -200,8 +206,12 @@ impl HeadlessBody {
     /// This additive view can report a late Corrected rollback notice. Existing
     /// BodyBackend::action_status and its immutable terminal result are unchanged.
     /// Does not replay, reopen ownership, or infer acceptance from late agreement.
-    /// Evidence gaps/world changes leave Unknown; retention bounds this facility.
+    /// For 1.16.1, inspect action_observation/monitor_changes_after for evidence
+    /// gaps, lifetime loss and temporary refresh failures, separately from acceptance.
     pub async fn action_outcome(&self, id: ActionId) -> Result<ActionStatus> {
+        if self.inner.client.version() == MinecraftVersion::Java1_16_1 {
+            return Ok(self.action_observation(id).await?.outcome);
+        }
         let status = self.retained_status(id)?;
         if !matches!(
             status,
@@ -247,6 +257,9 @@ impl HeadlessBody {
     }
 
     async fn refresh_trusted(&self) -> Result<()> {
+        if self.inner.client.version() == MinecraftVersion::Java1_16_1 {
+            return self.refresh_monitors(None).await;
+        }
         let monitors: Vec<_> = {
             let records = self.inner.records.lock().unwrap();
             records
@@ -361,8 +374,12 @@ impl HeadlessBody {
                     ordinal: 0,
                     dropped: 0,
                     release_failed: false,
+                    monitor_changes: VecDeque::new(),
+                    monitor_ordinal: 0,
+                    monitor_dropped: 0,
                 }),
                 changed: watch::channel(0).0,
+                monitor_refresh: tokio::sync::Mutex::new(()),
             }),
         })
     }
@@ -488,6 +505,7 @@ impl HeadlessBody {
             use_item_refusal: Mutex::new(None),
             monitor: Mutex::new(None),
             late_correction: Mutex::new(None),
+            monitoring: Mutex::new(MonitoringStatus::NotMonitoring),
         });
         let id;
         {
@@ -624,6 +642,16 @@ impl BodyBackend for HeadlessBody {
         } else {
             self.retained_status(id)
         }
+    }
+    async fn action_observation(&self, id: ActionId) -> Result<ActionObservation> {
+        HeadlessBody::action_observation(self, id).await
+    }
+    async fn monitor_changes_after(
+        &self,
+        cursor: MonitorCursor,
+        maximum: usize,
+    ) -> Result<MonitorChanges> {
+        HeadlessBody::monitor_changes_after(self, cursor, maximum).await
     }
     async fn cancel(&self, id: ActionId) -> Result<CancelStatus> {
         let job = self.inner.job(id)?;
@@ -877,7 +905,7 @@ async fn run(
             if let Some(sent_cursor) = sent_cursor {
                 cursor = sent_cursor;
                 let job = inner.job(id)?;
-                if job.trust_sent {
+                if job.trust_sent || inner.client.version() == MinecraftVersion::Java1_16_1 {
                     if let Some(monitor) = job.monitor.lock().unwrap().as_mut() {
                         monitor.cursor = sent_cursor;
                     }
