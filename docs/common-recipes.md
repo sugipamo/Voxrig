@@ -425,3 +425,8 @@ returns `CraftOnceError::NotApplied`. See [inventory helpers](common-inventory-h
 Vanilla re-validates the same cursor and capacity rules that Voxrig checks before
 sending, so an official server rarely produces this outcome; plugins, protection
 and timing can.
+
+[Official-server outcomes](evidence/c1-crafting-take-outcome-20261027.json.gz)
+(`scripts/run_crafting_take_outcome_live.py`) show that real cursor and
+`craft_once` takes on 1.16.1 and 1.21.11 still complete as `ObservedTaken` /
+`ObservedTransferred`, although every 1.16.1 reply is `accepted=false`.
