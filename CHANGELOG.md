@@ -9,6 +9,17 @@
 
 ## Unreleased
 
+- BREAKING (behavior): a crafting result take whose fresh full resync after the
+  send (grid/result, main/hotbar, cursor; 1.16.1 also its transaction reply) still
+  equals the pre-send receipts ends as the new terminal
+  `CraftingTakeStage::NotApplied` instead of staying `Pending` forever. The
+  provoked 1.16.1 `accepted=false` reply is not used as evidence. `craft_once`
+  now returns `ErrorKind::Rejected` for `NotApplied` and `ErrorKind::Timeout` for
+  a take still `Pending` at its deadline (both were `Ok`); `RequiresInspection`
+  stays `Ok`. `craft_once_checked` returns the new `CraftOnceError::NotApplied`
+  instead of `OutcomeUnknown { cause: Timeout }`. Both enums are `#[non_exhaustive]`.
+  See [result take not applied](docs/common-recipes.md#result-take-not-applied-notapplied).
+
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.
   Actual server receipts and incomplete deltas are preserved. Intended locations

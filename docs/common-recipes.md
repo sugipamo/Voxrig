@@ -395,3 +395,33 @@ ordinary transfer and exchange owners described above.
 
 [Native inputs and results](evidence/common-recipe-result-transfer-20261006.json)
 retain all 16 cases and unchanged original method hashes.
+
+
+## Result take not applied (`NotApplied`)
+
+Both result destinations always request a full resync: 1.16.1 sends a
+deliberately mismatched comparison stack, so its `ConfirmTransaction` reply is
+`accepted=false` on every take, and 1.21.11 sends a stale revision. That reply
+is never treated as a rejection. Instead, a dispatched take becomes the terminal
+`CraftingTakeStage::NotApplied` when one fresh full-content boundary after the
+send still equals the pre-send receipts:
+
+- every grid input and the result, from one full grid (table: its full contents);
+- main/hotbar slots 9..44 from that same boundary, equal to the initial receipts;
+- a cursor received at or after that boundary, equal to `cursor_before`
+  (1.21.11 carries it in the same contents; 1.16.1 sends it right after);
+- in 1.16.1, the take's own transaction reply, whatever its `accepted` value.
+
+`after` (and `inventory_after` for `Inventory`) keep that boundary. No cursor
+receipt or output increase is recorded and `ready()` stays false. The stage is
+terminal: later receipts or interruptions do not rewrite it, and the take no
+longer blocks the next one. Any changed grid, cursor or main/hotbar value is not
+`NotApplied`: it is a completed take, a conflict or an external change, handled
+as before. A pre-send or old receipt is never part of the boundary.
+
+`craft_once` returns `ErrorKind::Rejected` for a `NotApplied` take and
+`ErrorKind::Timeout` for one still `Pending` at its deadline; `craft_once_checked`
+returns `CraftOnceError::NotApplied`. See [inventory helpers](common-inventory-helpers.md).
+Vanilla re-validates the same cursor and capacity rules that Voxrig checks before
+sending, so an official server rarely produces this outcome; plugins, protection
+and timing can.

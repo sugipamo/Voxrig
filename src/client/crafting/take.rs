@@ -83,6 +83,11 @@ pub enum CraftingTakeStage {
     ObservedTransferred,
     /// First conflict or uncertain delivery, permanently retained.
     RequiresInspection,
+    /// Dispatched, then one fresh full-content boundary after the send (grid and
+    /// result, cursor and main/hotbar; 1.16.1 also its transaction reply) still
+    /// equals the pre-send receipts. The server processed the take without effect.
+    /// Derived from received values, never from a legacy `accepted=false` reply.
+    NotApplied,
 }
 /// Actual before/after grids and optional shift inventory; cursor prediction is separate.
 /// There is no predicted ingredient consumption, remainder or next result.
@@ -147,7 +152,9 @@ impl CraftingTakeRecord {
     pub(crate) fn unresolved(&self) -> bool {
         !matches!(
             self.stage,
-            CraftingTakeStage::ObservedTaken | CraftingTakeStage::ObservedTransferred
+            CraftingTakeStage::ObservedTaken
+                | CraftingTakeStage::ObservedTransferred
+                | CraftingTakeStage::NotApplied
         )
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
@@ -550,6 +557,22 @@ fn receive_inner(
                     .context
                     .classify(&actual, &before, &actual.value, registries)?;
             }
+            if not_applied(record, player, &grid, sequence) {
+                if record.destination == CraftingResultDestination::Inventory {
+                    record.inventory_after.get_or_insert(
+                        crate::client::ReceivedInventory::capture(
+                            player.session,
+                            player.receive_sequence,
+                            &player.inventory,
+                            registries.clone(),
+                        )?,
+                    );
+                }
+                // No receipt or output increase is recorded, so `ready()` stays false.
+                record.after.get_or_insert(grid);
+                record.stage = CraftingTakeStage::NotApplied;
+                return Ok(());
+            }
             if record.destination == CraftingResultDestination::Inventory {
                 let Some((inventory, increase)) =
                     shift::capture_after(record, player, registries, sequence)?
@@ -563,4 +586,42 @@ fn receive_inner(
         }
     }
     Ok(())
+}
+
+/// The take's own full resync reports every value it could change as unchanged.
+/// The 1.16.1 reply only orders the boundary; its `accepted` is deliberately false.
+fn not_applied(
+    record: &CraftingTakeRecord,
+    player: &PlayerObservation,
+    grid: &ReceivedCrafting,
+    full: u64,
+) -> bool {
+    if !record.send.dispatched
+        || (record.initial.session.version == MinecraftVersion::Java1_16_1
+            && record.legacy_reply.is_none())
+    {
+        return false;
+    }
+    // 1.21.11 carries the cursor in the same contents; 1.16.1 sends it right after.
+    let cursor = player.inventory.cursor.as_ref().is_some_and(|cursor| {
+        matches!(cursor.source, ValueSource::Received { sequence } if sequence >= full)
+            && cursor.value == record.cursor_before.value
+    });
+    let inventory = (9..45).all(|index| {
+        match (
+            player.inventory.slots[index].as_ref(),
+            record.initial.inventory.slots[index].as_ref(),
+        ) {
+            (Some(actual), Some(before)) => {
+                actual.source == ValueSource::Received { sequence: full }
+                    && actual.value == before.value
+            }
+            _ => false,
+        }
+    });
+    cursor
+        && inventory
+        && values(grid)
+            .zip(values(&record.before))
+            .all(|(actual, before)| actual.value() == before.value())
 }

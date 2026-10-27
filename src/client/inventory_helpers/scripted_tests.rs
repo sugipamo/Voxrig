@@ -146,6 +146,8 @@ pub(crate) enum Case {
     Fill,
     Craft,
     CraftTimeout,
+    CraftNotApplied,
+    CraftCheckedNotApplied,
     CraftReplacement,
     CompactTimeout,
     FillRejection,
@@ -179,6 +181,8 @@ pub(crate) const CASES: &[Case] = &[
     Case::Fill,
     Case::Craft,
     Case::CraftTimeout,
+    Case::CraftNotApplied,
+    Case::CraftCheckedNotApplied,
     Case::CraftReplacement,
     Case::CompactTimeout,
     Case::FillRejection,
@@ -244,20 +248,36 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
             assert_eq!(inventory.slot(44).unwrap().unwrap().value(), &empty);
             assert_eq!(inventory.cursor().unwrap().value(), &empty);
         }
-        Case::Fill | Case::Craft | Case::CraftTimeout | Case::CraftReplacement => {
+        Case::Fill
+        | Case::Craft
+        | Case::CraftTimeout
+        | Case::CraftNotApplied
+        | Case::CraftCheckedNotApplied
+        | Case::CraftReplacement => {
             slots[1] = dirt.clone();
             slots[9] = plank(3);
             fixture.inventory(&slots, &empty).await;
             let ingredients = [Some("oak_planks"), None, None, None];
             let mut helper = std::pin::pin!(async {
-                if matches!(case, Case::Fill) {
-                    ops.fill_crafting_grid(&ingredients)
+                match case {
+                    Case::Fill => ops
+                        .fill_crafting_grid(&ingredients)
                         .await
                         .map(|fill| (fill, None))
-                } else {
-                    ops.craft_once(&ingredients)
+                        .map_err(|e| e.kind()),
+                    Case::CraftCheckedNotApplied => {
+                        match ops.craft_once_checked(&ingredients).await {
+                            Err(CraftOnceError::NotApplied { record }) => {
+                                Ok((record.fill, Some(record.take)))
+                            }
+                            other => panic!("checked not-applied take: {other:?}"),
+                        }
+                    }
+                    _ => ops
+                        .craft_once(&ingredients)
                         .await
                         .map(|r| (r.fill, Some(r.take)))
+                        .map_err(|e| e.kind()),
                 }
             });
             let mut expected = Vec::new();
@@ -309,6 +329,16 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
                         fixture.inventory(&slots, &empty).await;
                         fixture.reply(take.send.legacy_action).await;
                     }
+                    Case::CraftNotApplied | Case::CraftCheckedNotApplied => {
+                        // The server processed the take but its full resync
+                        // re-sends the unchanged grid, inventory and cursor.
+                        slots[0] = button.clone();
+                        slots[1] = plank(1);
+                        slots[9] = plank(2);
+                        slots[10] = dirt.clone();
+                        fixture.inventory(&slots, &empty).await;
+                        fixture.reply(take.send.legacy_action).await;
+                    }
                     Case::CraftReplacement => fixture.replace_screen().await,
                     Case::CraftTimeout => {}
                     _ => unreachable!(),
@@ -316,7 +346,24 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
                 sent = Some(take);
                 tokio::time::advance(Duration::from_secs(3)).await;
             }
-            let (fill, take) = ready(helper).await.unwrap();
+            let result = ready(helper).await;
+            if matches!(case, Case::CraftTimeout | Case::CraftNotApplied) {
+                // craft_once never returns Ok for a pending or not-applied take.
+                let kind = result.unwrap_err();
+                let latest = ops.crafting_take_record().await.unwrap().unwrap();
+                assert_eq!(latest.id, sent.unwrap().id);
+                if matches!(case, Case::CraftTimeout) {
+                    assert_eq!(kind, ErrorKind::Timeout);
+                    assert_eq!(latest.stage, crate::client::CraftingTakeStage::Pending);
+                    assert!(latest.after.is_none());
+                } else {
+                    assert_eq!(kind, ErrorKind::Rejected);
+                    assert_eq!(latest.stage, crate::client::CraftingTakeStage::NotApplied);
+                    assert!(latest.requires_inspection.is_none());
+                }
+                return;
+            }
+            let (fill, take) = result.unwrap();
             assert_eq!(
                 fill.result,
                 match &button {
@@ -346,10 +393,10 @@ async fn run_case(fixture: &mut impl Fixture, case: Case) {
                         take.stage,
                         crate::client::CraftingTakeStage::ObservedTransferred
                     ),
-                    Case::CraftTimeout => {
-                        // Existing craft_once contract: timeout returns the pending identity.
-                        assert_eq!(take.stage, crate::client::CraftingTakeStage::Pending);
-                        assert!(take.after.is_none());
+                    Case::CraftCheckedNotApplied => {
+                        assert_eq!(take.stage, crate::client::CraftingTakeStage::NotApplied);
+                        assert!(take.after.is_some() && take.inventory_after.is_some());
+                        assert!(take.inventory_output_increase.is_none());
                     }
                     Case::CraftReplacement => {
                         assert_eq!(
