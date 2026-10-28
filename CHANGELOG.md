@@ -114,6 +114,15 @@
   Unsupported; Java 1.21.11 returns Unsupported for the new monitoring APIs.
   See [contract and recovery](docs/body-monitoring.md).
 
+- Add `Client::selected_hotbar_changes_after` on Java 1.16.1 and 1.21.11: a
+  bounded (256) receive-time log of every selected-hotbar write with before/after,
+  origin (`Submitted` serverbound held slot, including the respawn reassertion,
+  or `Received` clientbound held slot) and `superseded_submission` when a received
+  slot replaced a submission. Same cursor/`State` gap/`InvalidInput` conventions as
+  `control_changes_after`; readable after disconnect. Snapshots, events and
+  `select_hotbar` are unchanged (audit I5). LIVE shows a stale server write
+  overtaking an in-flight submission on both versions.
+  See [contract](docs/hotbar-changes.md).
 - Add `InventoryCause::OwnAction { action, ordinal, interaction_sequence, locations }`
   (additive; the enum is `#[non_exhaustive]`) with `InventoryOwnActionKind` and
   `INVENTORY_OWN_ACTION_WINDOW`. On both versions, `inventory_changes_after` now

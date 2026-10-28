@@ -5638,6 +5638,9 @@ mod hand_swaps;
 #[path = "drop_tests.rs"]
 mod selected_drops;
 
+#[path = "hotbar_change_tests.rs"]
+mod hotbar_changes;
+
 async fn crafting_input_transfer_fixture(
     table: bool,
     mode: crate::client::GameMode,

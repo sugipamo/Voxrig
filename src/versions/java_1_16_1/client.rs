@@ -1058,6 +1058,7 @@ pub struct Bot {
         mpsc::Sender<crate::observation::TraversalMovementFactsCommand>,
     coherent_state_gate: Arc<Mutex<()>>,
     observation_events: Arc<StdMutex<ObservationEventQueue>>,
+    hotbar_changes: Arc<crate::client::hotbar_changes::HotbarChangeLedger>,
 }
 
 impl Clone for Bot {
@@ -1192,6 +1193,7 @@ impl Bot {
             traversal_movement_facts_requests: self.traversal_movement_facts_requests.clone(),
             coherent_state_gate: self.coherent_state_gate.clone(),
             observation_events: self.observation_events.clone(),
+            hotbar_changes: self.hotbar_changes.clone(),
         }
     }
 
@@ -1458,6 +1460,7 @@ impl Bot {
                 events: VecDeque::with_capacity(256),
                 omitted: 0,
             })),
+            hotbar_changes: Arc::default(),
         };
         bot.emit(Event::Login);
         let background = bot.clone_internal();
@@ -1782,6 +1785,7 @@ impl Bot {
                             .await?;
                         if outcome == DispatchOutcome::Dispatched {
                             self.inventory.write().await.selected_hotbar = hotbar_slot;
+                            self.record_hotbar_submission(hotbar_slot).await;
                         }
                         drop(coherent_state);
                         Ok(outcome)
@@ -1805,6 +1809,7 @@ impl Bot {
                             .await?;
                         if outcome == DispatchOutcome::Dispatched {
                             self.inventory.write().await.selected_hotbar = hotbar_slot;
+                            self.record_hotbar_submission(hotbar_slot).await;
                         }
                         drop(coherent_state);
                         Ok(outcome)
@@ -3823,7 +3828,43 @@ impl Bot {
             value: slot,
             source: crate::client::ValueSource::Submitted,
         });
+        self.record_hotbar_submission(slot).await;
         Ok(())
+    }
+    /// Append a completed selected-hotbar write to the connection's log.
+    pub(super) async fn record_hotbar_change(
+        &self,
+        origin: crate::client::HotbarChangeOrigin,
+        slot: u8,
+        receive_sequence: u64,
+    ) {
+        let world_generation = self.common_receipts.lock().await.generation;
+        self.hotbar_changes.record(
+            crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation,
+            },
+            receive_sequence,
+            origin,
+            slot,
+        );
+    }
+    /// A completely written serverbound held-slot packet; never an ACK.
+    pub(super) async fn record_hotbar_submission(&self, slot: u8) {
+        let receive_sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        self.record_hotbar_change(
+            crate::client::HotbarChangeOrigin::Submitted,
+            slot,
+            receive_sequence,
+        )
+        .await;
+    }
+    pub(crate) async fn hotbar_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::HotbarChangeLog> {
+        self.hotbar_changes.after(after_sequence)
     }
     /// Dispatches an item-drop action without waiting for an inventory update.
     pub async fn drop_selected(&self, entire_stack: bool) -> Result<()> {
@@ -5976,6 +6017,12 @@ impl Bot {
                 self.inventory.write().await.selected_hotbar = raw;
                 self.common_receipts.lock().await.selected_hotbar =
                     Some(crate::client::received(raw, packet_sequence));
+                self.record_hotbar_change(
+                    crate::client::HotbarChangeOrigin::Received,
+                    raw,
+                    packet_sequence,
+                )
+                .await;
                 self.emit(Event::HeldItemChanged { slot: raw });
             }
             0x40 => {

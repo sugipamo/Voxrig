@@ -566,6 +566,11 @@ async fn main() -> anyhow::Result<()> {
                 survival.select_hotbar(request["slot"].as_u64().unwrap().try_into()?).await?;
                 serde_json::to_value(client.player_state().await?)?
             }
+            "hotbar_changes" => serde_json::to_value(
+                client
+                    .selected_hotbar_changes_after(request["after"].as_u64().unwrap_or(0))
+                    .await?,
+            )?,
             "drop_selected" => {
                 use voxrig::client::inventory::SelectedDropAmount;
                 let amount = match request["amount"].as_str() {

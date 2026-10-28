@@ -26,6 +26,7 @@ include = [
     "/scripts/run_use_item_expect_live.py",
     "/scripts/run_body_live.py",
     "/scripts/run_health_log_live.py",
+    "/scripts/run_hotbar_changes_live.py",
     "/scripts/run_explosion_changes_live.py",
     "/scripts/run_manager_gap_live.py",
     "/scripts/run_digging_ack_live.py",
