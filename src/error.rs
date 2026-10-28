@@ -69,6 +69,13 @@ impl Error {
         }
     }
 
+    /// Insufficient configured column budget for the received view/body range.
+    pub fn chunk_capacity(&self) -> Option<&crate::client::ChunkCapacityError> {
+        self.source
+            .chain()
+            .find_map(|e| e.downcast_ref::<crate::client::ChunkCapacityError>())
+    }
+
     /// Structured movement refusal, retained through the diagnostic error chain.
     pub fn movement_refusal(&self) -> Option<&crate::MovementRefusal> {
         self.source.downcast_ref::<crate::MovementRefusal>()
@@ -91,6 +98,12 @@ impl Error {
     }
 
     fn classify(source: &anyhow::Error) -> ErrorKind {
+        if source.chain().any(|e| {
+            e.downcast_ref::<crate::client::ChunkCapacityError>()
+                .is_some()
+        }) {
+            return ErrorKind::ResourceLimit;
+        }
         if source
             .downcast_ref::<crate::client::survival::TerrainRefusal>()
             .is_some()
@@ -161,6 +174,12 @@ pub(crate) fn state_error(message: impl std::fmt::Display) -> Error {
 /// Creates an error for invalid caller input.
 pub(crate) fn invalid_input(message: impl std::fmt::Display) -> Error {
     Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
+}
+
+impl From<crate::client::ChunkCapacityError> for Error {
+    fn from(source: crate::client::ChunkCapacityError) -> Self {
+        Self::new(ErrorKind::ResourceLimit, source)
+    }
 }
 
 impl From<anyhow::Error> for Error {

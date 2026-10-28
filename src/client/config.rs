@@ -34,7 +34,7 @@ impl Default for Server {
 ///     let mut config = ConnectionConfig::offline(
 ///         Server::default(), "AgentOne", MinecraftVersion::Java1_16_1,
 ///     );
-///     config.limits.max_chunks = 512;
+///     config.limits.chunk_capacity = voxrig::client::ChunkCapacity::Fixed(1058);
 ///     config.limits.native_event_channel_capacity = Some(8192);
 ///     Client::connect(config).await
 /// }
@@ -50,8 +50,8 @@ pub struct ClientLimits {
     pub play_packet_timeout: Duration,
     /// Deadline for initial playable state.
     pub ready_timeout: Duration,
-    /// Maximum retained chunks per connection.
-    pub max_chunks: usize,
+    /// Received-view column retention, including light-only columns.
+    pub chunk_capacity: crate::client::ChunkCapacity,
     /// Maximum remote bodies in the per-tick player contact scope (default 256).
     /// Excluded native slots do not consume this budget. Zero refuses any contact.
     pub max_contact_bodies: usize,
@@ -71,7 +71,7 @@ impl Default for ClientLimits {
             login_packet_timeout: Duration::from_secs(15),
             play_packet_timeout: Duration::from_secs(60),
             ready_timeout: Duration::from_secs(15),
-            max_chunks: 512,
+            chunk_capacity: crate::client::ChunkCapacity::default(),
             max_contact_bodies: 256,
             native_event_channel_capacity: None,
         }
@@ -84,7 +84,7 @@ impl ClientLimits {
             login_packet_timeout: self.login_packet_timeout,
             play_packet_timeout: self.play_packet_timeout,
             ready_timeout: self.ready_timeout,
-            max_chunks: self.max_chunks,
+            chunk_capacity: self.chunk_capacity,
             max_contact_bodies: self.max_contact_bodies,
             event_channel_capacity: self.native_event_channel_capacity.unwrap_or_else(|| {
                 crate::versions::java_1_16_1::ConnectionOptions::default().event_channel_capacity

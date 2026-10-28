@@ -9,6 +9,17 @@
 
 ## Unreleased
 
+- BREAKING: replace `ClientLimits.max_chunks` and native 1.16.1
+  `ConnectionOptions.max_chunks` with `chunk_capacity: ChunkCapacity`.
+  Auto sizes from received view distance, including light-only columns and
+  teleport overlap, up to a hard column-count cap; Fixed keeps an explicit
+  budget. Evict distant columns without disconnecting, preserving the received
+  view and body neighborhood; evicted terrain/context/light become Unknown.
+  Add `Client::chunk_cache` availability epoch/loss metrics and typed
+  `ChunkCapacityError`/`Error::chunk_capacity`. Native `ChunkSnapshot` gains
+  `terrain_received`; light-only terrain no longer fabricates Air. See
+  [policy and migration](docs/chunk-capacity.md).
+
 - Match Java 1.16.1 dig replies to the last sent action before concluding
   `Rejected`; a delayed START rejection cannot stand in for the STOP response.
 

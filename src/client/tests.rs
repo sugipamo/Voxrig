@@ -1142,7 +1142,7 @@ fn setup_only_accepts_exact_implemented_versions() {
     ] {
         let mut config = ConnectionConfig::offline(Server::default(), "Probe", version);
         config.validate().unwrap();
-        config.limits.max_chunks = 0;
+        config.limits.chunk_capacity = crate::client::ChunkCapacity::Fixed(0);
         assert!(config.validate().is_err());
         assert!(matches!(
             Capabilities::for_version(version).support(Feature::Containers),

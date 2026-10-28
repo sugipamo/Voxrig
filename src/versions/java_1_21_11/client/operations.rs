@@ -1866,6 +1866,10 @@ impl Operations {
 }
 
 impl crate::client::adapter::CoreOps for Operations {
+    async fn chunk_cache(&self) -> Result<crate::client::ChunkCacheObservation> {
+        let state = self.bot.session.state.lock().await;
+        Ok(state.world.cache_observation(state.snapshot_session()))
+    }
     async fn map_observation(
         &self,
         native_id: i32,

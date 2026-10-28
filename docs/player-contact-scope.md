@@ -111,8 +111,9 @@ name) defaults to **256 remote bodies**. Only the current propagated scope is
 counted; zero permits movement with no scoped remote bodies. Increasing the cap
 admits a larger numerical scope, without increasing any independent public
 numerical model's fixed budget. Received identity/history storage still has its
-own bounds. `max_chunks` now defaults to **512**, covering the 289/361/441 chunk
-squares at view distances 8/9/10; larger distances can use the existing setting.
+own bounds. `chunk_capacity` defaults to received-view Auto, replacing the
+historical 512-column budget. It includes light-only columns and teleport
+overlap; see [capacity and migration](chunk-capacity.md).
 
 `MovementRefusal::Scoped` wraps the original recovery class without changing the
 constructible `MovementRefusalContext`. `context()` retains entity ID/type,

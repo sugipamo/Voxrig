@@ -792,6 +792,14 @@ async fn main() -> anyhow::Result<()> {
                     .await?,
             )?,
             "player_context" => serde_json::to_value(client.player_context().await?)?,
+            "chunk_cache" => serde_json::to_value(client.chunk_cache().await?)?,
+            "chunk_probe" => {
+                let p: [i32;3] = serde_json::from_value(request["position"].clone())?;
+                let column = [p[0].div_euclid(16), p[2].div_euclid(16)];
+                let chunk = client.chunk(column).await?;
+                serde_json::json!({"column":column,"known":chunk.is_some(),"state":chunk.as_ref().and_then(|c|c.state_id(p)),
+                    "context":client.chunk_context(column).await?,"cache":client.chunk_cache().await?})
+            }
             "chunk_context" => {
                 let position = serde_json::from_value(request["position"].clone())?;
                 let context = client.chunk_context(position).await?;

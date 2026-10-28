@@ -31,6 +31,7 @@ pub(crate) struct ColumnLight {
 
 #[derive(Default)]
 pub(crate) struct World {
+    cache: crate::client::chunk_capacity::Cache,
     pub dimension: Option<(String, Dimension)>,
     chunks: HashMap<(i32, i32), Vec<Arc<[i32; 4096]>>>,
     contexts: HashMap<(i32, i32), crate::client::chunk_context::ChunkData>,
@@ -140,6 +141,7 @@ impl World {
     }
     pub fn select_dimension(&mut self, name: String, dimension: Dimension) {
         self.dimension = Some((name, dimension));
+        self.cache.lost();
         self.chunks.clear();
         self.contexts.clear();
         self.light.clear();
@@ -147,6 +149,7 @@ impl World {
     }
     pub fn reset(&mut self) {
         self.dimension = None;
+        self.cache.lost();
         self.chunks.clear();
         self.contexts.clear();
         self.light.clear();
@@ -293,6 +296,43 @@ impl World {
         }
         Ok(changes)
     }
+    pub(crate) fn cache_observation(
+        &self,
+        session: crate::client::SessionStamp,
+    ) -> crate::client::ChunkCacheObservation {
+        self.cache.capture(session, self.chunks.len())
+    }
+    pub(crate) fn retain_columns(
+        &mut self,
+        policy: crate::client::ChunkCapacity,
+        view: &crate::client::WorldViewObservation,
+        body: Option<[i32; 2]>,
+        incoming: Option<[i32; 2]>,
+    ) -> Result<Vec<[i32; 2]>> {
+        let cap = self
+            .cache
+            .configure(policy, view.distance.as_ref().map(|v| v.value))?;
+        let extra = usize::from(incoming.is_some_and(|p| !self.chunks.contains_key(&(p[0], p[1]))));
+        let pressure = self.chunks.len().saturating_add(extra) > cap;
+        let removed = self.cache.plan(
+            policy,
+            view,
+            body,
+            self.chunks
+                .keys()
+                .take(if pressure { usize::MAX } else { 0 })
+                .map(|&(x, z)| [x, z]),
+            if pressure { incoming } else { None },
+        )?;
+        for p in &removed {
+            self.chunks.remove(&(p[0], p[1]));
+            self.contexts.remove(&(p[0], p[1]));
+            self.light.remove(&(p[0], p[1]));
+            self.cache.evicted(*p);
+            self.revision += 1;
+        }
+        Ok(removed)
+    }
     pub fn unload(&mut self, payload: &[u8]) -> Result<()> {
         let mut r = Reader::new(payload);
         let z = r.i32()?;
@@ -301,6 +341,7 @@ impl World {
         self.chunks.remove(&(x, z));
         self.contexts.remove(&(x, z));
         self.light.remove(&(x, z));
+        self.cache.lost();
         self.revision += 1;
         Ok(())
     }
@@ -738,6 +779,45 @@ mod tests {
         p.extend([value; 2048]);
         p.push(0); // no block arrays
         p
+    }
+
+    #[test]
+    fn capacity_eviction_forgets_all_column_owners_and_keeps_body() {
+        use crate::client::{ChunkCapacity, WorldViewObservation, received};
+        let mut world = World::default();
+        world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        for x in std::iter::once(0i32).chain(100..197) {
+            world.chunks.insert((x, 0), vec![Arc::new([1; 4096]); 24]);
+            world.contexts.insert((x, 0), Default::default());
+            world.light.insert((x, 0), Default::default());
+        }
+        let view = WorldViewObservation {
+            center: Some(received([0, 0], 1)),
+            distance: Some(received(2, 1)),
+            ..Default::default()
+        };
+        let removed = world
+            .retain_columns(
+                ChunkCapacity::Fixed(98),
+                &view,
+                Some([0, 0]),
+                Some([500, 0]),
+            )
+            .unwrap();
+        assert_eq!(removed, vec![[196, 0]]);
+        assert_eq!(world.block([196 * 16, 64, 0]), None);
+        assert!(!world.contexts.contains_key(&(196, 0)));
+        assert!(!world.light.contains_key(&(196, 0)));
+        assert_eq!(world.block([0, 64, 0]), Some(1));
+        assert!(
+            world
+                .retain_columns(ChunkCapacity::Fixed(97), &view, Some([0, 0]), None)
+                .is_err()
+        );
+        assert_eq!(world.chunks.len(), 97);
     }
 
     #[test]

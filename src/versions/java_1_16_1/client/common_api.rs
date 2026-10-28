@@ -453,6 +453,16 @@ fn common_state(message: &str) -> crate::Error {
 }
 
 impl crate::client::adapter::CoreOps for Bot {
+    async fn chunk_cache(&self) -> Result<api::ChunkCacheObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let receipts = self.common_receipts.lock().await;
+        let session = api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: receipts.generation,
+        };
+        Ok(self.world.lock().await.cache_observation(session))
+    }
     async fn map_observation(&self, native_id: i32) -> Result<Option<api::MapObservation>> {
         let _gate = self.coherent_state_gate.lock().await;
         let receipts = self.common_receipts.lock().await;

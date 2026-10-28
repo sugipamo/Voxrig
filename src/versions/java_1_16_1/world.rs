@@ -18,6 +18,7 @@ use std::{
 type ChunkResourceIndex = HashMap<i32, BTreeSet<(i32, i32, i32)>>;
 
 pub(crate) struct World {
+    cache: crate::client::chunk_capacity::Cache,
     chunks: HashMap<(i32, i32), Chunk>,
     contexts: HashMap<(i32, i32), crate::client::chunk_context::ChunkData>,
     resource_index: HashMap<(i32, i32), ChunkResourceIndex>,
@@ -120,6 +121,8 @@ pub struct ChunkPos {
 /// A low-copy view of a decoded chunk. Cloning shares section and NBT buffers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChunkSnapshot {
+    /// Whether an original terrain packet was received; light alone is not Air.
+    pub terrain_received: bool,
     /// The `position` value.
     pub position: ChunkPos,
     /// The `sections` value.
@@ -156,7 +159,7 @@ impl ChunkSnapshot {
             return None;
         }
         let Some(section) = self.sections.get(&y.div_euclid(16)) else {
-            return Some(0);
+            return self.terrain_received.then_some(0);
         };
         let index =
             (y.rem_euclid(16) * 256 + i32::from(local_z) * 16 + i32::from(local_x)) as usize;
@@ -318,6 +321,7 @@ impl World {
     }
     pub(crate) fn with_storage(storage: Arc<SharedChunkStorage>) -> Self {
         Self {
+            cache: Default::default(),
             chunks: HashMap::new(),
             contexts: HashMap::new(),
             resource_index: HashMap::new(),
@@ -328,6 +332,7 @@ impl World {
     }
 
     pub(crate) fn clear(&mut self) {
+        self.cache.lost();
         self.chunks.clear();
         self.contexts.clear();
         self.resource_index.clear();
@@ -375,8 +380,9 @@ impl World {
     }
     pub(crate) fn loaded_chunks(&self) -> Vec<ChunkPos> {
         self.chunks
-            .keys()
-            .map(|&(x, z)| ChunkPos { x, z })
+            .iter()
+            .filter(|(_, c)| c.terrain_received || !c.sections.is_empty())
+            .map(|(&(x, z), _)| ChunkPos { x, z })
             .collect()
     }
 
@@ -385,8 +391,9 @@ impl World {
     ) -> (Vec<ChunkPos>, Vec<crate::LoadedGeometrySection>) {
         let mut loaded_chunks = self
             .chunks
-            .keys()
-            .map(|&(x, z)| ChunkPos { x, z })
+            .iter()
+            .filter(|(_, c)| c.terrain_received || !c.sections.is_empty())
+            .map(|(&(x, z), _)| ChunkPos { x, z })
             .collect::<Vec<_>>();
         loaded_chunks.sort();
         let mut sections = self
@@ -594,6 +601,7 @@ impl World {
     pub(crate) fn chunk_snapshot(&self, position: ChunkPos) -> Option<ChunkSnapshot> {
         let chunk = self.chunks.get(&(position.x, position.z))?;
         Some(ChunkSnapshot {
+            terrain_received: chunk.terrain_received,
             position,
             sections: chunk.sections.clone(),
             biomes: chunk.biomes.clone(),
@@ -1041,7 +1049,8 @@ impl World {
 
     pub(crate) fn has_chunk_at(&self, x: i32, z: i32) -> bool {
         self.chunks
-            .contains_key(&(x.div_euclid(16), z.div_euclid(16)))
+            .get(&(x.div_euclid(16), z.div_euclid(16)))
+            .is_some_and(|c| c.terrain_received || !c.sections.is_empty())
     }
 
     pub(crate) fn block(&self, x: i32, y: i32, z: i32) -> Option<i32> {
@@ -1050,7 +1059,7 @@ impl World {
             return Some(0);
         }
         let Some(section) = chunk.sections.get(&y.div_euclid(16)) else {
-            return Some(0);
+            return chunk.terrain_received.then_some(0);
         };
         let i = ((y.rem_euclid(16) * 256) + (z.rem_euclid(16) * 16) + x.rem_euclid(16)) as usize;
         Some(section[i])
@@ -1225,6 +1234,46 @@ impl World {
             }
         }
         out
+    }
+
+    fn forget_column(&mut self, p: [i32; 2]) {
+        self.chunks.remove(&(p[0], p[1]));
+        self.contexts.remove(&(p[0], p[1]));
+        self.remove_resource_index_chunk((p[0], p[1]));
+    }
+    pub(crate) fn cache_observation(
+        &self,
+        session: crate::client::SessionStamp,
+    ) -> crate::client::ChunkCacheObservation {
+        self.cache.capture(session, self.chunks.len())
+    }
+    pub(crate) fn retain_columns(
+        &mut self,
+        policy: crate::client::ChunkCapacity,
+        view: &crate::client::WorldViewObservation,
+        body: Option<[i32; 2]>,
+        incoming: Option<[i32; 2]>,
+    ) -> Result<Vec<[i32; 2]>> {
+        let cap = self
+            .cache
+            .configure(policy, view.distance.as_ref().map(|v| v.value))?;
+        let extra = usize::from(incoming.is_some_and(|p| !self.chunks.contains_key(&(p[0], p[1]))));
+        let pressure = self.chunks.len().saturating_add(extra) > cap;
+        let removed = self.cache.plan(
+            policy,
+            view,
+            body,
+            self.chunks
+                .keys()
+                .take(if pressure { usize::MAX } else { 0 })
+                .map(|&(x, z)| [x, z]),
+            if pressure { incoming } else { None },
+        )?;
+        for p in &removed {
+            self.forget_column(*p);
+            self.cache.evicted(*p);
+        }
+        Ok(removed)
     }
 
     pub(crate) fn apply_chunk(&mut self, payload: &[u8], max_chunks: usize) -> Result<(i32, i32)> {
@@ -1432,9 +1481,8 @@ impl World {
         if c.position() as usize != payload.len() {
             bail!("trailing unload data");
         }
-        self.chunks.remove(&(x, z));
-        self.contexts.remove(&(x, z));
-        self.remove_resource_index_chunk((x, z));
+        self.forget_column([x, z]);
+        self.cache.lost();
         Ok((x, z))
     }
 
@@ -2045,6 +2093,104 @@ mod tests {
     }
 
     #[test]
+    fn capacity_eviction_forgets_terrain_light_context_and_resource_index() {
+        use crate::client::{ChunkCapacity, WorldViewObservation, received};
+        let mut world = World::default();
+        for x in std::iter::once(0i32).chain(100..197) {
+            let mut p = x.to_be_bytes().to_vec();
+            p.extend(0i32.to_be_bytes());
+            p.extend([0; 6]);
+            world.apply_chunk(&p, 98).unwrap();
+            world.set_block(x * 16, 64, 0, 1);
+            world
+                .chunks
+                .get_mut(&(x, 0))
+                .unwrap()
+                .sky_light
+                .insert(4, Arc::new([0xff; 2048]));
+        }
+        let view = WorldViewObservation {
+            center: Some(received([0, 0], 1)),
+            distance: Some(received(2, 1)),
+            ..Default::default()
+        };
+        assert_eq!(world.block(196 * 16, 64, 0), Some(1));
+        let removed = world
+            .retain_columns(
+                ChunkCapacity::Fixed(98),
+                &view,
+                Some([0, 0]),
+                Some([500, 0]),
+            )
+            .unwrap();
+        assert_eq!(removed, vec![[196, 0]]);
+        assert_eq!(world.block(196 * 16, 64, 0), None);
+        assert!(world.chunk_snapshot(ChunkPos { x: 196, z: 0 }).is_none());
+        assert!(!world.contexts.contains_key(&(196, 0)));
+        assert!(!world.resource_index.contains_key(&(196, 0)));
+        assert_eq!(world.block(0, 64, 0), Some(1));
+        assert_eq!(
+            world
+                .cache
+                .capture(
+                    crate::client::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_16_1,
+                        connection_id: 1,
+                        world_generation: 1
+                    },
+                    world.chunks.len()
+                )
+                .epoch,
+            1
+        );
+        assert_eq!(
+            world
+                .cache
+                .capture(
+                    crate::client::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_16_1,
+                        connection_id: 1,
+                        world_generation: 1
+                    },
+                    world.chunks.len()
+                )
+                .evicted_columns,
+            1
+        );
+        // A later light-only receipt must not turn the evicted terrain into Air.
+        let mut light = Vec::new();
+        for v in [196, 0, 1, 0, 0, 0, 0] {
+            crate::protocol::put_varint(&mut light, v);
+        }
+        world.apply_light(&light, 98).unwrap();
+        assert_eq!(world.block(196 * 16, 64, 0), None);
+        assert_eq!(
+            world
+                .chunk_snapshot(ChunkPos { x: 196, z: 0 })
+                .unwrap()
+                .block(0, 64, 0),
+            None
+        );
+        let before = world.chunks.len();
+        let error = world
+            .retain_columns(
+                ChunkCapacity::Fixed(97),
+                &view,
+                Some([0, 0]),
+                Some([500, 0]),
+            )
+            .unwrap_err();
+        assert_eq!(
+            error
+                .downcast_ref::<crate::client::ChunkCapacityError>()
+                .unwrap()
+                .required,
+            98
+        );
+        assert_eq!(world.chunks.len(), before);
+    }
+
+    #[test]
     fn chunk_limit_rejects_new_chunk_before_mutation() {
         let mut world = World::default();
         let mut packet = Vec::new();
@@ -2346,8 +2492,20 @@ mod tests {
     #[test]
     fn block_visibility_does_not_accept_unloaded_sight_lines_or_air() {
         let mut world = World::default();
-        world.chunks.insert((0, 0), Chunk::default());
-        world.chunks.insert((2, 0), Chunk::default());
+        world.chunks.insert(
+            (0, 0),
+            Chunk {
+                terrain_received: true,
+                ..Chunk::default()
+            },
+        );
+        world.chunks.insert(
+            (2, 0),
+            Chunk {
+                terrain_received: true,
+                ..Chunk::default()
+            },
+        );
         let target = BlockPos { x: 32, y: 1, z: 0 };
         let wheat = (0..18000)
             .find(|id| crate::block_name_from_state(*id) == Some("wheat"))
@@ -2359,7 +2517,13 @@ mod tests {
             z: 0.5,
         };
         assert!(!world.block_visible(origin, target));
-        world.chunks.insert((1, 0), Chunk::default());
+        world.chunks.insert(
+            (1, 0),
+            Chunk {
+                terrain_received: true,
+                ..Chunk::default()
+            },
+        );
         assert!(world.block_visible(origin, target));
         assert!(!world.block_visible(origin, BlockPos { x: 16, y: 1, z: 0 }));
         assert!(!world.block_visible(
@@ -2439,7 +2603,13 @@ mod tests {
     #[test]
     fn absent_section_in_loaded_chunk_is_air() {
         let mut world = World::default();
-        world.chunks.insert((0, 0), Chunk::default());
+        world.chunks.insert(
+            (0, 0),
+            Chunk {
+                terrain_received: true,
+                ..Chunk::default()
+            },
+        );
         assert_eq!(world.block(0, 100, 0), Some(0));
         assert_eq!(world.block(16, 100, 0), None);
     }
