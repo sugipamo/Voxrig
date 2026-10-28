@@ -44,7 +44,7 @@ pub enum EventKind {
     InventoryChanged,
     /// An open screen, its contents or properties.
     ScreenChanged,
-    /// Own position, health, experience, abilities or game mode.
+    /// Own position, server-forced rotation, health, experience, abilities or game mode.
     PlayerChanged,
     /// Received player/world context changed; read `Client::player_context`.
     /// Covers entry, abilities, difficulty, XP, weather, spawn, view and cooldowns.
