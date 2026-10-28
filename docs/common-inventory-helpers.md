@@ -72,13 +72,13 @@ player 画面でも、開いている container の player 部分（検証済み
 
 ## `craft_once(ingredients)`
 
-`fill_crafting_grid` の後、結果を `transfer_crafting_result`（shift で収納へ）で 1 回取り、その記録の結果を最大 3 秒待ちます。fill 後に結果 slot が出なければエラーです（材料は grid に残り、次の fill で戻ります）。戻り値は `CraftOnceRecord { fill, take }` で、take が `Pending` や `RequiresInspection` でも `Ok` を返します。
+`fill_crafting_grid` の後、結果を `transfer_crafting_result`（shift で収納へ）で 1 回取り、その記録の結果を最大 3 秒待ちます。fill 後に結果 slot が出なければエラーです（材料は grid に残り、次の fill で戻ります）。戻り値は `CraftOnceRecord { fill, take }` です。take が `RequiresInspection` のときはその stage のまま `Ok` を返します。take が `NotApplied`（送信後の全量 resync が送信前と同じ。[結果の取り出し](common-recipes.md#result-take-not-applied-notapplied)）なら `ErrorKind::Rejected`、期限時点で `Pending` なら `ErrorKind::Timeout` を返します。`Timeout` はサーバーがまだ反映しうることを意味するので、再送せず `crafting_take_record()` で確認してください。以前はどちらも `Ok` でした。
 
 ## `craft_once_checked(ingredients)`
 
-同じ手順・期限で実行し、take が `ObservedTransferred` の場合だけ `Ok` を返します。期限時点で `Pending` なら `CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::Timeout }`、inspection が必要なら cause は `RequiresInspection` です。`record.take.id` と最後の `record.take.stage` を保持します。入力不正・fill のエラー・結果なし、および take の frame write 前に予約・所有権・前提状態の検査で拒否された場合は、元のエラーを保持した `CraftOnceError::Failed` です。
+同じ手順・期限で実行し、take が `ObservedTransferred` の場合だけ `Ok` を返します。期限時点で `Pending` なら `CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::Timeout }`、inspection が必要なら cause は `RequiresInspection` です。take が `NotApplied` なら、Timeout ではなく `CraftOnceError::NotApplied { record }` を返します（クラフトは起きておらず、材料は grid に残ります）。`record.take.id` と最後の `record.take.stage` を保持します。入力不正・fill のエラー・結果なし、および take の frame write 前に予約・所有権・前提状態の検査で拒否された場合は、元のエラーを保持した `CraftOnceError::Failed` です。
 
-take が受理・保持された後、その送信が失敗して配送が不明になった場合は、`CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::RequiresInspection }` を返します。fill 記録と保持された take の記録（`record.take.id` を含む）を渡し、再送しません。take が保持されている、またはその記録が `RequiresInspection` になったという事実だけでは配送不明と判定しません。送信前の拒否は `Failed` のままです。公開型・シグネチャと `craft_once` の動作は変更しません。
+take が受理・保持された後、その送信が失敗して配送が不明になった場合は、`CraftOnceError::OutcomeUnknown { record, cause: CraftOnceUnknownCause::RequiresInspection }` を返します。fill 記録と保持された take の記録（`record.take.id` を含む）を渡し、再送しません。take が保持されている、またはその記録が `RequiresInspection` になったという事実だけでは配送不明と判定しません。送信前の拒否は `Failed` のままです。公開型・シグネチャはこの件では変更しません。
 
 期限超過は失敗・取消の証明ではなく、server が後から適用する場合があります。受信在庫や `crafting_take_record()` で再観測・照合してから判断し、無条件に再送しません。
 

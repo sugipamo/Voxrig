@@ -836,3 +836,139 @@ fn crafting_result_shift_requires_one_whole_initial_move_and_received_full_inven
         }
     }
 }
+
+#[test]
+fn crafting_take_unchanged_full_resync_after_send_is_terminal_not_applied() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for destination in [
+            CraftingResultDestination::Cursor,
+            CraftingResultDestination::Inventory,
+        ] {
+            let (mut p, grid) = take_fixture(version);
+            for index in 5..=45 {
+                p.inventory.slots[index] = Some(received(SlotKnowledge::Empty, 15));
+            }
+            let prepare = |p: &PlayerObservation| {
+                let prepare = match destination {
+                    CraftingResultDestination::Cursor => take::prepare,
+                    CraftingResultDestination::Inventory => take::prepare_transfer,
+                };
+                let mut record = prepare(
+                    p.clone(),
+                    screen(p),
+                    registries(p),
+                    &grid,
+                    GameMode::Survival,
+                    1,
+                )
+                .unwrap();
+                record.send.dispatched = true;
+                record
+            };
+            let reply = |record: &mut CraftingTakeRecord| {
+                // Voxrig provokes accepted=false on every legacy take; it only
+                // orders the boundary and is never the rejection evidence itself.
+                record.legacy_reply = Some(crate::client::inventory::InventoryTransactionReply {
+                    window_id: 0,
+                    action: 1,
+                    accepted: false,
+                    receive_sequence: 23,
+                });
+            };
+            let mut record = prepare(&p);
+            let legacy = version == MinecraftVersion::Java1_16_1;
+            if legacy {
+                reply(&mut record);
+                // A rejected reply without a full boundary proves nothing.
+                take::receive(&mut record, &p, &screen(&p), &registries(&p));
+                assert_eq!(record.stage, CraftingTakeStage::Pending);
+            }
+            // The take's full resync re-sends every unchanged grid/main receipt.
+            let mut q = p.clone();
+            q.receive_sequence = 24;
+            for index in 0..=45 {
+                let value = p.inventory.slots[index].as_ref().unwrap().value.clone();
+                q.inventory.slots[index] = Some(received(value, 24));
+            }
+            if legacy {
+                // The legacy cursor packet follows its window contents.
+                take::receive(&mut record, &q, &screen(&q), &registries(&q));
+                assert_eq!(record.stage, CraftingTakeStage::Pending);
+                q.receive_sequence = 25;
+                q.inventory.cursor = Some(received(SlotKnowledge::Empty, 25));
+            } else {
+                q.inventory.cursor = Some(received(SlotKnowledge::Empty, 24));
+            }
+            take::receive(&mut record, &q, &screen(&q), &registries(&q));
+            assert_eq!(record.stage, CraftingTakeStage::NotApplied, "{record:?}");
+            assert!(!record.unresolved() && !record.ready());
+            assert!(record.requires_inspection.is_none());
+            assert!(
+                record.cursor_receipt.is_none()
+                    || destination == CraftingResultDestination::Inventory
+            );
+            assert!(record.inventory_output_increase.is_none());
+            assert_eq!(
+                record.after.as_ref().unwrap().result().unwrap().value(),
+                record.before.result().unwrap().value()
+            );
+            assert_eq!(
+                record.inventory_after.is_some(),
+                destination == CraftingResultDestination::Inventory
+            );
+            // Terminal: later receipts or interruptions do not rewrite the history.
+            let mut later = q.clone();
+            later.receive_sequence = 26;
+            later.inventory.cursor = Some(received(item(version), 26));
+            take::receive(&mut record, &later, &screen(&later), &registries(&later));
+            record.inspection("later interruption");
+            assert_eq!(record.stage, CraftingTakeStage::NotApplied);
+            assert!(record.requires_inspection.is_none());
+
+            // The same boundary without the legacy reply stays pending on 1.16.1.
+            if legacy {
+                let mut unreplied = prepare(&p);
+                take::receive(&mut unreplied, &q, &screen(&q), &registries(&q));
+                assert_eq!(unreplied.stage, CraftingTakeStage::Pending);
+                reply(&mut unreplied);
+                take::receive(&mut unreplied, &q, &screen(&q), &registries(&q));
+                assert_eq!(unreplied.stage, CraftingTakeStage::NotApplied);
+            }
+            // Any changed grid, cursor or main/hotbar value is not "not applied".
+            for change in 0..3 {
+                let mut changed = q.clone();
+                match change {
+                    0 => changed.inventory.slots[1] = Some(received(SlotKnowledge::Empty, 24)),
+                    1 => {
+                        changed.inventory.cursor = Some(received(item(version), 25));
+                        if destination == CraftingResultDestination::Cursor {
+                            // That is the cursor receipt of an ordinary take.
+                            continue;
+                        }
+                    }
+                    _ => changed.inventory.slots[20] = Some(received(item(version), 24)),
+                }
+                let mut other = prepare(&p);
+                if legacy {
+                    reply(&mut other);
+                }
+                take::receive(
+                    &mut other,
+                    &changed,
+                    &screen(&changed),
+                    &registries(&changed),
+                );
+                assert_ne!(other.stage, CraftingTakeStage::NotApplied, "{change}");
+            }
+            // An old (pre-send) inventory receipt is not part of the boundary.
+            let mut stale = q.clone();
+            stale.inventory.slots[20] = Some(received(SlotKnowledge::Empty, 15));
+            let mut other = prepare(&p);
+            if legacy {
+                reply(&mut other);
+            }
+            take::receive(&mut other, &stale, &screen(&stale), &registries(&stale));
+            assert_eq!(other.stage, CraftingTakeStage::Pending);
+        }
+    }
+}

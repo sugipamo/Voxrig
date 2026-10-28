@@ -61,6 +61,13 @@ pub enum CraftOnceError {
     },
     /// An ordinary failure, preserving the original error and its kind.
     Failed(crate::Error),
+    /// The take was dispatched, but a fresh full resync after it still showed the
+    /// pre-send grid, cursor and inventory (`take.stage` is `NotApplied`). The
+    /// craft did not happen; the ingredients stay in the grid.
+    NotApplied {
+        /// Grid fill and the terminal take record.
+        record: Box<CraftOnceRecord>,
+    },
 }
 
 impl std::fmt::Display for CraftOnceError {
@@ -72,6 +79,11 @@ impl std::fmt::Display for CraftOnceError {
                 record.take.id, record.take.stage
             ),
             Self::Failed(error) => write!(formatter, "craft failed: {error}"),
+            Self::NotApplied { record } => write!(
+                formatter,
+                "craft not applied; take {:?} full resync unchanged",
+                record.take.id
+            ),
         }
     }
 }
@@ -79,7 +91,7 @@ impl std::fmt::Display for CraftOnceError {
 impl std::error::Error for CraftOnceError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::OutcomeUnknown { .. } => None,
+            Self::OutcomeUnknown { .. } | Self::NotApplied { .. } => None,
             Self::Failed(error) => Some(error),
         }
     }
@@ -434,12 +446,36 @@ impl super::Survival {
     /// `fill_crafting_grid`, then shift-take the result into the inventory once
     /// (`transfer_crafting_result`) and wait for its received outcome. No result
     /// is an error; the ingredients then stay in the grid.
+    ///
+    /// A take whose fresh full resync proves it had no effect
+    /// ([`CraftingTakeStage::NotApplied`](super::crafting::CraftingTakeStage::NotApplied))
+    /// returns [`ErrorKind::Rejected`]. A take still pending at the deadline returns
+    /// [`ErrorKind::Timeout`]; the server may still apply it, so inspect
+    /// [`Self::crafting_take_record`] instead of resending. A take requiring
+    /// inspection is returned as `Ok` with that stage.
     /// See [`Self::craft_once_checked`] for a result requiring confirmed completion.
     pub async fn craft_once(&self, ingredients: &[Option<&str>]) -> Result<CraftOnceRecord> {
+        use super::crafting::CraftingTakeStage;
         let (fill, grid) = self.prepare_craft_once(ingredients).await?;
         let sent = self.transfer_crafting_result(&grid).await?;
         let take = self.wait_crafting_take(sent).await?;
-        Ok(CraftOnceRecord { fill, take })
+        match take.stage {
+            CraftingTakeStage::NotApplied => Err(error(
+                ErrorKind::Rejected,
+                format!(
+                    "crafting take {:?} not applied: full resync unchanged",
+                    take.id
+                ),
+            )),
+            CraftingTakeStage::Pending => Err(error(
+                ErrorKind::Timeout,
+                format!(
+                    "crafting take {:?} not received; inspect without replay",
+                    take.id
+                ),
+            )),
+            _ => Ok(CraftOnceRecord { fill, take }),
+        }
     }
 
     /// Fill the grid and shift-take its result once, returning `Ok` only when the
@@ -461,7 +497,9 @@ impl super::Survival {
     /// the server may still apply it. Callers should re-observe and reconcile
     /// (for example via received inventory or [`Self::crafting_take_record`])
     /// rather than blindly resend. A returned take record requiring inspection
-    /// also returns `OutcomeUnknown` with `RequiresInspection`.
+    /// also returns `OutcomeUnknown` with `RequiresInspection`. A take whose fresh
+    /// full resync after the send still equals its pre-send receipts returns
+    /// [`CraftOnceError::NotApplied`]: that is known, not a timeout.
     pub async fn craft_once_checked(
         &self,
         ingredients: &[Option<&str>],
@@ -504,6 +542,11 @@ impl super::Survival {
         let record = CraftOnceRecord { fill, take };
         if record.take.stage == CraftingTakeStage::ObservedTransferred {
             return Ok(record);
+        }
+        if record.take.stage == CraftingTakeStage::NotApplied {
+            return Err(CraftOnceError::NotApplied {
+                record: Box::new(record),
+            });
         }
         let cause = if record.take.stage == CraftingTakeStage::Pending {
             CraftOnceUnknownCause::Timeout
