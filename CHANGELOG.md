@@ -72,6 +72,16 @@
   enums are `#[non_exhaustive]`; both records only gain fields.
   See [selected drop](docs/common-selected-drop.md) and
   [hand swap](docs/common-inventory-swaps.md).
+- BREAKING: a container activation the server processed without opening a screen
+  (locked container, chest under an occluding block, plugin refusal) now ends as
+  terminal `ContainerOpenStage::NoScreenObserved` with
+  `ContainerOpenRecord::no_screen` evidence, instead of staying `Dispatched`
+  and holding the owner. Java 1.21.11 needs a fresh BlockChangedAck covering the
+  activation sequence; Java 1.16.1 needs the handler's adjacent
+  BlockUpdate(clicked), BlockUpdate(clicked+face) pair. Vanilla sends OPEN and
+  contents inside the handler, before either boundary. `ContainerOpenStage` is
+  now `#[non_exhaustive]` and gains `is_resolved()`; new `ContainerOpenNoScreen`.
+  Audit row C4. See [contract](docs/common-container-open.md).
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.

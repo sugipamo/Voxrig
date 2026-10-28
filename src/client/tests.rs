@@ -444,6 +444,43 @@ pub(crate) async fn common_open_start_scenario(
     );
     record
 }
+/// A processed boundary arrived with no new OPEN: terminal and owner released.
+pub(crate) async fn common_open_no_screen_scenario(
+    client: &Client,
+    id: container::ContainerOpenId,
+) -> container::ContainerOpenRecord {
+    use container::ContainerOpenStage;
+    let r = client
+        .creative()
+        .container_open_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(r.id, id);
+    assert_eq!(r.stage, ContainerOpenStage::NoScreenObserved);
+    assert!(r.stage.is_resolved());
+    assert!(r.send.dispatched);
+    assert!(r.requires_inspection.is_none());
+    assert!(r.observed_screen.is_none() && r.received_cursor.is_none());
+    let evidence = r.no_screen.unwrap();
+    assert!(evidence.boundary_receive_sequence > r.send.after_sequence);
+    match id.session().version {
+        MinecraftVersion::Java1_16_1 => {
+            assert!(r.protocol_processing.is_none());
+            assert_eq!(
+                evidence.clicked_echo_sequence.map(|s| s + 1),
+                Some(evidence.boundary_receive_sequence)
+            );
+        }
+        MinecraftVersion::Java1_21_11 => {
+            let ack = r.protocol_processing.as_ref().unwrap();
+            assert!(ack.acknowledged_sequence >= r.send.interaction_sequence.unwrap());
+        }
+    }
+    assert!(!client.player_state().await.unwrap().pending_dispatch);
+    assert!(client.screen_state().await.unwrap().screen.is_none());
+    r
+}
 pub(crate) async fn common_open_completed_scenario(
     client: &Client,
     id: container::ContainerOpenId,

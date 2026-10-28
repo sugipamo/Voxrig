@@ -24,6 +24,7 @@ impl ContainerOpenId {
 /// Complete dispatch and actual screen facts are different boundaries.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ContainerOpenStage {
     /// Before-I/O intent, including cancellation before a complete write.
     Pending,
@@ -34,8 +35,31 @@ pub enum ContainerOpenStage {
     /// Matching opening and complete contents/cursor received; modern processing also observed.
     /// The protocol does not identify the target block that produced this screen.
     ObservedContents,
+    /// The server's processed boundary for this activation arrived before any new
+    /// screen OPEN: the native handler sends OPEN synchronously, so none will follow.
+    /// Evidence is in [`ContainerOpenRecord::no_screen`]. This names no reason
+    /// (lock, obstruction, plugin) and is not a retry instruction.
+    NoScreenObserved,
     /// Conflict, unsent outcome, cancellation or unavailable context needs inspection.
     RequiresInspection,
+}
+impl ContainerOpenStage {
+    /// Terminal received outcome: the screen opened, or the server processed the
+    /// activation without opening one. `RequiresInspection` is not resolved.
+    pub fn is_resolved(self) -> bool {
+        matches!(self, Self::ObservedContents | Self::NoScreenObserved)
+    }
+}
+/// Received server-processed boundary with no new screen before it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[non_exhaustive]
+pub struct ContainerOpenNoScreen {
+    /// Packet ordinal of the boundary: the covering modern BlockChangedAck
+    /// (also in `protocol_processing`), or the legacy clicked+face echo.
+    pub boundary_receive_sequence: u64,
+    /// Legacy only: ordinal of the clicked-block echo received in the packet
+    /// right before the boundary. Modern uses the ACK and leaves this `None`.
+    pub clicked_echo_sequence: Option<u64>,
 }
 /// Retained native activation dispatch, not a target-linked acknowledgement.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -96,6 +120,8 @@ pub struct ContainerOpenRecord {
     pub received_cursor: Option<ObservedValue<SlotKnowledge>>,
     /// Honest legacy absence; modern actual global processing is separate from screen facts.
     pub protocol_processing: Option<ContainerOpenProcessing>,
+    /// Processed boundary that ended this intent as `NoScreenObserved`; never set otherwise.
+    pub no_screen: Option<ContainerOpenNoScreen>,
     /// Persistent first uncertainty; restored values do not erase it.
     pub requires_inspection: Option<String>,
     /// Dispatch/receive boundary, not causal attribution of the screen to the target.
@@ -218,6 +244,7 @@ pub(crate) fn prepare_open(
         observed_screen: None,
         received_cursor: None,
         protocol_processing: None,
+        no_screen: None,
         requires_inspection: None,
         stage: ContainerOpenStage::Pending,
     })
@@ -271,7 +298,41 @@ impl ContainerOpenRecord {
             })
     }
     pub(crate) fn unresolved(&self) -> bool {
-        self.stage != ContainerOpenStage::ObservedContents
+        !self.stage.is_resolved()
+    }
+    /// End a completely dispatched intent whose processed boundary arrived with
+    /// no new OPEN. Call after `context_received` for the same packet, so an OPEN
+    /// received earlier (always before the boundary) has already been retained.
+    pub(crate) fn processed_without_screen(&mut self, evidence: ContainerOpenNoScreen) -> bool {
+        if self.stage != ContainerOpenStage::Dispatched
+            || !self.send.dispatched
+            || self.requires_inspection.is_some()
+            || self.observed_screen.is_some()
+            || evidence.boundary_receive_sequence <= self.send.after_sequence
+            || evidence
+                .clicked_echo_sequence
+                .is_some_and(|s| s <= self.send.after_sequence)
+        {
+            return false;
+        }
+        self.no_screen = Some(evidence);
+        self.stage = ContainerOpenStage::NoScreenObserved;
+        true
+    }
+    /// Modern boundary: a fresh actual ACK covering this intent's sequence.
+    pub(crate) fn modern_processed_without_screen(&mut self) -> bool {
+        let Some(ack) = self.protocol_processing.as_ref().filter(|ack| {
+            self.send
+                .interaction_sequence
+                .is_some_and(|sequence| ack.acknowledged_sequence >= sequence)
+        }) else {
+            return false;
+        };
+        let evidence = ContainerOpenNoScreen {
+            boundary_receive_sequence: ack.receive_sequence,
+            clicked_echo_sequence: None,
+        };
+        self.processed_without_screen(evidence)
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
         self.requires_inspection

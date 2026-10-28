@@ -1,0 +1,169 @@
+{
+  "audit_rows": [
+    "C4"
+  ],
+  "official_server_basis": {
+    "class": "net.minecraft.server.network.ServerGamePacketListenerImpl.handleUseItemOn / ServerPlayer.openMenu (Mojang-mapped)",
+    "1.16.1": {
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "open_menu": "ServerPlayer.openMenu sends ClientboundOpenScreenPacket (offset 104) then addSlotListener (contents) inside the handler",
+      "block_updates": "no early return after ensureRunningOnSameThread; every path reaches offsets 352-393: BlockUpdate(clicked) then BlockUpdate(clicked.relative(face))",
+      "ack": "none"
+    },
+    "1.21.11": {
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "open_menu": "ServerPlayer.openMenu sends ClientboundOpenScreenPacket (offset 100) then initMenu inside the handler",
+      "ack": "handleUseItemOn offset 25 ackBlockChangesUpTo(sequence); ServerGamePacketListenerImpl.tick() offsets 0-25 sends ClientboundBlockChangedAckPacket at the next connection tick, after the handler",
+      "early_returns": "offset 19 (client not loaded) returns before the ACK is registered (stays Dispatched); 63/97/198 return after it without useItemOn: processed, no screen"
+    }
+  },
+  "live": {
+    "binary_sha256": "a98a4391a07a272e063675036ace07ae2e5c08227e5a5fd2bcb248217cef6cc9",
+    "source_sha256": {
+      "src/client/container/open.rs": "ea8d92f0d95014a92fa1a1eace386480892d88b1090ea8eea8eac976f23c6712",
+      "src/versions/java_1_16_1/client/common_container.rs": "9a31bbf9a190ac229a9dd87cca6679c46e08dfadf06f5605f61ace95a90180ec",
+      "src/versions/java_1_21_11/client/operations/container.rs": "991ccf3640015c28251df0ece5e92215e9da288d8f90fdb92b964e1fade8fbdc",
+      "examples/body_probe.rs": "2b2f9e15ee8c3bbfd2300de7694f9a3382b0fe9b5386101e566b89b8949c2297",
+      "scripts/run_container_open_refused_live.py": "1cd6944ef503782ff9d069d984c6d25c0bd833d2b91425af0ca9835ad7e4b240",
+      "Cargo.lock": "8bf7e3de1d117dc1b42243ac611431b022f09bc297f38160981c6979ead35668"
+    },
+    "fixture": "non-OP survival ClimbingProbe at (0.5,65,0.5) yaw 0 pitch 35 with empty hands; target [0,65,2] North face. Locked barrel (1.16.1 Lock:\"voxrig-key\", 1.21.11 lock:{items:\"minecraft:diamond\"}), then a single chest under stone, then an unlocked barrel on the same connection. RCON confirms the lock NBT, barrel open=false after refusal and open=true after the success regression.",
+    "versions": {
+      "1.16.1": {
+        "passed": true,
+        "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "lock_rcon": "0, 65, 2 has the following block data: {x: 0, y: 65, z: 2, Items: [], id: \"minecraft:barrel\", Lock: \"voxrig-key\"}",
+        "checks": [
+          {
+            "name": "locked_barrel_no_screen",
+            "stage": "no_screen_observed",
+            "send": {
+              "after_sequence": 88,
+              "dispatched": true,
+              "interaction_sequence": null
+            },
+            "no_screen": {
+              "boundary_receive_sequence": 99,
+              "clicked_echo_sequence": 98
+            },
+            "protocol_processing": null,
+            "clientbound_open_blockupdate_ack_order": [
+              "0xb",
+              "0xb"
+            ]
+          },
+          {
+            "name": "chest_under_occluding_block_no_screen",
+            "stage": "no_screen_observed",
+            "send": {
+              "after_sequence": 114,
+              "dispatched": true,
+              "interaction_sequence": null
+            },
+            "no_screen": {
+              "boundary_receive_sequence": 117,
+              "clicked_echo_sequence": 116
+            },
+            "protocol_processing": null,
+            "clientbound_open_blockupdate_ack_order": [
+              "0xb",
+              "0xb"
+            ]
+          },
+          {
+            "name": "unlocked_barrel_opens",
+            "stage": "observed_contents",
+            "send": {
+              "after_sequence": 142,
+              "dispatched": true,
+              "interaction_sequence": null
+            },
+            "no_screen": null,
+            "protocol_processing": null,
+            "clientbound_open_blockupdate_ack_order": [
+              "0x2e",
+              "0xb",
+              "0xb",
+              "0xb"
+            ]
+          }
+        ],
+        "report": "docs/evidence/container-open-refused-live-1.16.1-20261027.json.gz"
+      },
+      "1.21.11": {
+        "passed": true,
+        "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "lock_rcon": "0, 65, 2 has the following block data: {components: {}, x: 0, lock: {items: \"minecraft:diamond\"}, y: 65, Items: [], z: 2, id: \"minecraft:barrel\"}",
+        "checks": [
+          {
+            "name": "locked_barrel_no_screen",
+            "stage": "no_screen_observed",
+            "send": {
+              "after_sequence": 121,
+              "dispatched": true,
+              "interaction_sequence": 1
+            },
+            "no_screen": {
+              "boundary_receive_sequence": 126,
+              "clicked_echo_sequence": null
+            },
+            "protocol_processing": {
+              "acknowledged_sequence": 1,
+              "receive_sequence": 126
+            },
+            "clientbound_open_blockupdate_ack_order": [
+              "0x8",
+              "0x8",
+              "0x4"
+            ]
+          },
+          {
+            "name": "chest_under_occluding_block_no_screen",
+            "stage": "no_screen_observed",
+            "send": {
+              "after_sequence": 128,
+              "dispatched": true,
+              "interaction_sequence": 2
+            },
+            "no_screen": {
+              "boundary_receive_sequence": 131,
+              "clicked_echo_sequence": null
+            },
+            "protocol_processing": {
+              "acknowledged_sequence": 2,
+              "receive_sequence": 131
+            },
+            "clientbound_open_blockupdate_ack_order": [
+              "0x8",
+              "0x8",
+              "0x4"
+            ]
+          },
+          {
+            "name": "unlocked_barrel_opens",
+            "stage": "observed_contents",
+            "send": {
+              "after_sequence": 133,
+              "dispatched": true,
+              "interaction_sequence": 3
+            },
+            "no_screen": null,
+            "protocol_processing": {
+              "acknowledged_sequence": 3,
+              "receive_sequence": 141
+            },
+            "clientbound_open_blockupdate_ack_order": [
+              "0x39",
+              "0x8",
+              "0x8",
+              "0x8",
+              "0x4"
+            ]
+          }
+        ],
+        "report": "docs/evidence/container-open-refused-live-1.21.11-20261027.json.gz"
+      }
+    }
+  },
+  "harness": "flock ~/logs/voxrig-live.lock python3 scripts/run_container_open_refused_live.py --accept-eula --binary <body_probe> --jars <dir with SHA-1 verified official jars> --output <dir>"
+}

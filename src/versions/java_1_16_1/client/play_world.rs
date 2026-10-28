@@ -86,6 +86,8 @@ impl Bot {
             .await?;
         self.common_placement_block_received([x, y, z], state_id, packet_sequence)
             .await?;
+        self.common_container_open_block_received([x, y, z], packet_sequence)
+            .await;
         self.body_block_received([x, y, z], state_id, packet_sequence)
             .await;
         self.emit(Event::BlockChanged { x, y, z, state_id });
