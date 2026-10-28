@@ -634,6 +634,15 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::to_value(survival.take_crafting_result(&grid).await?)?
             }
             "crafting_take_record" => serde_json::to_value(survival.crafting_take_record().await?)?,
+            "craft_once" => {
+                let names: Vec<Option<String>> = serde_json::from_value(request["ingredients"].clone())?;
+                let ingredients: Vec<Option<&str>> = names.iter().map(Option::as_deref).collect();
+                match survival.craft_once(&ingredients).await {
+                    Ok(record) => serde_json::json!({"record": record, "error": null}),
+                    Err(e) => serde_json::json!({"record": null, "error": e.to_string(),
+                        "kind": format!("{:?}", e.kind()), "take": survival.crafting_take_record().await?}),
+                }
+            }
             "close_screen" => {
                 let screen = client.screen_state().await?.screen.ok_or_else(|| anyhow::anyhow!("no active screen"))?.id;
                 serde_json::to_value(if client.player_state().await?.game_mode == Some(GameMode::Creative) {
