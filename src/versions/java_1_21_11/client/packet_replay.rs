@@ -37,6 +37,16 @@ pub(crate) fn replay_packets(
                     receive_sequence: record.sequence.saturating_sub(1),
                 });
         }
+        // Relative rotation packets resolve against the recorded local angles.
+        // Traces from before rotation decoding carry no basis; their angles
+        // never affect the replayed world observation.
+        if matches!(state.phase, Phase::Play)
+            && record.packet_id == ids::play_clientbound::PLAYER_ROTATION
+        {
+            if let Some(basis) = &record.local_player_basis {
+                state.rotation = basis.rotation;
+            }
+        }
         // Native JOIN/RESPAWN/reconfiguration reset the reconstruction frame.
         // Compare against the decoder's current generation, not the previous
         // record's tick, so legitimate reset histories remain replayable.

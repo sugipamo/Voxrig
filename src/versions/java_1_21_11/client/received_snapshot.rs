@@ -180,6 +180,16 @@ impl State {
                 event,
             );
         }
+        if id == input::PLAYER_ROTATION {
+            let packet = correction::RotationCorrection::read(&mut Reader::new(payload))?;
+            out.rotation_correction_received(
+                api::received_snapshot::ReceivedRotationCorrection::from_packet(
+                    packet.rotation,
+                    packet.relative,
+                ),
+                event,
+            );
+        }
         if id == input::CLOSE_WINDOW {
             out.close(Reader::new(payload).varint()?, event);
         }
@@ -534,6 +544,120 @@ mod tests {
             received(capture(&s).dimension_geometry()).receipt(),
             geometry.receipt()
         );
+    }
+    fn forced(yaw: f32, relative_yaw: bool, pitch: f32, relative_pitch: bool) -> Vec<u8> {
+        let mut p = yaw.to_be_bytes().to_vec();
+        p.push(relative_yaw.into());
+        p.extend(pitch.to_be_bytes());
+        p.push(relative_pitch.into());
+        p
+    }
+    #[test]
+    fn forced_rotation_is_received_without_touching_position_provenance() {
+        use crate::body::evidence::Update;
+        let mut s = state();
+        s.receive(packet::POSITION, &correction(0), 64).unwrap();
+        let pose_sequence = s.sequence;
+        // A later local submission owns the position; the rotation must not
+        // supersede it or claim a received position.
+        s.motion
+            .begin(
+                s.loading.generation,
+                s.sequence,
+                [1.5, 64., 2.5],
+                [30., 90.],
+            )
+            .unwrap();
+        s.motion.dispatched();
+        s.position = Some([1.5, 64., 2.5]);
+        let responses = s
+            .receive(
+                packet::PLAYER_ROTATION,
+                &forced(-15., true, 12.5, false),
+                64,
+            )
+            .unwrap();
+        let sequence = s.sequence;
+        assert_eq!(s.rotation, [15., 12.5]);
+        let mut look = 15f32.to_be_bytes().to_vec();
+        look.extend(12.5f32.to_be_bytes());
+        look.push(0);
+        assert_eq!(responses, [(ids::play_serverbound::LOOK, look)]);
+        assert_eq!(s.position, Some([1.5, 64., 2.5]));
+        assert_eq!(s.motion.position_basis, motion::PositionBasis::Submitted);
+        assert_eq!(
+            s.motion.last_submission.as_ref().unwrap().superseded_at,
+            None
+        );
+        assert_eq!(
+            s.motion.received_pose.as_ref().unwrap().receive_sequence,
+            pose_sequence
+        );
+        assert_eq!(
+            s.motion.received_rotation,
+            Some(motion::ReceivedRotation {
+                generation: s.loading.generation,
+                receive_sequence: sequence,
+                rotation: [15., 12.5],
+                relative: [true, false],
+            })
+        );
+        assert_eq!(
+            s.motion.rotation_source,
+            Some(crate::client::ValueSource::Received { sequence })
+        );
+        let log = s.events.after(0, sequence).unwrap();
+        let last = log.events.last().unwrap();
+        assert_eq!(
+            (last.receive_sequence, &last.kind),
+            (sequence, &crate::client::EventKind::PlayerChanged)
+        );
+        let evidence = s.body_evidence.events.back().unwrap();
+        assert_eq!(evidence.sequence, sequence);
+        let Update::Rotation { position, rotation } = &evidence.update else {
+            panic!("rotation evidence")
+        };
+        assert_eq!(*rotation, [15., 12.5]);
+        let position = position.as_ref().unwrap();
+        assert_eq!(position.value, [1.5, 64., 2.5]);
+        assert_eq!(position.source, crate::body::ValueSource::Submitted);
+        // Literal operands; a relative angle invalidates the absolute projection.
+        let relative = capture(&s);
+        let field = received(relative.rotation_correction());
+        assert_eq!(field.receipt().ordinal(), sequence);
+        assert!(matches!(
+            field.value().rotation(),
+            [
+                CorrectionComponent::Relative(-15.),
+                CorrectionComponent::Absolute(12.5)
+            ]
+        ));
+        assert!(matches!(
+            relative.absolute_rotation(),
+            FieldState::Invalidated(_)
+        ));
+        assert_eq!(
+            received(relative.correction()).receipt().ordinal(),
+            pose_sequence
+        );
+        s.receive(
+            packet::PLAYER_ROTATION,
+            &forced(-200., false, 95., false),
+            64,
+        )
+        .unwrap();
+        assert_eq!(s.rotation, [-200., 90.]);
+        let absolute = capture(&s);
+        assert_eq!(
+            received(absolute.absolute_rotation()).value(),
+            &[-200., 95.]
+        );
+        assert_eq!(
+            received(absolute.absolute_rotation()).receipt().ordinal(),
+            s.sequence
+        );
+        // Malformed packets fail the reader like other corrections.
+        assert!(s.receive(packet::PLAYER_ROTATION, &[0; 9], 64).is_err());
     }
     #[test]
     fn received_snapshot_window_reuse_close_and_inventory_markers() {

@@ -31,7 +31,9 @@ mod component_tests;
 #[cfg(test)]
 mod tests;
 pub use super::loading::{InteractionLoading, LoadingAttempt};
-pub use super::motion::{OwnMotion, PositionBasis, PositionSubmission, ReceivedPose};
+pub use super::motion::{
+    OwnMotion, PositionBasis, PositionSubmission, ReceivedPose, ReceivedRotation,
+};
 use super::*;
 use crate::diagnostic_projection::diagnostic_record;
 pub use inventory::{InventorySwap, InventorySwapObservation};

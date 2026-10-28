@@ -320,6 +320,61 @@ async fn control_restart_keeps_model_momentum_and_aim_after_decoded_velocity() {
     session.stop();
 }
 
+#[tokio::test(start_paused = true)]
+async fn forced_rotation_is_adopted_by_running_control_instead_of_overwritten() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    client.look([37.0, -12.0]).await.unwrap();
+    let survival = client.survival();
+    let start = survival.start_control().await.unwrap();
+    wait_for_control_tick(&session, &survival, 1).await;
+    // Native PLAYER_ROTATION: yaw +10 relative, pitch 20 absolute.
+    let mut rotation = 10f32.to_be_bytes().to_vec();
+    rotation.push(1);
+    rotation.extend(20f32.to_be_bytes());
+    rotation.push(0);
+    let responses = {
+        let mut state = session.state.lock().await;
+        let position = state.position;
+        let responses = state
+            .receive(ids::play_clientbound::PLAYER_ROTATION, &rotation, 256)
+            .unwrap();
+        assert_eq!(state.position, position);
+        responses
+    };
+    let mut look = 47f32.to_be_bytes().to_vec();
+    look.extend(20f32.to_be_bytes());
+    look.push(0);
+    assert_eq!(responses, [(ids::play_serverbound::LOOK, look)]);
+    let record = survival.control_record().await.unwrap().unwrap();
+    assert_eq!(record.session_id, start.session_id);
+    assert_eq!([record.controls.yaw, record.controls.pitch], [47.0, 20.0]);
+    tokio::time::advance(Duration::from_millis(50)).await;
+    wait_for_control_tick(&session, &survival, 2).await;
+    let mut sent = Vec::new();
+    while sent.len() < 2 {
+        let (id, bytes) = read_packet(&mut peer, None).await.unwrap();
+        if id == ids::play_serverbound::POSITION_LOOK {
+            sent.push(bytes);
+        }
+    }
+    let angles = |bytes: &[u8]| {
+        [
+            f32::from_be_bytes(bytes[24..28].try_into().unwrap()),
+            f32::from_be_bytes(bytes[28..32].try_into().unwrap()),
+        ]
+    };
+    assert_eq!(angles(&sent[0]), [37.0, -12.0]);
+    // The next movement packet carries the server rotation, not the stale aim.
+    assert_eq!(angles(&sent[1]), [47.0, 20.0]);
+    assert_eq!(client.player_state().await.unwrap().rotation, [47.0, 20.0]);
+    assert_eq!(
+        survival.stop_control().await.unwrap().unwrap().corrections,
+        0
+    );
+    session.stop();
+}
+
 async fn wait_for_control_tick(
     session: &Session,
     survival: &crate::client::Survival,

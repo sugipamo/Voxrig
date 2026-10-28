@@ -1,0 +1,98 @@
+[
+  {
+    "before": [
+      80.0,
+      -40.0
+    ],
+    "change": [
+      130.0,
+      120.0
+    ],
+    "cases": [
+      {
+        "relative_yaw": false,
+        "relative_pitch": false,
+        "hex": "430200000042f0000000",
+        "expected": [
+          130.0,
+          90.0
+        ]
+      },
+      {
+        "relative_yaw": true,
+        "relative_pitch": false,
+        "hex": "430200000142f0000000",
+        "expected": [
+          210.0,
+          90.0
+        ]
+      },
+      {
+        "relative_yaw": false,
+        "relative_pitch": true,
+        "hex": "430200000042f0000001",
+        "expected": [
+          130.0,
+          80.0
+        ]
+      },
+      {
+        "relative_yaw": true,
+        "relative_pitch": true,
+        "hex": "430200000142f0000001",
+        "expected": [
+          210.0,
+          80.0
+        ]
+      }
+    ]
+  },
+  {
+    "before": [
+      -405.123,
+      35.57
+    ],
+    "change": [
+      23.765,
+      -22.12
+    ],
+    "cases": [
+      {
+        "relative_yaw": false,
+        "relative_pitch": false,
+        "hex": "41be1eb800c1b0f5c300",
+        "expected": [
+          23.765,
+          -22.12
+        ]
+      },
+      {
+        "relative_yaw": true,
+        "relative_pitch": false,
+        "hex": "41be1eb801c1b0f5c300",
+        "expected": [
+          -381.35797,
+          -22.12
+        ]
+      },
+      {
+        "relative_yaw": false,
+        "relative_pitch": true,
+        "hex": "41be1eb800c1b0f5c301",
+        "expected": [
+          23.765,
+          13.449999
+        ]
+      },
+      {
+        "relative_yaw": true,
+        "relative_pitch": true,
+        "hex": "41be1eb801c1b0f5c301",
+        "expected": [
+          -381.35797,
+          13.449999
+        ]
+      }
+    ]
+  }
+]
