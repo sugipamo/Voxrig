@@ -90,11 +90,13 @@ pub(crate) struct DigWatch {
     start_after: u64,
     last_after: u64,
     last_sequence: Option<i32>,
+    /// Native legacy status of the last command written (0 START or 2 STOP).
+    last_legacy_status: i32,
     /// Latest fresh exact-target receipt while it equals the baseline.
     echo: Option<u64>,
     /// First 1.16.1 rejecting response carrying the baseline.
     legacy: Option<i32>,
-    /// Latest 1.16.1 target response after the last command boundary.
+    /// Latest 1.16.1 response matching the last command after its boundary.
     legacy_last: Option<u64>,
 }
 impl DigWatch {
@@ -106,15 +108,22 @@ impl DigWatch {
             start_after: after,
             last_after: after,
             last_sequence: None,
+            last_legacy_status: 0,
             echo: None,
             legacy: None,
             legacy_last: None,
         }
     }
     /// The receive boundary and native sequence before each START/STOP write.
-    pub(crate) fn sent(&mut self, after: u64, sequence: Option<i32>) {
+    pub(crate) fn sent(
+        &mut self,
+        action: super::operational_dig::Action,
+        after: u64,
+        sequence: Option<i32>,
+    ) {
         self.last_after = after;
         self.last_sequence = sequence;
+        self.last_legacy_status = action.status();
         self.legacy_last = None;
     }
     /// A block/section/response packet applied at `position`.
@@ -145,7 +154,7 @@ impl DigWatch {
         if !successful && matches!(status, 0 | 2) && *state == self.baseline {
             self.legacy.get_or_insert(status);
         }
-        if receive > self.last_after {
+        if receive > self.last_after && status == self.last_legacy_status {
             self.legacy_last = Some(receive);
         }
     }
@@ -165,7 +174,7 @@ impl DigWatch {
             Action::Abort => return,
         }
         if let Some(watch) = watch.as_mut().filter(|w| w.target == target) {
-            watch.sent(after, sequence);
+            watch.sent(action, after, sequence);
         }
     }
     /// `ack` is the highest received 1.21.11 ACK and its ordinal; None on 1.16.1.
@@ -651,4 +660,67 @@ impl std::fmt::Display for DigRefusal {
 impl std::error::Error for DigRefusal {}
 fn refusal(detail: DigRefusal) -> crate::Error {
     crate::Error::new(crate::ErrorKind::State, anyhow::Error::new(detail))
+}
+
+#[cfg(test)]
+mod mo1_merge_regression {
+    use super::*;
+
+    #[test]
+    fn mo1_delayed_start_does_not_prove_stop_processed() {
+        let target = [0, 65, 2];
+        let before = NativeBlockState {
+            name: "minecraft:dirt".into(),
+            properties: Default::default(),
+        };
+        // START was sent after receive 10, and STOP after receive 20.
+        // The old START response arrives late, after STOP was written.
+        // No response to STOP has arrived yet. The server may still remove
+        // this same cell when it processes STOP (the retained destroyPos case).
+        let mut watch = DigWatch::new(target, before.clone(), 10);
+        watch.sent(
+            super::super::operational_dig::Action::Finish {
+                elapsed: std::time::Duration::ZERO,
+            },
+            20,
+            None,
+        );
+        watch.legacy_reply(target, &before, 0, false, 21);
+        assert!(
+            watch.rejection(None).is_none(),
+            "late START cannot prove that STOP was processed: {:?}",
+            watch.rejection(None)
+        );
+        watch.legacy_reply(target, &before, 1, true, 22);
+        assert!(watch.rejection(None).is_none(), "ABORT is not STOP");
+        watch.legacy_reply(target, &before, 2, true, 20);
+        assert!(watch.rejection(None).is_none(), "stale STOP is not fresh");
+        watch.legacy_reply(target, &before, 2, true, 23);
+        let rejection = watch.rejection(None).expect("matching STOP was processed");
+        assert_eq!(rejection.boundary_receive_sequence, 23);
+        assert_eq!(rejection.legacy_status, Some(0));
+    }
+
+    #[test]
+    fn instant_start_rejection_matches_start_response() {
+        let target = [0, 65, 2];
+        let before = NativeBlockState {
+            name: "minecraft:dirt".into(),
+            properties: Default::default(),
+        };
+        let mut watch = None;
+        DigWatch::sent_into(
+            &mut watch,
+            super::super::operational_dig::Action::Start,
+            target,
+            &before,
+            10,
+            None,
+        );
+        let watch = watch.as_mut().unwrap();
+        watch.legacy_reply(target, &before, 2, false, 11);
+        assert!(watch.rejection(None).is_none(), "STOP is not START");
+        watch.legacy_reply(target, &before, 0, false, 12);
+        assert_eq!(watch.rejection(None).unwrap().boundary_receive_sequence, 12);
+    }
 }

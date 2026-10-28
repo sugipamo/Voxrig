@@ -53,7 +53,9 @@ protocol の bool だけからは導かない。`Rejected` は 1 秒を待たず
   （遅延破壊、`too far`）や ACK の後の echo は `Unconfirmed` のままにする。
   `rejection.acknowledged_sequence` は ACK の値、`boundary_receive_sequence` は ACK の受信 ordinal。
 - **1.16.1**: START か STOP への応答（AcknowledgePlayerDigging）が `successful = false` で元の state を
-  運び、さらに最後の操作への応答も元の state のまま届いた場合。`legacy_status` は
+  運び、さらに最後の操作への応答も元の state のまま届いた場合。最後に送った action と
+  応答の status が一致し、受信 ordinal がその送信前の境界より新しいことを要求する。
+  STOP 送信後に遅れて届いた START 応答だけでは完了しない。`legacy_status` は
   `successful = false` だった応答の status（0 START、2 STOP）、`boundary_receive_sequence` は
   最後の操作への応答の受信 ordinal。元の state を運ぶ `successful = true` の STOP 応答
   （遅延破壊）は拒否ではない。

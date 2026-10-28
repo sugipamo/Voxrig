@@ -9,6 +9,9 @@
 
 ## Unreleased
 
+- Match Java 1.16.1 dig replies to the last sent action before concluding
+  `Rejected`; a delayed START rejection cannot stand in for the STOP response.
+
 - Speed up `Client::raycast_blocks` on Java 1.16.1 and 1.21.11 by walking
   received state IDs under one observation lock and borrowing registry-owned
   `StateBoxes`; only the hit state is decoded. Remove per-ray bounding-box
