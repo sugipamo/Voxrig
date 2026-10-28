@@ -27,6 +27,12 @@
 - `PlaceBlock.pos` はクリックするセル、`target` は監視する結果セル。置換可能セル・隣接セル等を controller が明示する。`expected` があれば完全な native state を比較し、省略時は現在の指定 hand の item 名と結果 block 名を比較する。item と block の名称が異なるもの、特定 property を要求する場合は `expected` を渡す。材料の種類による送信制限は設けない。
 - `BreakBlock` は見積り不明でも START を送る。Creative は START のみ。Survival は START の処理 ACK 後、まだ air の受信がなければ一度だけ STOP を送り、サーバー側の進捗と air 更新を待つ。ACK だけでは Accepted にしない。取消・期限切れは元 world に ABORT を試み、期限切れは Unknown。`action_timeout` は採掘時間と quiet window を含む。
 
+### UseItem の inventory resync
+
+`UseItem` の `Corrected { correction: InventoryResync }` は、送信境界より後に受信した**player inventory window（window 0）**の元の全量 inventory packet（1.16.1 WINDOW_ITEMS、1.21.11 ContainerSetContent）だけを根拠にする。vanilla は stack を変えた item 使用の後に `inventoryMenu`（常に window 0）を全量再送する。chest など別の container を開いていても同じ。開いている container の window の全量 packet（open 直後の内容、container 側の resync など）は使用した hand の訂正ではないので、`Accepted` を妨げない（#287 の監査行 B12）。
+
+window 0 の全量 packet は、内容が使用前と同じでも違っていても `InventoryResync` として返す。内容は付随する `snapshot` にあり、使用前との比較（消費されたか、元に戻されたか）は呼出し側が行う。この区別は Body の終端状態では行わない。
+
 ### 1.16.1 の設置
 
 `PlaceBlock` は指定の `pos / face / cursor / hand / target / expected` を使用し、既存 native actor の writer へ一回送信する。通常立位・接地・raycast の一致・default passive cube・空 cursor・全 inventory receipt は要求しない。`expected` を明示すれば手や選択 slot の観測も送信条件にしない。protocol の有限値・座標表現、現在 world、connection/admission は検査する。

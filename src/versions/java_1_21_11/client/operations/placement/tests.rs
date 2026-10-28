@@ -2024,6 +2024,69 @@ async fn explicit_body_activation_ignores_outline_ground_and_default_item_and_wa
 }
 
 #[tokio::test]
+async fn body_use_item_resync_is_scoped_to_player_inventory_window() {
+    use crate::body::{Action, ActionStatus, Body, BodyConfig, HeadlessBody, ServerCorrection};
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let body = Body::new(
+        HeadlessBody::new(
+            client,
+            BodyConfig {
+                settle_window: Duration::from_millis(20),
+                action_timeout: Duration::from_secs(2),
+                ..Default::default()
+            },
+        )
+        .unwrap(),
+    );
+    // Original ContainerSetContent: a container window (here one this client never
+    // opened, which the inventory reducer ignores) must not correct the use; the
+    // player inventory window (0) remains the inventory resync evidence.
+    for (window, slots, corrected) in [(3, 27, false), (0, 46, true)] {
+        let id = body
+            .submit(Action::UseItem {
+                hand: crate::Hand::Main,
+            })
+            .await
+            .unwrap();
+        let (packet, _) = f.expected_packet("body use item").await;
+        assert_eq!(packet, ids::play_serverbound::USE_ITEM);
+        let mut payload = Vec::new();
+        put_varint(&mut payload, window);
+        put_varint(&mut payload, 2);
+        put_varint(&mut payload, slots);
+        payload.extend(std::iter::repeat_n(0u8, slots as usize + 1));
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &payload)
+            .await;
+        let status = timeout(Duration::from_secs(1), async {
+            loop {
+                let status = body.action_status(id).await.unwrap();
+                if status.is_terminal() {
+                    break status;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        if corrected {
+            assert!(matches!(
+                status,
+                ActionStatus::Corrected {
+                    correction: ServerCorrection::InventoryResync,
+                    ..
+                }
+            ));
+        } else {
+            assert!(matches!(status, ActionStatus::Accepted), "{status:?}");
+        }
+        tokio::time::sleep(Duration::from_millis(15)).await;
+    }
+    drop(body);
+    f.stop().await;
+}
+
+#[tokio::test]
 async fn body_dig_unknown_estimate_uses_start_ack_once_and_waits_for_actual_air() {
     use crate::body::{Action, ActionStatus, Body, BodyConfig, HeadlessBody};
     for scenario in ["selection", "slot", "revert", "no_ack", "no_result"] {
