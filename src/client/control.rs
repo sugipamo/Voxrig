@@ -282,6 +282,8 @@ pub struct ControlRecord {
     pub corrections: u64,
     /// Received own-velocity updates applied to the session.
     pub velocity_updates: u64,
+    /// Received explosion knockback impulses added once to this Ground model.
+    pub explosion_impulses: u64,
     /// Latest ground request, retained until another request or session replaces it.
     pub ground_jump: Option<GroundJumpRequest>,
 }
@@ -381,6 +383,7 @@ pub(crate) struct ControlSession {
     pub frame: Option<ControlFrame>,
     pub corrections: u64,
     pub velocity_updates: u64,
+    pub explosion_impulses: u64,
     last_pose: Option<u64>,
     last_velocity: Option<u64>,
     last_explosion: Option<u64>,
@@ -467,6 +470,7 @@ impl ControlSession {
             frame: None,
             corrections: 0,
             velocity_updates: 0,
+            explosion_impulses: 0,
             last_pose: received.pose.map(|p| p.0),
             last_velocity: received.velocity.map(|v| v.0),
             last_explosion: None,
@@ -592,6 +596,7 @@ impl ControlSession {
             frame: self.frame.clone(),
             corrections: self.corrections,
             velocity_updates: self.velocity_updates,
+            explosion_impulses: self.explosion_impulses,
             ground_jump,
         }
     }
@@ -724,6 +729,7 @@ impl ControlSession {
                 return false;
             }
             self.body.velocity = velocity;
+            self.explosion_impulses += 1;
         }
         self.last_explosion = Some(sequence);
         true

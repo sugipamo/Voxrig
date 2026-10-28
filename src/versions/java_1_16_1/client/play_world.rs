@@ -168,6 +168,19 @@ impl Bot {
         motion.velocity.y += explosion.player_motion.y;
         motion.velocity.z += explosion.player_motion.z;
         drop(motion);
+        // A running control owner replaces native motion with its own frame.
+        let received = self.control_received().await;
+        let generation = self.common_receipts.lock().await.generation;
+        self.common_control.lock().await.receive_explosion(
+            generation,
+            sequence,
+            [
+                explosion.player_motion.x,
+                explosion.player_motion.y,
+                explosion.player_motion.z,
+            ],
+            &received,
+        );
         self.interrupt_common_motion("native explosion interrupted finite motion")
             .await;
         let session = crate::client::SessionStamp {

@@ -11174,6 +11174,9 @@ mod use_item_expect_tests;
 mod explosion_notification_tests;
 
 #[cfg(test)]
+mod control_explosion_tests;
+
+#[cfg(test)]
 mod digging_ack_notification_tests;
 
 #[cfg(test)]

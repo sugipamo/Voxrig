@@ -147,6 +147,7 @@ serverはport 35099で起動し、exit 0で終了・削除済み。
 連続爆発、速度置換、補正をreaderの受信順で適用する。相対速度補正の基準には、
 同じworld・同じGroundモデルの現在速度を使う。受信したvelocity sampleを予測値で上書きしない。
 `ControlRecord::velocity_updates`は元の速度受信の計数で、爆発の回数には使わない。
+加算した爆発は`ControlRecord::explosion_impulses`に数える（Java 1.16.1の実行中Ground ownerも同じ）。
 爆発の元値・受信順・worldは`explosions_after`で読む。getterを繰り返しても排出・再適用しない。
 
 正常な明示停止後に残る同じモデルへ届いた新しいimpulseも一度だけ取り込み、再開はその速度を継ぐ。
@@ -187,3 +188,27 @@ python3 -B scripts/run_explosion_ground_live.py --accept-eula \
 その後の爆発も一度だけ適用した。port 38107のserverは停止済み。
 元packetとRCON座標、runtime source／binary／JAR hash、検証fixture修正の試行は
 [実接続証跡](evidence/common-explosion-ground-20261023.json)へ保存した。
+
+### Java 1.16.1 の実行中owner（audit P10）
+
+1.16.1のnative受信は従来どおり互換モデルの速度へimpulseを加算する。実行中の共通PlayerControlは
+毎tick自分のframeで互換モデルを上書きするため、以前はimpulseが次の移動に届かなかった
+（`control_explosion_tests`は修正前のmainで、立ったままのownerがy=65.0から動かないことを再現した）。
+現在は受信処理が同じ受信連番で実行中のGroundモデルへ一度だけ加算し、`explosion_impulses`に数える。
+Flight／Glideの実行中ownerは、1.21.11と同じ理由で次のtickに何も送らず停止する。
+モデルの位置・速度が有限でなくなる加算も同じ理由で停止する。新しい拒否条件や再送はない。
+
+```bash
+cargo build --locked --example climbing_control_probe -j2
+flock ~/logs/voxrig-live.lock python3 -B scripts/run_control_explosion_live.py --accept-eula \
+  --jars /absolute/path/to/downloads --binary target/debug/examples/climbing_control_probe \
+  --work /tmp/control-explosion-live
+```
+
+2026-10-28の公式1.16.1 serverの使い捨て接続（creeper、`ExplosionRadius:2`、mobGriefing無効）では、
+立ったままのGround ownerがknockback `[-0.425, 0.459, 0]`を受信した。その後の7個の移動パケットが
+x 0.075→-1.038、y 65.38→66.06（頂点）→65.91と弧を描き、`explosion_impulses=1`、`corrections=0`だった。
+着地後のRCON座標とモデルframeが一致し、二度目の爆発で2に増えた。停止記録も2を保つ。
+同じbinaryで既存の1.21.11 Ground実接続（13項目）も再実行してPASSし、各段階の
+`explosion_impulses`（1→2、再開後0、補正後の新ownerで1）を記録した。元packet・frame・RCON座標と
+source／binary／JAR hashは[実接続証跡](evidence/control-explosion-live-20261028.json.gz)へ保存した。

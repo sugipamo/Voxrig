@@ -24,6 +24,8 @@ pub(crate) struct MotionExecutor {
     generation: Option<u64>,
     model_tick: Option<u64>,
     flight_disabled: Option<(u64, u64)>,
+    /// Running non-Ground owner that received an explosion it cannot model.
+    explosion_stop: Option<u64>,
 }
 
 impl MotionExecutor {
@@ -50,6 +52,26 @@ impl MotionExecutor {
     pub(super) fn observe_mode(&mut self, mode: GameMode, sequence: u64) {
         if let Some(session) = &mut self.session {
             session.observe_mode(mode, sequence);
+        }
+    }
+    /// As on 1.21.11, the running Ground model adds a received explosion
+    /// impulse once in receive order; any other running owner stops at its
+    /// next tick instead of overwriting the knockback with its own frame.
+    pub(super) fn receive_explosion(
+        &mut self,
+        generation: u64,
+        sequence: u64,
+        impulse: [f64; 3],
+        received: &Received,
+    ) {
+        if self.generation != Some(generation) {
+            return;
+        }
+        let Some(session) = self.session.as_mut().filter(|s| s.running()) else {
+            return;
+        };
+        if !session.ground_explosion(sequence, Some(impulse), received) {
+            self.explosion_stop = Some(session.id);
         }
     }
     pub(crate) fn active(&self) -> bool {
@@ -386,6 +408,8 @@ impl Bot {
                     let stop = self.control_stop_reason(generation, mode, kind).await;
                     let received = self.control_received().await;
                     let mut control = self.common_control.lock().await;
+                    let explosion = (control.explosion_stop == Some(id))
+                        .then_some("vehicle or explosion motion outside the engine");
                     let Some(session) = control
                         .session
                         .as_mut()
@@ -393,7 +417,10 @@ impl Bot {
                     else {
                         return false;
                     };
-                    if let Some(reason) = stop.or_else(|| session.glide_stop_reason(&received)) {
+                    if let Some(reason) = stop
+                        .or(explosion)
+                        .or_else(|| session.glide_stop_reason(&received))
+                    {
                         session.status = ControlStatus::Stopped {
                             reason: reason.into(),
                         };
