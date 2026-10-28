@@ -9,7 +9,11 @@ use crate::client::{
 pub(super) struct NativeRecipePlacement {
     pub(super) record: RecipePlacementRecord,
     pub(super) released: bool,
+    /// Transaction number of the no-op resync click written after the request.
+    pub(super) resync_action: Option<i16>,
 }
+/// Response deadline for the request and its resync, as the inventory executor.
+const RESPONSE_DEADLINE: std::time::Duration = std::time::Duration::from_secs(5);
 impl Bot {
     async fn recipe_placement_capture(&self) -> Result<contract::ReceivedCraftingContext> {
         let player = self.common_player_unlocked().await?;
@@ -74,12 +78,16 @@ impl Bot {
                 .record
                 .send
                 .after_sequence = current.receive_sequence();
-            self.connection
+            let action = self
+                .connection
                 .bounded_recipe_placement(id.attempt(), revision, dispatch::payload(&record)?)
                 .await?;
             let mut guard = super::lock_packet_state(&self.common_recipe_placement).await;
-            let record = &mut guard.as_mut().expect("retained").record;
+            let retained = guard.as_mut().expect("retained");
+            retained.resync_action = Some(action);
+            let record = &mut retained.record;
             record.send.dispatched = true;
+            record.resync_dispatched = true;
             Ok(record.clone())
         }
         .await;
@@ -90,6 +98,21 @@ impl Bot {
             .await;
         }
         result
+    }
+    /// The resync's own `accepted=false` reply orders its full contents after
+    /// the request. Its `accepted` value is never read as a placement outcome.
+    pub(super) async fn common_recipe_reply_received(&self, reply: WindowTransaction) {
+        if let Some(r) = super::lock_packet_state(&self.common_recipe_placement)
+            .await
+            .as_mut()
+            .filter(|r| {
+                r.resync_action == Some(reply.action)
+                    && r.record.window_id() == i32::from(reply.window_id)
+                    && reply.packet_sequence > r.record.send.after_sequence
+            })
+        {
+            r.record.resync_reply.get_or_insert(reply.packet_sequence);
+        }
     }
     pub(super) async fn interrupt_common_recipe_placement(&self, reason: impl std::fmt::Display) {
         if let Some(r) = super::lock_packet_state(&self.common_recipe_placement)
@@ -142,7 +165,7 @@ impl Bot {
                 if let Err(e) = cache {
                     record.inspection(e);
                 }
-                record.ready()
+                record.ready() || record.stage == RecipePlacementStage::ObservedUnchanged
             };
             if complete {
                 match self
@@ -155,11 +178,13 @@ impl Bot {
                             super::lock_packet_state(&self.common_recipe_placement).await;
                         let r = guard.as_mut().expect("retained");
                         r.released = true;
-                        r.record.stage = if r.record.ghost.is_some() {
-                            RecipePlacementStage::ObservedGhost
-                        } else {
-                            RecipePlacementStage::ObservedPlaced
-                        };
+                        if r.record.stage != RecipePlacementStage::ObservedUnchanged {
+                            r.record.stage = if r.record.ghost.is_some() {
+                                RecipePlacementStage::ObservedGhost
+                            } else {
+                                RecipePlacementStage::ObservedPlaced
+                            };
+                        }
                     }
                     Err(e) => {
                         self.interrupt_common_recipe_placement(format!(
@@ -238,14 +263,25 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
                 let record = dispatch::prepare(plan, &current, mode, attempt)?;
                 self.recipe_placement_cache(&record).await?;
                 dispatch::payload(&record)?;
+                let mut record = record;
                 let id = record.id;
-                let work =
-                    self.begin_finite(crate::client::ledger::finite::Family::Recipe, id.attempt());
+                let family = crate::client::ledger::finite::Family::Recipe;
+                let work = self.begin_finite(family, id.attempt());
+                // An unanswered request is unknown, not refused: the retained owner
+                // fails the connection at expiry.
+                let deadline = tokio::time::Instant::now() + RESPONSE_DEADLINE;
+                record.deadline = Some(deadline);
                 *super::lock_packet_state(&self.common_recipe_placement).await =
                     Some(NativeRecipePlacement {
                         record,
                         released: false,
+                        resync_action: None,
                     });
+                self.finite_work.lock().expect("finite work").expire_at(
+                    family,
+                    id.attempt(),
+                    deadline,
+                );
                 let (reply, result) = tokio::sync::oneshot::channel();
                 let bot = self.clone_internal();
                 self.spawn_finite_work(work, async move {
@@ -283,8 +319,11 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
         }
         Ok(super::lock_packet_state(&self.common_recipe_placement)
             .await
-            .as_ref()
-            .map(|r| r.record.clone()))
+            .as_mut()
+            .map(|r| {
+                r.record.expire_due();
+                r.record.clone()
+            }))
     }
 }
 
