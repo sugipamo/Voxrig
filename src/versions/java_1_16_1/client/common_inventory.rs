@@ -3901,8 +3901,6 @@ mod tests {
         reply.extend(sent.send.legacy_action.unwrap().to_be_bytes());
         reply.push(0);
         bot.apply_packet(0x12, reply).await.unwrap();
-        bot.fixture_inventory_protocol_boundary().await;
-        assert_eq!(packets.recv().await.unwrap().0, 0x07);
         let mut full = vec![0, 0, 46];
         for index in 0..46 {
             let stack = match index {
@@ -3925,7 +3923,11 @@ mod tests {
             };
             write_slot(&mut full, stack.as_ref());
         }
+        // The take's own full resync carries its effect. An earlier unchanged
+        // echo would be a processed boundary proving the take was not applied.
         bot.apply_packet(0x14, full).await.unwrap();
+        bot.fixture_inventory_protocol_boundary().await;
+        assert_eq!(packets.recv().await.unwrap().0, 0x07);
         let complete = client
             .survival()
             .crafting_take_record()

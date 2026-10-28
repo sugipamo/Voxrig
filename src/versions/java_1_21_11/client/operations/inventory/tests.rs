@@ -5238,7 +5238,7 @@ mod craft_once_helpers {
     }
 
     #[tokio::test]
-    async fn checked_deadline_retains_pending_id_and_legacy_still_returns_ok() {
+    async fn checked_deadline_retains_pending_id_and_legacy_returns_timeout() {
         for checked in [true, false] {
             let mut f = fixture().await;
             let client = f.client();
@@ -5267,7 +5267,7 @@ mod craft_once_helpers {
                 .await
                 .unwrap()
                 .unwrap();
-            let record = if checked {
+            let take = if checked {
                 let CraftOnceError::OutcomeUnknown {
                     record,
                     cause: CraftOnceUnknownCause::Timeout,
@@ -5275,14 +5275,24 @@ mod craft_once_helpers {
                 else {
                     panic!("expected unknown timeout outcome")
                 };
-                *record
+                record.take
             } else {
-                result.unwrap()
+                // craft_once no longer returns Ok for a take still pending.
+                let CraftOnceError::Failed(error) = result.unwrap_err() else {
+                    unreachable!()
+                };
+                assert_eq!(error.kind(), crate::ErrorKind::Timeout);
+                client
+                    .survival()
+                    .crafting_take_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
             };
-            assert_eq!(record.take.id, sent.id);
-            assert_eq!(record.take.stage, CraftingTakeStage::Pending);
-            assert!(record.take.send.dispatched);
-            assert!(record.take.after.is_none());
+            assert_eq!(take.id, sent.id);
+            assert_eq!(take.stage, CraftingTakeStage::Pending);
+            assert!(take.send.dispatched);
+            assert!(take.after.is_none());
             // Deadline handling must not dispatch a replacement craft.
             f.fence_response().await;
             assert!(
