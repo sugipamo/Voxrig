@@ -41,6 +41,15 @@ pub enum HandSwapStage {
     ObservedSwapped,
     /// First conflict or uncertain submission, retained even after restoration.
     RequiresInspection,
+    /// Complete swap/resync frames, then one fresh full player-contents boundary
+    /// (every slot and the cursor at one receive ordinal after the send) still shows
+    /// both hands and the cursor equal to their pre-send values. The server processed
+    /// the exchange without effect. Terminal; releases the inventory owner.
+    ObservedUnchanged,
+    /// Still `Pending` at the bounded response deadline. The outcome is unknown and
+    /// the server may still apply it; this is not a refusal. Terminal: the connection
+    /// ledger fails with `TransactionExpired`, so later work needs a new connection.
+    Expired,
 }
 
 /// Historical hand exchange, readable without submitting another action.
@@ -62,24 +71,54 @@ pub struct HandSwapRecord {
     pub cursor_before: ObservedValue<SlotKnowledge>,
     /// Submission facts, never an acknowledgement.
     pub send: HandSwapSend,
+    /// Full no-op resync request written after the swap frame. Not a received result.
+    /// Java 1.21.11 uses player screen 0, PICKUP slot -1, revision -1, as selected drop.
+    pub resync_dispatched: bool,
     /// Fresh selected-slot receipt matching the original offhand.
     pub main_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Fresh offhand receipt matching the original selected stack.
     pub offhand_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// First conflict, never cleared by a later matching packet.
     pub requires_inspection: Option<String>,
+    /// Receive ordinal of the full player contents that showed no effect.
+    /// Set only together with `ObservedUnchanged`.
+    pub unchanged_boundary: Option<u64>,
     /// Outcome separate from current inventory state.
     pub stage: HandSwapStage,
     #[serde(skip)]
     context: ItemContext,
+    /// Absolute response deadline, set when the record is retained for I/O.
+    #[serde(skip)]
+    pub(crate) deadline: Option<tokio::time::Instant>,
 }
 
 impl HandSwapRecord {
+    /// Blocks other inventory owners. `Expired` keeps blocking; its connection is failed.
     pub(crate) fn unresolved(&self) -> bool {
-        self.stage != HandSwapStage::ObservedSwapped
+        !matches!(
+            self.stage,
+            HandSwapStage::ObservedSwapped | HandSwapStage::ObservedUnchanged
+        )
+    }
+    fn open(&self) -> bool {
+        matches!(
+            self.stage,
+            HandSwapStage::Pending | HandSwapStage::RequiresInspection
+        )
+    }
+    /// `Pending` past its deadline becomes `Expired` before any later evidence is read.
+    pub(crate) fn expire_due(&mut self) {
+        if self.stage == HandSwapStage::Pending
+            && self
+                .deadline
+                .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
+        {
+            self.stage = HandSwapStage::Expired;
+        }
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
-        if self.unresolved() {
+        self.expire_due();
+        if self.open() {
             self.requires_inspection
                 .get_or_insert_with(|| reason.to_string());
             self.stage = HandSwapStage::RequiresInspection;
@@ -159,6 +198,7 @@ pub(crate) fn prepare(
             interaction_sequence: sequence,
             dispatched: false,
         },
+        resync_dispatched: false,
         initial,
         mode,
         main_slot,
@@ -168,8 +208,10 @@ pub(crate) fn prepare(
         main_receipt: None,
         offhand_receipt: None,
         requires_inspection: None,
+        unchanged_boundary: None,
         stage: HandSwapStage::Pending,
         context,
+        deadline: None,
     })
 }
 
@@ -178,14 +220,21 @@ pub(crate) fn receive(
     current: &PlayerObservation,
     registries: &ServerRegistryObservation,
 ) {
-    if !record.unresolved() {
+    record.expire_due();
+    if !record.open() {
         return;
     }
-    let result = receive_inner(record, current, registries);
-    if let Err(error) = result {
-        record.inspection(error);
+    match receive_inner(record, current, registries) {
+        Err(error) => record.inspection(error),
+        Ok(Some(boundary)) if record.requires_inspection.is_none() => {
+            record.unchanged_boundary = Some(boundary);
+            record.stage = HandSwapStage::ObservedUnchanged;
+            return;
+        }
+        Ok(_) => {}
     }
     if record.send.dispatched
+        && record.resync_dispatched
         && record.requires_inspection.is_none()
         && record.main_receipt.is_some()
         && record.offhand_receipt.is_some()
@@ -193,12 +242,36 @@ pub(crate) fn receive(
         record.stage = HandSwapStage::ObservedSwapped;
     }
 }
+/// One full player-contents packet after `after`: every slot and the cursor share
+/// its receive ordinal. A single-slot update or an older capture is never one.
+pub(crate) fn full_boundary(current: &PlayerObservation, after: u64) -> Option<u64> {
+    let inventory = &current.inventory;
+    let Some(ValueSource::Received { sequence }) = inventory
+        .slots
+        .first()
+        .and_then(Option::as_ref)
+        .map(|value| value.source)
+    else {
+        return None;
+    };
+    let at = |value: Option<&ObservedValue<SlotKnowledge>>| {
+        value.is_some_and(|value| value.source == ValueSource::Received { sequence })
+    };
+    (sequence > after
+        && sequence <= current.receive_sequence
+        && inventory.slots.len() == 46
+        && inventory.slots.iter().all(|slot| at(slot.as_ref()))
+        && at(inventory.cursor.as_ref()))
+    .then_some(sequence)
+}
+
+/// `Some(boundary)` when the resync's full contents show the exchange had no effect.
 fn receive_inner(
     record: &mut HandSwapRecord,
     current: &PlayerObservation,
     registries: &ServerRegistryObservation,
-) -> Result<()> {
-    if !record.send.dispatched {
+) -> Result<Option<u64>> {
+    if !record.send.dispatched || !record.resync_dispatched {
         return Err(unavailable(
             "hand swap submission incomplete or cancelled; do not resend",
         ));
@@ -240,6 +313,8 @@ fn receive_inner(
     {
         return Err(unavailable("hand swap cursor changed"));
     }
+    let full = full_boundary(current, record.send.after_sequence);
+    let mut unchanged = 0;
     for (slot, before, after, receipt) in [
         (
             record.main_slot,
@@ -275,7 +350,18 @@ fn receive_inner(
                     "hand swap destination conflicts with retained exchange",
                 ));
             }
+            if receipt.is_none() && was_before && full == Some(sequence) {
+                unchanged += 1;
+            }
         }
     }
-    Ok(())
+    // Vanilla handles PLAYER_ACTION before the following resync click, so its
+    // full contents are the processed boundary: both hands or neither.
+    match (full, unchanged) {
+        (Some(boundary), 2) => Ok(Some(boundary)),
+        (Some(_), 1) => Err(unavailable(
+            "hand swap full contents show only one exchanged hand",
+        )),
+        _ => Ok(None),
+    }
 }

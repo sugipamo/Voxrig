@@ -32,6 +32,21 @@ pub(super) async fn fixture() -> CommonFixture {
     f
 }
 
+/// The no-op full resync that follows every drop and hand swap frame.
+pub(super) async fn read_resync(peer: &mut tokio::net::TcpStream) {
+    let expected: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../data/client_api/selected_drop_resync-1.21.11.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        read_packet(peer, None).await.unwrap(),
+        (
+            ids::play_serverbound::WINDOW_CLICK,
+            hex::decode(expected["payload_hex"].as_str().unwrap()).unwrap()
+        )
+    );
+}
+
 fn tags_packet(tags: crate::client::registry::ServerRegistryTags) -> Vec<u8> {
     let mut payload = Vec::new();
     let name = |payload: &mut Vec<u8>, value: &str| {
@@ -98,6 +113,7 @@ async fn hand_swap_both_modes_two_fresh_destinations_shared_sequence_and_history
                 read_packet(&mut f.peer, None).await.unwrap(),
                 (ids::play_serverbound::BLOCK_DIG, expected)
             );
+            read_resync(&mut f.peer).await;
             let mut drain = f.api.bot.session.ledger.cut(false);
             assert!(drain.inspect().is_none());
             assert!(client.survival().swap_hands().await.is_err());
@@ -184,6 +200,7 @@ async fn hand_swap_keeps_component_patch_and_requires_exact_data() {
         matches!(&record.offhand_before.value, crate::client::SlotKnowledge::Item { item } if item.data != crate::client::ItemData::Default)
     );
     read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
     f.slot(36, native.clone()).await;
     assert_eq!(
         client
@@ -210,6 +227,7 @@ async fn hand_swap_keeps_component_patch_and_requires_exact_data() {
     let second = client.survival().swap_hands().await.unwrap();
     assert_ne!(second.id, record.id);
     read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
     f.slot(45, plain("shield", 1)).await;
     f.slot(45, native).await;
     f.slot(36, plain("dirt", 12)).await;
@@ -241,6 +259,7 @@ async fn hand_swap_context_conflicts_are_sticky_after_restoration() {
         let client = f.client();
         client.survival().swap_hands().await.unwrap();
         read_packet(&mut f.peer, None).await.unwrap();
+        read_resync(&mut f.peer).await;
         match conflict {
             "selection" => {
                 f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[1]).await;
@@ -431,6 +450,7 @@ async fn hand_swap_selected_last_hotbar_and_stale_destination_cannot_confirm() {
     let mut record = client.survival().swap_hands().await.unwrap();
     assert_eq!(record.main_slot, 44);
     read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
     let mut stale = record.initial.clone();
     stale.inventory.slots[44] = Some(crate::client::received(
         record.offhand_before.value.clone(),
@@ -478,6 +498,7 @@ async fn hand_swap_after_local_close_and_actual_reconfiguration_keep_owned_histo
     assert!(matches!(record.initial.inventory.player_screen,
         Some(crate::client::container::PlayerScreenAccess::SubmittedClose { close }) if close == closed.id));
     read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
     f.slot(36, plain("shield", 1)).await;
     f.slot(45, plain("dirt", 2)).await;
     assert_eq!(
@@ -492,6 +513,7 @@ async fn hand_swap_after_local_close_and_actual_reconfiguration_keep_owned_histo
     );
     let next = client.survival().swap_hands().await.unwrap();
     read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
     f.receive(ids::play_clientbound::START_CONFIGURATION, &[])
         .await;
     let latest = client.survival().hand_swap_record().await.unwrap().unwrap();
@@ -516,6 +538,7 @@ async fn hand_swap_tag_reload_keeps_conflict_even_when_destinations_later_match(
         .clone();
     let sent = client.survival().swap_hands().await.unwrap();
     read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
     // One hand is already confirmed. Even identical tag bytes are a new
     // named-holder lifetime and must not silently replace the captured owner.
     f.slot(36, plain("shield", 1)).await;
@@ -559,6 +582,7 @@ async fn hand_swap_full_contents_requires_both_hands_and_unchanged_cursor_atomic
             .await;
         let sent = client.survival().swap_hands().await.unwrap();
         read_packet(&mut f.peer, None).await.unwrap();
+        read_resync(&mut f.peer).await;
         let mut inventory = f
             .api
             .bot
@@ -623,4 +647,117 @@ async fn hand_swap_full_contents_requires_both_hands_and_unchanged_cursor_atomic
         );
         f.stop().await;
     }
+}
+
+#[tokio::test]
+async fn hand_swap_unchanged_full_resync_is_terminal_and_releases_owner() {
+    let mut f = fixture().await;
+    let client = f.client();
+    f.slot(36, plain("iron_pickaxe", 1)).await;
+    let sent = client.survival().swap_hands().await.unwrap();
+    assert!(sent.send.dispatched && sent.resync_dispatched);
+    read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
+    // Fresh unchanged single-slot updates are not a processed boundary.
+    f.slot(36, plain("iron_pickaxe", 1)).await;
+    f.slot(45, plain("shield", 1)).await;
+    let pending = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert_eq!(pending.stage, Stage::Pending);
+    // The resync's full contents (e.g. a dead or spectator player) still show both
+    // original hands and the cursor.
+    let inventory = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .clone();
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+        .await;
+    let unchanged = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert_eq!(unchanged.id, sent.id);
+    assert_eq!(unchanged.stage, Stage::ObservedUnchanged);
+    assert!(unchanged.main_receipt.is_none() && unchanged.offhand_receipt.is_none());
+    assert!(unchanged.unchanged_boundary.unwrap() > sent.send.after_sequence);
+    f.api.bot.session.ledger.cut(false).wait().await.unwrap();
+    f.slot(36, plain("shield", 1)).await;
+    f.slot(45, plain("iron_pickaxe", 1)).await;
+    assert_eq!(
+        serde_json::to_value(client.survival().hand_swap_record().await.unwrap()).unwrap(),
+        serde_json::to_value(Some(&unchanged)).unwrap()
+    );
+    let next = client.survival().swap_hands().await.unwrap();
+    assert_ne!(next.id, sent.id);
+    read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn hand_swap_full_resync_with_one_exchanged_hand_requires_inspection() {
+    let mut f = fixture().await;
+    let client = f.client();
+    f.slot(36, plain("iron_pickaxe", 1)).await;
+    client.survival().swap_hands().await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
+    let mut inventory = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .clone();
+    inventory.slots[36] = plain("shield", 1);
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+        .await;
+    let record = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert_eq!(record.stage, Stage::RequiresInspection);
+    assert!(
+        record
+            .requires_inspection
+            .as_ref()
+            .unwrap()
+            .contains("only one exchanged hand")
+    );
+    assert!(record.unchanged_boundary.is_none());
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn hand_swap_without_response_expires_unknown_and_fails_ledger() {
+    let mut f = fixture().await;
+    let client = f.client();
+    let sent = client.survival().swap_hands().await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
+    let error = f
+        .api
+        .bot
+        .session
+        .ledger
+        .cut(false)
+        .wait()
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.public().kind(),
+        crate::client::DrainErrorKind::TransactionExpired
+    );
+    let expired = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert_eq!(expired.id, sent.id);
+    assert_eq!(expired.stage, Stage::Expired);
+    assert!(client.survival().swap_hands().await.is_err());
+    f.slot(36, plain("shield", 1)).await;
+    f.slot(45, plain("dirt", 12)).await;
+    f.stop().await;
+    let after = client.survival().hand_swap_record().await.unwrap().unwrap();
+    assert_eq!(after.stage, Stage::Expired);
+    assert!(after.main_receipt.is_none() && after.requires_inspection.is_none());
 }
