@@ -206,123 +206,15 @@ impl HeadlessBody {
     /// This additive view can report a late Corrected rollback notice. Existing
     /// BodyBackend::action_status and its immutable terminal result are unchanged.
     /// Does not replay, reopen ownership, or infer acceptance from late agreement.
-    /// For 1.16.1, inspect action_observation/monitor_changes_after for evidence
-    /// gaps, lifetime loss and temporary refresh failures, separately from acceptance.
+    /// An unchanged result is not proof of complete tracking: read
+    /// action_observation/monitor_changes_after for evidence gaps, lifetime loss
+    /// and temporary refresh failures, separately from acceptance.
     pub async fn action_outcome(&self, id: ActionId) -> Result<ActionStatus> {
-        if self.inner.client.version() == MinecraftVersion::Java1_16_1 {
-            return Ok(self.action_observation(id).await?.outcome);
-        }
-        let status = self.retained_status(id)?;
-        if !matches!(
-            status,
-            ActionStatus::Unknown { .. } | ActionStatus::Accepted
-        ) {
-            return Ok(status);
-        }
-        let job = self.inner.job(id)?;
-        if job.trust_sent
-            && !matches!(
-                job.acceptance.lock().unwrap().dispatch_status(),
-                Some(SendStatus::Sent)
-            )
-        {
-            return Ok(status);
-        }
-        if let Some(corrected) = job.late_correction.lock().unwrap().clone() {
-            return Ok(corrected);
-        }
-        let monitor = job.monitor.lock().unwrap().clone();
-        if let Some(monitor) = monitor {
-            let batch = timeout(
-                self.inner.config.settle_window,
-                self.operations()?.body_evidence(
-                    self.inner.id,
-                    &monitor.selection,
-                    Some(monitor.cursor),
-                ),
-            )
-            .await;
-            if let Ok(Ok(batch)) = batch {
-                if !batch.gap && batch.snapshot.world == monitor.world {
-                    if let Some(corrected @ ActionStatus::Corrected { .. }) =
-                        correction(&batch, monitor.expected.as_ref(), &monitor.action)?
-                    {
-                        self.inner.record_late(id, corrected.clone());
-                        return Ok(corrected);
-                    }
-                }
-            }
-        }
-        Ok(status)
+        Ok(self.action_observation(id).await?.outcome)
     }
 
     async fn refresh_trusted(&self) -> Result<()> {
-        if self.inner.client.version() == MinecraftVersion::Java1_16_1 {
-            return self.refresh_monitors(None).await;
-        }
-        let monitors: Vec<_> = {
-            let records = self.inner.records.lock().unwrap();
-            records
-                .jobs
-                .iter()
-                .filter_map(|(id, job)| {
-                    if !job.trust_sent
-                        || !matches!(
-                            job.acceptance.lock().unwrap().dispatch_status(),
-                            Some(SendStatus::Sent)
-                        )
-                        || job.late_correction.lock().unwrap().is_some()
-                        || !matches!(
-                            job.acceptance.lock().unwrap().status,
-                            ActionStatus::Accepted | ActionStatus::Unknown { .. }
-                        )
-                    {
-                        return None;
-                    }
-                    job.monitor.lock().unwrap().clone().map(|m| (*id, m))
-                })
-                .collect()
-        };
-        let Some(cursor) = monitors.iter().map(|(_, m)| m.cursor).min() else {
-            return Ok(());
-        };
-        let mut blocks: Vec<_> = monitors
-            .iter()
-            .flat_map(|(_, m)| m.selection.blocks.iter().copied())
-            .collect();
-        blocks.sort_unstable();
-        blocks.dedup();
-        let ops = self.operations()?;
-        if let Ok(Ok(batch)) = timeout(
-            self.inner.config.settle_window,
-            ops.body_evidence(
-                self.inner.id,
-                &ObserveRequest {
-                    blocks,
-                    region: None,
-                },
-                Some(cursor),
-            ),
-        )
-        .await
-        {
-            let retained_from = batch.events.first().map_or(batch.cursor, |e| e.ordinal - 1);
-            for (id, monitor) in monitors {
-                if (batch.gap && monitor.cursor < retained_from)
-                    || batch.snapshot.world != monitor.world
-                {
-                    continue;
-                }
-                let mut own = batch.clone();
-                own.events.retain(|e| e.ordinal > monitor.cursor);
-                if let Some(corrected @ ActionStatus::Corrected { .. }) =
-                    correction(&own, monitor.expected.as_ref(), &monitor.action)?
-                {
-                    self.inner.record_late(id, corrected);
-                }
-            }
-        }
-        Ok(())
+        self.refresh_monitors(None).await
     }
 
     /// Watch one existing strict PICKUP with a shared absolute deadline. Does
@@ -905,10 +797,8 @@ async fn run(
             if let Some(sent_cursor) = sent_cursor {
                 cursor = sent_cursor;
                 let job = inner.job(id)?;
-                if job.trust_sent || inner.client.version() == MinecraftVersion::Java1_16_1 {
-                    if let Some(monitor) = job.monitor.lock().unwrap().as_mut() {
-                        monitor.cursor = sent_cursor;
-                    }
+                if let Some(monitor) = job.monitor.lock().unwrap().as_mut() {
+                    monitor.cursor = sent_cursor;
                 }
             }
             cleanup.dispatched = true;
