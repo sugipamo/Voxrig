@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-28",
+  "audit_row": "B12",
+  "audit_pr": 287,
+  "branch": "fix/body-useitem-resync-scope",
+  "base": "972c6f3",
+  "script": "scripts/run_body_useitem_resync_scope_live.py",
+  "public_api": "unchanged signatures; behaviour change: container-window full contents no longer yield Corrected{InventoryResync}",
+  "runs": [
+    {
+      "binary": "fix",
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "binary_sha256": "612ff9b41eab77c8ca410476e7814692efc7a2f25a5763992b9337c0ad9e3b2e",
+      "trace_errors": [],
+      "evidence": "body-useitem-resync-scope-live-1.16.1-20261028.json.gz",
+      "checks": [
+        {
+          "name": "stick_use_with_container_window_items",
+          "window_items_windows": [
+            1
+          ],
+          "status": "accepted",
+          "correction": null
+        },
+        {
+          "name": "snowball_use_with_chest_open",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        },
+        {
+          "name": "snowball_use_player_screen",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        }
+      ]
+    },
+    {
+      "binary": "fix",
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "binary_sha256": "612ff9b41eab77c8ca410476e7814692efc7a2f25a5763992b9337c0ad9e3b2e",
+      "trace_errors": [],
+      "evidence": "body-useitem-resync-scope-live-1.21.11-20261028.json.gz",
+      "checks": [
+        {
+          "name": "stick_use_with_container_window_items",
+          "window_items_windows": [
+            1
+          ],
+          "status": "accepted",
+          "correction": null
+        },
+        {
+          "name": "snowball_use_with_chest_open",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        },
+        {
+          "name": "snowball_use_player_screen",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        }
+      ]
+    },
+    {
+      "binary": "baseline origin/main 972c6f3 (--expect-overreport)",
+      "version": "1.16.1",
+      "passed": true,
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "binary_sha256": "3d7cbd54eb2839520d8a27c70e075c213c0606d53ffacf9fd6e59e45da669d36",
+      "trace_errors": [],
+      "evidence": "body-useitem-resync-scope-live-baseline-1.16.1-20261028.json.gz",
+      "checks": [
+        {
+          "name": "stick_use_with_container_window_items",
+          "window_items_windows": [
+            1
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        },
+        {
+          "name": "snowball_use_with_chest_open",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        },
+        {
+          "name": "snowball_use_player_screen",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        }
+      ]
+    },
+    {
+      "binary": "baseline origin/main 972c6f3 (--expect-overreport)",
+      "version": "1.21.11",
+      "passed": true,
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "binary_sha256": "3d7cbd54eb2839520d8a27c70e075c213c0606d53ffacf9fd6e59e45da669d36",
+      "trace_errors": [],
+      "evidence": "body-useitem-resync-scope-live-baseline-1.21.11-20261028.json.gz",
+      "checks": [
+        {
+          "name": "stick_use_with_container_window_items",
+          "window_items_windows": [
+            1
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        },
+        {
+          "name": "snowball_use_with_chest_open",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        },
+        {
+          "name": "snowball_use_player_screen",
+          "window_items_windows": [
+            0
+          ],
+          "status": "corrected",
+          "correction": "InventoryResync"
+        }
+      ]
+    }
+  ],
+  "source_sha256": {
+    "src/body/headless.rs": "29f0c74480a893bd95e26343471e9dfdb51ca52bfecc6b65848470e3bb75d40a",
+    "src/versions/java_1_16_1/client/body.rs": "a5e531c005c7f7a2395b439c0100a64b18397f7a99222c686910f6c5dce8d56b",
+    "src/versions/java_1_21_11/client/operations/body.rs": "b0736ff36a632aa72dd6a71ceaea3405ce93e04d7b10c1c2b4b74d1b7baa965d",
+    "examples/body_probe.rs": "333c09728294514dfc20fb18405fdd1604fb1505c334aa8c32cbb312a5b3ec53",
+    "scripts/run_body_useitem_resync_scope_live.py": "5a8d3e08f5eefc6d161ecfed6cbf29ccddf3d0c07860b30d295e49b876a4935b",
+    "Cargo.lock": "8bf7e3de1d117dc1b42243ac611431b022f09bc297f38160981c6979ead35668"
+  }
+}

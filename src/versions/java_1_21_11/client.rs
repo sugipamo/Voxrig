@@ -293,7 +293,7 @@ impl State {
         if result.is_ok() {
             operations::continuous::ground_motion_received(self, id);
             if in_play {
-                operations::body::received(self, id);
+                operations::body::received(self, id, payload);
             }
             if self.phase == Phase::Play && id == ids::play_clientbound::RESPAWN {
                 crate::client::respawn::received(
