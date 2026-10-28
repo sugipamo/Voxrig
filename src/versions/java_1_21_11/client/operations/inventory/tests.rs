@@ -1156,6 +1156,12 @@ impl CommonFixture {
         let id = 42;
         state.connection_id = id;
         let health_log = state.health_log.clone();
+        // Same own-action handoff as Session connect (I9).
+        let mut writer = SocketWriter::new(writer);
+        writer.observe_own_actions(
+            MinecraftVersion::Java1_21_11,
+            state.inventory_executor.own_action_sink(),
+        );
         let session = Arc::new(Session {
             health_log: Arc::clone(&health_log),
             operational_dig: Arc::default(),
@@ -1166,7 +1172,7 @@ impl CommonFixture {
             }),
             started: Instant::now(),
             writer: Arc::new(Mutex::new(Writer {
-                stream: SocketWriter::new(writer),
+                stream: writer,
                 compression: None,
             })),
             state: Mutex::new(state),
@@ -6246,5 +6252,16 @@ impl CommonFixture {
                 .await;
         })
         .await;
+    }
+}
+
+mod own_action_window {
+    use super::*;
+    use crate::client::inventory::acceptance_tests as script;
+    #[tokio::test]
+    async fn own_action_window_tags_hand_delta_and_keeps_external_give() {
+        let mut f = CommonFixture::new().await;
+        script::own_action_and_external_log(&mut f).await;
+        f.stop().await;
     }
 }

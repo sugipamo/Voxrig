@@ -86,8 +86,28 @@ pub(crate) struct Executor {
     divergence: Option<super::InventoryDivergence>,
     ready: bool,
     timed_out: bool,
+    own_actions: std::sync::Arc<super::own_action::OwnActionSink>,
 }
 impl Executor {
+    /// Handoff the socket writer records own action frames into.
+    pub(crate) fn own_action_sink(&self) -> std::sync::Arc<super::own_action::OwnActionSink> {
+        self.own_actions.clone()
+    }
+    /// Open own-action windows written since the last call. Call on every
+    /// received packet, before inventory deltas; `selected` is the current
+    /// selection (received or submitted) and resolves the main-hand slot.
+    pub(crate) fn own_action_pending(&self) -> bool {
+        !self.own_actions.is_empty()
+    }
+    pub(crate) fn own_actions_received(&mut self, session: SessionStamp, selected: Option<u8>) {
+        if !self.own_action_pending() {
+            return;
+        }
+        let windows = self
+            .own_actions
+            .drain(session, selected, self.changes.own_ordinal());
+        self.changes.own_actions(windows);
+    }
     pub(crate) fn record(&mut self) -> Option<InventorySendRecord> {
         self.expire();
         self.current.clone()

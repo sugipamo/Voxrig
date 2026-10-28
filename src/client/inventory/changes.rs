@@ -315,7 +315,21 @@ pub enum InventoryCause {
     },
     /// Completed explicit resync after an expired send; the old intent was not replayed.
     TimedOutResync,
-    /// No more specific received explanation; also used for unexplained residual changes.
+    /// Received inside the bounded window of an own non-executor action
+    /// (item use, placement, dig, selected drop, hand swap) at a slot that
+    /// action can change. Like `Send`, this does not prove causal ownership.
+    OwnAction {
+        /// Kind of the written frame.
+        action: super::InventoryOwnActionKind,
+        /// Per-connection order of own actions, starting at 1.
+        ordinal: u64,
+        /// 1.21.11 interaction sequence of the frame; None on 1.16.1.
+        interaction_sequence: Option<i32>,
+        /// Changed locations of this delta inside the action's scope.
+        locations: Vec<InventoryLocation>,
+    },
+    /// No more specific received explanation; also used for unexplained residual
+    /// changes, including slots outside every `OwnAction` scope of the same delta.
     External,
 }
 /// One receive-time inventory change; immutable after recording.
@@ -355,8 +369,57 @@ pub(crate) struct InventoryChangeLedger {
     previous: Option<InventorySnapshot>,
     dropped_through: u64,
     collected: Vec<(i32, u64)>,
+    own_actions: VecDeque<super::own_action::OwnActionWindow>,
+    own_ordinal: u64,
 }
 impl InventoryChangeLedger {
+    /// Open windows for own actions resolved from the writer handoff.
+    pub(crate) fn own_actions(
+        &mut self,
+        windows: impl IntoIterator<Item = super::own_action::OwnActionWindow>,
+    ) {
+        self.own_actions.extend(windows);
+        while self.own_actions.len() > MAX_RETAINED_INVENTORY_CHANGES {
+            self.own_actions.pop_front();
+        }
+    }
+    pub(crate) fn own_ordinal(&mut self) -> &mut u64 {
+        &mut self.own_ordinal
+    }
+    // Own-action hints for the changed slots of one delta, plus whether every
+    // changed location is inside some window's scope.
+    fn own_action_causes(
+        &mut self,
+        session: SessionStamp,
+        delta: &InventoryDelta,
+    ) -> (Vec<InventoryCause>, bool) {
+        let now = tokio::time::Instant::now();
+        self.own_actions
+            .retain(|w| w.session == session && w.deadline > now);
+        let mut causes = Vec::new();
+        let mut covered = vec![false; delta.slots.len()];
+        for window in &self.own_actions {
+            let locations: Vec<_> = delta
+                .slots
+                .iter()
+                .zip(&mut covered)
+                .filter(|(slot, _)| window.scope.contains(&slot.location))
+                .map(|(slot, covered)| {
+                    *covered = true;
+                    slot.location
+                })
+                .collect();
+            if !locations.is_empty() {
+                causes.push(InventoryCause::OwnAction {
+                    action: window.kind,
+                    ordinal: window.ordinal,
+                    interaction_sequence: window.interaction_sequence,
+                    locations,
+                });
+            }
+        }
+        (causes, covered.iter().all(|c| *c))
+    }
     pub(crate) fn collect(&mut self, entity: i32, sequence: u64) {
         if !self.collected.iter().any(|(id, _)| *id == entity) {
             self.collected.push((entity, sequence));
@@ -380,6 +443,9 @@ impl InventoryChangeLedger {
                 self.records.clear();
                 self.dropped_through = current.receive_sequence;
                 self.collected.clear();
+                if previous.session != current.session {
+                    self.own_actions.clear();
+                }
             } else {
                 let delta = previous.delta(&current);
                 if !delta.slots.is_empty() {
@@ -405,7 +471,11 @@ impl InventoryChangeLedger {
                             causes.push(cause);
                         }
                     }
-                    if causes.is_empty() {
+                    // Own-action hints never hide a change outside their scope.
+                    let (own, covered) = self.own_action_causes(current.session, &delta);
+                    let explained = !causes.is_empty() || (!own.is_empty() && covered);
+                    causes.extend(own);
+                    if !explained {
                         causes.push(InventoryCause::External);
                     }
                     self.records.push_back(InventoryChange {
