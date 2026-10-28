@@ -373,6 +373,7 @@ impl Bot {
         self.interrupt_common_crafting_take(problem).await;
         self.interrupt_common_recipe_placement(problem).await;
         self.interrupt_common_inventory_transfer(problem).await;
+        let interruption = self.legacy_motion_interruption(problem).await;
         let key = self
             .common_motion
             .lock()
@@ -381,9 +382,41 @@ impl Bot {
             .map(|r| (r.record.run_id, r.record.session.world_generation));
         if let Some((id, generation)) = key {
             let _ = self
-                .terminate_common_motion(id, generation, Some(problem))
+                .terminate_common_motion_with(id, generation, Some(problem), interruption)
                 .await;
         }
+    }
+    /// Typed cause for the receive paths' fixed interruption texts. Every
+    /// caller runs under the packet's receive boundary, so the current packet
+    /// ordinal and the already-applied own pose/velocity belong to it.
+    async fn legacy_motion_interruption(
+        &self,
+        problem: &str,
+    ) -> Option<crate::client::survival::MotionInterruption> {
+        use crate::client::survival::MotionInterruptionKind as Kind;
+        let kind = match problem {
+            "native own-pose correction interrupted finite motion" => {
+                let player = self.player.lock().await;
+                Kind::Correction {
+                    position: [player.x, player.y, player.z],
+                    rotation: [player.yaw, player.pitch],
+                }
+            }
+            "native own-player velocity interrupted finite motion" => Kind::Velocity {
+                velocity: self.own_velocity_receipt.lock().await.map(|(_, v)| v),
+            },
+            "native explosion interrupted finite motion" => Kind::Explosion,
+            "native world change interrupted finite motion" => Kind::WorldChanged,
+            "native game mode changed after finite motion started" => Kind::GameModeChanged,
+            "native effect interrupted finite motion" => Kind::EffectChanged,
+            "native posture changed during finite motion" => Kind::PostureChanged,
+            "actual own mount interrupted ground operations" => Kind::VehicleChanged,
+            _ => return None,
+        };
+        Some(crate::client::survival::MotionInterruption {
+            receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+            kind,
+        })
     }
     // Caller holds coherent_state_gate through invalidation and actor acknowledgement.
     // A position write also holds that gate until the actor confirms the write.
@@ -393,6 +426,16 @@ impl Bot {
         generation: u64,
         problem: Option<&str>,
     ) -> Result<()> {
+        self.terminate_common_motion_with(id, generation, problem, None)
+            .await
+    }
+    async fn terminate_common_motion_with(
+        &self,
+        id: u64,
+        generation: u64,
+        problem: Option<&str>,
+        interruption: Option<crate::client::survival::MotionInterruption>,
+    ) -> Result<()> {
         if let Some(run) =
             self.common_motion.lock().await.as_mut().filter(|r| {
                 r.record.run_id == id && r.record.session.world_generation == generation
@@ -400,6 +443,10 @@ impl Bot {
         {
             if let Some(problem) = problem {
                 run.record.status = MotionStatus::RequiresInspection;
+                // The typed cause belongs only to the first retained problem.
+                if run.record.problem.is_none() {
+                    run.record.interruption = interruption;
+                }
                 run.record.problem.get_or_insert_with(|| problem.to_owned());
             }
             self.sync_owned_motion(&run.record);
@@ -1066,6 +1113,7 @@ impl Bot {
                 dispatched_ticks: 0,
                 status: MotionStatus::Running,
                 problem: None,
+                interruption: None,
             },
         })
     }
@@ -1234,6 +1282,7 @@ impl crate::client::adapter::PathMotionOps for Bot {
                         dispatched_ticks: 0,
                         status: MotionStatus::Running,
                         problem: None,
+                        interruption: None,
                     },
                 };
                 // Re-derived support is model evidence, never a server ground receipt.
@@ -2035,6 +2084,31 @@ pub(super) mod tests {
                     packets.try_recv().is_err(),
                     "unexpected old-tail packet: {cause}"
                 );
+                // The free-text problem is unchanged; the typed cause names the
+                // received boundary. A local terrain stop is not an interruption.
+                use crate::client::survival::MotionInterruptionKind as Kind;
+                let kind = interrupted.interruption.clone().map(|i| i.kind);
+                match cause {
+                    "correction" => assert_eq!(
+                        kind,
+                        Some(Kind::Correction {
+                            position: [9.5, 65.0, 8.5],
+                            rotation: [0.0; 2],
+                        })
+                    ),
+                    "impulse" => assert_eq!(
+                        kind,
+                        Some(Kind::Velocity {
+                            velocity: Some([0.1, 0.0, 0.0]),
+                        })
+                    ),
+                    "terrain" => assert_eq!(kind, None),
+                    _ => assert_eq!(kind, Some(Kind::WorldChanged)),
+                }
+                if let Some(interruption) = &interrupted.interruption {
+                    assert!(interruption.receive_sequence > 0, "{cause}");
+                    assert!(interrupted.problem.is_some(), "{cause}");
+                }
                 // Same actor accepts a fresh strict run, including current momentum.
                 let rest: Vec<_> = (0..35)
                     .map(|tick| SurvivalControl {

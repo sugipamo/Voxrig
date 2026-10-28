@@ -64,6 +64,8 @@ diagnostic_record! {
         received_pose_sequence: u64,
         #[serde(skip)]
         observer_session: Option<Weak<Session>>,
+        #[serde(skip)]
+        interruption: Option<crate::client::survival::MotionInterruption>,
     }
     diagnostic_serde {}
 }
@@ -146,6 +148,104 @@ impl StandingPositionBasis {
                 }
             }),
         }
+    }
+}
+/// The received change `stable_context` rejects, checked in the same order
+/// of precedence: world, pose, mode, flight, unmodeled impulse/vehicle,
+/// velocity, posture, attributes, effects, death. None when only the finite
+/// authority was revoked or nothing received changed.
+fn context_interruption(
+    state: &State,
+    r: &SurvivalMotionRecord,
+) -> Option<crate::client::survival::MotionInterruption> {
+    use crate::client::survival::{MotionInterruption, MotionInterruptionKind as Kind};
+    let before = &r.preview.initial.player;
+    let now = &state.operations.local_player;
+    let at = |receive_sequence, kind| {
+        Some(MotionInterruption {
+            receive_sequence,
+            kind,
+        })
+    };
+    let pose = state.motion.received_pose.as_ref();
+    if state.loading.generation != r.generation
+        || state.world.dimension.as_ref().map(|d| &d.0) != Some(&r.preview.initial.dimension)
+    {
+        return at(state.sequence, Kind::WorldChanged);
+    }
+    if let Some(pose) = pose.filter(|p| p.receive_sequence != r.received_pose_sequence) {
+        return at(
+            pose.receive_sequence,
+            Kind::Correction {
+                position: pose.position,
+                rotation: pose.rotation,
+            },
+        );
+    }
+    if state.operations.game_mode
+        != r.common_initial
+            .as_ref()
+            .map_or(Some(GameMode::Survival), |p| p.game_mode)
+    {
+        return at(state.sequence, Kind::GameModeChanged);
+    }
+    if state.operations.requested_flying
+        || (state.operations.abilities.is_some_and(|a| a & 2 != 0)
+            && !flight_stop_matches(state, r))
+    {
+        return at(state.sequence, Kind::FlightChanged);
+    }
+    if let Some(m) = now
+        .motion_interruption
+        .as_ref()
+        .filter(|_| !dismount_stop_matches(state, r))
+    {
+        let kind = if m.packet_id == ids::play_clientbound::EXPLOSION {
+            Kind::Explosion
+        } else {
+            Kind::VehicleChanged
+        };
+        return at(m.receive_sequence, kind);
+    }
+    if state.vehicles.motion_interrupted() {
+        return at(state.sequence, Kind::VehicleChanged);
+    }
+    if now.velocity != before.velocity {
+        return at(
+            now.velocity
+                .as_ref()
+                .map_or(state.sequence, |v| v.receive_sequence),
+            Kind::Velocity {
+                velocity: now.velocity.as_ref().map(|v| v.value),
+            },
+        );
+    }
+    if now.pose != before.pose {
+        return at(state.sequence, Kind::PostureChanged);
+    }
+    if now.scale != before.scale
+        || now.movement_speed != before.movement_speed
+        || now.gravity != before.gravity
+        || now.jump_strength != before.jump_strength
+        || now.step_height != before.step_height
+        || now.movement_efficiency != before.movement_efficiency
+    {
+        return at(state.sequence, Kind::AttributesChanged);
+    }
+    if !now.effect_updates.is_empty() {
+        return at(state.sequence, Kind::EffectChanged);
+    }
+    if now.health.as_ref().is_some_and(|h| h.health <= 0.0) {
+        return at(state.sequence, Kind::Died);
+    }
+    None
+}
+/// Retain `problem` as the run's first problem, with its typed received cause.
+fn retain_problem(state: &State, run: &mut SurvivalMotionRecord, problem: &str) {
+    run.status = SurvivalMotionStatus::RequiresInspection;
+    if run.problem.is_none() {
+        run.interruption = context_interruption(state, run);
+        run.problem = Some(problem.into());
     }
 }
 fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
@@ -522,6 +622,7 @@ impl Operations {
                         .as_ref()
                         .and_then(|r| r.dismount_stop.clone()),
                     observer_session: observer.map(|o| Arc::downgrade(&o.bot.session)),
+                    interruption: None,
                     received_pose_sequence: state
                         .motion
                         .received_pose
@@ -619,8 +720,9 @@ impl Operations {
             .filter(|r| r.run_id == run.run_id && r.generation == run.generation)
         {
             if let Some(problem) = problem {
-                record.status = SurvivalMotionStatus::RequiresInspection;
-                record.problem.get_or_insert_with(|| problem.into());
+                let mut retained = record.clone();
+                retain_problem(state, &mut retained, problem);
+                *state.survival_motion.as_mut().unwrap() = retained;
             }
         }
         // All sends and packet receipt application share State. This awaited
@@ -1032,6 +1134,7 @@ fn common_record(record: SurvivalMotionRecord) -> Result<crate::client::survival
         dispatched_ticks: record.dispatched_ticks,
         status: record.status,
         problem: record.problem,
+        interruption: record.interruption,
     })
 }
 
@@ -1051,9 +1154,9 @@ pub(in super::super) fn finite_context_received(state: &mut State) {
         .and_then(|r| stable_context(state, r).err());
     if let Some(problem) = problem {
         state.control.finite.as_mut().unwrap().valid = false;
-        if let Some(run) = &mut state.survival_motion {
-            run.status = SurvivalMotionStatus::RequiresInspection;
-            run.problem.get_or_insert_with(|| problem.to_string());
+        if let Some(mut run) = state.survival_motion.clone() {
+            retain_problem(state, &mut run, &problem.to_string());
+            state.survival_motion = Some(run);
         }
     }
 }
@@ -1080,9 +1183,9 @@ impl State {
             .filter(|r| r.status.is_continuation_candidate())
             .and_then(|r| dispatched_rest(state, r).err());
         if let Some(problem) = problem {
-            let r = state.survival_motion.as_mut().unwrap();
-            r.status = SurvivalMotionStatus::RequiresInspection;
-            r.problem.get_or_insert_with(|| problem.to_string());
+            let mut r = state.survival_motion.clone().unwrap();
+            retain_problem(state, &mut r, &problem.to_string());
+            state.survival_motion = Some(r);
         }
     }
 }
@@ -1236,6 +1339,7 @@ fn stop_plan(
         dismount_stop,
         received_pose_sequence: pose,
         observer_session: None,
+        interruption: None,
     })
 }
 pub(in super::super) fn dismount_ground_plan(
@@ -1338,6 +1442,12 @@ pub(in super::super) fn retire_common_for_mount(state: &mut State) -> Result<()>
     }) {
         let mut run = state.survival_motion.take().unwrap();
         run.status = SurvivalMotionStatus::RequiresInspection;
+        if run.problem.is_none() {
+            run.interruption = Some(crate::client::survival::MotionInterruption {
+                receive_sequence: state.sequence,
+                kind: crate::client::survival::MotionInterruptionKind::VehicleChanged,
+            });
+        }
         run.problem
             .get_or_insert_with(|| "actual mount superseded settled ground motion".into());
         state.retired_common_motion = Some(common_record(run)?);

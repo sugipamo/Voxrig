@@ -28,6 +28,7 @@ pub use motion::{
     MAX_SURVIVAL_CONTROL_TICKS, MotionPreview, MotionRecord, MotionStatus, PredictedMotionFrame,
     SurvivalControl, SurvivalInput, TerminalClearance,
 };
+pub use motion::{MotionInterruption, MotionInterruptionKind};
 pub use target::{
     BlockTargetHit, BlockTargetObservation, BlockTargetPose, BlockTargetPoseSource,
     ContextualBlockTargetObservation,

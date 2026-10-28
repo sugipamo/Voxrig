@@ -35,6 +35,19 @@ impl Client {
 }
 
 impl PlayerControl {
+    /// Read this connection's control owner transitions (Started, Paused,
+    /// Resumed, Stopped with a typed cause, Expired) after a log cursor
+    /// (initially 0), on both versions, without re-querying `control_record`.
+    /// State reports eviction; InvalidInput a future cursor. Policies are unchanged.
+    pub async fn control_state_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<super::control::ControlStateLog> {
+        self.client
+            .control_state_changes_after(after_sequence)
+            .await
+    }
+
     /// Read Java 1.16.1 remote-model degradations after a connection-local log
     /// cursor (initially 0), including replaced owners and after disconnect.
     /// State reports eviction; InvalidInput reports a future cursor.

@@ -521,6 +521,11 @@ pub(crate) trait PathMotionOps {
 
 /// Continuous control: held keys and per-tick client physics.
 pub(crate) trait ControlOps {
+    /// Owner state transitions; both adapters keep this connection-owned log.
+    async fn control_state_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<super::control::ControlStateLog>;
     async fn control_changes_after(
         &self,
         _after_sequence: u64,

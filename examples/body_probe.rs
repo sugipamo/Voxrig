@@ -224,6 +224,11 @@ async fn main() -> anyhow::Result<()> {
                     serde_json::to_value(client.survival().start_predicted_path(&controls).await?)?
                 }
                 "path_record" => serde_json::to_value(client.survival().motion_record().await?)?,
+                "control_states" => serde_json::to_value(
+                    client
+                        .control_state_changes_after(v["after"].as_u64().unwrap_or(0))
+                        .await?,
+                )?,
                 "path_best_effort_start" => {
                     let controls: Vec<voxrig::client::survival::SurvivalControl> =
                         serde_json::from_value(v["controls"].clone())?;

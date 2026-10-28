@@ -480,3 +480,6 @@ let record = control.control_record().await?;
 connection/world/spawn/owner、mode、死亡・乗車・飛行の照合と入力の有限値・範囲制限を維持する。
 inventory等のunresolved gate分割とdig見積りの緩和（step 6–7）は対象外。
 公式server実機の再現は`scripts/run_walk_unknown_live.py`を参照。
+
+開始後のPaused／Stopped／期限切れは両版で`control_state_changes_after`へ届く。
+[制御状態の変更ログ](control-state-changes.md)を参照。

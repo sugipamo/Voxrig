@@ -41,6 +41,7 @@ include = [
     "/scripts/run_domain_gates_live.py",
     "/scripts/run_motion_executor_live.py",
     "/scripts/run_dig_estimate_live.py",
+    "/scripts/run_motion_control_stop_live.py",
     "/scripts/ExportHandSwap.java",
     "/scripts/ExportExplosionPackets.java",
     "/scripts/ExportScreenProperties.java",
