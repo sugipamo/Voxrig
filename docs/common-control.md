@@ -165,9 +165,15 @@ world変更時は旧worldの効果を破棄して旧ownerを終了する。元�
 - 受信したものは公式clientと同じように取り込み、続ける。
   - serverからの位置（テレポート・補正）: 位置を置き換える（`corrections`に数える）。
   - 自分への速度（ノックバック等）: 速度を置き換える（`velocity_updates`に数える）。
-  - 1.21.11のGround ownerは[爆発のoptional impulse](common-explosions.md)を受信順に一度だけ加算する。
-    正常な明示停止後の同じモデルも新しいimpulseを取り込み、再開時に古い加算を繰り返さない。
-    Flight／Glide／vehicle、未decode・world変更・不確かなwriteの中断は維持する。
+  - 実行中のGround ownerは[爆発のoptional impulse](common-explosions.md)を受信順に一度だけ加算し、
+    `explosion_impulses`に数える（両版。開始後の加算だけを数え、再開時は0から）。
+    1.16.1も実行中のモデルへ加算し、次の移動パケットにノックバックが出る
+    （以前は実行中のownerが自分のframeで速度を毎tick上書きし、impulseが失われていた。audit P10）。
+    Flight／Glideの実行中ownerは、次のtickで何も送らず
+    `Stopped { reason: "vehicle or explosion motion outside the engine" }`になる（両版同じ理由）。
+    - 1.21.11: 正常な明示停止後の同じモデルも新しいimpulseを取り込み、再開時に古い加算を繰り返さない。
+      vehicle、未decode・world変更・不確かなwriteの中断は維持する。
+    - 1.16.1: 停止中のimpulseは互換モデルの速度へ加算され、再開はその速度から始まる。
     補正による既存の接触origin失効はownerを停止するため、その場合は新ownerが必要。
   - 開始時は現在のSDKモデルとローカルのyaw/pitchを使い、移動・ジャンプ・しゃがみ・ダッシュの入力を離す。
     同じworldでの停止・再開でも、すでにモデルへ取り込んだ古いノックバックを再適用しない。

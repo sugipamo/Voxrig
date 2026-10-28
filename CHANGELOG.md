@@ -151,6 +151,15 @@
   when the attempt resolved by its deadline. Early handler returns with an ACK
   only stay `Pending`. Historical placed results are unchanged.
   See [common placement](docs/common-survival-placement.md#結果と次の操作).
+- Java 1.16.1: a running common PlayerControl no longer drops explosion knockback.
+  The receive path adds the impulse once, in receive order, to the running Ground
+  model, so the next movement packets carry it (previously each tick overwrote
+  native motion with the owner's own frame). Running Flight/Glide owners stop with
+  the Java 1.21.11 reason `vehicle or explosion motion outside the engine`.
+  BREAKING (Rust struct literals): `ControlRecord` gains `explosion_impulses`, the
+  impulses added to this owner after its start boundary, on both versions.
+  No new refusal gates or retries. See [explosions](docs/common-explosions.md)
+  and [common control](docs/common-control.md).
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.

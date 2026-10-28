@@ -291,6 +291,8 @@ async fn explosion_order_corrections_getters_and_stop_restart_are_once_only() {
         );
         let stop = handle.stop_control_for(start.session_id).await.unwrap();
         assert!(matches!(stop.status, ControlStatus::Stopped { .. }));
+        // Each received impulse is counted once, however often it is read.
+        assert_eq!(stop.explosion_impulses, 4);
         // A newly received stopped-model impulse is applied once, then inherited.
         {
             let mut state = session.state.lock().await;
@@ -308,6 +310,8 @@ async fn explosion_order_corrections_getters_and_stop_restart_are_once_only() {
         }
         let resume = handle.start_control().await.unwrap();
         assert_ne!(resume.session_id, start.session_id);
+        // The stopped-model impulse is part of the resumed seed, not a new count.
+        assert_eq!(resume.explosion_impulses, 0);
         tick(&session, &handle, 1).await;
         let frame = handle
             .control_record()
