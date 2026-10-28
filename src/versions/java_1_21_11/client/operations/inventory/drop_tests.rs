@@ -1,22 +1,8 @@
-use super::hand_swaps::fixture;
+use super::hand_swaps::{fixture, read_resync};
 use super::*;
 use crate::client::inventory::{
     InventoryClickButton, InventorySource, SelectedDropAmount as Amount, SelectedDropStage as Stage,
 };
-
-async fn read_resync(peer: &mut tokio::net::TcpStream) {
-    let expected: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../../../data/client_api/selected_drop_resync-1.21.11.json"
-    ))
-    .unwrap();
-    assert_eq!(
-        read_packet(peer, None).await.unwrap(),
-        (
-            ids::play_serverbound::WINDOW_CLICK,
-            hex::decode(expected["payload_hex"].as_str().unwrap()).unwrap()
-        )
-    );
-}
 
 #[tokio::test]
 async fn selected_drop_modes_amounts_one_send_fresh_receipt_ledger_and_history() {
@@ -360,6 +346,7 @@ async fn selected_drop_admission_rejects_empty_unknown_mode_and_competing_owner(
             "hand_swap" => {
                 client.survival().swap_hands().await.unwrap();
                 read_packet(&mut f.peer, None).await.unwrap();
+                read_resync(&mut f.peer).await;
             }
             "native_swap" => {
                 f.api.swap_player_hotbar(9, 0).await.unwrap();
@@ -833,4 +820,156 @@ async fn selected_drop_partial_resync_write_never_claims_received_completion() {
     assert!(f.api.bot.session.ledger.cut(false).wait().await.is_err());
     assert_eq!(control.bytes().len(), 14);
     f.stop().await;
+}
+
+#[tokio::test]
+async fn selected_drop_unchanged_full_resync_is_terminal_and_releases_owner() {
+    for amount in [Amount::One, Amount::All] {
+        let mut f = fixture().await;
+        let client = f.client();
+        let sent = client.survival().drop_selected(amount).await.unwrap();
+        read_packet(&mut f.peer, None).await.unwrap();
+        read_resync(&mut f.peer).await;
+        // A single fresh unchanged slot update is not a processed boundary.
+        f.slot(36, plain("dirt", 12)).await;
+        let pending = client
+            .survival()
+            .selected_drop_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(pending.stage, Stage::Pending);
+        // The resync's full contents (e.g. a dead or spectator player) still show
+        // the original selected stack and cursor.
+        let inventory = f
+            .api
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .operations
+            .inventory
+            .clone();
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+            .await;
+        let unchanged = client
+            .survival()
+            .selected_drop_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(unchanged.id, sent.id);
+        assert_eq!(unchanged.stage, Stage::ObservedUnchanged);
+        assert!(unchanged.main_receipt.is_none() && unchanged.requires_inspection.is_none());
+        let boundary = unchanged.unchanged_boundary.unwrap();
+        assert!(boundary > sent.send.after_sequence);
+        f.api.bot.session.ledger.cut(false).wait().await.unwrap();
+        // A later decrease is ordinary inventory state; history is not rewritten.
+        f.slot(36, plain("dirt", 11)).await;
+        let history = client
+            .survival()
+            .selected_drop_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&history).unwrap(),
+            serde_json::to_value(&unchanged).unwrap()
+        );
+        // The owner is released: the next explicit drop is a new attempt.
+        let next = client.survival().drop_selected(amount).await.unwrap();
+        assert_ne!(next.id, sent.id);
+        read_packet(&mut f.peer, None).await.unwrap();
+        read_resync(&mut f.peer).await;
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn selected_drop_unchanged_full_resync_requires_unchanged_cursor() {
+    let mut f = fixture().await;
+    let client = f.client();
+    client.survival().drop_selected(Amount::One).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
+    let mut inventory = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .clone();
+    inventory.cursor = plain("stone", 1);
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+        .await;
+    let record = client
+        .survival()
+        .selected_drop_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.stage, Stage::RequiresInspection);
+    assert!(record.unchanged_boundary.is_none());
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn selected_drop_without_response_expires_unknown_and_fails_ledger() {
+    let mut f = fixture().await;
+    let client = f.client();
+    let sent = client.survival().drop_selected(Amount::One).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    read_resync(&mut f.peer).await;
+    let deadline = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .common_selected_drop
+        .as_ref()
+        .unwrap()
+        .deadline
+        .unwrap();
+    let remaining = deadline - tokio::time::Instant::now();
+    assert!(remaining > Duration::from_secs(4) && remaining <= Duration::from_secs(5));
+    // Drain waits only for the bounded deadline, then reports an expired owner.
+    let error = f
+        .api
+        .bot
+        .session
+        .ledger
+        .cut(false)
+        .wait()
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.public().kind(),
+        crate::client::DrainErrorKind::TransactionExpired
+    );
+    let expired = client
+        .survival()
+        .selected_drop_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(expired.id, sent.id);
+    assert_eq!(expired.stage, Stage::Expired);
+    assert!(expired.requires_inspection.is_none());
+    // A late decrease or disconnect cannot rewrite the expired outcome.
+    f.slot(36, plain("dirt", 11)).await;
+    f.stop().await;
+    let after = client
+        .survival()
+        .selected_drop_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(after.stage, Stage::Expired);
+    assert!(after.main_receipt.is_none() && after.requires_inspection.is_none());
 }
