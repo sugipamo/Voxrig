@@ -10,7 +10,7 @@ use voxrig::client::prelude::*;
 # async fn drop_one(client: &Client) -> Result<()> {
 let intent = client.survival().drop_selected(SelectedDropAmount::One).await?;
 let latest = client.survival().selected_drop_record().await?;
-// Pending / RequiresInspectionでは再送せず、同じrecordを読む。
+// Pending / RequiresInspection / Expiredでは再送せず、同じrecordを読む。
 # let _ = (intent, latest);
 # Ok(())
 # }
@@ -39,6 +39,20 @@ slot -999の画面外dropとは異なり、slot -1ではitem/cursorを動かさ�
 無関係なslot・片側だけの競合・block ACK・拾得entityの出現や回収通知・cacheの一致は代用しない。
 これは受信した減少の照合であり、自分のdropによる変化や他actorからの因果ACKを保証しない。
 別の消費が同じ減少として届いた場合をprotocol上で区別することはできない。
+
+両frameの完全送信後、resyncのfull player contents（46 slotとcursorが`send.after_sequence`より
+新しい同じ受信ordinal）で選択slotとcursorが送信前と同じなら、終端の`ObservedUnchanged`になる。
+`unchanged_boundary`にそのordinalを保持し、`main_receipt`は記録しない。
+原版はPLAYER_ACTIONを後続のresync clickより先に処理するので、このfull contentsはdrop処理後の境界である。
+同じ値の単一SET_SLOTや送信前の受信は境界にならない。原版`handlePlayerAction`は、spectatorと、
+死亡してrespawn待ちなど`hasClientLoaded()`がfalseのplayerのdropを何も送らずに無視する。
+spectatorへの変更はmode変更として先に届くため`RequiresInspection`になる。
+`ObservedUnchanged`は終端で、inventory ownerを解放してledgerを完了し、後の受信で書き換えない。
+
+record保持から5秒（inventory executorと同じ）以内に`Pending`を抜けない場合は`Expired`になる。
+結果は不明でserverが後から適用しうる（拒否の証明ではない）。ledgerは`TransactionExpired`で失敗し、
+その接続では以後の操作を受け付けないので再接続する。`Expired`も後の受信や切断で書き換えない。
+新しいstageはどちらも`#[non_exhaustive]`な`SelectedDropStage`への追加である。
 
 取消・部分write・切断・world/configuration変更・選択/mode/screen/cursor変更、
 既知のitem使用や期待と異なる消費・data変更は最初の理由を`RequiresInspection`に保持する。
@@ -71,6 +85,15 @@ python3 -B scripts/run_selected_drop_live.py --accept-eula \
 両modeの1個・最終1個・全量、fresh slot受信・data保持・元packetの一度性と、
 独立RCONのSelectedItem/地面itemの個数とdataを照合する。全processを終了時に停止する。
 codec・構成packet・liveの根拠はそれぞれ別の検証として扱う。
+
+不変・期限切れの構成packet試験は、両量のfull contentsによる`ObservedUnchanged`とowner解放・
+後の減少で書き換えないこと、単一slotの不変更新では終端しないこと、cursor不一致のfull contents、
+応答なしの`Expired`と`TransactionExpired`のdrainを検査する。
+2026-10-27に公式1.21.11で、keep_inventoryで死亡しrespawn前のplayerの1個dropが
+`ObservedUnchanged`（RCONでも12個のまま）になり、respawn後の同じ接続のdropが`ObservedDecreased`に
+なることを`scripts/run_drop_handswap_no_effect_live.py`で確認した
+（[実行根拠](evidence/drop-handswap-no-effect-live-1.21.11-20261027.json.gz)）。
+既存の`run_selected_drop_live.py`の6ケースも再実行して成功した。
 
 2026-10-22の全6ケースは成功し、公式JAR・40classpath入力・SDK/consumerのhash、
 元packetとfresh slot・RCONの対応を[実行根拠](evidence/common-selected-drop-20261022.json)に保存した。

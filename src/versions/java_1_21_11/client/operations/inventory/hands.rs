@@ -61,25 +61,47 @@ pub(super) async fn swap(ops: &Operations, mode: api::GameMode) -> Result<HandSw
             let mut record = contract::prepare(initial, registries, mode, attempt, 0)?;
             record.send.interaction_sequence = ops.next_sequence()?;
             let bytes = payload(record.send.interaction_sequence);
-            let work = state.finite_work.begin(
-                &ops.bot.session.ledger,
-                crate::client::ledger::finite::Family::HandSwap,
-                attempt,
-            );
+            let family = crate::client::ledger::finite::Family::HandSwap;
+            let work = state
+                .finite_work
+                .begin(&ops.bot.session.ledger, family, attempt);
+            let deadline = tokio::time::Instant::now() + super::drop::RESPONSE_DEADLINE;
+            record.deadline = Some(deadline);
             state.common_hand_swap = Some(record);
-            let result = work
-                .run(
+            state.finite_work.expire_at(family, attempt, deadline);
+            let result: Result<()> = work
+                .run(async {
                     ops.bot
                         .session
-                        .send(ids::play_serverbound::BLOCK_DIG, &bytes),
-                )
+                        .send(ids::play_serverbound::BLOCK_DIG, &bytes)
+                        .await?;
+                    state
+                        .common_hand_swap
+                        .as_mut()
+                        .expect("retained hand swap")
+                        .send
+                        .dispatched = true;
+                    // A refused exchange (spectator, dead or unloaded player) sends no
+                    // slot update. The same ignored stale-revision PICKUP as selected
+                    // drop asks for actual full contents after the exchange is handled.
+                    ops.bot
+                        .session
+                        .send(
+                            ids::play_serverbound::WINDOW_CLICK,
+                            &super::drop::RESYNC_PAYLOAD,
+                        )
+                        .await?;
+                    state
+                        .common_hand_swap
+                        .as_mut()
+                        .expect("retained hand swap")
+                        .resync_dispatched = true;
+                    Ok(())
+                })
                 .await;
             let record = state.common_hand_swap.as_mut().expect("retained hand swap");
             match result {
-                Ok(()) => {
-                    record.send.dispatched = true;
-                    Ok(record.clone())
-                }
+                Ok(()) => Ok(record.clone()),
                 Err(error) => {
                     record.inspection(format!("hand swap submission uncertain: {error}"));
                     Err(error)
