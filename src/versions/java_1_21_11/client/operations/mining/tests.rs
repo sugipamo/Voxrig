@@ -1390,6 +1390,199 @@ async fn early_finish_disconnect_preserves_unresolved_receipts_without_replay() 
     assert!(f.api.select_hotbar(1).await.is_err());
 }
 
+async fn ack_digging(f: &mut Fixture, sequence: i32) {
+    let mut ack = vec![];
+    put_varint(&mut ack, sequence);
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+        .await;
+}
+
+// Order from the official handler: handleBlockBreakAction sends
+// BlockUpdate(original) on a rejected START ("may not interact", "block action
+// restricted"), and the tick-time BlockChangedAck follows. A later STOP for the
+// unregistered position is only acknowledged.
+#[tokio::test]
+async fn processed_finish_after_unchanged_echo_is_terminal_observed_rejected() {
+    let mut f = Fixture::new().await;
+    tokio::time::pause();
+    let intent = f.start().await;
+    f.change(TARGET, &intent.baseline).await;
+    let echo = f.session.state.lock().await.sequence;
+    ack_digging(&mut f, intent.start_sequence).await;
+    // Neither an echo nor an ACK covering only START resolves the attempt.
+    assert!(matches!(
+        f.api.observe_survival_mining(&intent).await.unwrap(),
+        MiningStatus::Mining { .. }
+    ));
+    let finish = f.api.finish_survival_mining(&intent).await.unwrap();
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (ids::play_serverbound::BLOCK_DIG, packet(&intent, 2, finish))
+    );
+    assert!(matches!(
+        f.api.observe_survival_mining(&intent).await.unwrap(),
+        MiningStatus::PendingAfterFinish { .. }
+    ));
+    ack_digging(&mut f, finish).await;
+    let boundary = f.session.state.lock().await.sequence;
+    let MiningStatus::ObservedRejected { record } = f
+        .api
+        .wait_survival_mining(&intent, Duration::from_secs(1))
+        .await
+        .unwrap()
+    else {
+        panic!("covering ACK after the unchanged echo is a processed no-op");
+    };
+    let rejection = record.rejection.clone().unwrap();
+    assert_eq!(rejection.acknowledged_sequence, finish);
+    assert_eq!(rejection.ack_receive_sequence, boundary);
+    assert_eq!(rejection.target_receipt.receive_sequence, echo);
+    assert_eq!(rejection.target_receipt.state, intent.baseline);
+    assert!(record.removal.is_none() && record.is_resolved());
+    assert!(record.requires_inspection.is_none());
+    assert!(f.session.state.lock().await.failure.is_none());
+    // Terminal history: later air or replacement never rewrites the result,
+    // and no continuation or replay is granted.
+    f.change(TARGET, &native("air")).await;
+    let MiningStatus::ObservedRejected { record: after } =
+        f.api.observe_survival_mining(&intent).await.unwrap()
+    else {
+        panic!("rejection is retained history");
+    };
+    assert_eq!(after.rejection, Some(rejection));
+    assert!(after.removal.is_none());
+    assert!(f.api.finish_survival_mining(&intent).await.is_err());
+    assert!(f.api.abort_survival_mining(&intent).await.is_err());
+    assert!(f.api.select_hotbar(1).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(5), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn common_mining_exposes_processed_rejection_stage_and_evidence() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let record =
+        crate::client::tests::common_mining_start_scenario(&client, TARGET, crate::BlockFace::West)
+            .await;
+    assert_eq!(read_packet(&mut f.peer, None).await.unwrap().1[0], 0);
+    let baseline = record.baseline.clone();
+    f.change(TARGET, &baseline).await;
+    ack_digging(&mut f, record.start.interaction_sequence.unwrap()).await;
+    let finish = client.survival().finish_mining(record.id).await.unwrap();
+    assert_eq!(
+        finish.stage,
+        crate::client::survival::MiningStage::PendingAfterFinish
+    );
+    assert!(finish.rejection.is_none());
+    assert_eq!(read_packet(&mut f.peer, None).await.unwrap().1[0], 2);
+    let sequence = finish.finish.unwrap().interaction_sequence.unwrap();
+    ack_digging(&mut f, sequence).await;
+    let result = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(
+        result.stage,
+        crate::client::survival::MiningStage::ObservedRejected
+    );
+    let rejection = result.rejection.unwrap();
+    assert_eq!(rejection.acknowledged_sequence, sequence);
+    let Some(crate::client::survival::MiningProtocolObservation::ModernProcessing {
+        receive_sequence,
+        ..
+    }) = result.protocol
+    else {
+        panic!("modern processing ACK retained");
+    };
+    assert_eq!(rejection.boundary_receive_sequence, receive_sequence);
+    assert_eq!(rejection.target_receipt.state, baseline);
+    assert!(rejection.target_receipt.receive_sequence < receive_sequence);
+    assert!(!result.continuation_validated);
+    assert!(client.survival().abort_mining(record.id).await.is_err());
+    f.stop().await;
+}
+
+fn dig_sequence(payload: &[u8]) -> i32 {
+    let mut rest = &payload[10..];
+    crate::protocol::get_varint(&mut rest).unwrap()
+}
+
+// Survival::dig separates the processed no-op (echo, then covering ACK) from
+// an ACK alone (delayed destruction / "too far"), an echo after the ACK, and removal.
+#[tokio::test]
+async fn operational_dig_outcome_separates_processed_rejection_from_timeout() {
+    use crate::client::{DigOutcome, DigRejection};
+    for case in ["rejected", "ack_only", "echo_after_ack", "removed"] {
+        let mut f = Fixture::new().await;
+        f.change(TARGET, &native("dirt")).await;
+        let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+        let owner = client.clone();
+        let task =
+            tokio::spawn(async move { owner.survival().dig(TARGET, crate::BlockFace::Up).await });
+        let (_, start) = read_packet(&mut f.peer, None).await.unwrap();
+        assert_eq!(start[0], 0);
+        if case == "rejected" {
+            f.change(TARGET, &native("dirt")).await;
+        }
+        ack_digging(&mut f, dig_sequence(&start)).await;
+        let (_, finish) = timeout(Duration::from_secs(3), read_packet(&mut f.peer, None))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(finish[0], 2);
+        if case == "removed" {
+            f.change(TARGET, &native("air")).await;
+        }
+        ack_digging(&mut f, dig_sequence(&finish)).await;
+        let boundary = f.session.state.lock().await.sequence;
+        if case == "echo_after_ack" {
+            f.change(TARGET, &native("dirt")).await;
+        }
+        let record = timeout(Duration::from_secs(3), task)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            record.sequences,
+            [dig_sequence(&start), dig_sequence(&finish)]
+        );
+        match case {
+            "rejected" => {
+                let DigOutcome::Rejected {
+                    rejection:
+                        DigRejection {
+                            boundary_receive_sequence,
+                            target_receipt,
+                            acknowledged_sequence,
+                            legacy_status: None,
+                            ..
+                        },
+                } = &record.outcome
+                else {
+                    panic!("{case}: {:?}", record.outcome);
+                };
+                assert_eq!(*boundary_receive_sequence, boundary);
+                assert_eq!(*acknowledged_sequence, Some(dig_sequence(&finish)));
+                assert_eq!(target_receipt.value, native("dirt"));
+                assert!(!record.removed);
+            }
+            "removed" => {
+                assert_eq!(record.outcome, DigOutcome::Removed);
+                assert!(record.removed);
+            }
+            _ => {
+                assert_eq!(record.outcome, DigOutcome::Unconfirmed, "{case}");
+                assert!(!record.removed);
+                assert_eq!(record.final_state, Some(native("dirt")));
+            }
+        }
+        f.stop().await;
+    }
+}
+
 #[tokio::test]
 async fn unrelated_packet_or_cached_air_does_not_establish_target_freshness() {
     let mut f = Fixture::new().await;

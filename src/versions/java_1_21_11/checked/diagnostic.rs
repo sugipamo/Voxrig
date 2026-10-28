@@ -64,12 +64,13 @@ pub use crate::versions::java_1_21_11::operations::{
     RecordedHypotheticalReconnectBoundary, RecordedHypotheticalSceneSource, RecordedInventory,
     RecordedInventorySlot, RecordedInventorySwap, RecordedInventorySwapObservation,
     RecordedMiningIntent, RecordedMiningInventoryChange, RecordedMiningRecord,
-    RecordedMiningRecoveryBoundary, RecordedMiningRecoveryEvidence, RecordedMiningRemoval,
-    RecordedMiningRetirementRecord, RecordedMiningRetirementWatch, RecordedMiningStatus,
-    RecordedOperationHistory, RecordedPlacementIntent, RecordedPlacementObservation,
-    RecordedPlacementRecord, RecordedPlacementStatus, RecordedPlayerState, RecordedStandingContext,
-    RecordedSurvivalMotionRecheck, RecordedSurvivalMotionRecord, RecordedSurvivalMovementPreview,
-    ServerTime, StandingPositionBasis, SurvivalControl, SurvivalInput, SurvivalMotionContract,
+    RecordedMiningRecoveryBoundary, RecordedMiningRecoveryEvidence, RecordedMiningRejection,
+    RecordedMiningRemoval, RecordedMiningRetirementRecord, RecordedMiningRetirementWatch,
+    RecordedMiningStatus, RecordedOperationHistory, RecordedPlacementIntent,
+    RecordedPlacementObservation, RecordedPlacementRecord, RecordedPlacementStatus,
+    RecordedPlayerState, RecordedStandingContext, RecordedSurvivalMotionRecheck,
+    RecordedSurvivalMotionRecord, RecordedSurvivalMovementPreview, ServerTime,
+    StandingPositionBasis, SurvivalControl, SurvivalInput, SurvivalMotionContract,
     SurvivalMotionStatus, TerminalClearance,
 };
 pub use crate::versions::java_1_21_11::players::{
@@ -203,6 +204,7 @@ mod tests {
                 requires_inspection: Some("partial dispatch".into()),
                 inventory_change: None,
                 removal: None,
+                rejection: None,
                 recovery_attempt: None,
             },
         };

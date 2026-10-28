@@ -9,6 +9,9 @@
 
 ## Unreleased
 
+- Match Java 1.16.1 dig replies to the last sent action before concluding
+  `Rejected`; a delayed START rejection cannot stand in for the STOP response.
+
 - Speed up `Client::raycast_blocks` on Java 1.16.1 and 1.21.11 by walking
   received state IDs under one observation lock and borrowing registry-owned
   `StateBoxes`; only the hit state is decoded. Remove per-ray bounding-box
@@ -116,6 +119,23 @@
   existing `EntityUpdated { native_id: self }` for compatibility. Control and
   motion behavior are unchanged. BREAKING for exhaustive matches on
   `EntityHistoryKind` (not `#[non_exhaustive]`). See [own velocity](docs/own-velocity.md).
+- BREAKING (exhaustive matches, Rust struct literals): `Survival::dig` /
+  `DigResult::Finished` records gain `DigRecord::outcome` (`DigOutcome`:
+  `Removed` / `Changed` / `Rejected { rejection: DigRejection }` / `Unconfirmed`,
+  both new types `#[non_exhaustive]`). A server-processed boundary with the target
+  still at its predecessor now returns `Rejected` early instead of the same
+  `removed: false` as the one-second timeout. Java 1.21.11 needs the target echo
+  followed by a fresh BlockChangedAck covering the last command; Java 1.16.1 needs
+  a `successful = false` START/STOP response with the predecessor plus the last
+  command's response still carrying it. `removed` and `final_state` are unchanged.
+  Common staged mining gains `MiningStage::ObservedRejected` (the enum is now
+  `#[non_exhaustive]`) and `MiningRecord::rejection` on Java 1.21.11 (a fresh ACK
+  covering FINISH after the unchanged target echo); 1.16.1 still latches a rejected
+  response as `RequiresInspection`. Native 1.21.11 adds
+  `MiningStatus::ObservedRejected`, `MiningRejection`, `MiningRecord::rejection`
+  and `is_resolved()`; `wait_survival_mining` no longer expires the connection
+  when the attempt resolved by its deadline. An ACK alone stays pending.
+  See [dig outcome](docs/common-dig.md#観測の終わり方digrecordoutcome).
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.

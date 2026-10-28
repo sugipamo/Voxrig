@@ -114,6 +114,14 @@ impl DigOps for Bot {
         }
         let current = self.dig_snapshot_unlocked(target).await?;
         dig::validate(initial, &current, action)?;
+        crate::client::dig::DigWatch::sent_into(
+            &mut self.operational_dig.watch.lock().expect("dig watch"),
+            action,
+            target,
+            &initial.state,
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+            None,
+        );
         let action = match action {
             Action::Start => crate::client::operations::Action::DigStart(target, face),
             Action::Finish { .. } => crate::client::operations::Action::DigFinish(target, face),
@@ -186,6 +194,14 @@ impl DigOps for Bot {
             .to_be_bytes(),
         );
         payload.push(face as u8);
+        crate::client::dig::DigWatch::sent_into(
+            &mut self.operational_dig.watch.lock().expect("dig watch"),
+            action,
+            target,
+            &initial.state,
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+            None,
+        );
         let mut receipts = self.common_receipts.lock().await;
         let class = if matches!(action, Action::Abort) {
             OperationClass::Cleanup
@@ -210,6 +226,15 @@ impl DigOps for Bot {
             self.common_receipts.lock().await.pending_dispatch = false;
         }
         result
+    }
+    async fn dig_rejection(&self) -> Result<Option<crate::client::DigRejection>> {
+        Ok(self
+            .operational_dig
+            .watch
+            .lock()
+            .expect("dig watch")
+            .as_ref()
+            .and_then(|w| w.rejection(None)))
     }
 }
 
@@ -252,6 +277,123 @@ mod tests {
                 .kind(),
             crate::ErrorKind::Rejected
         );
+    }
+
+    // ServerPlayerGameMode.handleBlockBreakAction answers a rejected START
+    // ("may not interact", "block action restricted", ...) with successful=false
+    // and the original state; a later mismatched STOP is answered successful=true.
+    #[tokio::test]
+    async fn rejected_start_response_returns_rejected_dig_outcome_distinct_from_timeout() {
+        use crate::client::{DigOutcome, DigRejection};
+        use tokio::time::{Duration, timeout};
+        let ack = super::super::digging_ack_notification_tests::packet;
+        for case in ["rejected", "delayed", "removed"] {
+            let (bot, mut packets, _release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            {
+                let mut receipts = bot.common_receipts.lock().await;
+                receipts.inventory.window_id = Some(0);
+                receipts.inventory.slots = (0..46)
+                    .map(|_| Some(crate::client::received(SlotKnowledge::Empty, 1)))
+                    .collect();
+                receipts.selected_hotbar = Some(crate::client::received(0, 1));
+            }
+            let target = [9, 65, 8];
+            let registry =
+                crate::client::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1);
+            let id = |name: &str| {
+                registry
+                    .resolve_block_state(&crate::NativeBlockState {
+                        name: name.into(),
+                        properties: Default::default(),
+                    })
+                    .unwrap()
+                    .value()
+            };
+            let dirt = id("minecraft:dirt");
+            bot.world
+                .lock()
+                .await
+                .set_block_for_test(BlockPos { x: 9, y: 65, z: 8 }, dirt);
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let owner = client.clone();
+            let caller =
+                tokio::spawn(
+                    async move { owner.survival().dig(target, crate::BlockFace::Up).await },
+                );
+            let (packet_id, start) = timeout(Duration::from_secs(2), packets.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!((packet_id, start[0]), (0x1b, 0));
+            let started = bot.protocol_packet_sequence.load(Ordering::Acquire);
+            bot.apply_packet(0x07, ack(target, dirt, 0, case != "rejected"))
+                .await
+                .unwrap();
+            let (packet_id, stop) = timeout(Duration::from_secs(3), packets.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!((packet_id, stop[0]), (0x1b, 2));
+            let after = if case == "removed" {
+                id("minecraft:air")
+            } else {
+                dirt
+            };
+            bot.apply_packet(0x07, ack(target, after, 2, true))
+                .await
+                .unwrap();
+            let record = timeout(Duration::from_secs(3), caller)
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            match case {
+                "rejected" => {
+                    let DigOutcome::Rejected {
+                        rejection:
+                            DigRejection {
+                                boundary_receive_sequence,
+                                target_receipt,
+                                acknowledged_sequence: None,
+                                legacy_status: Some(0),
+                                ..
+                            },
+                    } = &record.outcome
+                    else {
+                        panic!("rejected START response: {:?}", record.outcome);
+                    };
+                    // The STOP response still carrying the original covers the
+                    // last command; the START response holds the verdict.
+                    assert_eq!(*boundary_receive_sequence, started + 2);
+                    assert_eq!(
+                        target_receipt.source,
+                        ValueSource::Received {
+                            sequence: started + 2
+                        }
+                    );
+                    assert_eq!(target_receipt.value.name, "minecraft:dirt");
+                    assert!(!record.removed);
+                    assert_eq!(record.final_state.as_ref(), Some(&target_receipt.value));
+                }
+                // A successful STOP with the original state is delayed destruction,
+                // not a rejection; the observation ends unconfirmed.
+                "delayed" => {
+                    assert_eq!(record.outcome, DigOutcome::Unconfirmed);
+                    assert!(!record.removed);
+                }
+                _ => {
+                    assert_eq!(record.outcome, DigOutcome::Removed);
+                    assert!(record.removed);
+                }
+            }
+            bot.disconnect().await.unwrap();
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
     }
 
     #[tokio::test]

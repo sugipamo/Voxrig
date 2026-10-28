@@ -149,6 +149,8 @@ pub(crate) trait DigOps {
         action: super::operational_dig::Action,
         operation: &std::sync::Arc<super::dig_operation::OperationState>,
     ) -> Result<super::operational_dig::Dispatch>;
+    /// Processed-boundary evidence that the current dig left its target unchanged.
+    async fn dig_rejection(&self) -> Result<Option<super::DigRejection>>;
 }
 
 /// Whole loaded chunk columns.

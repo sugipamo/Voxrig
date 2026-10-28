@@ -436,6 +436,7 @@ impl Bot {
         self.reconcile_common_mining(true).await
     }
     pub(super) async fn common_mining_chunk_changed(&self, chunk: [i32; 2]) {
+        self.operational_dig.with_watch(|w| w.chunk_changed(chunk));
         let mut guard = super::lock_packet_state(&self.common_mining).await;
         if let Some(run) = guard.as_mut().filter(|m| {
             [
@@ -453,6 +454,23 @@ impl Bot {
         sequence: u64,
         reply: Option<(i32, bool)>,
     ) -> Result<()> {
+        // Operational dig receipts share this exact-target hook for every
+        // block change, multi-block change and digging response.
+        if self
+            .operational_dig
+            .watch
+            .lock()
+            .expect("dig watch")
+            .is_some()
+        {
+            let state = crate::versions::java_1_16_1::native_state(state_id)?;
+            self.operational_dig.with_watch(|w| match reply {
+                Some((status, successful)) => {
+                    w.legacy_reply(position, &state, status, successful, sequence)
+                }
+                None => w.received(position, &state, sequence),
+            });
+        }
         let mut guard = super::lock_packet_state(&self.common_mining).await;
         let Some(run) = guard.as_mut().filter(|m| m.record.target == position) else {
             return Ok(());
@@ -543,6 +561,7 @@ impl crate::client::adapter::MiningOps for Bot {
                     abort: None,
                     target_receipt: None,
                     protocol: None,
+                    rejection: None,
                     inventory_change: None,
                     requires_inspection: None,
                     stage: MiningStage::Mining,

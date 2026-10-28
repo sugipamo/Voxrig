@@ -1,5 +1,5 @@
 //! Connection-owned operational digging. Checks and packet writes share adapter state locks.
-use super::dig::{DigContext, DigEstimate, DigRecord};
+use super::dig::{DigContext, DigEstimate, DigOutcome, DigRecord, DigWatch};
 use super::dig_operation::{
     DigOperation, DigOperationId, DigPhase, DigWriteEvidence, OperationState,
 };
@@ -17,8 +17,15 @@ pub(crate) struct Coordinator {
     operation: Arc<tokio::sync::Mutex<()>>,
     cleanup: Mutex<Option<DigCleanupRecord>>,
     next_id: AtomicU64,
+    /// Java 1.16.1 receipts of the current dig; 1.21.11 keeps its own in packet state.
+    pub(crate) watch: Mutex<Option<DigWatch>>,
 }
 impl Coordinator {
+    pub(crate) fn with_watch(&self, f: impl FnOnce(&mut DigWatch)) {
+        if let Some(watch) = self.watch.lock().expect("dig watch").as_mut() {
+            f(watch);
+        }
+    }
     fn allocate_id(&self, generation: super::GenerationKey) -> Result<DigOperationId> {
         // The stored value is the last allocated ordinal. Never wrap, even
         // across world resets; tests can inject MAX into this private counter.
@@ -568,13 +575,7 @@ impl super::Survival {
                 return Err(error);
             }
             Ok(Dispatch::Changed(state)) => {
-                return Ok(DigRecord {
-                    target,
-                    estimate: initial.estimate,
-                    removed: super::dig::is_air(state.as_ref()),
-                    final_state: state,
-                    sequences,
-                });
+                return Ok(changed_record(target, initial.estimate, state, sequences));
             }
             Ok(Dispatch::Cancelled) => unreachable!("cancel dispatch is routed to shared cleanup"),
             Ok(Dispatch::ContextChanged) => {
@@ -614,16 +615,28 @@ impl super::Survival {
                 .into_iter()
                 .next()
                 .and_then(|b| b.state);
-            if state.as_ref() != Some(&initial.state) || tokio::time::Instant::now() >= deadline {
-                if state.as_ref() == Some(&initial.state) {
-                    let _ = super::ledger::finite::checked::<(), _>(Err(()));
-                }
+            if state.as_ref() != Some(&initial.state) {
+                return Ok(changed_record(target, initial.estimate, state, sequences));
+            }
+            // Read after the unchanged capture: a later different receipt clears
+            // the echo, so a stale rejection cannot hide a changed target.
+            let rejection =
+                super::dispatch!(&self.client.adapter, a => DigOps::dig_rejection(a).await)?;
+            if rejection.is_some() || tokio::time::Instant::now() >= deadline {
+                let outcome = match rejection {
+                    Some(rejection) => DigOutcome::Rejected { rejection },
+                    None => {
+                        let _ = super::ledger::finite::checked::<(), _>(Err(()));
+                        DigOutcome::Unconfirmed
+                    }
+                };
                 return Ok(DigRecord {
                     target,
                     estimate: initial.estimate,
-                    removed: super::dig::is_air(state.as_ref()),
+                    removed: false,
                     final_state: state,
                     sequences,
+                    outcome,
                 });
             }
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
@@ -687,6 +700,27 @@ impl super::Survival {
         }
         *coordinator.cleanup.lock().expect("dig cleanup") = Some(record.clone());
         record
+    }
+}
+
+fn changed_record(
+    target: [i32; 3],
+    estimate: DigEstimate,
+    state: Option<NativeBlockState>,
+    sequences: Vec<i32>,
+) -> DigRecord {
+    let removed = super::dig::is_air(state.as_ref());
+    DigRecord {
+        target,
+        estimate,
+        removed,
+        final_state: state,
+        sequences,
+        outcome: if removed {
+            DigOutcome::Removed
+        } else {
+            DigOutcome::Changed
+        },
     }
 }
 

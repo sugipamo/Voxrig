@@ -73,6 +73,28 @@ diagnostic_record! {
     }
     diagnostic_serde {}
 }
+diagnostic_record! {
+    /// A fresh target update equal to the baseline plus a fresh ACK covering
+    /// FINISH. `handleBlockBreakAction` sends its block update before the
+    /// tick-time ACK; delayed destruction and early returns without an echo stay
+    /// pending. Names no server reason and authorizes no continuation.
+    #[derive(Clone, Debug, PartialEq, Serialize)]
+    pub struct MiningRejection => RecordedMiningRejection {
+        /// Highest acknowledged native sequence, covering FINISH.
+        pub acknowledged_sequence: i32,
+        /// Actual ACK packet ordinal.
+        pub ack_receive_sequence: u64,
+        /// Fresh exact-target receipt equal to the baseline.
+        pub target_receipt: MiningTargetReceipt,
+    }
+    diagnostic_serde {}
+}
+impl MiningRecord {
+    /// Observed removed or rejected; neither authorizes another mutation.
+    pub fn is_resolved(&self) -> bool {
+        self.removal.is_some() || self.rejection.is_some()
+    }
+}
 // Common ownership, with the native compatibility path preserved.
 pub use crate::client::survival::MiningInventoryChangeKind;
 
@@ -127,6 +149,8 @@ diagnostic_record! {
         /// Result established by a read-only observation. Even Some does not currently
         /// authorize in-session continuation; that release remains unimplemented.
         pub removal: Option<MiningRemoval>,
+        /// Historical processed-without-effect result; exclusive with `removal`.
+        pub rejection: Option<MiningRejection>,
         /// Once-only fresh login attempt, recorded before I/O. Shared by all recovery
         /// methods; cancellation never permits a different method to open another login.
         pub recovery_attempt: Option<MiningRecoveryAttempt>,
@@ -152,6 +176,12 @@ diagnostic_record! {
         ObservedRemoved {
             /// Received result, without attribution of its actor.
             observation: MiningRemoval,
+        },
+        /// The server processed FINISH and left the target at its baseline.
+        /// Terminal history; not a retry instruction or continuation authority.
+        ObservedRejected {
+            /// Retained attempt with its `rejection` evidence.
+            record: MiningRecord,
         },
         /// Changed/missing context or target requires inspection; intent remains pending.
         RequiresInspection {
@@ -401,6 +431,7 @@ impl Operations {
                     requires_inspection: None,
                     inventory_change: None,
                     removal: None,
+                    rejection: None,
                     recovery_attempt: None,
                 });
                 self.bot
@@ -444,7 +475,7 @@ impl Operations {
                 owning(&state, intent, self.bot.session.id)?;
                 let record = state.mining.as_ref().expect("owning intent");
                 if !record.start_dispatched
-                    || record.removal.is_some()
+                    || record.is_resolved()
                     || record.requires_inspection.is_some()
                     || (if abort {
                         record.abort.is_some()
@@ -559,7 +590,9 @@ impl Operations {
                 let observed = self.observe_survival_mining(intent).await?;
                 if matches!(
                     observed,
-                    MiningStatus::ObservedRemoved { .. } | MiningStatus::RequiresInspection { .. }
+                    MiningStatus::ObservedRemoved { .. }
+                        | MiningStatus::ObservedRejected { .. }
+                        | MiningStatus::RequiresInspection { .. }
                 ) {
                     return Ok(observed);
                 }
@@ -570,8 +603,17 @@ impl Operations {
         match result {
             Ok(result) => result,
             Err(_) => {
-                self.bot.session.ledger.fail(Failure::TransactionExpired);
-                self.observe_survival_mining(intent).await
+                // A resolution that raced the deadline does not poison the
+                // connection; an unresolved attempt still expires it.
+                let result = self.observe_survival_mining(intent).await;
+                if !matches!(
+                    result,
+                    Ok(MiningStatus::ObservedRemoved { .. }
+                        | MiningStatus::ObservedRejected { .. })
+                ) {
+                    self.bot.session.ledger.fail(Failure::TransactionExpired);
+                }
+                result
             }
         }
     }
@@ -625,7 +667,7 @@ pub(super) fn mining_inventory_received(state: &mut State) {
     let Some(record) = state.mining.as_mut() else {
         return;
     };
-    if record.removal.is_some() || record.inventory_change.is_some() {
+    if record.is_resolved() || record.inventory_change.is_some() {
         return;
     }
     let inventory = &state.operations.inventory;
@@ -676,6 +718,11 @@ fn status(state: &mut State) -> MiningStatus {
             observation: observation.clone(),
         };
     }
+    if record.rejection.is_some() {
+        return MiningStatus::ObservedRejected {
+            record: record.clone(),
+        };
+    }
     if state.world.dimension.as_ref().map(|d| &d.0) != Some(&record.intent.dimension)
         || !state.ready
     {
@@ -712,6 +759,41 @@ fn status(state: &mut State) -> MiningStatus {
         record.removal = Some(observation.clone());
         return MiningStatus::ObservedRemoved { observation };
     }
+    // handleBlockBreakAction sends BlockUpdate(original) on its rejecting paths
+    // before handlePlayerAction registers the ACK, which leaves on the next
+    // connection tick. A covering fresh ACK after the latest fresh target receipt
+    // still equal to the baseline therefore means processed without effect.
+    // Delayed destruction and "too far" send no echo and stay pending; the ACK
+    // alone, or an echo after it, never resolves.
+    let processed = record
+        .finish
+        .as_ref()
+        .filter(|f| f.dispatched)
+        .and_then(|finish| {
+            state
+                .operations
+                .ack
+                .zip(state.operations.ack_receive_sequence)
+                .filter(|(s, r)| *s >= finish.sequence && *r > finish.after_sequence)
+        });
+    if let (Some((acknowledged_sequence, ack_receive_sequence)), Some(receipt)) = (
+        processed,
+        record.target_receipt.as_ref().filter(|receipt| {
+            receipt.receive_sequence > record.intent.after_sequence
+                && processed.is_some_and(|(_, ack)| receipt.receive_sequence < ack)
+                && receipt.state == record.intent.baseline
+                && cell.state.as_ref() == Some(&receipt.state)
+        }),
+    ) {
+        record.rejection = Some(MiningRejection {
+            acknowledged_sequence,
+            ack_receive_sequence,
+            target_receipt: receipt.clone(),
+        });
+        return MiningStatus::ObservedRejected {
+            record: record.clone(),
+        };
+    }
     if record.finish.is_some() {
         MiningStatus::PendingAfterFinish {
             record: record.clone(),
@@ -732,7 +814,7 @@ pub(in crate::versions::java_1_21_11::client) fn mining_world_changed(
             .requires_inspection
             .get_or_insert_with(|| reason.into());
     }
-    if let Some(record) = state.mining.as_mut().filter(|r| r.removal.is_none()) {
+    if let Some(record) = state.mining.as_mut().filter(|r| !r.is_resolved()) {
         inspect_other(record, reason);
     }
 }
@@ -740,8 +822,11 @@ pub(in crate::versions::java_1_21_11::client) fn mining_chunk_changed(
     state: &mut State,
     chunk: [i32; 2],
 ) {
+    if let Some(watch) = &mut state.dig_watch {
+        watch.chunk_changed(chunk);
+    }
     if state.mining.as_ref().is_some_and(|m| {
-        m.removal.is_none()
+        !m.is_resolved()
             && [
                 m.intent.target[0].div_euclid(16),
                 m.intent.target[2].div_euclid(16),
@@ -757,10 +842,19 @@ pub(in crate::versions::java_1_21_11::client) fn mining_received(
     state: &mut State,
     changes: &[([i32; 3], i32)],
 ) -> anyhow::Result<()> {
+    if let Some(watch) = &mut state.dig_watch {
+        for (position, id) in changes {
+            watch.received(
+                *position,
+                &super::super::super::native_state(*id)?,
+                state.sequence,
+            );
+        }
+    }
     let Some(record) = &mut state.mining else {
         return Ok(());
     };
-    if record.removal.is_some() {
+    if record.is_resolved() {
         return Ok(());
     }
     for (position, id) in changes {
@@ -807,7 +901,7 @@ pub(in crate::versions::java_1_21_11::client) fn common_mining_context_received(
     let Some(capture) = state.common_mining.clone() else {
         return;
     };
-    if state.mining.as_ref().is_none_or(|m| m.removal.is_some()) {
+    if state.mining.as_ref().is_none_or(|m| m.is_resolved()) {
         return;
     }
     let check = (|| -> Result<()> {
@@ -995,6 +1089,7 @@ impl crate::client::adapter::MiningOps for Operations {
             MiningStatus::Mining { .. } => api::MiningStage::Mining,
             MiningStatus::PendingAfterFinish { .. } => api::MiningStage::PendingAfterFinish,
             MiningStatus::ObservedRemoved { .. } => api::MiningStage::ObservedRemoved,
+            MiningStatus::ObservedRejected { .. } => api::MiningStage::ObservedRejected,
             MiningStatus::RequiresInspection { .. } => api::MiningStage::RequiresInspection,
         };
         let inventory_change = native
@@ -1075,6 +1170,14 @@ impl crate::client::adapter::MiningOps for Operations {
                     receive_sequence: r.receive_sequence,
                 }),
             protocol,
+            rejection: native.rejection.as_ref().map(|r| api::MiningRejection {
+                acknowledged_sequence: r.acknowledged_sequence,
+                boundary_receive_sequence: r.ack_receive_sequence,
+                target_receipt: api::MiningTargetReceipt {
+                    state: r.target_receipt.state.clone(),
+                    receive_sequence: r.target_receipt.receive_sequence,
+                },
+            }),
             inventory_change,
             requires_inspection: native.requires_inspection.clone(),
             stage,

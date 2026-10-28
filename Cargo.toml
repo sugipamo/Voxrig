@@ -33,6 +33,7 @@ include = [
     "/scripts/run_world_decode_failure_live.py",
     "/scripts/run_body_send_trust_live.py",
     "/scripts/run_body_monitor_live.py",
+    "/scripts/run_dig_rejection_live.py",
     "/scripts/run_legacy_body_live.py",
     "/scripts/run_place_activation_live.py",
     "/scripts/run_contact_best_effort_live.py",
