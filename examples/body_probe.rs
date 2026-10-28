@@ -177,6 +177,33 @@ async fn main() -> anyhow::Result<()> {
                         .await?,
                 )?,
                 "player" => serde_json::to_value(client.player_state().await?)?,
+                "rotation_snapshot" => {
+                    use voxrig::client::{CorrectionComponent, FieldState};
+                    let s = client.received_player_snapshot().await?;
+                    let angle = |c: &CorrectionComponent<f32>| match c {
+                        CorrectionComponent::Absolute(v) => json!({"absolute": v}),
+                        CorrectionComponent::Relative(v) => json!({"relative": v}),
+                        _ => json!(null),
+                    };
+                    json!({
+                        "boundary": s.boundary().ordinal(),
+                        "rotation_correction": match s.rotation_correction() {
+                            FieldState::Received(f) => json!({
+                                "ordinal": f.receipt().ordinal(),
+                                "rotation": f.value().rotation().iter().map(angle).collect::<Vec<_>>(),
+                            }),
+                            other => json!(format!("{other:?}")),
+                        },
+                        "absolute_rotation": match s.absolute_rotation() {
+                            FieldState::Received(f) => json!({
+                                "ordinal": f.receipt().ordinal(),
+                                "value": f.value(),
+                            }),
+                            FieldState::Missing => json!("missing"),
+                            _ => json!("invalidated"),
+                        },
+                    })
+                }
                 "body_use_item_expect" => {
                     let id = body
                         .backend()

@@ -317,6 +317,20 @@ pub(in crate::versions::java_1_21_11::client) fn ground_motion_received(
             }
         }
     }
+    // A forced rotation is adopted as the held view at receipt, like the native
+    // client, so the owner's next tick does not resend the stale angles. A
+    // scheduled path keeps owning its per-tick yaw.
+    if id == ids::play_clientbound::PLAYER_ROTATION
+        && state.control.generation == Some(state.loading.generation)
+    {
+        let rotation = state.rotation;
+        if let Some(session) = state.control.session.as_mut() {
+            if !session.path_active() {
+                session.controls.yaw = rotation[0];
+                session.controls.pitch = rotation[1];
+            }
+        }
+    }
     super::movement::finite_context_received(state);
     state.inspect_motion(false);
 

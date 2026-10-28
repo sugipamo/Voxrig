@@ -47,6 +47,10 @@ metadata cannot carry old receipt eligibility into the new world.
 all three latest position operands to be absolute; `absolute_rotation()` requires
 both angle operands to be absolute. Relative operands invalidate their absolute
 projection. Model resolution, normalization and submitted look are separate.
+On Java 1.21.11, `rotation_correction()` retains the literal operands of a
+rotation-only `PLAYER_ROTATION` and updates `absolute_rotation()` by the same rule;
+`correction()` and `absolute_position()` stay position-packet only. Compare
+receipts to order the two. See [forced rotation](forced-rotation.md).
 There is no received ground accessor. Attributes contain only base and supplied
 modifiers, with no computed effective value.
 
