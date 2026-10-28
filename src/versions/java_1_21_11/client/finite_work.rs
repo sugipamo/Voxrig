@@ -90,6 +90,16 @@ impl State {
             }
         }
 
+        // A full boundary unchanged from `before` ends the strict record bound
+        // to that send; without it the record would wait for receipts forever.
+        let unchanged = self.inventory_executor.unchanged_boundary();
+        if let Some(r) = self.common_inventory_click.as_mut() {
+            r.observe_unchanged(unchanged);
+        }
+        if let Some(r) = self.common_inventory_transfer.as_mut() {
+            r.observe_unchanged(unchanged);
+        }
+
         self.finite_work.reconcile(
             Family::Swap,
             operations::inventory::common::swap_ledger_state(self),
@@ -126,15 +136,23 @@ impl State {
         }
         self.finite_work.reconcile(
             Family::Click,
-            self.common_inventory_click
-                .as_ref()
-                .map(|r| (r.id.attempt(), r.ready(), r.requires_inspection.is_some())),
+            self.common_inventory_click.as_ref().map(|r| {
+                (
+                    r.id.attempt(),
+                    r.ready() || !r.unresolved(),
+                    r.requires_inspection.is_some(),
+                )
+            }),
         );
         self.finite_work.reconcile(
             Family::Transfer,
-            self.common_inventory_transfer
-                .as_ref()
-                .map(|r| (r.id.attempt(), r.ready(), r.requires_inspection.is_some())),
+            self.common_inventory_transfer.as_ref().map(|r| {
+                (
+                    r.id.attempt(),
+                    r.ready() || !r.unresolved(),
+                    r.requires_inspection.is_some(),
+                )
+            }),
         );
         self.finite_work.reconcile(
             Family::Crafting,

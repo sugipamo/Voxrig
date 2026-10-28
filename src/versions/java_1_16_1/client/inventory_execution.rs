@@ -1176,6 +1176,7 @@ mod tests {
         script::pickup_matrix(&mut f).await;
         script::missing_response_resync_and_late_response(&mut f).await;
         script::collect_and_external_log(&mut f).await;
+        script::no_effect_click_and_transfer(&mut f).await;
         script::crafting_result_outcomes(&mut f).await;
         release.send(()).unwrap();
         let LegacyFixture { bot, packets } = f;

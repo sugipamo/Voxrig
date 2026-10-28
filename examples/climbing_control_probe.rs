@@ -715,7 +715,8 @@ async fn main() -> anyhow::Result<()> {
                     Some(record) => client.inventory_divergence(record.id).await?,
                     None => None,
                 };
-                serde_json::json!({"record": record, "divergence": divergence})
+                let effect = divergence.as_ref().map(|d| d.effect());
+                serde_json::json!({"record": record, "divergence": divergence, "effect": effect})
             }
             "resync_inventory" => serde_json::to_value(survival.resync_inventory().await?)?,
             "send_inventory_click" => {

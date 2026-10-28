@@ -39,6 +39,12 @@ Rightが1個を置く。同一itemはslot/item容量の範囲で結合し、別i
 予測は受信在庫へ適用しない。`send.dispatched`はframe全量の送信だけを表し、サーバー結果ではない。
 両destinationのfreshな実packet受信と、legacyでは元window/actionの実comparison replyを待つ。
 `inventory_click_record()`を読み、`ObservedClicked`を確認してから次の操作へ進む。
+サーバーが処理した応答・全量境界（legacyは取引応答・WindowItems・cursor、modernはfenceと
+全量ContainerSetContent）がI/O前の受信在庫と全slotで等しく、send executorが
+`Diverged`（[`InventoryEffect::NoEffect`](inventory-divergence.md#no-effect-sends)）で終わった場合は、
+同じ送信境界の記録を終端`ObservedUnchanged`にする。vanillaが置けないslotへの配置などの
+「効果なし」で、packet欠落ではない。1.16.1の`accepted=false`だけからは判断しない
+（Voxrigは毎回意図的に比較値をずらす）。それ以前にfreshな変更receiptや競合がある記録は変えない。
 途中の受信、送信取消、opening再利用、mode/world/選択slot変更、復元された競合は自動再送しない。
 PICKUP の結果は対象 slot と cursor の受信で確認し、全在庫の不変を要求しない。
 別の手に通常の拾得などの受信更新が届いても、その値が既知で送信境界より新しく、現在の
