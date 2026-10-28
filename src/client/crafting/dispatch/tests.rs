@@ -373,3 +373,107 @@ fn ghost_accepts_actual_player_zero_after_exact_submitted_close_without_rebindin
         ));
     }
 }
+/// The resync's full contents: every value as before, all at one new ordinal.
+fn resync(base: &ReceivedCraftingContext, sequence: u64) -> ReceivedCraftingContext {
+    let mut player = base.player().clone();
+    player.receive_sequence = sequence;
+    for slot in player.inventory.slots.iter_mut().flatten() {
+        slot.source = ValueSource::Received { sequence };
+    }
+    if let Some(cursor) = player.inventory.cursor.as_mut() {
+        cursor.source = ValueSource::Received { sequence };
+    }
+    let entry = &base.recipes().entries()[0];
+    let recipes = receipts::recipes_with_requirements(
+        &player,
+        entry.display().clone(),
+        entry.requirements().map(|v| v.to_vec()),
+        entry.unlocked(),
+    );
+    let table = base.grid().dimensions() == [3, 3];
+    let mut screen = receipts::screen(&player, table, &[]);
+    if let Some(table) = screen.screen.as_mut() {
+        for slot in table.slots.iter_mut().flatten() {
+            slot.source = ValueSource::Received { sequence };
+        }
+        table.full_contents_sequence = Some(sequence);
+    }
+    ReceivedCraftingContext::capture(
+        player.clone(),
+        screen,
+        receipts::registries(&player),
+        recipes,
+    )
+    .unwrap()
+    .unwrap()
+}
+#[test]
+fn placement_unchanged_requires_resync_full_boundary_after_send_and_legacy_reply() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for table in [false, true] {
+            let before = context(version, table, GameMode::Survival);
+            let plan = before
+                .recipe_placement_plan(
+                    before.recipes().entries()[0].id(),
+                    RecipePlacementAmount::Next,
+                )
+                .unwrap();
+            let mut record = prepare(&plan, &before, GameMode::Survival, 1).unwrap();
+            record.send.dispatched = true;
+            // Without the resync frame no full contents prove processing.
+            receive(&mut record, &resync(&before, 21));
+            assert_eq!(record.stage, RecipePlacementStage::Pending);
+            record.resync_dispatched = true;
+            // A single changed-receipt packet (slot 9 only) is not a boundary.
+            receive(&mut record, &after(&before, 0, 10, 21));
+            assert_eq!(record.stage, RecipePlacementStage::Pending);
+            // Pre-send ordinals never qualify.
+            receive(&mut record, &resync(&before, 20));
+            assert_eq!(record.stage, RecipePlacementStage::Pending);
+            if version == MinecraftVersion::Java1_16_1 {
+                // Legacy contents must follow the resync's own transaction reply.
+                receive(&mut record, &resync(&before, 22));
+                assert_eq!(record.stage, RecipePlacementStage::Pending);
+                record.resync_reply = Some(22);
+                receive(&mut record, &resync(&before, 22));
+                assert_eq!(record.stage, RecipePlacementStage::Pending);
+            }
+            receive(&mut record, &resync(&before, 23));
+            assert_eq!(
+                record.stage,
+                RecipePlacementStage::ObservedUnchanged,
+                "{version:?} table={table}: {record:?}"
+            );
+            assert_eq!(record.unchanged_boundary, Some(23));
+            assert!(!record.unresolved() && !record.ready());
+            // Terminal: later placement and inspection never rewrite it.
+            receive(&mut record, &after(&before, 1, 8, 24));
+            record.inspection("later conflict");
+            assert_eq!(record.stage, RecipePlacementStage::ObservedUnchanged);
+            assert!(record.after.is_none() && record.requires_inspection.is_none());
+        }
+    }
+}
+#[test]
+fn placement_pending_at_deadline_expires_and_is_not_rewritten() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let before = context(version, false, GameMode::Survival);
+        let plan = before
+            .recipe_placement_plan(
+                before.recipes().entries()[0].id(),
+                RecipePlacementAmount::Next,
+            )
+            .unwrap();
+        let mut record = prepare(&plan, &before, GameMode::Survival, 1).unwrap();
+        record.send.dispatched = true;
+        record.resync_dispatched = true;
+        record.resync_reply = Some(21);
+        record.deadline = Some(tokio::time::Instant::now());
+        receive(&mut record, &resync(&before, 23));
+        assert_eq!(record.stage, RecipePlacementStage::Expired);
+        assert!(record.unresolved() && record.unchanged_boundary.is_none());
+        record.inspection("later disconnect");
+        assert_eq!(record.stage, RecipePlacementStage::Expired);
+        assert!(record.requires_inspection.is_none());
+    }
+}

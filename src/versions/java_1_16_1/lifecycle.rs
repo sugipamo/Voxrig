@@ -811,6 +811,7 @@ impl ConnectionActor {
                                 !pending_transactions.is_empty()
                                     || pending_furnace_interaction
                                         .is_some_and(|p| p.expires_at > Instant::now()),
+                                &mut next_actions,
                             )
                             .await
                         {

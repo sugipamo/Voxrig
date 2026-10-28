@@ -4262,6 +4262,14 @@ async fn recipe_placement_cancelled_waiter_keeps_one_write_conservation_and_revo
                 crate::client::crafting::dispatch::payload(&pending).unwrap()
             )
         );
+        // One no-op resync click (window 0, revision -1, slot -1) follows the request.
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap(),
+            (
+                ids::play_serverbound::WINDOW_CLICK,
+                super::recipe_placement::resync_payload(0)
+            )
+        );
         f.slot(1, plain("oak_planks", 1)).await;
         f.slot(3, plain("oak_planks", 1)).await;
         let partial = client
@@ -4275,6 +4283,27 @@ async fn recipe_placement_cancelled_waiter_keeps_one_write_conservation_and_revo
         assert!(client.survival().place_recipe(&old_plan).await.is_err());
         assert!(client.survival().select_hotbar(0).await.is_err());
         f.slot(9, plain("oak_planks", 8)).await;
+        // Conserved inputs alone keep the owner until the resync's full contents.
+        assert_eq!(
+            client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            RecipePlacementStage::Pending
+        );
+        let mut inventory = Inventory {
+            cursor: InventorySlot::Empty,
+            ..Default::default()
+        };
+        inventory.slots.fill(InventorySlot::Empty);
+        inventory.slots[1] = plain("oak_planks", 1);
+        inventory.slots[3] = plain("oak_planks", 1);
+        inventory.slots[9] = plain("oak_planks", 8);
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+            .await;
         let complete = client
             .survival()
             .recipe_placement_record()
@@ -4308,6 +4337,136 @@ async fn recipe_placement_cancelled_waiter_keeps_one_write_conservation_and_revo
             RecipePlacementStage::ObservedPlaced
         );
     }
+}
+
+#[tokio::test]
+async fn recipe_placement_unchanged_full_resync_is_terminal_and_releases_owner() {
+    use crate::client::crafting::RecipePlacementStage;
+    let mut f = CommonFixture::new().await;
+    f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+    f.slot(9, plain("oak_planks", 10)).await;
+    f.slot(36, InventorySlot::Empty).await;
+    {
+        let mut state = f.api.bot.session.state.lock().await;
+        state.registries.finish();
+        state.recipes = crate::client::tests::recipe_placement_book_fixture(
+            crate::MinecraftVersion::Java1_21_11,
+            state.sequence,
+        );
+    }
+    let client = f.client();
+    let plan = crate::client::tests::common_recipe_placement_plan(&client).await;
+    let sent = client.survival().place_recipe(&plan).await.unwrap();
+    assert!(sent.send.dispatched && sent.resync_dispatched);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::CRAFT_RECIPE_REQUEST
+    );
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (
+            ids::play_serverbound::WINDOW_CLICK,
+            super::recipe_placement::resync_payload(0)
+        )
+    );
+    let record = |client: crate::Client| async move {
+        client
+            .survival()
+            .recipe_placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+    };
+    let mut inventory = Inventory {
+        cursor: InventorySlot::Empty,
+        ..Default::default()
+    };
+    inventory.slots.fill(InventorySlot::Empty);
+    // An identical single slot is not a processed boundary.
+    f.slot(9, plain("oak_planks", 10)).await;
+    assert_eq!(
+        record(client.clone()).await.stage,
+        RecipePlacementStage::Pending
+    );
+    // Vanilla ignored the request; the resync's full contents equal `before`.
+    inventory.slots[9] = plain("oak_planks", 10);
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+        .await;
+    let unchanged = record(client.clone()).await;
+    assert_eq!(unchanged.id, sent.id);
+    assert_eq!(unchanged.stage, RecipePlacementStage::ObservedUnchanged);
+    assert!(unchanged.unchanged_boundary.unwrap() > sent.send.after_sequence);
+    assert!(unchanged.after.is_none() && unchanged.requires_inspection.is_none());
+    // Terminal: later placement-looking packets do not rewrite it.
+    f.slot(1, plain("oak_planks", 1)).await;
+    f.slot(3, plain("oak_planks", 1)).await;
+    f.slot(9, plain("oak_planks", 8)).await;
+    assert_eq!(
+        record(client.clone()).await.stage,
+        RecipePlacementStage::ObservedUnchanged
+    );
+    // The owner is released: an ordinary selection is admitted again.
+    client.survival().select_hotbar(0).await.unwrap();
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::HELD_ITEM_SLOT
+    );
+    f.fence_response().await;
+    f.stop().await;
+}
+#[tokio::test]
+async fn recipe_placement_changed_full_resync_is_placed_not_unchanged() {
+    use crate::client::crafting::RecipePlacementStage;
+    let mut f = CommonFixture::new().await;
+    f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+    f.slot(9, plain("oak_planks", 10)).await;
+    f.slot(36, InventorySlot::Empty).await;
+    {
+        let mut state = f.api.bot.session.state.lock().await;
+        state.registries.finish();
+        state.recipes = crate::client::tests::recipe_placement_book_fixture(
+            crate::MinecraftVersion::Java1_21_11,
+            state.sequence,
+        );
+    }
+    let client = f.client();
+    let plan = crate::client::tests::common_recipe_placement_plan(&client).await;
+    let sent = client.survival().place_recipe(&plan).await.unwrap();
+    assert!(sent.send.dispatched && sent.resync_dispatched);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::CRAFT_RECIPE_REQUEST
+    );
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (
+            ids::play_serverbound::WINDOW_CLICK,
+            super::recipe_placement::resync_payload(0)
+        )
+    );
+    let record = |client: crate::Client| async move {
+        client
+            .survival()
+            .recipe_placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+    };
+    let mut inventory = Inventory {
+        cursor: InventorySlot::Empty,
+        ..Default::default()
+    };
+    inventory.slots.fill(InventorySlot::Empty);
+    inventory.slots[1] = plain("oak_planks", 1);
+    inventory.slots[3] = plain("oak_planks", 1);
+    inventory.slots[9] = plain("oak_planks", 8);
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+        .await;
+    let placed = record(client.clone()).await;
+    assert_eq!(placed.id, sent.id);
+    assert_eq!(placed.stage, RecipePlacementStage::ObservedPlaced);
+    assert!(placed.unchanged_boundary.is_none());
+    f.stop().await;
 }
 
 fn ghost_packet(window: i32) -> Vec<u8> {
@@ -4364,6 +4523,10 @@ async fn recipe_ghost_requires_actual_returns_and_fresh_context_even_without_slo
             ids::play_serverbound::CRAFT_RECIPE_REQUEST
         );
         assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::WINDOW_CLICK
+        );
+        assert_eq!(
             client
                 .survival()
                 .recipe_placement_record()
@@ -4417,6 +4580,28 @@ async fn recipe_ghost_requires_actual_returns_and_fresh_context_even_without_slo
             );
             f.slot(36, plain("dirt", 1)).await;
         }
+        let mut inventory = Inventory {
+            cursor: InventorySlot::Empty,
+            ..Default::default()
+        };
+        inventory.slots.fill(InventorySlot::Empty);
+        inventory.slots[9] = plain("oak_planks", 1);
+        if with_input {
+            inventory.slots[36] = plain("dirt", 1);
+        }
+        // The ghost completes only with the resync's full contents.
+        assert_eq!(
+            client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            RecipePlacementStage::Pending
+        );
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 131))
+            .await;
         crate::client::tests::common_ghost_completed(&client, request.id).await;
         assert!(client.survival().place_recipe(&plan).await.is_err());
         let fresh = crate::client::tests::common_ghost_recipe_plan(&client).await;
@@ -4425,11 +4610,17 @@ async fn recipe_ghost_requires_actual_returns_and_fresh_context_even_without_slo
             read_packet(&mut f.peer, None).await.unwrap().0,
             ids::play_serverbound::CRAFT_RECIPE_REQUEST
         );
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::WINDOW_CLICK
+        );
         f.receive(
             ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
             &ghost_packet(0),
         )
         .await;
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &full(&inventory, 132))
+            .await;
         crate::client::tests::common_ghost_completed(&client, second.id).await;
         assert!(client.survival().place_recipe(&fresh).await.is_err());
         client.survival().select_hotbar(0).await.unwrap();

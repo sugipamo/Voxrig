@@ -81,6 +81,16 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
     state.common_recipe_placement = Some(record);
     publish(state);
 }
+/// Response deadline for the request and its resync, as the inventory executor.
+const RESPONSE_DEADLINE: std::time::Duration = std::time::Duration::from_secs(5);
+/// Original window; revision -1 (native revisions are 0..32767); slot -1; left
+/// PICKUP; no changed slots; empty cursor hash. Changes no slot or cursor.
+pub(super) fn resync_payload(window: i32) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    put_varint(&mut bytes, window);
+    bytes.extend([255, 255, 255, 255, 15, 255, 255, 0, 0, 0, 0]);
+    bytes
+}
 impl Operations {
     async fn recipe_placement_send_owned(
         &self,
@@ -123,8 +133,24 @@ impl Operations {
                     &dispatch::payload(&record)?,
                 )
                 .await?;
+            state
+                .common_recipe_placement
+                .as_mut()
+                .expect("retained")
+                .send
+                .dispatched = true;
+            // Vanilla sends nothing when it ignores the request. A following no-op
+            // resync click (slot -1, revision -1) is answered with full contents
+            // after the request was handled; see dispatch::unchanged_boundary.
+            self.bot
+                .session
+                .send(
+                    ids::play_serverbound::WINDOW_CLICK,
+                    &resync_payload(record.window_id()),
+                )
+                .await?;
             let record = state.common_recipe_placement.as_mut().expect("retained");
-            record.send.dispatched = true;
+            record.resync_dispatched = true;
             Ok(record.clone())
         }
         .await;
@@ -178,13 +204,19 @@ impl crate::client::adapter::RecipePlacementOps for Operations {
                 dispatch::validate_plan_history(plan, state.common_recipe_placement.as_ref())?;
                 let record = dispatch::prepare(plan, &current, mode, attempt)?;
                 dispatch::payload(&record)?;
+                let mut record = record;
                 let id = record.id;
-                let work = state.finite_work.begin(
-                    &self.bot.session.ledger,
-                    crate::client::ledger::finite::Family::Recipe,
-                    record.id.attempt(),
-                );
+                let family = crate::client::ledger::finite::Family::Recipe;
+                let work =
+                    state
+                        .finite_work
+                        .begin(&self.bot.session.ledger, family, record.id.attempt());
+                // An unanswered request is unknown, not refused: the retained owner
+                // fails the connection at expiry.
+                let deadline = tokio::time::Instant::now() + RESPONSE_DEADLINE;
+                record.deadline = Some(deadline);
                 state.common_recipe_placement = Some(record);
+                state.finite_work.expire_at(family, id.attempt(), deadline);
                 publish(&mut state);
                 let bot = self.bot.clone();
                 let (reply, result) = tokio::sync::oneshot::channel();
@@ -209,6 +241,9 @@ impl crate::client::adapter::RecipePlacementOps for Operations {
             .recipe_placement_history
             .lock()
             .expect("recipe placement history");
+        if let Some(record) = history.as_mut() {
+            record.expire_due();
+        }
         if self.bot.session.stopped.load(Ordering::Acquire) {
             if let Some(record) = history.as_mut() {
                 record.inspection("recipe placement connection closed or uncertain");
