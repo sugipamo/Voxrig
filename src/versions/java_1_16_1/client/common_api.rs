@@ -369,6 +369,7 @@ impl Bot {
                     value: slot,
                     source: api::ValueSource::Submitted,
                 });
+                self.record_hotbar_submission(slot).await;
             }
             Action::SetFlying(flying) => {
                 self.common_receipts.lock().await.requested_flying = flying
@@ -3234,6 +3235,84 @@ mod tests {
             drop(release);
             server.await.unwrap();
         }
+    }
+    #[tokio::test]
+    async fn held_slot_change_log_records_override_of_submission_and_respawn_reassertion() {
+        use api::HotbarChangeOrigin::{Received, Submitted};
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.survival.write().await.game_mode = Some(mode_id(api::GameMode::Survival));
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        client.survival().select_hotbar(4).await.unwrap();
+        assert_eq!(packets.recv().await.unwrap(), (0x24, vec![0, 4]));
+        // Server-side write (pick-item / join / dimension change) with another slot.
+        bot.apply_packet(0x3f, vec![2]).await.unwrap();
+        let override_at = bot.protocol_packet_sequence.load(Ordering::Acquire);
+        // Respawn reasserts the latest value as a new submission.
+        let mut spawn = Vec::new();
+        put_string(&mut spawn, "minecraft:overworld");
+        put_string(&mut spawn, "world");
+        spawn.extend([0; 8]);
+        spawn.extend([0, 255, 0, 0, 1]);
+        bot.apply_packet(0x3a, spawn).await.unwrap();
+        assert_eq!(packets.recv().await.unwrap(), (0x24, vec![0, 2]));
+
+        let log = client.selected_hotbar_changes_after(0).await.unwrap();
+        assert_eq!(log.sequence, 4);
+        let c: Vec<_> = log.changes.iter().map(|c| c.change).collect();
+        assert_eq!((c[0].origin, c[0].before, c[0].after), (Received, None, 0));
+        assert_eq!(
+            (
+                c[1].origin,
+                c[1].before,
+                c[1].after,
+                c[1].superseded_submission
+            ),
+            (Submitted, Some(0), 4, None)
+        );
+        assert_eq!(
+            (
+                c[2].origin,
+                c[2].before,
+                c[2].before_origin,
+                c[2].after,
+                c[2].superseded_submission
+            ),
+            (Received, Some(4), Some(Submitted), 2, Some(2))
+        );
+        assert_eq!(c[2].receive_sequence, override_at);
+        assert_eq!(
+            (
+                c[3].origin,
+                c[3].before,
+                c[3].after,
+                c[3].superseded_submission
+            ),
+            (Submitted, Some(2), 2, None)
+        );
+        assert!(c[3].session.world_generation > c[2].session.world_generation);
+        // The common snapshot only shows the latest value.
+        let selection = client
+            .player_state()
+            .await
+            .unwrap()
+            .selected_hotbar
+            .unwrap();
+        assert_eq!(selection.value, 2);
+        assert_eq!(selection.source, api::ValueSource::Submitted);
+        assert_eq!(
+            client
+                .selected_hotbar_changes_after(log.sequence + 1)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::InvalidInput
+        );
+        let _ = client.revoke_connection();
+        drop(release);
+        server.await.unwrap();
+        assert_eq!(client.selected_hotbar_changes_after(0).await.unwrap(), log);
     }
     #[tokio::test]
     async fn inventory_move_capture_is_coherent_during_received_traffic() {

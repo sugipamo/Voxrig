@@ -162,6 +162,7 @@ impl Bot {
                                 value: *slot,
                                 source: api::ValueSource::Submitted,
                             });
+                        self.record_hotbar_submission(*slot).await;
                         Ok(())
                     }
                     Action::Chat(text) => {

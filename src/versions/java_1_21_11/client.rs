@@ -130,6 +130,7 @@ struct State {
     display: crate::client::ui::display::DisplayLedger,
     teams: crate::client::ui::teams::TeamLedger,
     player_list: crate::client::ui::player_list::PlayerListLedger,
+    hotbar_changes: crate::client::hotbar_changes::HotbarChangeLedger,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -212,6 +213,7 @@ impl Default for State {
             display: Default::default(),
             teams: Default::default(),
             player_list: Default::default(),
+            hotbar_changes: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -234,6 +236,19 @@ impl Default for State {
     }
 }
 impl State {
+    /// Append a completed selected-hotbar write at the latest receive ordinal.
+    fn record_hotbar_change(&self, origin: crate::client::HotbarChangeOrigin, slot: u8) {
+        self.hotbar_changes.record(
+            crate::client::SessionStamp {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: self.connection_id,
+                world_generation: self.loading.generation,
+            },
+            self.sequence,
+            origin,
+            slot,
+        );
+    }
     // Receive, trace and apply share a single boundary for live operation and replay.
     fn receive(&mut self, id: i32, payload: &[u8], max_chunks: usize) -> anyhow::Result<Responses> {
         if self.failure.is_some() {
@@ -851,6 +866,11 @@ impl Session {
                         if id == ids::play_serverbound::HELD_ITEM_SLOT {
                             if let Some(selection) = &mut state.operations.selected_hotbar {
                                 selection.dispatched = true;
+                                let slot = selection.slot;
+                                state.record_hotbar_change(
+                                    crate::client::HotbarChangeOrigin::Submitted,
+                                    slot,
+                                );
                             }
                         }
                     }

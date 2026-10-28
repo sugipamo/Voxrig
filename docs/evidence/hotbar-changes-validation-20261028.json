@@ -1,0 +1,150 @@
+{
+  "base": "972c6f36892393d02b13c08fd6ee7a68f11e332b",
+  "branch": "fix/held-slot-change-log",
+  "audit_rows": [
+    "I5"
+  ],
+  "public_api": "additive",
+  "source_sha256": {
+    "Cargo.toml": "23d4101d95f435b13f98ee5dddf32914d9597bb64b8bd899b9893b546ea66a6e",
+    "CHANGELOG.md": "4452126130b5accb2bfd1c44510e010c554316bddc123c0d1d68c281dbdad926",
+    "docs/hotbar-changes.md": "6302fc86a5717607bbe197c4719ae8b35838dd407598f4d1bd8bf00c4701c0fb",
+    "src/client/hotbar_changes.rs": "606033f704469121b2bb7f8d362e8eded776ee18750b27402465760c8799d648",
+    "src/client/mod.rs": "7a2d8f2aff0f1a7212ab0bee3346d8ae9055ad97b7d79cee2ca3577ab72be803",
+    "src/versions/java_1_16_1/client.rs": "0ddeb3cfcb4f1889c726fefcba404245407f2663dc52c28a8edaada7ffa7f401",
+    "src/versions/java_1_16_1/client/body.rs": "15d97b3bea9801a62d7a4fca1f8657cd96b793244b6a7e046e63bd0c058ab4e7",
+    "src/versions/java_1_16_1/client/common_api.rs": "a3a17ae76dbc4469678940cbfd0bb2960ae9b0773b72d921d65c87f3bc42422d",
+    "src/versions/java_1_16_1/client/play_player.rs": "b9e1ec26bc670b9e780156fc5edf3f1abb0b651356328cb9c2d12bcc7f53f397",
+    "src/versions/java_1_21_11/client.rs": "8b0c99280175275b43f8c637bd22892a459db4c09136e57b4285b5fdfdbe3d75",
+    "src/versions/java_1_21_11/client/operations.rs": "a0d4a363ea2bd9b82d1e214c168e1757033bb9db2ae755e0831c1aca4cbf934b",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "ba10dc2fa0f68bf626ead78573131eac8945d3d5b0cfe611dbd3e19c7087338f",
+    "src/versions/java_1_21_11/client/operations/inventory/hotbar_change_tests.rs": "199cbddbb4f491e0d232a82fd84a7a066ba4739fd143ef879c462e8b075a028b",
+    "examples/climbing_control_probe.rs": "ab2483941c16208bda1b62b4f8ab38985ce9ee473fa95e77ab6b03df522e97b4",
+    "scripts/run_hotbar_changes_live.py": "a5ec589d3bc9cd5d70b18b4f602513be61caef3febdb7316755654658bcf257b"
+  },
+  "gate": {
+    "cargo fmt --all -- --check": "pass",
+    "cargo clippy --locked --all-targets -- -D warnings": "pass",
+    "cargo clippy --locked --all-targets --features native -- -D warnings": "pass",
+    "cargo test --locked --all-targets (1725 passed, 9 ignored)": "pass",
+    "cargo test --locked --doc": "pass",
+    "cargo test --locked --all-targets --features native (1725 passed, 9 ignored)": "pass",
+    "cargo test --locked --doc --features native": "pass",
+    "cargo +1.85.0 check --locked --all-targets": "pass",
+    "cargo +1.85.0 check --locked --all-targets --features native": "pass"
+  },
+  "live": {
+    "hotbar-changes-live-1.16.1-20261028.json.gz": {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": [
+        "join_received_selection",
+        "nether_teleport_received_selection",
+        "overworld_teleport_received_selection",
+        "race_submission_against_teleport",
+        "final_log",
+        "original_held_slot_frames",
+        "log_matches_original_frames"
+      ],
+      "frames": {
+        "name": "log_matches_original_frames",
+        "records": 9,
+        "received": [
+          0,
+          5,
+          5,
+          2
+        ],
+        "submitted": [
+          5,
+          5,
+          5,
+          2,
+          2
+        ]
+      },
+      "race": {
+        "superseded": 0,
+        "local": 2,
+        "server_slot": 2
+      }
+    },
+    "hotbar-changes-live-1.21.11-20261028.json.gz": {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "checks": [
+        "join_received_selection",
+        "nether_teleport_received_selection",
+        "overworld_teleport_received_selection",
+        "race_submission_against_teleport",
+        "final_log",
+        "original_held_slot_frames",
+        "log_matches_original_frames"
+      ],
+      "frames": {
+        "name": "log_matches_original_frames",
+        "records": 9,
+        "received": [
+          0,
+          5,
+          5,
+          5
+        ],
+        "submitted": [
+          5,
+          5,
+          5,
+          2,
+          2
+        ]
+      },
+      "race": {
+        "superseded": 1,
+        "local": 5,
+        "server_slot": 2
+      }
+    },
+    "hotbar-changes-race-live-1.16.1-20261028.json.gz": {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": [
+        "join_received_selection",
+        "nether_teleport_received_selection",
+        "overworld_teleport_received_selection",
+        "race_submission_against_teleport",
+        "final_log",
+        "original_held_slot_frames",
+        "log_matches_original_frames"
+      ],
+      "frames": {
+        "name": "log_matches_original_frames",
+        "records": 9,
+        "received": [
+          0,
+          5,
+          5,
+          5
+        ],
+        "submitted": [
+          5,
+          5,
+          5,
+          2,
+          2
+        ]
+      },
+      "race": {
+        "superseded": 1,
+        "local": 5,
+        "server_slot": 2
+      }
+    }
+  },
+  "live_notes": [
+    "1.21.11 one of four runs aborted after the race nether teleport: probe reader error \"invalid non-air count\" (src/versions/java_1_21_11/world.rs chunk decode); unrelated to this change, not retried by the fixture.",
+    "hotbar-changes-race-live-1.16.1 was produced by the same code before a doc-comment edit and the fixture prepare step; the final 1.16.1 run did not hit the race."
+  ]
+}

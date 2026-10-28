@@ -363,6 +363,18 @@ impl Operations {
     pub(crate) fn bot(&self) -> &Bot {
         &self.bot
     }
+    pub(crate) async fn hotbar_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::HotbarChangeLog> {
+        self.bot
+            .session
+            .state
+            .lock()
+            .await
+            .hotbar_changes
+            .after(after_sequence)
+    }
 }
 pub(super) fn recipe_ghost_context(state: &State) -> crate::client::crafting::ghost::GhostContext {
     crate::client::crafting::ghost::GhostContext {
@@ -792,6 +804,7 @@ impl Operations {
                     .as_mut()
                     .expect("selection attempt")
                     .dispatched = true;
+                state.record_hotbar_change(crate::client::HotbarChangeOrigin::Submitted, slot);
                 attack::observe(&mut state, Some(slot));
                 Ok(())
             })
@@ -1530,6 +1543,9 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             .expect("received selection")
             .slot
     });
+    if let Some(slot) = selected_slot {
+        state.record_hotbar_change(crate::client::HotbarChangeOrigin::Received, slot);
+    }
     attack::observe(state, selected_slot);
     if matches!(
         id,

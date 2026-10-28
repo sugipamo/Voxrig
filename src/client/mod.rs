@@ -24,10 +24,15 @@ pub mod effects;
 pub mod events;
 pub mod explosions;
 pub mod health;
+pub mod hotbar_changes;
 pub use events::{ClientEvent, EventKind, EventLog};
 pub use health::{
     HealthChange, HealthEvent, HealthLog, HealthRecvError, HealthSubscription,
     MAX_RETAINED_HEALTH_CHANGES, ReceivedHealth,
+};
+pub use hotbar_changes::{
+    HotbarChange, HotbarChangeGap, HotbarChangeLog, HotbarChangeOrigin, HotbarSelectionChange,
+    MAX_RETAINED_HOTBAR_CHANGES,
 };
 pub mod code_of_conduct;
 pub mod resource_pack;
@@ -250,6 +255,10 @@ pub mod prelude {
     pub use super::health::{
         HealthChange, HealthEvent, HealthLog, HealthRecvError, HealthSubscription,
         MAX_RETAINED_HEALTH_CHANGES, ReceivedHealth,
+    };
+    pub use super::hotbar_changes::{
+        HotbarChange, HotbarChangeGap, HotbarChangeLog, HotbarChangeOrigin, HotbarSelectionChange,
+        MAX_RETAINED_HOTBAR_CHANGES,
     };
     pub use super::inventory::{
         HandSwapId, HandSwapRecord, HandSwapSend, HandSwapStage, InventoryClickButton,

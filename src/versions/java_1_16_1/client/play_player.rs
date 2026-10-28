@@ -392,6 +392,7 @@ impl Bot {
                     value: slot,
                     source: crate::client::ValueSource::Submitted,
                 });
+            self.record_hotbar_submission(slot).await;
         }
         self.emit(Event::Respawn(respawn));
         Ok(())

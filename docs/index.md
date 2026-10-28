@@ -22,6 +22,7 @@ Microsoftアカウント認証・online-mode暗号化、および署名付きcha
 - [共通の待機API](common-waits.md)
 - [共通のchange通知（event）](common-events.md)
 - [受信HP専用ログと購読・Golemkit向け最小例](health-log.md)
+- [選択hotbarの変更ログ（Submitted / Received、before/after）](hotbar-changes.md)
 - [爆発の受信文脈・消失座標・impulse（Java 1.16.1 / 1.21.11）](common-explosions.md)
 - [Code of conductの自動accept（Java 1.21.11）](common-code-of-conduct.md)
 - [共通のblock検索とraycast](common-blocks.md)
