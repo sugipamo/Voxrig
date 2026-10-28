@@ -21,6 +21,18 @@
   source. A running PlayerControl adopts it, so its next movement packet no longer
   overwrites it with the stale aim; scheduled paths and finite motion keep their
   planned yaw. No public signature or enum changes. See [forced rotation](docs/forced-rotation.md).
+- Java 1.21.11 selected drop and hand swap no longer stay `Pending` forever
+  (audit I6/I7). A record whose fresh full player contents after the send still
+  show the original hands/selected stack and cursor ends as the new terminal
+  `ObservedUnchanged` (with `unchanged_boundary`) and releases the inventory
+  owner; this is what vanilla does for a dead (not yet respawned) or unloaded
+  player. A record still `Pending` 5 s after it was retained ends as `Expired`
+  (outcome unknown) and fails the connection ledger with `TransactionExpired`.
+  `swap_hands` now sends the same no-op full resync click after its frame as
+  `drop_selected` (`HandSwapRecord::resync_dispatched`). Additive: both stage
+  enums are `#[non_exhaustive]`; both records only gain fields.
+  See [selected drop](docs/common-selected-drop.md) and
+  [hand swap](docs/common-inventory-swaps.md).
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.
