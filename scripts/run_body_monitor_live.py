@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Body monitor completeness on a SHA-1 verified official Java 1.16.1 server.
+"""Body monitor completeness on a SHA-1 verified official Java 1.16.1 or 1.21.11 server.
 
 Only original server packets and RCON commands; no synthetic replies/cache edits.
 Timeout/read-error cases use deterministic fixtures instead of altering live state.
@@ -18,7 +18,7 @@ from run_common_native import until
 
 
 def check(version, command, request, trace, report):
-    assert version == '1.16.1'
+    assert version in ('1.16.1', '1.21.11'), version
 
     def complete(identity):
         outcome = until(lambda: s if (s := request('status', id=identity))['status'] != 'pending' else None, 5)
@@ -96,15 +96,19 @@ if __name__ == '__main__':
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--jars', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--version', choices=('1.16.1', '1.21.11'), default='1.16.1')
     args = parser.parse_args()
     os.environ['VOXRIG_BODY_RETENTION'] = '8'
     harness.ROOT = args.output.resolve()
-    harness.run('1.16.1', args.binary.resolve(), args.jars.resolve(), check=check)
+    harness.run(args.version, args.binary.resolve(), args.jars.resolve(), check=check)
     report_path = sorted(harness.ROOT.glob('*/report.json'))[-1]
     report = json.loads(report_path.read_text())
     sources = ['src/body/headless.rs', 'src/body/mod.rs', 'src/body/monitoring.rs',
-               'src/body/headless/monitoring.rs', 'src/versions/java_1_16_1/client/body.rs',
-               'examples/body_probe.rs', 'scripts/run_body_monitor_live.py', 'Cargo.lock']
+               'src/body/headless/monitoring.rs', 'examples/body_probe.rs',
+               'scripts/run_body_monitor_live.py', 'Cargo.lock']
+    sources += (['src/versions/java_1_16_1/client/body.rs'] if args.version == '1.16.1' else
+                ['src/versions/java_1_21_11/client/operations/body.rs',
+                 'src/versions/java_1_21_11/client/operations/placement/tests/body_monitor.rs'])
     report['binary_sha256'] = hashlib.sha256(args.binary.read_bytes()).hexdigest()
     report['source_sha256'] = {p: hashlib.sha256((harness.REPO / p).read_bytes()).hexdigest() for p in sources}
     (harness.ROOT / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
