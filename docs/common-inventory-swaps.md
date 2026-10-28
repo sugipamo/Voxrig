@@ -30,11 +30,32 @@ canonical `main_slot`（36..44）、両方の元stack、`HandSwapSend`を保持�
 破損値やcomponentsをdefaultへ落とさない。欠測・不正count・未知constructorや同値の両手はI/O前に拒否する。
 同値の両手ではnativeから変更slotが返らないため、完了可能な操作として扱わない。
 
+swap frameの後に、[選択中stackのdrop](common-selected-drop.md)と同じplayer画面0・slot -1・
+Left PICKUP・revision -1のno-op resyncを一度だけ送る（`resync_dispatched`）。
+原版は交換を拒否してもslot通知を送らないため、このfull contentsを処理済み境界として使う。
 `send.dispatched`はframeの完全送信だけを表す。`ObservedSwapped`には、
 元offhandと一致する`main_receipt`、元mainと一致する`offhand_receipt`の両方が必要で、
 各slotの実更新ordinalは`send.after_sequence`より新しくなければならない。
 片側だけの更新、無関係なslot、block ACKや現在cacheの一致では完了しない。
 これはclientの実受信根拠であり、変更したactorの証明ではない。
+
+### 交換されなかった（`ObservedUnchanged`）と期限切れ（`Expired`）
+
+両frameの完全送信後、送信後の1つのfull player contents（46 slotとcursorが同じ受信ordinal）で
+両手とcursorが送信前と同じなら、終端の`HandSwapStage::ObservedUnchanged`になる。
+`unchanged_boundary`にそのordinalを保持し、receiptは記録しない。
+片側だけのSET_SLOTや送信前の受信は境界にならない。同じfull contentsで片手だけ交換済みなら
+`RequiresInspection`である。原版`handlePlayerAction`は、spectatorと、死亡してrespawn待ちなど
+`hasClientLoaded()`がfalseのplayerの交換を何も送らずに無視する（同じ手順で
+resync clickにはfull contentsを返す）。spectatorへの変更はmode変更として先に届くため
+`RequiresInspection`になり、`ObservedUnchanged`にはならない。
+`ObservedUnchanged`は終端で、inventory ownerを解放し、ledgerを完了する。
+後の受信で書き換えない。次の明示的な交換やdropは新しいIDで送れる。
+
+送信記録の保持から5秒（inventory executorと同じ）以内に`Pending`を抜けない場合は
+`Expired`になる。結果は不明で、serverが後から適用する可能性がある（拒否の証明ではない）。
+ledgerは`TransactionExpired`で失敗し、その接続では以後の操作を受け付けないので再接続する。
+`Expired`は後の受信や切断で書き換えない。どちらの新しいstageも`#[non_exhaustive]`への追加である。
 
 既存inventory ownerとledgerに接続する。未解決中は通常クリック・交換・選択等の競合操作を拒否し、
 drainは両slotの確認を待つ。取消・partial write・切断、選択/mode/cursor/screen/worldやregistry寿命の変更、
@@ -47,6 +68,8 @@ writer待ち中の取消は未送信intentを保持し、他actorの更新が後
 競合の復元、未送信取消、部分write、排他、ledgerを検査する。
 同値tagの再受信によるnamed-holder寿命の更新と、両手・cursorを同時更新するfull contentsも検査し、
 cursor競合やregistry寿命の変更を後の一致packetで解除しない。
+送信後の不変full contentsによる`ObservedUnchanged`とowner解放、単一slotの不変更新では終端しないこと、
+片手だけのfull contents、応答なしの`Expired`と`TransactionExpired`も検査する。
 `scripts/ExportHandSwap.java`は未改変の公式1.21.11 codecでsequence境界5件を往復し、
 `data/client_api/hand_swap_packets-1.21.11.json`を生成する（元serverと同梱libraryのclasspathが必要）。
 ライブ再実行はbuild済み共通consumerと、指定JARの一時copyだけを使う。
@@ -56,7 +79,15 @@ server/world/EULAは一時directoryに作成し、終了時に全processを停�
 cargo build --locked --example climbing_control_probe -j2
 python3 -B scripts/run_hand_swap_live.py --accept-eula \
   --server-jar /absolute/path/1.21.11/server.jar --output /absolute/path/evidence
+python3 -B scripts/run_drop_handswap_no_effect_live.py --accept-eula \
+  --server-jar /absolute/path/1.21.11/server.jar --output /absolute/path/evidence.json.gz
 ```
+
+2026-10-27に公式1.21.11で、keep_inventoryで死亡しrespawn前のplayerの交換が
+`ObservedUnchanged`（RCONでも両手不変）になり、respawn後の同じ接続で交換が`ObservedSwapped`に
+なることを確認した（[不変の実行根拠](evidence/drop-handswap-no-effect-live-1.21.11-20261027.json.gz)）。
+resync追加後の`run_hand_swap_live.py`の6ケースも成功した
+（[交換の実行根拠](evidence/common-hand-swap-resync-live-1.21.11-20261027.json.gz)）。
 
 両modeで盾・道具・空手を6回交換し、両slotのfresh receipt、data保持、元packetの一度性と
 独立RCONのSelectedItem/equipment.offhandを照合する。合成packet試験とライブの根拠は区別する。
