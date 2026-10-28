@@ -82,6 +82,7 @@ impl Bot {
         if execution_matches {
             self.common_transfer_reply_received(transaction).await;
         }
+        self.common_recipe_reply_received(transaction).await;
         self.common_container_return_reply(transaction).await;
         self.commit_satisfied_window_barriers().await;
         self.emit(Event::WindowTransaction(transaction));
