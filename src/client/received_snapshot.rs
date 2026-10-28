@@ -138,6 +138,30 @@ impl ReceivedCorrectionFields {
     }
 }
 
+/// Original operands of a rotation-only correction (Java 1.21.11 `PLAYER_ROTATION`).
+/// Relative angles do not establish absolute samples. Position is not part of it.
+#[derive(Clone, Debug)]
+pub struct ReceivedRotationCorrection {
+    pub(crate) rotation: [CorrectionComponent<f32>; 2], // yaw, pitch in packet degrees
+}
+impl ReceivedRotationCorrection {
+    pub(crate) fn from_packet(rotation: [f32; 2], relative: [bool; 2]) -> Self {
+        Self {
+            rotation: std::array::from_fn(|i| {
+                if relative[i] {
+                    CorrectionComponent::Relative(rotation[i])
+                } else {
+                    CorrectionComponent::Absolute(rotation[i])
+                }
+            }),
+        }
+    }
+    /// Rotation (yaw, pitch).
+    pub fn rotation(&self) -> &[CorrectionComponent<f32>; 2] {
+        &self.rotation
+    }
+}
+
 /// World and dimension type explicitly selected by an entry packet.
 #[derive(Clone, Debug)]
 pub struct ReceivedDimensionSelection {
@@ -285,6 +309,7 @@ pub struct ReceivedPlayerSnapshot {
     pub(crate) correction: FieldState<ReceivedCorrectionFields>,
     pub(crate) absolute_position: FieldState<[f64; 3]>,
     pub(crate) absolute_rotation: FieldState<[f32; 2]>,
+    pub(crate) rotation_correction: FieldState<ReceivedRotationCorrection>,
     pub(crate) selected_hotbar: FieldState<u8>,
     pub(crate) game_mode: FieldState<GameMode>,
     pub(crate) abilities: FieldState<PlayerAbilities>,
@@ -326,9 +351,15 @@ impl ReceivedPlayerSnapshot {
     pub fn absolute_position(&self) -> &FieldState<[f64; 3]> {
         &self.absolute_position
     }
-    /// Literal angles only when both latest correction angles are absolute; no normalization is applied.
+    /// Literal angles only when both angles of the latest position or rotation-only
+    /// correction are absolute; no normalization is applied.
     pub fn absolute_rotation(&self) -> &FieldState<[f32; 2]> {
         &self.absolute_rotation
+    }
+    /// Latest rotation-only correction (Java 1.21.11 `PLAYER_ROTATION`); always
+    /// missing on Java 1.16.1. Compare receipts with `correction()` for order.
+    pub fn rotation_correction(&self) -> &FieldState<ReceivedRotationCorrection> {
+        &self.rotation_correction
     }
     /// Selected hotbar.
     pub fn selected_hotbar(&self) -> &FieldState<u8> {
@@ -628,6 +659,7 @@ impl ReceivedPlayerSnapshot {
             correction: FieldState::Missing,
             absolute_position: FieldState::Missing,
             absolute_rotation: FieldState::Missing,
+            rotation_correction: FieldState::Missing,
             selected_hotbar: FieldState::Missing,
             game_mode: FieldState::Missing,
             abilities: FieldState::Missing,
@@ -667,6 +699,7 @@ impl ReceivedPlayerSnapshot {
         self.correction.invalidate(invalidation);
         self.absolute_position.invalidate(invalidation);
         self.absolute_rotation.invalidate(invalidation);
+        self.rotation_correction.invalidate(invalidation);
         self.selected_hotbar.invalidate(invalidation);
         self.game_mode.invalidate(invalidation);
         self.abilities.invalidate(invalidation);
@@ -740,6 +773,24 @@ impl ReceivedPlayerSnapshot {
             self.absolute_rotation.invalidate(&invalidation);
         }
         self.correction.set(value, event);
+    }
+    pub(crate) fn rotation_correction_received(
+        &mut self,
+        value: ReceivedRotationCorrection,
+        event: Receipt,
+    ) {
+        match value.rotation {
+            [
+                CorrectionComponent::Absolute(yaw),
+                CorrectionComponent::Absolute(pitch),
+            ] => self.absolute_rotation.set([yaw, pitch], event),
+            _ => self.absolute_rotation.invalidate(&Invalidation::packet(
+                InvalidationReason::ProjectionUnavailable,
+                event.session,
+                event,
+            )),
+        }
+        self.rotation_correction.set(value, event);
     }
     pub(crate) fn effect_received(
         &mut self,
