@@ -120,3 +120,52 @@
 
 - 実サーバーでの「無効果拒否」を扱うテストと LIVE は両版とも見つからなかった。対象は配置の拒否、クリックの無効果、クラフト取り出しの拒否、画面が開かない場合、1.21.11 の mining ACK と元の値の再送。
 - 推測としたもの: vanilla の挙動（レシピ配置・open の拒否で何も送らない、ACK の前に block update が来る）、B1 のロックが再接続まで解けない、I6/I7 の詰まり、P10 の impulse 喪失、B12 の過剰報告。
+
+## 追補（2026-10-28）: PR の対応状況と残りの扱い
+
+上の表は `972c6f3` 時点の状態のまま残す。この節は、その後に出した修正 PR（すべて OPEN・未マージ）と、まだ PR になっていないケースの扱いをまとめる。
+
+### PR 済み
+
+| PR | 対応した行 | 公開 API | 残し |
+|---|---|---|---|
+| #288 | A1、P4・B7 の 1.21.11 Accepted 後の訂正 | additive | `action_outcome` は欠落があっても当時の Accepted を返す（欠落は `action_observation().monitoring` で読む） |
+| #289 | B1、B2、B14 | breaking（`PlacementStage::ObservedRejected`） | B6、1.21.11 で ACK だけを返す早期 return、spawn protection の LIVE |
+| #290 | C1 | breaking（`craft_once` が Err を返す） | 拒否の LIVE 再現、C2、C3 |
+| #291 | P2（P1 の control との結び付け） | additive（`control_corrections_after`） | 連続訂正で止める方針、P3 |
+| #292 | P7 | additive（挙動: Body が Corrected になる） | rotation 付き POSITION を control が採用しない、P8 |
+| #293 | I6、I7 | additive（挙動: 5秒で Expired になり ledger が fail） | I9 |
+| #294 | I1、I2、I3、C6 | additive＋意味の変更（External を補わない、helpers が Rejected を返す） | `move_inventory` 固有の unchanged テスト |
+| #295 | C4 | breaking（`ContainerOpenStage::NoScreenObserved`） | A2 との結び付け |
+| #296 | B10、B9 の `DigRecord` | breaking（`DigRecord.outcome`、`MiningStage::ObservedRejected`） | 1.16.1 staged mining の拒否は RequiresInspection のまま。同じセルの掘削がサーバー側で途中のまま残っていると、誤って Rejected になりうる |
+
+ns-01〜08・#279・#286 で既に適切になっていたもの: P5、B4、B5、B9（通知）、I10、P11（通知）。
+
+### 残り（優先度順）
+
+優先度は「上位に誤って見える（別の意味で返る・誤検知）」を「見えない・遅れる」より上に置き、そのなかで誤った判断につながりやすいものを上にした。
+
+| 順 | 行 | ケース | 現状の見え方 | 扱い |
+|---|---|---|---|---|
+| 1 | P10 | 1.16.1 で実行中の PlayerControl が爆発ノックバックを毎 tick 上書きして捨てる | 誤り（挙動の不一致） | PR にする |
+| 2 | B12 | Body `UseItem` が、無関係な window の WindowItems でも `Corrected{InventoryResync}` になる | 誤検知 | PR にする |
+| 3 | I9 | 自分の use・配置・drop による差分が `inventory_changes_after` で External と表示される | 別の意味 | PR にする |
+| 4 | P3・P11 | 有限 motion の中断・control の停止が、自由文と再照会でしか分からない（旧 09） | 遅れる | PR にする（型付きの中断原因と control 状態の変更ログ） |
+| 5 | A2 | Body `ActivateBlock` は画面が開かなくても Accepted を返す | 別の意味（文書化済み） | PR にする（#295 のマージ後に `NoScreenObserved` と結び付ける） |
+| 6 | C3 | レシピ本による配置の拒否が永久に Pending のまま | 詰まる | PR にする（処理済み境界の調査から） |
+| 7 | I5 | サーバーによる持ち替えがどのログにも出ない（旧 11） | 遅れる | PR にする |
+| 8 | P9 | 自分への velocity 上書き・ノックバックが観測に出ない。1.21.11 では `EntityUpdated{self}` として返る | 見えない・別の意味 | PR にする |
+| 9 | B6・B8 | 配置の material が消費されない、または戻されても結果に出ない | 見えない | PR にする |
+| 10 | B11 | 1.21.11 の `use_on_block` の BlockChangedAck が公開されず、結果がいつ確定したか分からない | 遅れる | PR にする |
+| 11 | P6 | 乗り物の位置訂正が sequence の番号でしか分からない | 遅れる | PR にする |
+| 12 | A4 | 降車の拒否が永久に Submitted のまま。完了後に再騎乗させられても反映されない | 詰まる | PR にする（低） |
+| 13 | I8 | creative スロット書き込みは、成否が次の resync まで分からない | 遅れる | PR にする（低） |
+| 14 | C5 | サーバーが閉じたことを示す型付きの原因がない | 遅れる | PR にする（低） |
+| 15 | P8 | `FACE_PLAYER`：1.16.1 は汎用通知だけ、1.21.11 は無視（旧 16） | 見えない | PR にする（低） |
+| — | P1 | 自分の位置訂正の事実 | #291 で control 単位のログができた | 仕様として許容 |
+| — | B3 | 配置完了後の差し戻しは記録が凍結される | 設計どおりの履歴 | 仕様として許容。後の変化は Golemkit 側が `BlocksChanged` で受ける（旧 12） |
+| — | C2 | 取り出し完了後に出力が消える | External の変更としては出る | Golemkit 側で受ける |
+| — | A3 | entity interact・attack に拒否のプロトコルがない | dispatch のみ | 仕様として許容。Golemkit 側は entity・体力の観測で判断する |
+| — | I4、C7、B13 | 旧 native API（`click_slot_and_wait`、rename・trade・beacon、`update_sign`） | ACK のみ・dispatch のみ | 仕様として許容。共通 API ではないので、dispatch のみであることを文書に明記する |
+
+PR の追加フォロー（上の PR 済みの表の「残し」）は、それぞれの PR がマージされた後に、同じ方針で別 PR として扱う。
