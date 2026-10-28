@@ -1829,6 +1829,48 @@ pub(super) fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKno
     })
 }
 
+impl Operations {
+    /// Received-state collision query, atomic with pose and dimension metadata.
+    pub(crate) async fn raycast_ids(
+        &self,
+        origin: [f64; 3],
+        direction: [f64; 3],
+        max_distance: f64,
+    ) -> Result<crate::client::BlockRaycastObservation> {
+        use crate::client::blocks as b;
+        b::raycast_region(origin, direction, max_distance).volume()?;
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let height = &state
+            .world
+            .dimension
+            .as_ref()
+            .context("dimension unavailable")?
+            .1;
+        let result = b::raycast_core(
+            origin,
+            direction,
+            max_distance,
+            |p| {
+                Some(
+                    if p[1] < height.min_y || p[1] >= height.min_y + height.height {
+                        Some(0)
+                    } else {
+                        state.world.block(p)
+                    },
+                )
+            },
+            |id| super::raycast::state_boxes(*id),
+            super::super::native_state,
+        )?;
+        Ok(crate::client::BlockRaycastObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            result,
+        })
+    }
+}
+
 impl crate::client::adapter::CoreOps for Operations {
     async fn map_observation(
         &self,

@@ -244,14 +244,26 @@ struct Shapes {
     state_shapes: Vec<usize>,
     shapes: Vec<Vec<[f64; 6]>>,
 }
-fn shapes() -> &'static Shapes {
-    static SHAPES: OnceLock<Shapes> = OnceLock::new();
+fn shapes() -> &'static crate::client::blocks::StateBoxes {
+    static SHAPES: OnceLock<crate::client::blocks::StateBoxes> = OnceLock::new();
     SHAPES.get_or_init(|| {
-        serde_json::from_str(include_str!(
+        let data: Shapes = serde_json::from_str(include_str!(
             "../../../../data/java_1_21_11/collision_shapes.json"
         ))
-        .expect("validated generated collision data")
+        .expect("validated generated collision data");
+        crate::client::blocks::StateBoxes::indexed(data.state_shapes, data.shapes)
     })
+}
+pub(crate) fn state_boxes(id: i32) -> crate::Result<std::borrow::Cow<'static, [[f64; 6]]>> {
+    shapes()
+        .get(id)
+        .map(std::borrow::Cow::Borrowed)
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::Protocol,
+                anyhow::anyhow!("unknown block state ID {id}"),
+            )
+        })
 }
 /// Native collision boxes of a complete Java 1.21.11 state, cell-relative.
 pub(crate) fn collision_boxes(state: &NativeBlockState) -> crate::Result<&'static [[f64; 6]]> {
@@ -259,8 +271,7 @@ pub(crate) fn collision_boxes(state: &NativeBlockState) -> crate::Result<&'stati
 }
 fn boxes(state: &NativeBlockState) -> anyhow::Result<&'static [[f64; 6]]> {
     let id = super::super::state_id(state)? as usize;
-    let shapes = shapes();
-    Ok(&shapes.shapes[shapes.state_shapes[id]])
+    Ok(shapes().get(id as i32).expect("validated state id"))
 }
 fn intersection(
     origin: [f64; 3],

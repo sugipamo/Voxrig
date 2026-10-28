@@ -1,11 +1,13 @@
-//! Block search and collision raycasts over one coherent capture, common to both versions.
+//! Block search and collision raycasts over coherent received state.
 //!
 //! Both operate on received client state only. Unloaded cells are reported as
 //! such and are never treated as air.
 use super::adapter::CoreOps;
 use super::{BlockFace, SessionStamp};
+#[cfg(test)]
+use crate::MinecraftVersion;
 use crate::error::invalid_input;
-use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, ObservedBlock, Region, Result};
+use crate::{NativeBlockState, ObservedBlock, Region, Result};
 
 /// Longest supported raycast, in blocks measured from the supplied origin.
 /// Includes eye/target offsets and keeps the single captured box bounded.
@@ -61,6 +63,7 @@ pub struct BlockRaycastObservation {
 }
 
 /// Native collision boxes of a complete state, cell-relative.
+#[cfg(test)]
 pub(crate) fn collision_boxes(
     version: MinecraftVersion,
     state: &NativeBlockState,
@@ -74,11 +77,16 @@ fn enter(
     direction: [f64; 3],
     b: [f64; 6],
     limit: f64,
+    policy: RaycastPolicy,
 ) -> Option<(f64, usize, bool)> {
-    let (mut near, mut far) = (f64::NEG_INFINITY, limit);
+    let legacy = matches!(policy, RaycastPolicy::LegacyVisibility { .. });
+    let (mut near, mut far) = (
+        f64::NEG_INFINITY,
+        if legacy { f64::INFINITY } else { limit },
+    );
     let mut entry = (0usize, false);
     for axis in 0..3 {
-        if direction[axis] == 0.0 {
+        if direction[axis] == 0.0 || (legacy && direction[axis].abs() <= 1.0e-12) {
             if origin[axis] < b[axis] || origin[axis] > b[axis + 3] {
                 return None;
             }
@@ -96,8 +104,12 @@ fn enter(
             return None;
         }
     }
-    // An origin inside the box is not an entry.
-    (near >= 0.0).then_some((near, entry.0, entry.1))
+    if legacy {
+        (far >= 0.0 && near.max(0.0) <= limit + 1.0e-9).then_some((near.max(0.0), entry.0, entry.1))
+    } else {
+        // The public collision query reports entries, not containment.
+        (near >= 0.0).then_some((near, entry.0, entry.1))
+    }
 }
 
 fn face(axis: usize, positive: bool) -> BlockFace {
@@ -112,7 +124,7 @@ fn face(axis: usize, positive: bool) -> BlockFace {
     }
 }
 
-fn raycast_region(origin: [f64; 3], direction: [f64; 3], max_distance: f64) -> Region {
+pub(crate) fn raycast_region(origin: [f64; 3], direction: [f64; 3], max_distance: f64) -> Region {
     let end = [0, 1, 2].map(|a| origin[a] + direction[a] * max_distance);
     let mut region = Region {
         min: [0, 1, 2].map(|a| origin[a].min(end[a]).floor() as i32),
@@ -146,6 +158,7 @@ fn raycast_region(origin: [f64; 3], direction: [f64; 3], max_distance: f64) -> R
 
 /// Traverse cells along the ray (Amanatides–Woo) and test each cell's boxes,
 /// stopping at the first cell with a hit, like the native clip.
+#[cfg(test)]
 pub(crate) fn raycast(
     version: MinecraftVersion,
     origin: [f64; 3],
@@ -153,11 +166,91 @@ pub(crate) fn raycast(
     distance: f64,
     cell: impl Fn([i32; 3]) -> Option<Option<NativeBlockState>>,
 ) -> Result<BlockRaycast> {
+    raycast_core(
+        origin,
+        direction,
+        distance,
+        cell,
+        |state: &NativeBlockState| collision_boxes(version, state).map(std::borrow::Cow::Owned),
+        Ok,
+    )
+}
+
+/// Existing query contracts differ at containment, unknown cells, and corner
+/// crossings. Keep these explicit until a native-backed API migration can change
+/// them; both contracts share the geometry owner and the implementation below.
+#[derive(Clone, Copy)]
+pub(crate) enum RaycastPolicy {
+    Entry,
+    LegacyVisibility { stop_unloaded: bool },
+}
+
+pub(crate) enum CellRaycast<C> {
+    Hit {
+        position: [i32; 3],
+        state: C,
+        face: BlockFace,
+        point: [f64; 3],
+        distance: f64,
+    },
+    Miss,
+    Unloaded {
+        position: [i32; 3],
+    },
+}
+
+/// Materialize only the selected state; traversed ids never become Strings/maps.
+pub(crate) fn raycast_core<C>(
+    origin: [f64; 3],
+    direction: [f64; 3],
+    distance: f64,
+    cell: impl FnMut([i32; 3]) -> Option<Option<C>>,
+    boxes: impl FnMut(&C) -> Result<std::borrow::Cow<'static, [[f64; 6]]>>,
+    materialize: impl FnOnce(C) -> Result<NativeBlockState>,
+) -> Result<BlockRaycast> {
+    Ok(
+        match walk(
+            origin,
+            direction,
+            distance,
+            cell,
+            boxes,
+            RaycastPolicy::Entry,
+        )? {
+            CellRaycast::Hit {
+                position,
+                state,
+                face,
+                point,
+                distance,
+            } => BlockRaycast::Hit {
+                position,
+                state: materialize(state)?,
+                face,
+                point,
+                distance,
+            },
+            CellRaycast::Miss => BlockRaycast::Miss,
+            CellRaycast::Unloaded { position } => BlockRaycast::Unloaded { position },
+        },
+    )
+}
+
+/// Shared Amanatides–Woo traversal over received cells and registry-owned boxes.
+pub(crate) fn walk<C>(
+    origin: [f64; 3],
+    direction: [f64; 3],
+    distance: f64,
+    mut cell: impl FnMut([i32; 3]) -> Option<Option<C>>,
+    mut boxes: impl FnMut(&C) -> Result<std::borrow::Cow<'static, [[f64; 6]]>>,
+    policy: RaycastPolicy,
+) -> Result<CellRaycast<C>> {
+    let legacy = matches!(policy, RaycastPolicy::LegacyVisibility { .. });
     let mut position = origin.map(|v| v.floor() as i32);
     let step = direction.map(|d| {
-        if d > 0.0 {
+        if d > if legacy { 1.0e-12 } else { 0.0 } {
             1
-        } else if d < 0.0 {
+        } else if d < if legacy { -1.0e-12 } else { 0.0 } {
             -1
         } else {
             0
@@ -166,7 +259,7 @@ pub(crate) fn raycast(
     let mut next = [0.0f64; 3];
     let mut delta = [f64::INFINITY; 3];
     for axis in 0..3 {
-        if direction[axis] != 0.0 {
+        if step[axis] != 0 {
             delta[axis] = 1.0 / direction[axis].abs();
             let boundary = f64::from(position[axis]) + if step[axis] > 0 { 1.0 } else { 0.0 };
             next[axis] = (boundary - origin[axis]) / direction[axis];
@@ -176,10 +269,19 @@ pub(crate) fn raycast(
     }
     loop {
         match cell(position).ok_or_else(|| invalid_input("raycast left the captured region"))? {
-            None => return Ok(BlockRaycast::Unloaded { position }),
+            None => {
+                if !matches!(
+                    policy,
+                    RaycastPolicy::LegacyVisibility {
+                        stop_unloaded: false
+                    }
+                ) {
+                    return Ok(CellRaycast::Unloaded { position });
+                }
+            }
             Some(state) => {
                 let mut best: Option<(f64, usize, bool)> = None;
-                for b in collision_boxes(version, &state)? {
+                for &b in boxes(&state)?.iter() {
                     let world = [
                         b[0] + f64::from(position[0]),
                         b[1] + f64::from(position[1]),
@@ -188,14 +290,19 @@ pub(crate) fn raycast(
                         b[4] + f64::from(position[1]),
                         b[5] + f64::from(position[2]),
                     ];
-                    if let Some(hit) = enter(origin, direction, world, distance) {
+                    let limit = if legacy {
+                        next.iter().copied().fold(distance, f64::min)
+                    } else {
+                        distance
+                    };
+                    if let Some(hit) = enter(origin, direction, world, limit, policy) {
                         if best.is_none_or(|(t, ..)| hit.0 < t) {
                             best = Some(hit);
                         }
                     }
                 }
                 if let Some((t, axis, positive)) = best {
-                    return Ok(BlockRaycast::Hit {
+                    return Ok(CellRaycast::Hit {
                         position,
                         state,
                         face: face(axis, positive),
@@ -209,10 +316,43 @@ pub(crate) fn raycast(
             .min_by(|&a, &b| next[a].total_cmp(&next[b]))
             .expect("three axes");
         if next[axis] > distance {
-            return Ok(BlockRaycast::Miss);
+            return Ok(CellRaycast::Miss);
         }
-        position[axis] += step[axis];
-        next[axis] += delta[axis];
+        if legacy {
+            let crossing = next[axis];
+            for axis in 0..3 {
+                if (next[axis] - crossing).abs() <= 1.0e-12 {
+                    position[axis] += step[axis];
+                    next[axis] += delta[axis];
+                }
+            }
+        } else {
+            position[axis] += step[axis];
+            next[axis] += delta[axis];
+        }
+    }
+}
+
+/// Immutable state-id geometry, owned by the version registry. No decoded state
+/// or world cell is cached here; block updates only replace received state ids.
+pub(crate) struct StateBoxes {
+    ids: Box<[usize]>,
+    shapes: Box<[Vec<[f64; 6]>]>,
+}
+impl StateBoxes {
+    pub(crate) fn new(slots: Vec<Vec<[f64; 6]>>) -> Self {
+        Self::indexed((0..slots.len()).collect(), slots)
+    }
+    pub(crate) fn indexed(ids: Vec<usize>, shapes: Vec<Vec<[f64; 6]>>) -> Self {
+        assert!(ids.iter().all(|id| *id < shapes.len()));
+        Self {
+            ids: ids.into_boxed_slice(),
+            shapes: shapes.into_boxed_slice(),
+        }
+    }
+    pub(crate) fn get(&self, id: i32) -> Option<&[[f64; 6]]> {
+        let index = self.ids.get(usize::try_from(id).ok()?)?;
+        self.shapes.get(*index).map(Vec::as_slice)
     }
 }
 
@@ -248,7 +388,7 @@ impl super::Client {
     /// Cast a ray against received block collision shapes, from `origin` along
     /// `direction` for at most `max_distance` (up to 64) blocks. Direction is
     /// normalized; distance includes any eye/target offsets from the supplied
-    /// origin. Computed from one capture; this is client geometry, not server
+    /// origin. Computed under one received-state lock; this is client geometry, not server
     /// line of sight or interaction reach.
     pub async fn raycast_blocks(
         &self,
@@ -270,48 +410,16 @@ impl super::Client {
         let direction = direction.map(|v| v / scale);
         let length = direction.iter().map(|v| v * v).sum::<f64>().sqrt();
         let direction = direction.map(|v| v / length);
-        let mut region = raycast_region(origin, direction, max_distance);
-        region.volume()?;
-        // Cells above or below the world contain nothing; only capture inside it.
-        let player = super::dispatch!(&self.adapter, a => CoreOps::player_state(a).await)?;
-        let dimension = player.dimension.ok_or_else(|| {
-            Error::new(
-                ErrorKind::State,
-                anyhow::anyhow!("dimension height is unknown"),
-            )
-        })?;
-        let (bottom, top) = (dimension.min_y, dimension.min_y + dimension.height - 1);
-        region.min[1] = region.min[1].clamp(bottom, top);
-        region.max[1] = region.max[1].clamp(bottom, top);
-        let capture = super::dispatch!(&self.adapter, a => CoreOps::capture(a, region).await)?;
-        if capture.player.session != player.session {
-            return Err(Error::new(
-                ErrorKind::State,
-                anyhow::anyhow!("world changed during raycast"),
-            ));
-        }
-        let cells: std::collections::HashMap<[i32; 3], &Option<NativeBlockState>> = capture
-            .world
-            .blocks
-            .iter()
-            .map(|block| (block.position, &block.state))
-            .collect();
-        let air = NativeBlockState {
-            name: "minecraft:air".into(),
-            properties: Default::default(),
-        };
-        let lookup = |p: [i32; 3]| {
-            if p[1] < bottom || p[1] > top {
-                return Some(Some(air.clone()));
+        match &self.adapter {
+            crate::connection::Adapter::Java1_16_1(bot) => {
+                bot.raycast_ids(origin, direction, max_distance).await
             }
-            cells.get(&p).map(|state| (*state).clone())
-        };
-        let result = raycast(self.version(), origin, direction, max_distance, lookup)?;
-        Ok(BlockRaycastObservation {
-            session: capture.player.session,
-            receive_sequence: capture.player.receive_sequence,
-            result,
-        })
+            crate::connection::Adapter::Java1_21_11(ops) => {
+                ops.operations()
+                    .raycast_ids(origin, direction, max_distance)
+                    .await
+            }
+        }
     }
 }
 
@@ -696,3 +804,8 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod oracle;
+#[cfg(test)]
+mod parity;
