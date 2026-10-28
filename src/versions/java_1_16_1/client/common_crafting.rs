@@ -113,6 +113,7 @@ impl Bot {
             let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
+            self.start_crafting_deadline(id);
             Ok((
                 record.clone(),
                 lock_packet_state(&self.inventory_executor)
@@ -148,6 +149,130 @@ impl Bot {
         }
         result
     }
+    fn start_crafting_deadline(&self, id: contract::CraftingTakeId) {
+        let bot = self.clone_internal();
+        let first =
+            tokio::time::Instant::now() + self.connection_options.inventory_click_receipt_timeout;
+        self.spawn_finite(Box::pin(async move {
+            let second = bot.connection_options.crafting_take_resync_timeout;
+            let mut deadline = first;
+            let mut resynced = false;
+            loop {
+                tokio::time::sleep_until(
+                    deadline.min(tokio::time::Instant::now() + Duration::from_millis(20)),
+                )
+                .await;
+                let pending = lock_packet_state(&bot.common_crafting_take)
+                    .await
+                    .as_ref()
+                    .is_some_and(|r| {
+                        r.record.id == id && r.record.stage == contract::CraftingTakeStage::Pending
+                    });
+                if !pending {
+                    break;
+                }
+                if tokio::time::Instant::now() < deadline {
+                    continue;
+                }
+                if resynced {
+                    if let Some(r) = lock_packet_state(&bot.common_crafting_take)
+                        .await
+                        .as_mut()
+                        .filter(|r| {
+                            r.record.id == id
+                                && r.record.stage == contract::CraftingTakeStage::Pending
+                        })
+                    {
+                        r.record.inspect_as(
+                            contract::CraftingTakeInspectionReason::ReceiptDeadlineAfterResync,
+                            "crafting receipt deadline after no-effect full resync",
+                        );
+                    }
+                    break;
+                }
+                // A stalled writer/lock is bounded too. No original click is ever replayed.
+                match tokio::time::timeout(second, bot.crafting_deadline_resync(id)).await {
+                    Ok(Ok(())) => {}
+                    _ => {
+                        if let Some(r) = lock_packet_state(&bot.common_crafting_take)
+                            .await
+                            .as_mut()
+                            .filter(|r| {
+                                r.record.id == id
+                                    && r.record.stage == contract::CraftingTakeStage::Pending
+                            })
+                        {
+                            r.record.inspect_as(
+                                contract::CraftingTakeInspectionReason::ResyncDeliveryUncertain,
+                                "crafting no-effect full resync delivery uncertain",
+                            );
+                        }
+                        break;
+                    }
+                }
+                resynced = true;
+                deadline = tokio::time::Instant::now() + second;
+            }
+        }));
+    }
+    async fn crafting_deadline_resync(&self, id: contract::CraftingTakeId) -> Result<()> {
+        let _gate = self.coherent_state_gate.lock().await;
+        self.common_crafting_context_received().await?;
+        let record = lock_packet_state(&self.common_crafting_take)
+            .await
+            .as_ref()
+            .filter(|r| r.record.id == id && r.record.stage == contract::CraftingTakeStage::Pending)
+            .map(|r| r.record.clone());
+        let Some(record) = record else {
+            return Ok(());
+        };
+        // Release a possibly withheld mismatch acknowledgement before probing.
+        // This is protocol progress, never evidence that the original take failed.
+        let mut confirm = vec![record.window_id() as u8];
+        confirm.extend(
+            record
+                .send
+                .legacy_action
+                .expect("dispatched take action")
+                .to_be_bytes(),
+        );
+        confirm.push(1);
+        self.connection
+            .dispatch_protocol_work(0x07, &confirm, None)
+            .await?;
+        let transaction = self
+            .connection
+            .dispatch_acknowledged_with_diagnostic(
+                self.operation_context(0),
+                OperationClass::Normal,
+                AcknowledgedOperation::WindowClick {
+                    window_id: record.window_id() as i8,
+                    slot: -1,
+                    button: 0,
+                    mode: ClickMode::Normal,
+                    clicked: super::common_click::legacy_comparison_stack(
+                        &self.inventory_resync_comparison()?,
+                    ),
+                },
+                None,
+            )
+            .await
+            .map_err(|e| unavailable(format!("crafting no-effect resync: {e}")))?;
+        // The protocol actor owns this probe's reply; preserve the ORIGINAL
+        // inventory executor identity, comparison, and take transaction reply.
+        if let Some(r) = lock_packet_state(&self.common_crafting_take)
+            .await
+            .as_mut()
+            .filter(|r| r.record.id == id)
+        {
+            r.record.deadline_resync_dispatched = transaction.was_dispatched();
+            r.record.deadline_resync_action = transaction.window_action();
+        }
+        if !transaction.was_dispatched() {
+            return Err(unavailable("crafting resync not dispatched"));
+        }
+        Ok(())
+    }
     pub(super) async fn interrupt_common_crafting_take(&self, reason: impl std::fmt::Display) {
         if let Some(r) = super::lock_packet_state(&self.common_crafting_take)
             .await
@@ -157,6 +282,25 @@ impl Bot {
         }
     }
     pub(super) async fn common_crafting_reply_received(&self, reply: WindowTransaction) {
+        if let Some(r) = lock_packet_state(&self.common_crafting_take)
+            .await
+            .as_mut()
+            .filter(|r| {
+                r.record.deadline_resync_action == Some(reply.action)
+                    && r.record.window_id() == i32::from(reply.window_id)
+                    && reply.packet_sequence > r.record.send.after_sequence
+            })
+        {
+            r.record.deadline_resync_reply.get_or_insert(
+                api::inventory::InventoryTransactionReply {
+                    window_id: reply.window_id,
+                    action: reply.action,
+                    accepted: reply.accepted,
+                    receive_sequence: reply.packet_sequence,
+                },
+            );
+        }
+
         if let Some(r) = super::lock_packet_state(&self.common_crafting_take)
             .await
             .as_mut()

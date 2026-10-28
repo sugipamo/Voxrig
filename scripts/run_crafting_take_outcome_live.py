@@ -17,7 +17,7 @@ import run_climbing_control as harness
 from run_common_native import until
 
 
-def check(version, command, request, trace, report):
+def check(version, command, request, trace, report, disconnect=True):
     legacy = version == "1.16.1"
     command("tp ClimbingProbe 0.5 65 0.5 0 0")
     request("prepare", position=[0.5, 65.0, 0.5])
@@ -82,8 +82,9 @@ def check(version, command, request, trace, report):
     report["checks"].append(dict(name="craft_once_completes", result=result, native=inventory,
                                  frames=trace.since(boundary)))
     command("clear ClimbingProbe")
-    trace.expect_disconnect()
-    request("disconnect")
+    if disconnect:
+        trace.expect_disconnect()
+        request("disconnect")
 
 
 def main():

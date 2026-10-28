@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Bound crafting take Pending on Java 1.16.1 and 1.21.11 to a configurable
+  inventory receipt wait (default 5 s), one no-effect full resync, and a second
+  wait (default 5 s). Missing receipts retain a typed RequiresInspection reason;
+  expiry never proves success or permits retry/cursor release. Preserve late
+  received inventory/grid and legacy replies for inspection. Add
+  `CraftingTakeRecord::is_resolved()` and common inventory receipt timeout limits.
+  Strict Look admission is unchanged. See [take deadlines](docs/crafting-take-deadlines.md).
+
 - BREAKING: replace `ClientLimits.max_chunks` and native 1.16.1
   `ConnectionOptions.max_chunks` with `chunk_capacity: ChunkCapacity`.
   Auto sizes from received view distance, including light-only columns and

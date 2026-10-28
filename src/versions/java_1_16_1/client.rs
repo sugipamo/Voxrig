@@ -298,6 +298,8 @@ pub struct ConnectionOptions {
     /// Maximum ordinary PICKUP receipt wait after a complete write. Inspection
     /// does not renew this deadline; timeout never authorizes a retry.
     pub inventory_click_receipt_timeout: Duration,
+    /// Receipt wait after the crafting take no-effect resync; never permits replay.
+    pub crafting_take_resync_timeout: Duration,
 }
 
 impl Default for ConnectionOptions {
@@ -317,6 +319,7 @@ impl Default for ConnectionOptions {
             protocol_ack_timeout: Duration::from_secs(5),
             cursor_return_receipt_timeout: Duration::from_secs(5),
             inventory_click_receipt_timeout: Duration::from_secs(5),
+            crafting_take_resync_timeout: Duration::from_secs(5),
         }
     }
 }

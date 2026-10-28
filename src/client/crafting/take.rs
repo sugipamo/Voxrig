@@ -89,6 +89,18 @@ pub enum CraftingTakeStage {
     /// Derived from received values, never from a legacy `accepted=false` reply.
     NotApplied,
 }
+/// Typed first reason for a take requiring inspection; never replay authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum CraftingTakeInspectionReason {
+    /// A received conflict, changed ownership, or uncertain original submission.
+    EvidenceOrDeliveryUncertain,
+    /// A fresh complete outcome was still absent after both bounded waits.
+    ReceiptDeadlineAfterResync,
+    /// The no-effect resync could not be completely dispatched within its budget.
+    ResyncDeliveryUncertain,
+}
 /// Actual before/after grids and optional shift inventory; cursor prediction is separate.
 /// There is no predicted ingredient consumption, remainder or next result.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -123,6 +135,19 @@ pub struct CraftingTakeRecord {
     pub cursor_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual legacy comparison reply; rejection is not rollback.
     pub legacy_reply: Option<InventoryTransactionReply>,
+    /// Whether the deadline's additional no-effect full resync was fully written.
+    pub deadline_resync_dispatched: bool,
+    /// Legacy action of the additional no-effect probe; distinct from the result take.
+    pub deadline_resync_action: Option<i16>,
+    /// Actual reply to that probe, retained for inspection, never an outcome.
+    pub deadline_resync_reply: Option<InventoryTransactionReply>,
+    /// Typed first inspection reason, retained alongside its diagnostic text.
+    pub inspection_reason: Option<CraftingTakeInspectionReason>,
+    /// Latest actual player/inventory receipts after inspection; never change the outcome.
+    /// Bounded to one snapshot, including the received cursor and main/hotbar.
+    pub player_after_inspection: Option<Box<PlayerObservation>>,
+    /// Latest capturable actual grid after inspection, including table contents.
+    pub crafting_after_inspection: Option<Box<ReceivedCrafting>>,
     /// Persistent first conflict.
     pub requires_inspection: Option<String>,
     /// Historical attempt status, independent of current inventory.
@@ -149,20 +174,36 @@ impl CraftingTakeRecord {
             CraftingSource::Table { screen } => screen.window_id(),
         }
     }
-    pub(crate) fn unresolved(&self) -> bool {
-        !matches!(
+    /// True only for ObservedTaken, ObservedTransferred, or NotApplied.
+    /// RequiresInspection remains unresolved and grants no retry/cursor authority.
+    pub fn is_resolved(&self) -> bool {
+        matches!(
             self.stage,
             CraftingTakeStage::ObservedTaken
                 | CraftingTakeStage::ObservedTransferred
                 | CraftingTakeStage::NotApplied
         )
     }
-    pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
+    pub(crate) fn unresolved(&self) -> bool {
+        !self.is_resolved()
+    }
+    pub(crate) fn inspect_as(
+        &mut self,
+        kind: CraftingTakeInspectionReason,
+        reason: impl std::fmt::Display,
+    ) {
         if self.unresolved() {
+            self.inspection_reason.get_or_insert(kind);
             self.requires_inspection
                 .get_or_insert_with(|| reason.to_string());
             self.stage = CraftingTakeStage::RequiresInspection;
         }
+    }
+    pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
+        self.inspect_as(
+            CraftingTakeInspectionReason::EvidenceOrDeliveryUncertain,
+            reason,
+        );
     }
     pub(crate) fn ready(&self) -> bool {
         self.send.dispatched
@@ -393,6 +434,12 @@ fn prepare_inner(
         cursor_receipt: None,
         legacy_reply: None,
         requires_inspection: None,
+        deadline_resync_dispatched: false,
+        deadline_resync_action: None,
+        deadline_resync_reply: None,
+        inspection_reason: None,
+        player_after_inspection: None,
+        crafting_after_inspection: None,
         stage: CraftingTakeStage::Pending,
         context,
     })
@@ -483,7 +530,26 @@ pub(crate) fn receive(
     screen: &ScreenObservation,
     registries: &ServerRegistryObservation,
 ) {
-    if !record.unresolved() || record.requires_inspection.is_some() {
+    if record.requires_inspection.is_some() {
+        let fresh_inventory = player.inventory.slots.iter().flatten()
+            .chain(player.inventory.cursor.iter())
+            .any(|value| matches!(value.source, ValueSource::Received { sequence } if sequence > record.send.after_sequence));
+        let fresh_table = screen
+            .screen
+            .as_ref()
+            .and_then(|t| t.full_contents_sequence)
+            .is_some_and(|sequence| sequence > record.send.after_sequence);
+        if player.session == record.id.session() && (fresh_inventory || fresh_table) {
+            record.player_after_inspection = Some(Box::new(player.clone()));
+            record.crafting_after_inspection =
+                ReceivedCrafting::capture(player, screen, registries.clone())
+                    .ok()
+                    .flatten()
+                    .map(Box::new);
+        }
+        return;
+    }
+    if record.is_resolved() {
         return;
     }
     if let Err(e) = receive_inner(record, player, screen, registries) {
