@@ -22,8 +22,8 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 `client.java_1_21_11()?.checked_survival()`で、型は`voxrig::versions::java_1_21_11::checked`にあります。
 静的な対応情報は`checked::SurvivalCapabilities::for_version(version)`で、現在の操作許可ではありません。
 
-共通`Survival::craft_once`はtakeが未確認でも記録を返します。`craft_once_checked`は
-`ObservedTransferred`の場合だけ成功し、期限時点で`Pending`または受信状態に衝突があるtakeは記録付きの`CraftOnceError::OutcomeUnknown`を返します。
+共通`Survival::craft_once`は、takeが`NotApplied`なら`ErrorKind::Rejected`、期限時点で`Pending`なら`ErrorKind::Timeout`を返し、それ以外（`RequiresInspection`を含む）は記録を返します。`craft_once_checked`は
+`ObservedTransferred`の場合だけ成功し、期限時点で`Pending`または受信状態に衝突があるtakeは記録付きの`CraftOnceError::OutcomeUnknown`、送信後の全量resyncが送信前と同じtakeは`CraftOnceError::NotApplied`を返します。
 入力不正・fill・結果なしやtakeのframe write前の拒否は、元のエラー付きの`CraftOnceError::Failed`です。
 受理・保持済みtakeの配送が送信失敗などで不明な場合は、fill記録とtakeのIDを含む`OutcomeUnknown`（`RequiresInspection`）を返し、再送しません。[在庫補助](common-inventory-helpers.md)を参照してください。
 
