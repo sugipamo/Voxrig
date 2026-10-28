@@ -66,6 +66,7 @@ fn read(id: i32, payload: &[u8]) -> anyhow::Result<Vec<K>> {
             vec![K::ScreenChanged]
         }
         input::POSITION
+        | input::PLAYER_ROTATION
         | input::UPDATE_HEALTH
         | input::EXPERIENCE
         | input::ABILITIES

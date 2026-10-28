@@ -15,6 +15,11 @@ pub(crate) enum Update {
         position: [f64; 3],
         rotation: [f32; 2],
     },
+    /// Rotation-only server correction; the position keeps its own provenance.
+    Rotation {
+        position: Option<Value<[f64; 3]>>,
+        rotation: [f32; 2],
+    },
     Selection(u8),
     Resync,
     World,
