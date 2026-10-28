@@ -135,6 +135,7 @@ pub use received_snapshot::{
     InvalidationReason, Presence, Receipt, ReceiveBoundary, ReceivedAttribute,
     ReceivedContainerSnapshot, ReceivedCorrectionFields, ReceivedDimensionGeometry,
     ReceivedDimensionSelection, ReceivedInventorySnapshot, ReceivedPlayerSnapshot,
+    ReceivedRotationCorrection,
 };
 pub(crate) mod observation;
 pub(crate) mod operations;
@@ -278,6 +279,7 @@ pub mod prelude {
         InvalidationReason, Presence, Receipt, ReceiveBoundary, ReceivedAttribute,
         ReceivedContainerSnapshot, ReceivedCorrectionFields, ReceivedDimensionGeometry,
         ReceivedDimensionSelection, ReceivedInventorySnapshot, ReceivedPlayerSnapshot,
+        ReceivedRotationCorrection,
     };
     pub use super::recording::{
         LocalPlayerBasis, PacketPhase, PacketRecord, PacketTrace, RecordedItemData,

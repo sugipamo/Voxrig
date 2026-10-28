@@ -34,6 +34,7 @@ modernでheld-slot送信をwriter待機中に取り消した場合、未完了�
 
 戻り値の`DispatchReceipt`は完全なpacket送信だけを表し、server ACK・view/slotの受理ではない。
 lookのlocal rotationは`Submitted`となり、以前の`received_pose.rotation`を上書きしない。
+1.21.11でサーバーが向きだけを変えた場合（`PLAYER_ROTATION`）、実行中のcontrolは保持するyaw/pitchを受信値に置き換え、次の移動packetで古い照準を送らない。[強制回転](forced-rotation.md)を参照。
 選択も`Submitted`と実際のserver選択receiptを区別し、item内容の受信echoを作らない。
 lookで送るground bit自体は、接地情報の新しいモデル更新として公開しない。
 

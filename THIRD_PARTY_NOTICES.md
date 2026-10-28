@@ -272,6 +272,13 @@ Java callers of unchanged target-version method bodies. Their source hashes,
 mappings and scope are recorded in `dry_movement_source.json`. No Minecraft
 class files or method bodies are distributed. See `docs/survival-motion-controls.md`.
 
+`data/java_1_21_11/player_rotations.json` contains the wire encodings and resolved
+angles observed by `scripts/ExportPlayerRotations.java`, an original Java caller of
+the unchanged 1.21.11 `ClientboundPlayerRotationPacket` codec and
+`PositionMoveRotation.calculateAbsolute` (unbundled official server JAR SHA-1
+`37f3f53895def38dcb4c9e4cd7f2efdecf201d9b`). No Minecraft class files or method
+bodies are distributed.
+
 ## Common-client native Java diagnostics
 
 `data/client_api/java_1_16_1_dry_movement.json` and
