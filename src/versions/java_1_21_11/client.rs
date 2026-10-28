@@ -1354,6 +1354,12 @@ fn apply_play(
                 velocity: state.operations.local_player.velocity.map(|v| v.value),
             });
             state.rotation = rotation;
+            // Log before any tick can collapse it into a later latest-only pose.
+            state.control.observe_pose(
+                state.sequence,
+                position,
+                state.operations.local_player.velocity.map(|v| v.value),
+            );
             state.entities.history_pose(
                 crate::client::ReceivedPose {
                     position,

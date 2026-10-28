@@ -297,3 +297,89 @@ fn interrupt(state: &mut State, cause: &str) {
         }
     }
 }
+
+#[tokio::test]
+async fn back_to_back_pose_packets_are_each_logged_for_the_running_owner() {
+    let (session, api, _peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let handle = client.player_control(GameMode::Survival);
+    let started = handle.start_control().await.unwrap();
+    assert!(
+        handle
+            .control_corrections_after(0)
+            .await
+            .unwrap()
+            .corrections
+            .is_empty()
+    );
+    timeout(Duration::from_secs(2), async {
+        while handle
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .dispatched_ticks
+            == 0
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let (generation, sequences) = {
+        let mut state = session.state.lock().await;
+        let mut sequences = Vec::new();
+        for (teleport, x, vx) in [(5u8, 9.5f64, 0.125), (6, 11.5, 0.0)] {
+            let mut pose = vec![teleport];
+            for v in [x, 65., 8.5, vx, 0., 0.] {
+                pose.extend(v.to_be_bytes());
+            }
+            pose.extend([0; 12]);
+            state
+                .receive(ids::play_clientbound::POSITION, &pose, 256)
+                .unwrap();
+            sequences.push(state.sequence);
+        }
+        (state.loading.generation, sequences)
+    };
+    let log = handle.control_corrections_after(0).await.unwrap();
+    let [first, second] = &log.corrections[..] else {
+        panic!("{log:?}");
+    };
+    let (first, second) = (&first.correction, &second.correction);
+    assert_eq!(first.session.version, crate::MinecraftVersion::Java1_21_11);
+    assert_eq!(first.session.world_generation, generation);
+    assert_eq!(
+        (first.session_id, second.session_id),
+        (started.session_id, started.session_id)
+    );
+    assert_eq!(
+        vec![first.receive_sequence, second.receive_sequence],
+        sequences
+    );
+    assert!(first.submitted.is_some());
+    assert_eq!(first.received_position, [9.5, 65.0, 8.5]);
+    assert_eq!(first.received_velocity, Some([0.125, 0.0, 0.0]));
+    assert_eq!(second.model_position, [9.5, 65.0, 8.5]);
+    assert_eq!((second.delta, second.distance), ([2.0, 0.0, 0.0], 2.0));
+    assert_eq!(second.received_velocity, Some([0.0; 3]));
+    let record = handle.control_record().await.unwrap().unwrap();
+    assert_eq!(
+        record.status,
+        crate::client::control::ControlStatus::Running
+    );
+    // Readable through another handle and after disconnect, without replay.
+    let other = client.player_control(GameMode::Creative);
+    handle.stop_control_for(started.session_id).await.unwrap();
+    assert_eq!(other.control_corrections_after(0).await.unwrap(), log);
+    let _ = client.revoke_connection();
+    assert_eq!(
+        client
+            .control_corrections_after(2)
+            .await
+            .unwrap()
+            .corrections,
+        vec![]
+    );
+    session.stop();
+}
