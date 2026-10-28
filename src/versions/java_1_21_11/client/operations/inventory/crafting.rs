@@ -16,7 +16,12 @@ fn publish(state: &mut State) {
     {
         if record.id == previous.id {
             if let Some(reason) = &previous.requires_inspection {
-                record.inspection(reason);
+                record.inspect_as(
+                    previous.inspection_reason.unwrap_or(
+                        contract::CraftingTakeInspectionReason::EvidenceOrDeliveryUncertain,
+                    ),
+                    reason,
+                );
             }
         }
     }
@@ -75,6 +80,90 @@ pub(super) fn payload(record: &CraftingTakeRecord) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 impl Operations {
+    fn start_crafting_deadline(&self, id: contract::CraftingTakeId) {
+        let bot = self.bot.clone();
+        let first =
+            tokio::time::Instant::now() + bot.session.limits.inventory_click_receipt_timeout;
+        self.bot.session.spawn_finite(Box::pin(async move {
+            let second = bot.session.limits.crafting_take_resync_timeout;
+            let mut deadline = first;
+            let mut resynced = false;
+            loop {
+                tokio::time::sleep_until(
+                    deadline.min(tokio::time::Instant::now() + Duration::from_millis(20)),
+                )
+                .await;
+                {
+                    let mut state = bot.session.state.lock().await;
+                    context_received(&mut state);
+                    if !state.common_crafting_take.as_ref().is_some_and(|r| {
+                        r.id == id && r.stage == contract::CraftingTakeStage::Pending
+                    }) {
+                        break;
+                    }
+                    if tokio::time::Instant::now() < deadline {
+                        continue;
+                    }
+                    if resynced {
+                        state
+                            .common_crafting_take
+                            .as_mut()
+                            .expect("retained")
+                            .inspect_as(
+                                contract::CraftingTakeInspectionReason::ReceiptDeadlineAfterResync,
+                                "crafting receipt deadline after no-effect full resync",
+                            );
+                        publish(&mut state);
+                        break;
+                    }
+                }
+                match tokio::time::timeout(second, bot.operations().crafting_deadline_resync(id))
+                    .await
+                {
+                    Ok(Ok(())) => {}
+                    _ => {
+                        let mut state = bot.session.state.lock().await;
+                        if let Some(r) = state.common_crafting_take.as_mut().filter(|r| {
+                            r.id == id && r.stage == contract::CraftingTakeStage::Pending
+                        }) {
+                            r.inspect_as(
+                                contract::CraftingTakeInspectionReason::ResyncDeliveryUncertain,
+                                "crafting no-effect full resync delivery uncertain",
+                            );
+                        }
+                        publish(&mut state);
+                        break;
+                    }
+                }
+                resynced = true;
+                deadline = tokio::time::Instant::now() + second;
+            }
+        }));
+    }
+    async fn crafting_deadline_resync(&self, id: contract::CraftingTakeId) -> Result<()> {
+        let mut state = self.bot.session.state.lock().await;
+        context_received(&mut state);
+        let Some(record) = state
+            .common_crafting_take
+            .as_ref()
+            .filter(|r| r.id == id && r.stage == contract::CraftingTakeStage::Pending)
+        else {
+            return Ok(());
+        };
+        let payload = super::recipe_placement::resync_payload(record.window_id());
+        // Slot -1/revision -1 is a no-effect full-content request, not another result take.
+        self.bot
+            .session
+            .send(ids::play_serverbound::WINDOW_CLICK, &payload)
+            .await?;
+        state
+            .common_crafting_take
+            .as_mut()
+            .expect("retained")
+            .deadline_resync_dispatched = true;
+        publish(&mut state);
+        Ok(())
+    }
     async fn crafting_send_owned(
         &self,
         id: contract::CraftingTakeId,
@@ -146,6 +235,7 @@ impl Operations {
                 .await?;
             let record = state.common_crafting_take.as_mut().expect("retained");
             record.send.dispatched = true;
+            self.start_crafting_deadline(id);
             let result = record.clone();
             self.send_inventory_fence(&mut state, execution).await?;
             Ok((

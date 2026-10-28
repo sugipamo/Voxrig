@@ -1145,6 +1145,9 @@ async fn common_item_data_same_consumer_preserves_native_patch_and_refuses_defau
 }
 impl CommonFixture {
     async fn new() -> Self {
+        Self::with_limits(crate::client::ClientLimits::default()).await
+    }
+    async fn with_limits(limits: crate::client::ClientLimits) -> Self {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let stream = tokio::net::TcpStream::connect(listener.local_addr().unwrap())
             .await
@@ -1182,7 +1185,7 @@ impl CommonFixture {
             revoked: AtomicBool::new(false),
             receiver_abort: std::sync::OnceLock::new(),
             interrupted_packet: AtomicI32::new(-1),
-            limits: crate::client::ClientLimits::default(),
+            limits,
             interaction_sequence: AtomicI32::new(0),
         });
         let api = Operations {
@@ -6157,6 +6160,14 @@ mod single_owner {
         }
     }
     impl Fixture for CommonFixture {
+        async fn crafting_probe(&mut self) {
+            let p = timeout(Duration::from_secs(2), read_packet(&mut self.peer, None))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(p.0, ids::play_serverbound::WINDOW_CLICK);
+            assert_eq!(p.1, super::recipe_placement::resync_payload(0));
+        }
         async fn collect(&mut self, entity: i32, own: bool) {
             self.api
                 .bot
@@ -6209,6 +6220,29 @@ mod single_owner {
             assert_eq!(packet.0, ids::play_serverbound::WINDOW_CLICK);
             let fence = read_packet(&mut self.peer, None).await.unwrap();
             assert_eq!(fence.0, ids::play_serverbound::TAB_COMPLETE);
+        }
+    }
+    #[tokio::test]
+    async fn crafting_take_two_phase_deadline_and_late_receipts() {
+        for destination in [
+            crate::client::CraftingResultDestination::Cursor,
+            crate::client::CraftingResultDestination::Inventory,
+        ] {
+            for outcome in 0..3 {
+                let limits = crate::client::ClientLimits {
+                    inventory_click_receipt_timeout: Duration::from_millis(300),
+                    crafting_take_resync_timeout: Duration::from_millis(300),
+                    ..Default::default()
+                };
+                let mut f = CommonFixture::with_limits(limits).await;
+                crate::client::inventory::armor_tests::install(
+                    &mut f.api.bot.session.state.lock().await.registries,
+                    MinecraftVersion::Java1_21_11,
+                    None,
+                );
+                script::crafting_deadline(&mut f, destination, outcome).await;
+                f.stop().await;
+            }
         }
     }
     #[tokio::test]

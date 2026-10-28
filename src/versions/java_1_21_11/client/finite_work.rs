@@ -80,14 +80,6 @@ impl State {
                     "inventory response/state deadline or opening boundary requires resync",
                 );
             }
-            if let Some(r) = self.common_crafting_take.as_mut().filter(|r| {
-                r.initial.session == execution.id.session()
-                    && r.send.after_sequence == execution.after_sequence
-            }) {
-                r.inspection(
-                    "inventory response/state deadline or opening boundary requires resync",
-                );
-            }
         }
 
         // A full boundary unchanged from `before` ends the strict record bound

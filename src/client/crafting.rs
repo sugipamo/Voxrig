@@ -31,7 +31,10 @@ pub use dispatch::{
     RecipePlacementId, RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage,
 };
 pub(crate) mod take;
-pub use take::{CraftingResultDestination, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage};
+pub use take::{
+    CraftingResultDestination, CraftingTakeId, CraftingTakeInspectionReason, CraftingTakeRecord,
+    CraftingTakeStage,
+};
 
 /// UI supplying the captured grid. Access basis does not grant click authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]

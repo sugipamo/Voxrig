@@ -719,7 +719,7 @@ impl Operations {
             source,
             state.sequence,
             None,
-            Duration::from_secs(5),
+            self.bot.session.limits.inventory_click_receipt_timeout,
             resync,
         )
     }
@@ -728,14 +728,17 @@ impl Operations {
         state: &mut State,
         id: crate::client::inventory::InventorySendId,
     ) -> Result<()> {
-        state.inventory_executor.written(id, Duration::from_secs(5));
+        state
+            .inventory_executor
+            .written(id, self.bot.session.limits.inventory_click_receipt_timeout);
         use crate::client::ledger::finite::Family;
         let after = state
             .inventory_executor
             .record()
             .expect("retained send")
             .after_sequence;
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        let deadline =
+            tokio::time::Instant::now() + self.bot.session.limits.inventory_click_receipt_timeout;
         for (family, entry) in [
             (
                 Family::Click,
@@ -748,13 +751,6 @@ impl Operations {
                 Family::Transfer,
                 state
                     .common_inventory_transfer
-                    .as_ref()
-                    .map(|r| (r.id.attempt(), r.send.after_sequence)),
-            ),
-            (
-                Family::Crafting,
-                state
-                    .common_crafting_take
                     .as_ref()
                     .map(|r| (r.id.attempt(), r.send.after_sequence)),
             ),

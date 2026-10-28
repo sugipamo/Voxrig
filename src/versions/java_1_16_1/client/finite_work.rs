@@ -124,18 +124,6 @@ impl Bot {
                     "inventory response/state deadline or opening boundary requires resync",
                 );
             }
-            if let Some(r) = super::lock_packet_state(&self.common_crafting_take)
-                .await
-                .as_mut()
-                .filter(|r| {
-                    r.record.initial.session == execution.id.session()
-                        && r.record.send.after_sequence == execution.after_sequence
-                })
-            {
-                r.record.inspection(
-                    "inventory response/state deadline or opening boundary requires resync",
-                );
-            }
         }
 
         let state = super::lock_packet_state(&self.common_inventory_swap)
@@ -195,10 +183,7 @@ impl Bot {
             .map(|r| {
                 (
                     r.record.id.attempt(),
-                    !self
-                        .inventory_executor
-                        .try_lock()
-                        .map_or(true, |e| e.busy()),
+                    r.record.is_resolved(),
                     r.record.requires_inspection.is_some(),
                 )
             });

@@ -13,6 +13,8 @@ pub(crate) trait Fixture {
     async fn collect(&mut self, entity: i32, own: bool);
     /// Consume exactly one original click (and the modern response request).
     async fn click(&mut self);
+    /// Consume the additional deadline probe, validating its no-effect wire shape.
+    async fn crafting_probe(&mut self);
 }
 pub(crate) async fn collect_and_external_log(f: &mut impl Fixture) {
     let client = f.client();
@@ -223,6 +225,18 @@ pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
                 .await
                 .unwrap();
             f.click().await;
+            // No further server boundary arrives: submitting a take is not
+            // completion, and repeated strict Look cannot clear its history.
+            for _ in 0..64 {
+                assert!(client.survival().look([0.0, 0.0]).await.is_err());
+                let retained = client
+                    .survival()
+                    .crafting_take_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(retained.stage, crate::client::CraftingTakeStage::Pending);
+            }
             if collect {
                 f.collect(333, true).await;
             }
@@ -720,4 +734,142 @@ pub(crate) async fn own_action_and_external_log(f: &mut impl Fixture) {
         c,
         InventoryCause::OwnAction { locations, .. } if locations == &[off]
     )));
+}
+
+/// The held #305 missing-boundary reproduction now has a bounded record-owned end.
+/// Fixtures configure 300 ms per phase; only real packet receipts can resolve it.
+pub(crate) async fn crafting_deadline(
+    f: &mut impl Fixture,
+    destination: crate::client::CraftingResultDestination,
+    outcome: u8,
+) {
+    use crate::client::{CraftingTakeInspectionReason as Reason, CraftingTakeStage as Stage};
+    let client = f.client();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    slots[0] = item(client.version(), "minecraft:oak_planks", 4);
+    slots[1] = item(client.version(), "minecraft:oak_log", 1);
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let sent = client
+        .survival()
+        .send_crafting_result(&grid, destination)
+        .await
+        .unwrap();
+    f.click().await;
+    let take = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(take.stage, Stage::Pending);
+    assert!(!take.is_resolved() && !take.deadline_resync_dispatched);
+    for _ in 0..64 {
+        assert!(client.survival().look([0.0, 0.0]).await.is_err());
+    }
+    f.crafting_probe().await;
+    let retained = client
+        .survival()
+        .inventory_send_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.id, sent.id); // probe cannot replace the original executor
+    let pending = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pending.id, take.id);
+    assert_eq!(pending.stage, Stage::Pending);
+    assert!(pending.deadline_resync_dispatched && !pending.is_resolved());
+    if outcome == 0 {
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                let r = client
+                    .survival()
+                    .crafting_take_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                if r.stage != Stage::Pending {
+                    assert_eq!(r.stage, Stage::RequiresInspection);
+                    assert_eq!(
+                        r.inspection_reason,
+                        Some(Reason::ReceiptDeadlineAfterResync)
+                    );
+                    assert!(!r.is_resolved());
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+    }
+    if outcome != 2 {
+        slots[0] = SlotKnowledge::Empty;
+        slots[1] = SlotKnowledge::Empty;
+    }
+    let cursor = if outcome != 2 && destination == crate::client::CraftingResultDestination::Cursor
+    {
+        item(client.version(), "minecraft:oak_planks", 4)
+    } else {
+        if outcome != 2 {
+            slots[44] = item(client.version(), "minecraft:oak_planks", 4);
+        }
+        SlotKnowledge::Empty
+    };
+    f.inventory(&slots, &cursor).await;
+    f.response(&sent, false).await;
+    let latest = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(latest.id, take.id);
+    if outcome == 0 {
+        assert_eq!(latest.stage, Stage::RequiresInspection);
+        assert_eq!(
+            latest.inspection_reason,
+            Some(Reason::ReceiptDeadlineAfterResync)
+        );
+        assert!(!latest.is_resolved());
+        assert!(latest.player_after_inspection.is_some());
+        assert!(latest.crafting_after_inspection.is_some());
+        assert!(client.survival().look([0.0, 0.0]).await.is_err());
+        assert!(
+            client
+                .survival()
+                .send_crafting_result(&grid, destination)
+                .await
+                .is_err()
+        );
+    } else {
+        assert!(latest.is_resolved(), "{latest:?}");
+        assert_eq!(
+            latest.stage,
+            if outcome == 2 {
+                Stage::NotApplied
+            } else if destination == crate::client::CraftingResultDestination::Cursor {
+                Stage::ObservedTaken
+            } else {
+                Stage::ObservedTransferred
+            }
+        );
+        // An old timer cannot regress a successfully received outcome.
+        tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+        assert_eq!(
+            client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            latest.stage
+        );
+    }
 }

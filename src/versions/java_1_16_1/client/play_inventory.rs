@@ -76,9 +76,7 @@ impl Bot {
         if execution_matches {
             self.common_click_reply_received(transaction).await;
         }
-        if execution_matches {
-            self.common_crafting_reply_received(transaction).await;
-        }
+        self.common_crafting_reply_received(transaction).await;
         if execution_matches {
             self.common_transfer_reply_received(transaction).await;
         }

@@ -50,6 +50,12 @@ pub struct ClientLimits {
     pub play_packet_timeout: Duration,
     /// Deadline for initial playable state.
     pub ready_timeout: Duration,
+    /// Inventory receipt deadline after a write; also the first crafting take wait.
+    /// Defaults to five seconds on both adapters. Expiry never authorizes retry.
+    pub inventory_click_receipt_timeout: Duration,
+    /// Second crafting take receipt wait after one no-effect full resync.
+    /// Defaults to five seconds. Expiry retains RequiresInspection.
+    pub crafting_take_resync_timeout: Duration,
     /// Received-view column retention, including light-only columns.
     pub chunk_capacity: crate::client::ChunkCapacity,
     /// Maximum remote bodies in the per-tick player contact scope (default 256).
@@ -71,6 +77,8 @@ impl Default for ClientLimits {
             login_packet_timeout: Duration::from_secs(15),
             play_packet_timeout: Duration::from_secs(60),
             ready_timeout: Duration::from_secs(15),
+            inventory_click_receipt_timeout: Duration::from_secs(5),
+            crafting_take_resync_timeout: Duration::from_secs(5),
             chunk_capacity: crate::client::ChunkCapacity::default(),
             max_contact_bodies: 256,
             native_event_channel_capacity: None,
@@ -84,6 +92,8 @@ impl ClientLimits {
             login_packet_timeout: self.login_packet_timeout,
             play_packet_timeout: self.play_packet_timeout,
             ready_timeout: self.ready_timeout,
+            inventory_click_receipt_timeout: self.inventory_click_receipt_timeout,
+            crafting_take_resync_timeout: self.crafting_take_resync_timeout,
             chunk_capacity: self.chunk_capacity,
             max_contact_bodies: self.max_contact_bodies,
             event_channel_capacity: self.native_event_channel_capacity.unwrap_or_else(|| {

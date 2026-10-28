@@ -282,13 +282,6 @@ impl Bot {
                     .map(|r| (r.record.id.attempt(), r.record.send.after_sequence)),
             ),
             (
-                Family::Crafting,
-                super::lock_packet_state(&self.common_crafting_take)
-                    .await
-                    .as_ref()
-                    .map(|r| (r.record.id.attempt(), r.record.send.after_sequence)),
-            ),
-            (
                 Family::Swap,
                 super::lock_packet_state(&self.common_inventory_swap)
                     .await
@@ -553,6 +546,21 @@ mod tests {
         super::super::common_click::legacy_comparison_stack(v)
     }
     impl Fixture for LegacyFixture {
+        async fn crafting_probe(&mut self) {
+            let p = tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let p = self.packets.recv().await.unwrap();
+                    if p.0 == 0x09 {
+                        break p.1;
+                    }
+                }
+            })
+            .await
+            .unwrap();
+            assert_eq!(&p[..4], &[0, 255, 255, 0]); // original window; no-effect slot -1
+            assert_eq!(p[6], 0); // PICKUP, never another result QUICK_MOVE
+            assert_eq!(&p[p.len() - 2..], &[127, 0]);
+        }
         async fn collect(&mut self, entity: i32, own: bool) {
             self.bot.player.lock().await.entity_id = Some(42);
             let mut p = Vec::new();
@@ -1183,6 +1191,27 @@ mod tests {
         drop(client);
         drop(f.bot);
         server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn crafting_take_two_phase_deadline_and_late_receipts() {
+        for destination in [
+            api::CraftingResultDestination::Cursor,
+            api::CraftingResultDestination::Inventory,
+        ] {
+            for outcome in 0..3 {
+                let (mut bot, packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                bot.connection_options.inventory_click_receipt_timeout = Duration::from_millis(300);
+                bot.connection_options.crafting_take_resync_timeout = Duration::from_millis(300);
+                super::super::common_motion::tests::seed_motion(&bot).await;
+                bot.apply_packet(0x3f, vec![0]).await.unwrap();
+                let mut f = LegacyFixture { bot, packets };
+                script::crafting_deadline(&mut f, destination, outcome).await;
+                release.send(()).unwrap();
+                drop(f.bot);
+                server.await.unwrap();
+            }
+        }
     }
     #[tokio::test]
     async fn received_inventory_single_owner_pickup_transfer_crafting_matrix() {
