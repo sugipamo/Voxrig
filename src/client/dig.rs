@@ -33,6 +33,167 @@ pub struct DigRecord {
     pub removed: bool,
     /// 1.21.11 interaction sequences of START and STOP.
     pub sequences: Vec<i32>,
+    /// How the observation ended; separates a processed no-op from a timeout.
+    pub outcome: DigOutcome,
+}
+
+/// How a returned `dig` observation ended. New variants may be added.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum DigOutcome {
+    /// The target was received as loaded air (`removed`).
+    Removed,
+    /// The target was received as another state or became unloaded.
+    Changed,
+    /// The server processed the dig and left the target at its predecessor.
+    /// Names no server reason (protection, world border, game mode, ...) and is
+    /// not a retry instruction.
+    Rejected {
+        /// Processed-boundary evidence.
+        rejection: DigRejection,
+    },
+    /// Still the predecessor when the one-second window ended, without a processed
+    /// boundary that proves no effect. The block may still break later.
+    Unconfirmed,
+}
+
+/// Server-processed boundary with the target still at its predecessor.
+///
+/// Java 1.21.11: a fresh exact-target block update equal to the predecessor, then
+/// a fresh BlockChangedAck covering the last command. The original handler sends
+/// its block update before the tick-time ACK; the ACK alone (delayed destruction,
+/// too far) or an echo after it never qualifies. Java 1.16.1: an original START or
+/// STOP response with `successful = false` carrying the predecessor, plus the
+/// response to the last command still carrying it. A successful STOP response
+/// with the predecessor (delayed destruction) never qualifies.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[non_exhaustive]
+pub struct DigRejection {
+    /// Receive ordinal of the processed boundary covering the last command: the
+    /// 1.21.11 ACK, or the 1.16.1 response to that command.
+    pub boundary_receive_sequence: u64,
+    /// Latest fresh exact-target receipt, equal to the predecessor.
+    pub target_receipt: ObservedValue<NativeBlockState>,
+    /// Java 1.21.11 highest acknowledged interaction sequence; None on 1.16.1.
+    pub acknowledged_sequence: Option<i32>,
+    /// Java 1.16.1 native status of the `successful = false` response (0 START,
+    /// 2 STOP); None on 1.21.11.
+    pub legacy_status: Option<i32>,
+}
+
+/// Exact-target receipts after one dig's START, kept by the owning adapter.
+#[derive(Clone, Debug)]
+pub(crate) struct DigWatch {
+    target: [i32; 3],
+    baseline: NativeBlockState,
+    start_after: u64,
+    last_after: u64,
+    last_sequence: Option<i32>,
+    /// Latest fresh exact-target receipt while it equals the baseline.
+    echo: Option<u64>,
+    /// First 1.16.1 rejecting response carrying the baseline.
+    legacy: Option<i32>,
+    /// Latest 1.16.1 target response after the last command boundary.
+    legacy_last: Option<u64>,
+}
+impl DigWatch {
+    /// Retained under the receive gate before START is written.
+    pub(crate) fn new(target: [i32; 3], baseline: NativeBlockState, after: u64) -> Self {
+        Self {
+            target,
+            baseline,
+            start_after: after,
+            last_after: after,
+            last_sequence: None,
+            echo: None,
+            legacy: None,
+            legacy_last: None,
+        }
+    }
+    /// The receive boundary and native sequence before each START/STOP write.
+    pub(crate) fn sent(&mut self, after: u64, sequence: Option<i32>) {
+        self.last_after = after;
+        self.last_sequence = sequence;
+        self.legacy_last = None;
+    }
+    /// A block/section/response packet applied at `position`.
+    pub(crate) fn received(&mut self, position: [i32; 3], state: &NativeBlockState, receive: u64) {
+        if position == self.target && receive > self.start_after {
+            self.echo = (*state == self.baseline).then_some(receive);
+        }
+    }
+    /// The target chunk was loaded or unloaded: a chunk is not a handler echo.
+    pub(crate) fn chunk_changed(&mut self, chunk: [i32; 2]) {
+        if [self.target[0].div_euclid(16), self.target[2].div_euclid(16)] == chunk {
+            self.echo = None;
+        }
+    }
+    /// Java 1.16.1 digging response, after its state was applied.
+    pub(crate) fn legacy_reply(
+        &mut self,
+        position: [i32; 3],
+        state: &NativeBlockState,
+        status: i32,
+        successful: bool,
+        receive: u64,
+    ) {
+        self.received(position, state, receive);
+        if position != self.target || receive <= self.start_after {
+            return;
+        }
+        if !successful && matches!(status, 0 | 2) && *state == self.baseline {
+            self.legacy.get_or_insert(status);
+        }
+        if receive > self.last_after {
+            self.legacy_last = Some(receive);
+        }
+    }
+    /// Retain a START (fresh watch) or STOP boundary before its write; ABORT is cleanup only.
+    pub(crate) fn sent_into(
+        watch: &mut Option<Self>,
+        action: super::operational_dig::Action,
+        target: [i32; 3],
+        baseline: &NativeBlockState,
+        after: u64,
+        sequence: Option<i32>,
+    ) {
+        use super::operational_dig::Action;
+        match action {
+            Action::Start => *watch = Some(Self::new(target, baseline.clone(), after)),
+            Action::Finish { .. } => {}
+            Action::Abort => return,
+        }
+        if let Some(watch) = watch.as_mut().filter(|w| w.target == target) {
+            watch.sent(after, sequence);
+        }
+    }
+    /// `ack` is the highest received 1.21.11 ACK and its ordinal; None on 1.16.1.
+    pub(crate) fn rejection(&self, ack: Option<(i32, u64)>) -> Option<DigRejection> {
+        let echo = self.echo?;
+        let target_receipt = super::observation::received(self.baseline.clone(), echo);
+        if let Some(status) = self.legacy {
+            // A stale server-side destroy position could still let STOP break
+            // the block; wait for the response to the last command.
+            return self.legacy_last.map(|receive| DigRejection {
+                boundary_receive_sequence: receive,
+                target_receipt,
+                acknowledged_sequence: None,
+                legacy_status: Some(status),
+            });
+        }
+        let last = self.last_sequence?;
+        // The handler's echo precedes the tick-time ACK covering its command.
+        let (sequence, receive) = ack.filter(|(sequence, receive)| {
+            *sequence >= last && *receive > self.last_after && echo < *receive
+        })?;
+        Some(DigRejection {
+            boundary_receive_sequence: receive,
+            target_receipt,
+            acknowledged_sequence: Some(sequence),
+            legacy_status: None,
+        })
+    }
 }
 
 #[derive(serde::Deserialize)]

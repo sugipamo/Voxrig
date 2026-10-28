@@ -74,6 +74,17 @@ pub enum MiningProtocolObservation {
         receive_sequence: u64,
     },
 }
+/// Server-processed boundary with the target still at its baseline.
+#[derive(Clone, Debug, serde::Serialize)]
+#[non_exhaustive]
+pub struct MiningRejection {
+    /// Highest acknowledged native interaction sequence, covering FINISH.
+    pub acknowledged_sequence: i32,
+    /// Ordinal of that acknowledgement packet.
+    pub boundary_receive_sequence: u64,
+    /// Fresh exact-target receipt equal to the baseline.
+    pub target_receipt: MiningTargetReceipt,
+}
 /// First received inventory prerequisite that changed during an attempt.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -110,8 +121,10 @@ pub struct MiningInventoryChange {
     pub sole_cause: bool,
 }
 /// Retained state of the explicit attempt; no variant grants the next mutation.
+/// New variants may be added.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum MiningStage {
     /// START retained/attempted, without FINISH or a confirmed result.
     Mining,
@@ -119,6 +132,11 @@ pub enum MiningStage {
     PendingAfterFinish,
     /// Fresh exact-target air was reconciled; actor attribution is unknown.
     ObservedRemoved,
+    /// Java 1.21.11: a fresh ACK covering FINISH arrived while the latest fresh
+    /// target receipt still equals the baseline (`rejection`). Terminal history;
+    /// names no reason and grants no retry or continuation. Java 1.16.1 keeps a
+    /// rejected response as `RequiresInspection`.
+    ObservedRejected,
     /// Changed context, uncertain failure or conflicting packets need inspection.
     RequiresInspection,
 }
@@ -149,6 +167,8 @@ pub struct MiningRecord {
     pub target_receipt: Option<MiningTargetReceipt>,
     /// Latest relevant version-native protocol receipt, when available.
     pub protocol: Option<MiningProtocolObservation>,
+    /// Processed-without-effect evidence of `ObservedRejected`; None otherwise.
+    pub rejection: Option<MiningRejection>,
     /// First received inventory interruption.
     pub inventory_change: Option<MiningInventoryChange>,
     /// First latched failure/context reason; later air cannot clear it.

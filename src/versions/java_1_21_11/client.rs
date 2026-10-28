@@ -83,6 +83,8 @@ struct State {
     retirement: Option<operations::MiningRetirementRecord>,
     mining: Option<operations::MiningRecord>,
     common_mining: Option<operations::mining::CommonMiningCapture>,
+    /// Exact-target receipts of the current operational dig.
+    dig_watch: Option<crate::client::dig::DigWatch>,
     placement: Option<operations::PlacementRecord>,
     common_placement: Option<operations::placement::CommonPlacementCapture>,
     retired_common_placement: Option<crate::client::survival::PlacementRecord>,
@@ -168,6 +170,7 @@ impl Default for State {
             retirement: None,
             mining: None,
             common_mining: None,
+            dig_watch: None,
             placement: None,
             common_placement: None,
             retired_common_placement: None,

@@ -39,12 +39,12 @@ use crate::diagnostic_projection::diagnostic_record;
 pub use inventory::{InventorySwap, InventorySwapObservation};
 pub use inventory::{RecordedInventorySwap, RecordedInventorySwapObservation};
 pub use mining::{
-    MiningIntent, MiningInventoryChange, MiningInventoryChangeKind, MiningRecord, MiningRemoval,
-    MiningSend, MiningStatus, MiningTargetReceipt,
+    MiningIntent, MiningInventoryChange, MiningInventoryChangeKind, MiningRecord, MiningRejection,
+    MiningRemoval, MiningSend, MiningStatus, MiningTargetReceipt,
 };
 pub use mining::{
     RecordedMiningIntent, RecordedMiningInventoryChange, RecordedMiningRecord,
-    RecordedMiningRemoval, RecordedMiningStatus,
+    RecordedMiningRejection, RecordedMiningRemoval, RecordedMiningStatus,
 };
 pub(super) use mining::{mining_chunk_changed, mining_received, mining_world_changed};
 pub use movement::RecordedSurvivalMovementPreview;

@@ -78,6 +78,7 @@ async fn main() -> anyhow::Result<()> {
     }
     let body = Body::new(HeadlessBody::new(client.clone(), config)?);
     let mut click_watch = None::<InventoryClickWatch>;
+    let mut mining_id = None;
     let mut saved_screen = None;
     println!("{}", json!({"ready":true}));
     std::io::stdout().flush()?;
@@ -176,6 +177,21 @@ async fn main() -> anyhow::Result<()> {
                         .dig(serde_json::from_value(v["pos"].clone())?, BlockFace::North)
                         .await?,
                 )?,
+                "mine_start" => {
+                    let record = client
+                        .survival()
+                        .start_mining(serde_json::from_value(v["pos"].clone())?, BlockFace::North)
+                        .await?;
+                    mining_id = Some(record.id);
+                    serde_json::to_value(record)?
+                }
+                "mine_finish" => serde_json::to_value(
+                    client
+                        .survival()
+                        .finish_mining(mining_id.ok_or_else(|| anyhow::anyhow!("no mining"))?)
+                        .await?,
+                )?,
+                "mine_record" => serde_json::to_value(client.survival().mining_record().await?)?,
                 "player" => serde_json::to_value(client.player_state().await?)?,
                 "rotation_snapshot" => {
                     use voxrig::client::{CorrectionComponent, FieldState};

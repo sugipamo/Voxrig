@@ -1,0 +1,381 @@
+{
+  "audit_rows": [
+    "B9 (DigRecord)",
+    "B10"
+  ],
+  "date": "2026-10-28",
+  "runner": "scripts/run_dig_rejection_live.py",
+  "command": "flock ~/logs/voxrig-live.lock python3 scripts/run_dig_rejection_live.py --accept-eula --binary <body_probe> --jars <official jar directory> --output <output directory>",
+  "official_server_basis": {
+    "class": "net.minecraft.server.level.ServerPlayerGameMode.handleBlockBreakAction and net.minecraft.server.network.ServerGamePacketListenerImpl.handlePlayerAction (Mojang-mapped)",
+    "1.16.1": {
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "responses": "ClientboundBlockBreakAckPacket(pos, level.getBlockState(pos), action, false, reason) for too far, too high, may not interact, block action restricted and failed destroyAndAck; STOP always answers (successful=true \"stopped destroying\" when the position is not the current destroy position or the delayed path is taken)"
+    },
+    "1.21.11": {
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "block_updates": "handleBlockBreakAction sends ClientboundBlockUpdatePacket(pos, current) synchronously on too high, may not interact, block action restricted, and failed destroyAndAck; too far and the delayed-destroy STOP send none",
+      "ack": "handlePlayerAction calls handleBlockBreakAction then ackBlockChangesUpTo(sequence); ClientboundBlockChangedAckPacket(max sequence) leaves from the connection tick, so the handler echo precedes the covering ACK",
+      "stale_destroy_position": "STOP compares pos with the retained destroyPos and does not re-check mayInteract; destroyBlock does not check it either"
+    }
+  },
+  "fixture": "non-OP survival ClimbingProbe at (0.5, 65, 0.5); dirt target [0,65,2] (face North); `worldborder center 0.5 0.5` + `worldborder set 3` excludes z=2 so Level.mayInteract refuses START; RCON `execute if block` confirms the native target after each step",
+  "live": {
+    "binary_sha256": "8a0850ffaa41c737bca3191c5c80d58eabb3af544ea358032cd715a800d12a70",
+    "source_sha256": {
+      "src/client/dig.rs": "2b7739f078e58fb92ac6297f59989ca2605e92d3096ddaffb1d2bca154b9e85e",
+      "src/client/operational_dig.rs": "6f225f967eb3e8d533c2de25d6b2536230a1f25f3968b401c9e7afea29201037",
+      "src/versions/java_1_16_1/client/operational_dig.rs": "7c8a71399524369e8d07685fef3c8af2e8ac67a4894878ede288e96c351324e6",
+      "src/versions/java_1_21_11/client/operations/operational_dig.rs": "f940d1ac4ef1e8db7026e164f28b974e132c26b0872c47a8abd7c7c498da6500",
+      "src/versions/java_1_21_11/client/operations/mining.rs": "10c51e94f18b4129dcbee0c96a1ebab2cfc958af8a5197f328c22be6123187d8",
+      "examples/body_probe.rs": "4681764369eaafe4c3f1903699f637bf58f2de89a81edddb61b2a8cfd8e691b7",
+      "scripts/run_dig_rejection_live.py": "644aa00b455cbff178e89d397f361e3e19dba3d1919a213378848923ef44da19",
+      "Cargo.lock": "8bf7e3de1d117dc1b42243ac611431b022f09bc297f38160981c6979ead35668"
+    },
+    "versions": {
+      "1.16.1": {
+        "passed": true,
+        "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077"
+      },
+      "1.21.11": {
+        "passed": true,
+        "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed"
+      }
+    }
+  },
+  "results": {
+    "1.16.1": {
+      "evidence": "docs/evidence/dig-rejection-live-1.16.1-20261028.json.gz",
+      "passed": true,
+      "checks": {
+        "world_border_dig_rejected": {
+          "outcome": {
+            "kind": "rejected",
+            "rejection": {
+              "acknowledged_sequence": null,
+              "boundary_receive_sequence": 116,
+              "legacy_status": 0,
+              "target_receipt": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 116
+                },
+                "value": {
+                  "name": "minecraft:dirt",
+                  "properties": {}
+                }
+              }
+            }
+          },
+          "sequences": [],
+          "frames": [
+            [
+              118,
+              "serverbound",
+              "0x1b",
+              "00000000000000204102"
+            ],
+            [
+              120,
+              "clientbound",
+              "0x7",
+              "00000000000020410a0000"
+            ],
+            [
+              153,
+              "serverbound",
+              "0x1b",
+              "02000000000000204102"
+            ],
+            [
+              154,
+              "clientbound",
+              "0x7",
+              "00000000000020410a0201"
+            ]
+          ]
+        },
+        "same_connection_dig_removed": {
+          "outcome": {
+            "kind": "removed"
+          },
+          "sequences": [],
+          "frames": [
+            [
+              174,
+              "serverbound",
+              "0x1b",
+              "00000000000000204102"
+            ],
+            [
+              175,
+              "clientbound",
+              "0x7",
+              "00000000000020410a0001"
+            ],
+            [
+              200,
+              "serverbound",
+              "0x1b",
+              "02000000000000204102"
+            ],
+            [
+              204,
+              "clientbound",
+              "0x7",
+              "0000000000002041000201"
+            ],
+            [
+              205,
+              "clientbound",
+              "0xb",
+              "000000000000204100"
+            ]
+          ]
+        },
+        "stale_destroy_position_stop_removes_inside_refusal": {
+          "outcome": {
+            "kind": "removed"
+          },
+          "sequences": [],
+          "frames": [
+            [
+              220,
+              "serverbound",
+              "0x1b",
+              "00000000000000204102"
+            ],
+            [
+              221,
+              "clientbound",
+              "0x7",
+              "00000000000020410a0000"
+            ],
+            [
+              239,
+              "serverbound",
+              "0x1b",
+              "02000000000000204102"
+            ],
+            [
+              243,
+              "clientbound",
+              "0x7",
+              "0000000000002041000201"
+            ],
+            [
+              244,
+              "clientbound",
+              "0xb",
+              "000000000000204100"
+            ]
+          ]
+        }
+      }
+    },
+    "1.21.11": {
+      "evidence": "docs/evidence/dig-rejection-live-1.21.11-20261028.json.gz",
+      "passed": true,
+      "checks": {
+        "world_border_dig_rejected": {
+          "outcome": {
+            "kind": "rejected",
+            "rejection": {
+              "acknowledged_sequence": 2,
+              "boundary_receive_sequence": 125,
+              "legacy_status": null,
+              "target_receipt": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 122
+                },
+                "value": {
+                  "name": "minecraft:dirt",
+                  "properties": {}
+                }
+              }
+            }
+          },
+          "sequences": [
+            1,
+            2
+          ],
+          "frames": [
+            [
+              141,
+              "serverbound",
+              "0x28",
+              "0000000000000020410201"
+            ],
+            [
+              142,
+              "clientbound",
+              "0x8",
+              "00000000000020410a"
+            ],
+            [
+              143,
+              "clientbound",
+              "0x4",
+              "01"
+            ],
+            [
+              145,
+              "serverbound",
+              "0x28",
+              "0200000000000020410202"
+            ],
+            [
+              146,
+              "clientbound",
+              "0x4",
+              "02"
+            ]
+          ]
+        },
+        "same_connection_dig_removed": {
+          "outcome": {
+            "kind": "removed"
+          },
+          "sequences": [
+            3,
+            4
+          ],
+          "frames": [
+            [
+              148,
+              "serverbound",
+              "0x28",
+              "0000000000000020410203"
+            ],
+            [
+              149,
+              "clientbound",
+              "0x4",
+              "03"
+            ],
+            [
+              151,
+              "serverbound",
+              "0x28",
+              "0200000000000020410204"
+            ],
+            [
+              156,
+              "clientbound",
+              "0x8",
+              "000000000000204100"
+            ],
+            [
+              159,
+              "clientbound",
+              "0x4",
+              "04"
+            ]
+          ]
+        },
+        "stale_destroy_position_stop_removes_inside_refusal": {
+          "outcome": {
+            "kind": "removed"
+          },
+          "sequences": [
+            5,
+            6
+          ],
+          "frames": [
+            [
+              164,
+              "serverbound",
+              "0x28",
+              "0000000000000020410205"
+            ],
+            [
+              165,
+              "clientbound",
+              "0x8",
+              "00000000000020410a"
+            ],
+            [
+              166,
+              "clientbound",
+              "0x4",
+              "05"
+            ],
+            [
+              168,
+              "serverbound",
+              "0x28",
+              "0200000000000020410206"
+            ],
+            [
+              173,
+              "clientbound",
+              "0x8",
+              "000000000000204100"
+            ],
+            [
+              176,
+              "clientbound",
+              "0x4",
+              "06"
+            ]
+          ]
+        },
+        "common_mining_observed_rejected": {
+          "outcome": {
+            "stage": "observed_rejected",
+            "rejection": {
+              "acknowledged_sequence": 8,
+              "boundary_receive_sequence": 164,
+              "target_receipt": {
+                "receive_sequence": 161,
+                "state": {
+                  "name": "minecraft:dirt",
+                  "properties": {}
+                }
+              }
+            }
+          },
+          "sequences": null,
+          "frames": [
+            [
+              188,
+              "serverbound",
+              "0x28",
+              "0000000040000020410207"
+            ],
+            [
+              189,
+              "clientbound",
+              "0x8",
+              "00000040000020410a"
+            ],
+            [
+              190,
+              "clientbound",
+              "0x4",
+              "07"
+            ],
+            [
+              192,
+              "serverbound",
+              "0x28",
+              "0200000040000020410208"
+            ],
+            [
+              193,
+              "clientbound",
+              "0x4",
+              "08"
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "limits": [
+    "World border is the only refusal reproduced; spawn protection, adventure-mode restrictions and failed destroyBlock share the same echo path in bytecode but were not run.",
+    "Java 1.16.1 common staged mining still latches a successful=false response as RequiresInspection; only Survival::dig carries the 1.16.1 verdict.",
+    "A refused START on the cell the server last destroyed still breaks on STOP (stale destroy position); the outcome is then Removed, never Rejected."
+  ]
+}

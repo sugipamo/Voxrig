@@ -199,7 +199,7 @@ impl State {
             self.mining.as_ref().map(|r| {
                 (
                     r.intent.start_sequence as u64,
-                    r.removal.is_some(),
+                    r.is_resolved(),
                     r.requires_inspection.is_some(),
                 )
             }),

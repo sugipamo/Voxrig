@@ -44,6 +44,7 @@ FINISH後のABORTもdelayed breakが消えた証明にはならない。
 | `Mining` | STARTを保持/試行。FINISHも結果もまだない |
 | `PendingAfterFinish` | FINISHを保持/試行。取消やABORTでも未解決 |
 | `ObservedRemoved` | 元の対象でSTARTより新しい実packetのairを照合。除去したactorの帰属は不明 |
+| `ObservedRejected` | 1.21.11のみ。STARTより新しい対象の受信が元のstateのまま届き、その後にFINISHを覆う新しいACKが届いた。`rejection`に証拠を保持する。理由は示さず、再試行や継続の許可でもない |
 | `RequiresInspection` | 最初のcontext/target/inventory conflictを保持。後の復元やairで消さない |
 
 `target_receipt`はexact targetの実block update。無関係なworld revision、local cacheのair、

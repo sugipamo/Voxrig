@@ -22,7 +22,8 @@ pub use scene::{CapturedSurvivalScene, ScenePreview, SceneSource};
 pub(crate) mod target;
 pub use mining::{
     MiningAction, MiningId, MiningInventoryChange, MiningInventoryChangeKind,
-    MiningProtocolObservation, MiningRecord, MiningSend, MiningStage, MiningTargetReceipt,
+    MiningProtocolObservation, MiningRecord, MiningRejection, MiningSend, MiningStage,
+    MiningTargetReceipt,
 };
 pub use motion::{
     MAX_SURVIVAL_CONTROL_TICKS, MotionPreview, MotionRecord, MotionStatus, PredictedMotionFrame,

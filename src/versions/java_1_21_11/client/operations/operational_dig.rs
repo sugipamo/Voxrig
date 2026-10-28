@@ -99,6 +99,15 @@ impl DigOps for Operations {
             check_reach(&state, target)?;
         }
         let sequence = self.next_sequence()?;
+        let after = state.sequence;
+        crate::client::dig::DigWatch::sent_into(
+            &mut state.dig_watch,
+            action,
+            target,
+            &initial.state,
+            after,
+            Some(sequence),
+        );
         let mut payload = Vec::new();
         put_varint(&mut payload, action.status());
         payload.extend(pack_position(target).to_be_bytes());
@@ -159,6 +168,15 @@ impl DigOps for Operations {
             check_reach(&state, target)?;
         }
         let sequence = self.next_sequence()?;
+        let after = state.sequence;
+        crate::client::dig::DigWatch::sent_into(
+            &mut state.dig_watch,
+            action,
+            target,
+            &initial.state,
+            after,
+            Some(sequence),
+        );
         let mut payload = Vec::new();
         put_varint(&mut payload, action.status());
         payload.extend(pack_position(target).to_be_bytes());
@@ -178,5 +196,13 @@ impl DigOps for Operations {
             )
             .await?;
         Ok(Dispatch::Sent(Some(sequence)))
+    }
+    async fn dig_rejection(&self) -> Result<Option<crate::client::DigRejection>> {
+        let state = self.bot.session.state.lock().await;
+        let ack = state
+            .operations
+            .ack
+            .zip(state.operations.ack_receive_sequence);
+        Ok(state.dig_watch.as_ref().and_then(|w| w.rejection(ack)))
     }
 }

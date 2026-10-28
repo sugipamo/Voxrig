@@ -26,9 +26,48 @@ println!("{} ticks, removed: {}", estimate.ticks, record.removed);
 1. START_DESTROY_BLOCKを送る。進み方が1以上なら、ここで壊れる（`ticks`が0）。
 2. 1 tickごとの進み方を`ticks`回足して1に届くまで待つ（clientの時計。1 tickを足す）。
 3. STOP_DESTROY_BLOCKを送る。serverは自分が数えたtickで70%以上進んでいれば壊す。
-4. 受信したblockの状態が変わるのを最大1秒待ち、`removed`と`final_state`を返す。
+4. 受信したblockの状態が変わるのを最大1秒待ち、`removed`と`final_state`と`outcome`を返す。
    `removed` は元の world で loaded air を観測したときだけ true。アンロードや別の non-air block は false。
    壊れなかったことはerrorではない（serverが決める）。1.21.11は`sequences`にSTARTとSTOPの操作番号が入る。
+
+### 観測の終わり方（`DigRecord.outcome`）
+
+`outcome` は観測がどう終わったかを示す。`removed` と `final_state` の意味は変わらない。
+
+| `DigOutcome` | 意味 |
+| --- | --- |
+| `Removed` | 対象を loaded air で受信した（`removed == true`） |
+| `Changed` | 対象を別の state で受信した、または unload された |
+| `Rejected { rejection }` | server が処理し、対象は元の state のまま（下記）。理由（保護・world border・game mode など）は示さない |
+| `Unconfirmed` | 1 秒経っても元の state のままで、効果がなかったと言える処理済みの境界もない。後から壊れることがある |
+
+`Rejected` は「server が処理した境界が届き、かつ対象が元の state のまま」の場合だけで、
+protocol の bool だけからは導かない。`Rejected` は 1 秒を待たずに返る。再試行の指示ではない。
+
+- **1.21.11**: STOP（瞬時採掘なら START）の後に、対象の新しい BlockUpdate が元の state のまま届き、
+  その後に最後の操作番号を覆う新しい BlockChangedAck が届いた場合。公式 server JAR
+  （`ServerPlayerGameMode.handleBlockBreakAction`、Mojang-mapped）は拒否する経路
+  （`may not interact`、`too high`、`block action restricted`、`destroyAndAck` の失敗）で
+  `BlockUpdate(元)` をその場で送る。`handlePlayerAction` が `ackBlockChangesUpTo(sequence)` を登録し、
+  ACK は次の connection tick で送られるため、echo は必ず ACK より先に届く。ACK だけ
+  （遅延破壊、`too far`）や ACK の後の echo は `Unconfirmed` のままにする。
+  `rejection.acknowledged_sequence` は ACK の値、`boundary_receive_sequence` は ACK の受信 ordinal。
+- **1.16.1**: START か STOP への応答（AcknowledgePlayerDigging）が `successful = false` で元の state を
+  運び、さらに最後の操作への応答も元の state のまま届いた場合。`legacy_status` は
+  `successful = false` だった応答の status（0 START、2 STOP）、`boundary_receive_sequence` は
+  最後の操作への応答の受信 ordinal。元の state を運ぶ `successful = true` の STOP 応答
+  （遅延破壊）は拒否ではない。
+- **拒否された START の echo だけでは結論しない**: server は最後に壊した位置（`destroyPos`）を保持し、
+  STOP では `mayInteract` を確かめない。そのため、同じ cell をもう一度掘ると、START が拒否されても
+  STOP で壊れる（両版で LIVE 確認済み）。両版とも最後の操作の境界まで待ち、その時点の最新の受信が
+  元の state であることを要求する。
+
+公式 server（1.16.1・1.21.11、SHA-1 照合済み）で、target を world border の外に置いて
+`mayInteract` に START を拒否させ、両版で `Rejected` になること、RCON で target が変わらないこと、
+border を戻した同じ接続で `Removed` になることを確かめた。1.21.11 では BlockUpdate(元) が
+BlockChangedAck より先に届いた。共通の staged mining も別の cell で `ObservedRejected` になった。
+証跡: [`dig-rejection-validation-20261028.json`](evidence/dig-rejection-validation-20261028.json)
+（`scripts/run_dig_rejection_live.py`）。
 
 70%（0.7）の判定は低 TPS や START/STOP の処理遅延を吸収する保証ではなく、
 server が数える tick が不足すれば、この余裕があってもその場で壊れない。
@@ -72,7 +111,7 @@ ABORT が完全送信された場合は元の拒否エラーを返す。次の�
 同じ接続の運用採掘は一度に一つで、active な運用採掘の間は診断 mining の新規開始も拒否する。
 STOP が完全送信済みか START だけで瞬時採掘が完了した後には、取消による ABORT を追加しない。
 1.16.1 では送信済み STOP によって server が遅延破壊を予約すると、ABORT でもその予約は取り消せない。
-1 秒の観測 timeout の後も含め、block が後から壊れることがある。
+1 秒の観測 timeout の後も含め、block が後から壊れることがある（`Unconfirmed`）。
 
 ## Per-dig cancellation handle (begin_dig / DigOperation)
 

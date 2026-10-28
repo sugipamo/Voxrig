@@ -25,9 +25,18 @@ waits are estimates, followed by the same finish/result boundary. Cancelling the
 sleep leaves a START intent for inspection. No automatic abort or retry follows.
 
 `observe_survival_mining` and `wait_survival_mining` send nothing. They expose
-`mining`, `pending_after_finish`, `observed_removed` or `requires_inspection`.
-The wait is bounded to 30 seconds; timeout returns the current status and keeps
-the intent. Confirmation requires a post-intent **target-specific block/section
+`mining`, `pending_after_finish`, `observed_removed`, `observed_rejected` or
+`requires_inspection`. The wait is bounded to 30 seconds; timeout returns the
+current status and keeps the intent. A timeout that is already resolved
+(`observed_removed` / `observed_rejected`) does not expire the connection.
+
+`observed_rejected` is terminal history: after FINISH was dispatched, a fresh
+ACK covering its sequence arrived after the latest fresh exact-target packet,
+and that packet still equals the baseline (`MiningRecord::rejection`). The
+original `handleBlockBreakAction` sends `BlockUpdate(original)` on its refusing
+paths before the tick-time ACK. An ACK alone (delayed destruction, too far) or
+an echo after the ACK stays pending. It names no reason and, like removal,
+authorizes no further mutation. Confirmation requires a post-intent **target-specific block/section
 packet**, applied to a loaded baseline, whose current reconstructed target is
 air. Unrelated packets, global revision changes, optimistic/predicted air and
 cached air are insufficient. Unexpected non-air replacement, target chunk
