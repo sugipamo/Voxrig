@@ -560,7 +560,7 @@ impl Bot {
             Update::Chunk(chunk),
         );
     }
-    pub(super) async fn body_received(&self, id: i32, sequence: u64) {
+    pub(super) async fn body_received(&self, id: i32, payload: &[u8], sequence: u64) {
         let update = match id {
             0x25 | 0x3a => Some(Update::World),
             0x35 => self
@@ -581,7 +581,9 @@ impl Bot {
                 .selected_hotbar
                 .as_ref()
                 .map(|s| Update::Selection(s.value)),
-            0x14 => Some(Update::Resync),
+            // Only the player inventory window (0) resyncs the used hand; an open
+            // container's WINDOW_ITEMS is unrelated evidence.
+            0x14 if payload.first() == Some(&0) => Some(Update::Resync),
             _ => None,
         };
         if let Some(update) = update {
@@ -1030,6 +1032,52 @@ mod tests {
                 .await
                 .is_err()
         );
+        drop(release);
+        drop(body);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn legacy_body_use_item_resync_is_scoped_to_player_inventory_window() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let body = body(&bot);
+        // Original WINDOW_ITEMS: a container window must not correct the use; the
+        // player inventory window (0) remains the inventory resync evidence.
+        for (window, slots, corrected) in [(1u8, 63i16, false), (0, 46, true)] {
+            let id = body
+                .submit(Action::UseItem {
+                    hand: crate::Hand::Main,
+                })
+                .await
+                .unwrap();
+            let (got, _) = timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(got, 0x2e);
+            let mut payload = vec![window];
+            payload.extend(slots.to_be_bytes());
+            payload.extend(std::iter::repeat_n(0u8, slots as usize));
+            bot.apply_packet(0x14, payload).await.unwrap();
+            let status = complete(&body, id).await;
+            if corrected {
+                assert!(matches!(
+                    status,
+                    ActionStatus::Corrected {
+                        correction: ServerCorrection::InventoryResync,
+                        ..
+                    }
+                ));
+            } else {
+                assert!(matches!(status, ActionStatus::Accepted), "{status:?}");
+            }
+            wait_release(&body).await;
+        }
         drop(release);
         drop(body);
         drop(bot);
