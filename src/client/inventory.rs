@@ -24,6 +24,8 @@ pub use drop::{
 };
 pub(crate) mod hands;
 pub use hands::{HandSwapId, HandSwapRecord, HandSwapSend, HandSwapStage};
+pub(crate) mod own_action;
+pub use own_action::{INVENTORY_OWN_ACTION_WINDOW, InventoryOwnActionKind};
 #[cfg(test)]
 pub(crate) mod held_cursor_tests;
 pub(crate) use data::ItemContext;

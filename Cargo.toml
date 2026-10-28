@@ -274,6 +274,7 @@ include = [
     "/scripts/ExportMiningTools.java",
     "/scripts/export_mining_tools.py",
     "/scripts/export_dry_terrain.py",
+    "/scripts/run_inventory_own_action_live.py",
     "/README.md",
     "/CHANGELOG.md",
     "/LICENSE",

@@ -25,6 +25,15 @@
   Unsupported; Java 1.21.11 returns Unsupported for the new monitoring APIs.
   See [contract and recovery](docs/body-monitoring.md).
 
+- Add `InventoryCause::OwnAction { action, ordinal, interaction_sequence, locations }`
+  (additive; the enum is `#[non_exhaustive]`) with `InventoryOwnActionKind` and
+  `INVENTORY_OWN_ACTION_WINDOW`. On both versions, `inventory_changes_after` now
+  tags a change from the caller's own item use, placement, dig, selected drop or
+  hand swap with this correlation hint instead of `External` when it arrives
+  inside the action's bounded window (3 s, same world) at the affected hand slot.
+  A delta with any slot outside the scope keeps `External` as well; executor
+  outcomes and divergence causes are unchanged (audit I9). See [own actions](docs/inventory-divergence.md).
+
 - Java 1.16.1 native BotManager now forwards source broadcast loss as additive
   `Event::ManagerGap { generation, skipped }` before the next retained event,
   including when a connection stopped during manager insertion. Connection

@@ -40,6 +40,24 @@ impl Bot {
         )
     }
     pub(super) async fn inventory_changes_received(&self, packet: i32) {
+        // Every received packet: open own-action windows before any later
+        // selection write can make the main-hand slot ambiguous.
+        if lock_packet_state(&self.inventory_executor)
+            .await
+            .own_action_pending()
+        {
+            let receipts = self.common_receipts.lock().await;
+            let session = api::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            };
+            let selected = receipts.selected_hotbar.as_ref().map(|s| s.value);
+            drop(receipts);
+            lock_packet_state(&self.inventory_executor)
+                .await
+                .own_actions_received(session, selected);
+        }
         if !matches!(packet, 0x12 | 0x13 | 0x14 | 0x16 | 0x25 | 0x2e | 0x3a) {
             return;
         }
@@ -1177,6 +1195,20 @@ mod tests {
         script::missing_response_resync_and_late_response(&mut f).await;
         script::collect_and_external_log(&mut f).await;
         script::crafting_result_outcomes(&mut f).await;
+        release.send(()).unwrap();
+        let LegacyFixture { bot, packets } = f;
+        drop(bot);
+        server.await.unwrap();
+        drop(packets);
+    }
+    #[tokio::test]
+    async fn own_action_window_tags_hand_delta_and_keeps_external_give() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        script::own_action_and_external_log(&mut f).await;
         release.send(()).unwrap();
         let LegacyFixture { bot, packets } = f;
         drop(bot);

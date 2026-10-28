@@ -547,3 +547,61 @@ async fn inject(
         f.slot(index as u16, &slots[index]).await;
     }
 }
+/// I9: an own item use opens a bounded window over the used hand only. The
+/// consumption there is `OwnAction`; a /give-equivalent elsewhere in the same
+/// window stays `External`, also when both arrive in one full contents.
+pub(crate) async fn own_action_and_external_log(f: &mut impl Fixture) {
+    use crate::client::Hand;
+    let client = f.client();
+    let version = client.version();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    slots[45] = item(version, "minecraft:snowball", 4);
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let boundary = client
+        .inventory_changes_after(0)
+        .await
+        .unwrap()
+        .receive_sequence;
+    client.survival().use_item(Hand::Off).await.unwrap();
+    slots[45] = item(version, "minecraft:snowball", 3);
+    f.slot(45, &slots[45]).await;
+    slots[19] = item(version, "minecraft:oak_log", 5);
+    f.slot(19, &slots[19]).await;
+    slots[45] = item(version, "minecraft:snowball", 2);
+    slots[20] = item(version, "minecraft:dirt", 1);
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let log = client.inventory_changes_after(boundary).await.unwrap();
+    let off = InventoryLocation::Player { slot: 45 };
+    assert_eq!(log.changes.len(), 3, "{log:?}");
+    let [own] = log.changes[0].causes.as_slice() else {
+        panic!("one own-action hint: {:?}", log.changes[0].causes);
+    };
+    let InventoryCause::OwnAction {
+        action,
+        ordinal,
+        interaction_sequence,
+        locations,
+    } = own
+    else {
+        panic!("own action: {own:?}");
+    };
+    assert_eq!(*action, InventoryOwnActionKind::UseItem);
+    assert!(*ordinal >= 1);
+    assert_eq!(
+        interaction_sequence.is_some(),
+        version == MinecraftVersion::Java1_21_11
+    );
+    assert_eq!(locations, &[off]);
+    assert_eq!(log.changes[0].delta.items[0].change, -1);
+    assert_eq!(log.changes[1].causes, [InventoryCause::External]);
+    assert_eq!(log.changes[1].delta.items[0].change, 5);
+    // One full contents with own consumption and an unrelated slot: the
+    // own-action hint names only the hand, External remains for the rest.
+    let mixed = &log.changes[2];
+    assert_eq!(mixed.delta.slots.len(), 2);
+    assert!(mixed.causes.contains(&InventoryCause::External));
+    assert!(mixed.causes.iter().any(|c| matches!(
+        c,
+        InventoryCause::OwnAction { locations, .. } if locations == &[off]
+    )));
+}

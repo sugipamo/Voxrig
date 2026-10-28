@@ -653,6 +653,7 @@ fn publish_completion(permit: WritePermit) {
 pub(crate) struct SocketWriter<W> {
     inner: Option<W>,
     shutdown_error: Option<Arc<std::io::Error>>,
+    own_actions: Option<Arc<crate::client::inventory::own_action::OwnActionSink>>,
     #[cfg(test)]
     replacement: Option<testing::BoundedWriter>,
 }
@@ -661,9 +662,20 @@ impl<W: tokio::io::AsyncWrite + Unpin> SocketWriter<W> {
         Self {
             inner: Some(inner),
             shutdown_error: None,
+            own_actions: None,
             #[cfg(test)]
             replacement: None,
         }
+    }
+    /// Record own play-phase item use/place/dig/drop/swap frames (I9). Attach
+    /// only after login/configuration, whose packet IDs are a different space.
+    pub(crate) fn observe_own_actions(
+        &mut self,
+        version: crate::MinecraftVersion,
+        sink: Arc<crate::client::inventory::own_action::OwnActionSink>,
+    ) {
+        sink.attach(version);
+        self.own_actions = Some(sink);
     }
     pub(crate) async fn send(
         &mut self,
@@ -687,6 +699,10 @@ impl<W: tokio::io::AsyncWrite + Unpin> SocketWriter<W> {
         let permit = work
             .begin_write()
             .map_err(|e| anyhow::anyhow!("ledger write: {e:?}"))?;
+        // Before the frame: a reply can be received before the write returns.
+        if let Some(sink) = &self.own_actions {
+            sink.observe(id, payload);
+        }
         #[cfg(test)]
         if let Some(writer) = &mut self.replacement {
             if let Some(started) = write_started {
