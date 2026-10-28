@@ -223,6 +223,18 @@ pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
                 .await
                 .unwrap();
             f.click().await;
+            // No further server boundary arrives: submitting a take is not
+            // completion, and repeated strict Look cannot clear its history.
+            for _ in 0..64 {
+                assert!(client.survival().look([0.0, 0.0]).await.is_err());
+                let retained = client
+                    .survival()
+                    .crafting_take_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(retained.stage, crate::client::CraftingTakeStage::Pending);
+            }
             if collect {
                 f.collect(333, true).await;
             }
