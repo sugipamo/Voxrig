@@ -9,6 +9,19 @@
 
 ## Unreleased
 
+- Inventory sends that the server processed without an observed effect are now
+  explicit. Add `InventoryDivergence::effect()` and `#[non_exhaustive]`
+  `InventoryEffect { NoEffect, Different }`, derived only from the received
+  response/full-state boundary (never from the 1.16.1 negative comparison reply).
+  An ordinary no-effect divergence without received hints now has empty `causes`
+  instead of the `[External]` fallback (Java 1.21.11 labelled the caller's own
+  no-op as external); crafting sends keep the fallback. The strict click/transfer
+  record bound to that send ends at the new terminal `ObservedUnchanged` stage
+  instead of staying `Pending`, and inventory helpers (`compact_inventory`,
+  `fill_crafting_grid`, `move_inventory`, ...) return `ErrorKind::Rejected`
+  instead of a 3-second `ErrorKind::Timeout`. New stage variants are additive on
+  `#[non_exhaustive]` enums. Audit I1/I2/I3. See
+  [no-effect sends](docs/inventory-divergence.md#no-effect-sends).
 - BREAKING (behavior): a crafting result take whose fresh full resync after the
   send (grid/result, main/hotbar, cursor; 1.16.1 also its transaction reply) still
   equals the pre-send receipts ends as the new terminal

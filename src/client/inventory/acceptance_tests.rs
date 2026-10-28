@@ -54,6 +54,7 @@ pub(crate) async fn collect_and_external_log(f: &mut impl Fixture) {
     }));
     assert_eq!(divergence.actual.items.len(), 1);
     assert_eq!(divergence.actual.items[0].change, 1);
+    assert_eq!(divergence.effect(), InventoryEffect::Different);
     let log = client.inventory_changes_after(boundary).await.unwrap();
     assert!(
         log.changes
@@ -84,6 +85,121 @@ pub(crate) async fn collect_and_external_log(f: &mut impl Fixture) {
             .unwrap()
             .changes
             .is_empty()
+    );
+}
+/// A vanilla no-op: the server processes the send (1.16.1 negative reply, or
+/// 1.21.11 fence) and resends full contents/cursor still equal to `before`.
+pub(crate) async fn no_effect_click_and_transfer(f: &mut impl Fixture) {
+    let client = f.client();
+    let version = client.version();
+    let src = InventorySource::Player;
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    slots[9] = item(version, "minecraft:cobblestone", 3);
+    for transfer in [false, true] {
+        f.inventory(&slots, &SlotKnowledge::Empty).await;
+        let boundary = client
+            .inventory_changes_after(0)
+            .await
+            .unwrap()
+            .receive_sequence;
+        let send = if transfer {
+            client.survival().send_inventory_transfer(src, 9).await
+        } else {
+            client
+                .survival()
+                .send_inventory_click(src, 9, Button::Left)
+                .await
+        }
+        .unwrap();
+        f.click().await;
+        // Strict records do not see a fresh receipt equal to `before` as an
+        // outcome; until the executor boundary completes they stay Pending.
+        f.inventory(&slots, &SlotKnowledge::Empty).await;
+        f.response(&send, false).await;
+        let record = client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(record.id, send.id);
+        assert_eq!(record.status, InventorySendStatus::Diverged);
+        let d = client.inventory_divergence(send.id).await.unwrap().unwrap();
+        assert_eq!(
+            d.effect(),
+            InventoryEffect::NoEffect,
+            "{version:?} {transfer}"
+        );
+        assert!(d.actual.slots.is_empty() && d.actual.items.is_empty());
+        // 1.16.1's deliberate mismatch keeps its Rejected hint; modern has no
+        // hint at all and no longer reports the caller's own no-op as External.
+        assert_eq!(
+            d.causes,
+            if version == MinecraftVersion::Java1_16_1 {
+                vec![InventoryCause::Rejected]
+            } else {
+                Vec::new()
+            }
+        );
+        if transfer {
+            let strict = client
+                .survival()
+                .inventory_transfer_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(strict.stage, InventoryTransferStage::ObservedUnchanged);
+            assert!(strict.requires_inspection.is_none());
+        } else {
+            let strict = client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(strict.stage, InventoryClickStage::ObservedUnchanged);
+            assert!(strict.requires_inspection.is_none());
+            assert!(strict.source_receipt.is_none() && strict.cursor_receipt.is_none());
+        }
+        assert!(
+            client
+                .inventory_changes_after(boundary)
+                .await
+                .unwrap()
+                .changes
+                .is_empty()
+        );
+    }
+    // The terminal stage releases the strict domain for the next ordinary click.
+    let next = client
+        .survival()
+        .send_inventory_click(src, 9, Button::Left)
+        .await
+        .unwrap();
+    f.click().await;
+    slots[9] = SlotKnowledge::Empty;
+    f.inventory(&slots, &item(version, "minecraft:cobblestone", 3))
+        .await;
+    f.response(&next, false).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        InventorySendStatus::Received
+    );
+    assert_eq!(
+        client
+            .survival()
+            .inventory_click_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventoryClickStage::ObservedClicked
     );
 }
 pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {

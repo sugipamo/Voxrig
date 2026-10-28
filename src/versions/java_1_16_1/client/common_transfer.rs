@@ -166,6 +166,10 @@ impl Bot {
                     .as_ref()
                     .is_none_or(|c| c.value != cache_cursor);
             drop(inventory);
+            // Read before the record lock; never nest the executor inside it.
+            let unchanged = lock_packet_state(&self.inventory_executor)
+                .await
+                .unchanged_boundary();
             let complete = {
                 let mut guard = super::lock_packet_state(&self.common_inventory_transfer).await;
                 let record = &mut guard.as_mut().expect("retained").record;
@@ -179,6 +183,8 @@ impl Bot {
                 if native_conflict {
                     record.inspection("legacy transfer cache/ownership context changed");
                 }
+                // After absorbing receipts: a fresh changed receipt wins.
+                record.observe_unchanged(unchanged);
                 record.ready()
             };
             if complete {

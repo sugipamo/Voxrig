@@ -49,6 +49,9 @@ pub enum InventoryTransferStage {
     ObservedTransferred,
     /// First conflict/uncertainty remains even if values later recover.
     RequiresInspection,
+    /// The send executor's response/full-state boundary still equals the
+    /// pre-send received inventory: no observed effect. Terminal.
+    ObservedUnchanged,
 }
 /// One retained ordinary shift transfer, including partial destination capacity.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -116,7 +119,24 @@ impl InventoryTransferRecord {
         }
     }
     pub(crate) fn unresolved(&self) -> bool {
-        self.stage != InventoryTransferStage::ObservedTransferred
+        !matches!(
+            self.stage,
+            InventoryTransferStage::ObservedTransferred | InventoryTransferStage::ObservedUnchanged
+        )
+    }
+    /// Terminal when the executor proved `after` produced no observed effect.
+    pub(crate) fn observe_unchanged(
+        &mut self,
+        unchanged: Option<(crate::client::SessionStamp, u64)>,
+    ) {
+        if self.stage == InventoryTransferStage::Pending
+            && self.send.dispatched
+            && self.requires_inspection.is_none()
+            && self.changed_slots.iter().all(|s| s.receipt.is_none())
+            && unchanged == Some((self.initial.session, self.send.after_sequence))
+        {
+            self.stage = InventoryTransferStage::ObservedUnchanged;
+        }
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
         if self.unresolved() {
