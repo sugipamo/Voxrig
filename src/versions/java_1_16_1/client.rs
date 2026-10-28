@@ -1293,6 +1293,14 @@ impl Bot {
                 _ => {}
             }
         };
+        // Play serverbound IDs only from here; login IDs never reach the sink.
+        let inventory_executor = Arc::new(Mutex::new(
+            crate::client::inventory::executor::Executor::default(),
+        ));
+        writer.lock().await.inner.observe_own_actions(
+            crate::MinecraftVersion::Java1_16_1,
+            inventory_executor.lock().await.own_action_sink(),
+        );
         let (events, _) = broadcast::channel(connection_options.event_channel_capacity.max(1));
         let connected_at = std::time::Instant::now();
         let control = Arc::new(RwLock::new(Versioned::new(
@@ -1371,7 +1379,7 @@ impl Bot {
             common_placement: Arc::new(Mutex::new(None)),
             finite_work: Arc::default(),
             common_inventory_swap: Arc::new(Mutex::new(None)),
-            inventory_executor: Arc::default(),
+            inventory_executor,
             window_predictions: Arc::default(),
             common_inventory_click: Arc::new(Mutex::new(None)),
             common_crafting_take: Arc::new(Mutex::new(None)),

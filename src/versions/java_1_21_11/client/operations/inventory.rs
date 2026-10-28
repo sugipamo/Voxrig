@@ -978,6 +978,15 @@ pub(in crate::versions::java_1_21_11::client) fn changes_received(
     in_play: bool,
 ) -> Result<()> {
     use ids::play_clientbound as input;
+    if in_play {
+        // Every received packet: open own-action windows before any later
+        // selection write can make the main-hand slot ambiguous.
+        let session = state.snapshot_session();
+        let selected = state.operations.selected_hotbar.as_ref().map(|s| s.slot);
+        state
+            .inventory_executor
+            .own_actions_received(session, selected);
+    }
     if !in_play
         || !matches!(
             id,

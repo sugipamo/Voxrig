@@ -236,6 +236,50 @@ of correlation, not a claim that an untagged slot packet belonged to that entity
 The send outcome independently retains all its in-flight collect IDs, bounded
 to 1024. Reading a log never consumes its records or changes outcomes.
 
+### Own item use, placement, dig, drop and hand swap (I9)
+
+These are not inventory executor sends, but the server answers them with the
+same slot packets. The socket writer classifies each own play frame before it
+is written: use item, use on block (placement, bucket fill), dig start/finish,
+release use, selected drop and hand swap. The next received packet opens a
+window for it. A delta arriving inside that window at a slot the action can
+change carries `OwnAction { action, ordinal, interaction_sequence, locations }`:
+
+| action | scope |
+| --- | --- |
+| `use_item`, `use_on_block` | used hand: player slot 36+selection, or 45 |
+| `dig`, `drop_selected` | 36+selection |
+| `release_use_item`, `swap_hands` | 36+selection and 45 |
+
+`ordinal` orders own actions in the connection (from 1); on 1.21.11
+`interaction_sequence` is the frame's sequence, on 1.16.1 it is `None` and the
+window is identified by `ordinal` and receive order. `locations` lists only the
+changed in-scope locations. Like `Send`, this is a correlation hint, not proof
+of causal ownership: a `/give` into the selected slot inside the window is also
+tagged. A change at any slot outside every scope keeps `External`, also inside
+the same delta (`[OwnAction, External]`).
+
+The window is bounded by `INVENTORY_OWN_ACTION_WINDOW` (3 s from the write) and
+by the world; at most 1024 windows are retained. It does not close at the
+1.21.11 interaction ACK: eating/drinking consumption is decided by server ticks
+after the ACK. The selection is the current received or submitted selection;
+if a hotbar selection was written after the action and before its window
+opened, the selection last written before it is used, or the main hand is left
+out of scope instead of guessed. Effects outside the hand slots (a filled
+bucket moved to another slot, arrows consumed by a bow) remain `External`.
+Executor send comparison, `InventoryDivergence.causes` and every other cause
+are unchanged.
+
+`scripts/run_inventory_own_action_live.py` throws a snowball and places a block
+on both SHA-1-verified official jars, issuing an RCON `/give` inside the window;
+see the retained [evidence](evidence/inventory-own-action-live-20261028.json.gz).
+
+```sh
+cargo build -j2 --example climbing_control_probe
+python3 scripts/run_inventory_own_action_live.py --accept-eula \
+  --jars <dir with 1.16.1-server.jar and 1.21.11-server.jar> --output .local/own-action-live
+```
+
 Retention gaps return `ErrorKind::State`; future cursors return `InvalidInput`.
 World and active opening changes clear prior records and invalidate cursors
 before that boundary. Reused numeric window IDs never combine old/new openings.

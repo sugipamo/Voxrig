@@ -621,8 +621,20 @@ impl Bot {
         };
         drop(login_work);
         let health_log = Arc::default();
-        let session = Arc::new(Session {
+        let state = State {
             health_log: Arc::clone(&health_log),
+            connection_id: id,
+            identity: Some(identity),
+            trace,
+            ..State::default()
+        };
+        // Configuration/play serverbound IDs never reuse the own-action IDs.
+        writer.observe_own_actions(
+            MinecraftVersion::Java1_21_11,
+            state.inventory_executor.own_action_sink(),
+        );
+        let session = Arc::new(Session {
+            health_log,
             operational_dig: Arc::default(),
             id,
             ledger,
@@ -631,13 +643,7 @@ impl Bot {
                 stream: writer,
                 compression,
             })),
-            state: Mutex::new(State {
-                health_log,
-                connection_id: id,
-                identity: Some(identity),
-                trace,
-                ..State::default()
-            }),
+            state: Mutex::new(state),
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
