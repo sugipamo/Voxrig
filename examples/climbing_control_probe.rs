@@ -595,6 +595,37 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::to_value(record)?
             }
             "hand_swap_record" => serde_json::to_value(survival.hand_swap_record().await?)?,
+            "place_recipe" => 'place: {
+                use voxrig::client::crafting::RecipePlacementAmount;
+                let amount = match request["amount"].as_str() {
+                    Some("maximum") => RecipePlacementAmount::Maximum,
+                    _ => RecipePlacementAmount::Next,
+                };
+                let output = client.registry().item(request["output"].as_str().unwrap())?.id;
+                let context = client.received_crafting_context().await?
+                    .ok_or_else(|| anyhow::anyhow!("crafting context absent"))?;
+                let recipes = context.recipes();
+                // A revoked 1.21.11 entry is removed from the received catalogue.
+                let Some(entry) = recipes.entries().iter()
+                    .find(|e| e.output_items(recipes).is_ok_and(|items| items == [output])) else {
+                    break 'place serde_json::json!({"plan":null,"record":null,"error":"recipe entry absent"});
+                };
+                let plan = match context.recipe_placement_plan(entry.id(), amount) {
+                    Ok(plan) => plan,
+                    Err(error) => {
+                        break 'place serde_json::json!({"plan":null,"record":null,"error":error.to_string()});
+                    }
+                };
+                let summary = serde_json::json!({"unlocked":plan.unlocked(),"can_place":plan.can_place(),
+                    "can_request":plan.can_request(),"material_maximum":plan.material_maximum(),
+                    "receive_sequence":plan.receive_sequence()});
+                match survival.place_recipe(&plan).await {
+                    Ok(record) => serde_json::json!({"plan":summary,"record":record,"error":null}),
+                    Err(error) => serde_json::json!({"plan":summary,"record":null,
+                        "error":error.to_string(),"kind":format!("{:?}",error.kind())}),
+                }
+            }
+            "recipe_placement_record" => serde_json::to_value(survival.recipe_placement_record().await?)?,
             "inventory_move" => {
                 use std::future::Future;
                 use std::task::Poll;

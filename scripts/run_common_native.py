@@ -1286,7 +1286,8 @@ def run_recipe_result_merge(version, env, rcon, trace, report, probe_log, stderr
             if [first[k]['value']['item']['count'] for k in ('cursor_before','cursor_prediction','cursor_receipt')]!=[60,64,64] or not done['overflow_rejected']:
                 raise RuntimeError('actual held merge/capacity refusal evidence differs')
             clicks=[f for f in result['operation_frames'] if f['phase']=='play' and f['direction']=='serverbound' and f['packet_id']==(0x09 if version=='1.16.1' else 0x11)]
-            if len(clicks)!=5:raise RuntimeError('expected pickup, two result takes and two deposits; overflow must emit no click')
+            # The recipe request is followed by one no-op full-resync click (audit C3).
+            if len(clicks)!=6:raise RuntimeError('expected placement resync, pickup, two result takes and two deposits; overflow must emit no click')
             trace.expect_disconnect();stage(probe,messages,'b4_recipe_disconnect',result['records'])
             if probe.wait(timeout=15)!=0:raise RuntimeError('recipe placement consumer failed')
             result['authority_limits']='One common Client per mode/UI: native Maximum recipe placement, actual stick60 pickup, entire result4 merged to actual cursor64, second result rejected before I/O because it cannot wholly fit, explicit deposit, fresh empty-cursor take/deposit, empty grid/cursor, original table close, selection, disconnect. Exact independent native inventory64+4 and unchanged position; five click frames prove no overflow request or replay. Native full grid/result receipts confirm consumption and regeneration; no partial or shift crafting inferred.'
@@ -1342,7 +1343,8 @@ def run_recipe_result_transfer(version, env, rcon, trace, report, probe_log, std
             if transfer['inventory_output_increase']!=(12 if amount=='maximum' else 4) or transfer['inventory_after'] is None or transfer['cursor_receipt']['value']!=transfer['cursor_before']['value']:
                 raise RuntimeError('actual inventory gain or unchanged cursor differs')
             clicks=[f for f in result['operation_frames'] if f['phase']=='play' and f['direction']=='serverbound' and f['packet_id']==(0x09 if version=='1.16.1' else 0x11)]
-            if len(clicks)!=(1 if amount=='maximum' else 3):raise RuntimeError('native shift or ordinary cursor moves were repeated or missing')
+            # The recipe request is followed by one no-op full-resync click (audit C3).
+            if len(clicks)!=(2 if amount=='maximum' else 4):raise RuntimeError('native shift or ordinary cursor moves were repeated or missing')
             quick=[]
             for click in clicks:
                 body=bytes.fromhex(click['body_hex'])

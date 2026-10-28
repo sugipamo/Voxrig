@@ -315,6 +315,70 @@ is rewritten as the other. Table openings still require the exact original
 exercises this handoff and refuses a reopened table with the same numeric ID.
 The 16 ghost native cases above retain their original narrower fixture scope.
 
+## Ignored requests: `ObservedUnchanged` and `Expired`
+
+Vanilla sends **nothing** when it ignores a recipe request. In both 1.16.1
+(`ServerGamePacketListenerImpl.handlePlaceRecipe`, `ServerPlaceRecipe.recipeClicked`
+/ `handleRecipeClicked`) and 1.21.11 (`handlePlaceRecipe`,
+`ServerPlaceRecipe.placeRecipe` / `tryPlaceRecipe`) the handler returns without a
+packet for a spectator, another or invalid menu (1.16.1 also an unsynchronized
+one), an unknown or locked recipe, a 1.21.11 impossible placement, a grid that
+cannot be cleared outside creative, a matched grid that cannot increase, and a
+failed amount re-check. Only missing materials answer, with a ghost recipe after
+clearing the grid. Grid and inventory changes go out with the next tick's slot
+broadcast, not inside the handler (1.21.11 sends only the result slot there).
+Without a later boundary, an ignored request would stay `Pending` forever.
+
+Each request is therefore followed by one no-op full-resync click
+(`resync_dispatched`), in the same owned write: original window, slot -1, left
+PICKUP; 1.21.11 uses revision -1, 1.16.1 a deliberately unequal comparison stack.
+The server handles the request first, then answers the click with full contents
+that reflect it. The 1.16.1 `accepted=false` reply only orders those contents;
+the client acknowledges it as usual and never reads it as a refusal.
+
+`ObservedPlaced` and `ObservedGhost` now also wait for that boundary (the first
+full contents after the send; 1.16.1 after the reply), so the owner is held until
+the late full contents are applied. A plan captured afterwards keeps valid
+receipt ordinals; one captured earlier would be invalidated by them.
+
+A dispatched request becomes the terminal `RecipePlacementStage::ObservedUnchanged`
+when one fresh full-content boundary after the send still equals the pre-send
+receipts and no ghost was received:
+
+- every grid input and the result, and main/hotbar slots 9..44, at one receive
+  ordinal (`unchanged_boundary`) after `send.after_sequence`;
+- in 1.16.1, that ordinal follows the resync click's own transaction reply;
+- an empty cursor received at or after that ordinal (1.16.1 sends it right after).
+
+No `after` receipt is recorded and `ready()` stays false. The stage releases the
+placement owner (1.16.1 normal-dispatch actor) and completes the ledger; later
+receipts or interruptions do not rewrite it. A single slot packet, an older
+receipt or a changed value is never this boundary. Changed values at the boundary
+are a placement, a ghost or a conflict, handled as before.
+
+A record still `Pending` 5 s after it was retained (the inventory executor's bound)
+becomes `Expired`. The outcome is unknown and the server may still apply it; this
+is not a refusal. The connection ledger fails with `TransactionExpired`, so later
+work needs a new connection. `Expired` is not rewritten by later receipts or a
+disconnect. Both stages are additions to the `#[non_exhaustive]` enum.
+
+With a consistent client view, vanilla never ignores a request that Voxrig admits:
+it re-validates the same mode, menu, book, return capacity and increase rules.
+A divergent view (a revocation, mode or close still in flight) reaches the client
+before the resync contents and latches `RequiresInspection`, as before. Plugins and
+protection can still ignore an admitted request, which ends `ObservedUnchanged`.
+
+`scripts/run_recipe_placement_refusal_live.py` checks official 1.16.1 and 1.21.11
+on one connection each: a locked recipe is refused before I/O; no materials end
+`ObservedGhost`; one plank ends `ObservedPlaced`; a revocation the server applies
+while its notice is delayed in the trace proxy (original frames, only delayed) is
+ignored by the server, which sends no ghost or slot change and answers the resync
+with unchanged full contents, and the record ends `RequiresInspection` within the
+bound. Every request is followed by exactly one resync click.
+[Official-server outcomes](evidence/c3-recipe-placement-refusal-live-20261028.json.gz).
+`ObservedUnchanged` and `Expired` themselves are covered by unit and packet fixture
+tests in both versions.
+
 ## Entire result merged into a held cursor
 
 Both mode handles use the existing `take_crafting_result(&ReceivedCrafting)`; no

@@ -32,6 +32,17 @@ pub enum RecipePlacementStage {
     ObservedGhost,
     /// Persistent first ownership conflict or uncertain delivery.
     RequiresInspection,
+    /// Complete request and no-op resync frames, then one fresh full-content
+    /// boundary after the send (every input, the result, main/hotbar 9..44 at one
+    /// receive ordinal, and an empty cursor received with or after it; 1.16.1 also
+    /// after the resync's own transaction reply) still equals the pre-send receipts,
+    /// with no ghost display. The server processed the request without effect.
+    /// Terminal; releases the placement owner. Never derived from a protocol bool.
+    ObservedUnchanged,
+    /// Still `Pending` at the bounded response deadline. The outcome is unknown and
+    /// the server may still apply it; this is not a refusal. Terminal: the connection
+    /// ledger fails with `TransactionExpired`, so later work needs a new connection.
+    Expired,
 }
 /// Native recipe request submission facts, independent of actual placement.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -63,8 +74,23 @@ pub struct RecipePlacementRecord {
     pub requires_inspection: Option<String>,
     /// Historical operation status, independent of later inventory edits.
     pub stage: RecipePlacementStage,
+    /// Complete write of the one no-op full-resync click that follows the request.
+    /// Its full contents are the processed boundary for `ObservedUnchanged`.
+    pub resync_dispatched: bool,
+    /// Receive ordinal of the full contents that showed no effect.
+    /// Set only together with `ObservedUnchanged`.
+    pub unchanged_boundary: Option<u64>,
     #[serde(skip)]
     semantic: Arc<ItemContext>,
+    /// 1.16.1 receive ordinal of the resync click's own transaction reply.
+    #[serde(skip)]
+    pub(crate) resync_reply: Option<u64>,
+    /// First full-content boundary answering the resync click.
+    #[serde(skip)]
+    pub(crate) resync_boundary: Option<u64>,
+    /// Absolute response deadline, set when the record is retained for I/O.
+    #[serde(skip)]
+    pub(crate) deadline: Option<tokio::time::Instant>,
 }
 impl RecipePlacementRecord {
     pub(crate) fn window_id(&self) -> i32 {
@@ -73,14 +99,34 @@ impl RecipePlacementRecord {
             CraftingSource::Table { screen } => screen.window_id(),
         }
     }
+    /// Blocks other owners. `Expired` keeps blocking; its connection is failed.
     pub(crate) fn unresolved(&self) -> bool {
         !matches!(
             self.stage,
-            RecipePlacementStage::ObservedPlaced | RecipePlacementStage::ObservedGhost
+            RecipePlacementStage::ObservedPlaced
+                | RecipePlacementStage::ObservedGhost
+                | RecipePlacementStage::ObservedUnchanged
         )
     }
+    fn open(&self) -> bool {
+        matches!(
+            self.stage,
+            RecipePlacementStage::Pending | RecipePlacementStage::RequiresInspection
+        )
+    }
+    /// `Pending` past its deadline becomes `Expired` before any later evidence is read.
+    pub(crate) fn expire_due(&mut self) {
+        if self.stage == RecipePlacementStage::Pending
+            && self
+                .deadline
+                .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
+        {
+            self.stage = RecipePlacementStage::Expired;
+        }
+    }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
-        if self.unresolved() {
+        self.expire_due();
+        if self.open() {
             self.requires_inspection
                 .get_or_insert_with(|| reason.to_string());
             self.stage = RecipePlacementStage::RequiresInspection;
@@ -91,6 +137,9 @@ impl RecipePlacementRecord {
             && self.requires_inspection.is_none()
             && self.after.is_some()
             && self.inventory_after.is_some()
+            // Hold the owner until the resync's full contents: a plan captured
+            // earlier would be invalidated by their fresh receipt ordinals.
+            && (!self.resync_dispatched || self.resync_boundary.is_some())
     }
 }
 fn slot_equal(a: &ReceivedSlot, b: &ReceivedSlot) -> bool {
@@ -229,6 +278,11 @@ pub(crate) fn prepare(
         ghost: None,
         requires_inspection: None,
         stage: RecipePlacementStage::Pending,
+        resync_dispatched: false,
+        unchanged_boundary: None,
+        resync_reply: None,
+        resync_boundary: None,
+        deadline: None,
         semantic: Arc::new(ItemContext::new(
             current.inventory().registry_state().clone(),
             current.player(),
@@ -337,7 +391,8 @@ pub(crate) fn receive_with_ghost(
     current: &ReceivedCraftingContext,
     ghost: Option<&super::ReceivedRecipeGhost>,
 ) {
-    if !record.unresolved() || record.requires_inspection.is_some() {
+    record.expire_due();
+    if record.stage != RecipePlacementStage::Pending || record.requires_inspection.is_some() {
         return;
     }
     let result = (|| {
@@ -393,6 +448,9 @@ fn receive_inner(
     if !record.send.dispatched || current.receive_sequence() <= record.send.after_sequence {
         return Ok(());
     }
+    if let Some(full) = full_boundary(record, current)? {
+        record.resync_boundary.get_or_insert(full);
+    }
     let before = record.plan.source_context();
     if record.ghost.is_some() {
         for y in 0..current.grid().dimensions()[1] {
@@ -436,6 +494,11 @@ fn receive_inner(
         }
         record.after = Some(current.grid().clone());
         record.inventory_after = Some(current.inventory().clone());
+        return Ok(());
+    }
+    if let Some(boundary) = unchanged_boundary(record, current)? {
+        record.unchanged_boundary = Some(boundary);
+        record.stage = RecipePlacementStage::ObservedUnchanged;
         return Ok(());
     }
     let pattern = matching::resolve(before, record.plan.recipe())?;
@@ -496,6 +559,90 @@ fn receive_inner(
     record.after = Some(current.grid().clone());
     record.inventory_after = Some(current.inventory().clone());
     Ok(())
+}
+
+/// Vanilla handles the request before the following resync click on the same
+/// thread, and answers that click with full contents. Neither version sends any
+/// packet when it ignores a request (spectator, other/invalid menu, unknown or
+/// locked recipe, impossible placement, grid cannot be cleared, no increase), so
+/// only this boundary separates "processed without effect" from "still pending".
+/// Single slot updates never qualify; a changed value is not `ObservedUnchanged`.
+fn full_boundary(
+    record: &RecipePlacementRecord,
+    current: &ReceivedCraftingContext,
+) -> Result<Option<u64>> {
+    if !record.resync_dispatched
+        || (record.id.session.version == MinecraftVersion::Java1_16_1
+            && record.resync_reply.is_none())
+    {
+        return Ok(None);
+    }
+    let [w, h] = current.grid().dimensions();
+    let mut slots = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            slots.push(current.grid().input(x, y)?);
+        }
+    }
+    slots.push(current.grid().result());
+    for index in 9..45 {
+        slots.push(current.inventory().slot(index)?);
+    }
+    let Some(Some(first)) = slots.first() else {
+        return Ok(None);
+    };
+    let full = first.receive_sequence();
+    if full <= record.send.after_sequence || record.resync_reply.is_some_and(|reply| full <= reply)
+    {
+        return Ok(None);
+    }
+    let complete = slots
+        .iter()
+        .all(|slot| slot.is_some_and(|slot| slot.receive_sequence() == full));
+    // 1.21.11 carries the cursor in the same contents; 1.16.1 sends it right after.
+    let cursor = current
+        .inventory()
+        .cursor()
+        .is_some_and(|cursor| cursor.receive_sequence() >= full);
+    Ok((complete && cursor).then_some(full))
+}
+fn unchanged_boundary(
+    record: &RecipePlacementRecord,
+    current: &ReceivedCraftingContext,
+) -> Result<Option<u64>> {
+    let Some(full) = record.resync_boundary.filter(|_| record.ghost.is_none()) else {
+        return Ok(None);
+    };
+    if current.receive_sequence() < full {
+        return Ok(None);
+    }
+    let before = record.plan.source_context();
+    let [w, h] = before.grid().dimensions();
+    let mut pairs = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            pairs.push((current.grid().input(x, y)?, before.grid().input(x, y)?));
+        }
+    }
+    pairs.push((current.grid().result(), before.grid().result()));
+    for index in 9..45 {
+        pairs.push((
+            current.inventory().slot(index)?,
+            before.inventory().slot(index)?,
+        ));
+    }
+    // Every value at that boundary equals `before`.
+    let unchanged = pairs.iter().all(|(actual, old)| match (actual, old) {
+        (Some(actual), Some(old)) => {
+            actual.receive_sequence() == full && actual.value() == old.value()
+        }
+        _ => false,
+    });
+    let cursor = current
+        .inventory()
+        .cursor()
+        .is_some_and(|cursor| *cursor.value() == SlotKnowledge::Empty);
+    Ok((unchanged && cursor).then_some(full))
 }
 
 #[cfg(test)]
