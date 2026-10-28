@@ -2803,7 +2803,7 @@
     "data/client_api/entity_dimensions_oracle.json.gz": "f250e421e4d27d47e3aab530ef445dcec2fb680c4ee86f565d62cf1b91ec81f4",
     "data/entities.json": "5d50e5f819001980262faebd3984dff05cfb1c2e6101ec02d3a6ae4f34687cf7",
     "data/java_1_21_11/entity_dimensions.json": "556e7e28aabd7383ae5ebe87fe7226c211a8afd28ab9d7de54e69f14e4e54250",
-    "src/versions/table.rs": "b8c38fd0e8c91258ee0b0c7d5e19fe1b3af95245563e9e06b77a3fd6f093ee2a",
+    "src/versions/table.rs": "5d3a0bae67702574111bbc08869533fd94f0cb36548549dd066d960eb3dc9bb5",
     "scripts/generate_version_tables.py": "6787d466633ea2cb5029991826bed2734204c76b9f5dc4bb194aa55c751af575"
   }
 }

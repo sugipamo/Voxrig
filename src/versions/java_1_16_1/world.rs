@@ -676,6 +676,96 @@ impl World {
             y: direction.y / length,
             z: direction.z / length,
         };
+        use crate::client::blocks::{self, CellRaycast, RaycastPolicy};
+        let hit = blocks::walk(
+            [origin.x, origin.y, origin.z],
+            [direction.x, direction.y, direction.z],
+            max_distance,
+            |p| Some(self.block(p[0], p[1], p[2]).map(|id| (p, id))),
+            |&(p, id)| {
+                let shapes = std::borrow::Cow::Borrowed(shapes_for(id));
+                if shapes.is_empty()
+                    && target
+                        == Some(BlockPos {
+                            x: p[0],
+                            y: p[1],
+                            z: p[2],
+                        })
+                {
+                    Ok(std::borrow::Cow::Borrowed(&[[
+                        0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+                    ]]))
+                } else {
+                    Ok(shapes)
+                }
+            },
+            RaycastPolicy::LegacyVisibility {
+                stop_unloaded: target.is_some(),
+            },
+        )
+        .ok()?;
+        match hit {
+            CellRaycast::Hit {
+                position,
+                state: (_, state_id),
+                face,
+                point,
+                distance,
+            } => Some(BlockRaycastHit {
+                position: BlockPos {
+                    x: position[0],
+                    y: position[1],
+                    z: position[2],
+                },
+                state_id,
+                face: match face {
+                    crate::client::BlockFace::Down => BlockFace::Down,
+                    crate::client::BlockFace::Up => BlockFace::Up,
+                    crate::client::BlockFace::North => BlockFace::North,
+                    crate::client::BlockFace::South => BlockFace::South,
+                    crate::client::BlockFace::West => BlockFace::West,
+                    crate::client::BlockFace::East => BlockFace::East,
+                },
+                point: Vec3 {
+                    x: point[0],
+                    y: point[1],
+                    z: point[2],
+                },
+                distance,
+            }),
+            _ => None,
+        }
+    }
+
+    #[cfg(test)]
+    fn raycast_blocks_oracle(
+        &self,
+        origin: Vec3,
+        direction: Vec3,
+        max_distance: f64,
+        target: Option<BlockPos>,
+    ) -> Option<BlockRaycastHit> {
+        let length =
+            (direction.x * direction.x + direction.y * direction.y + direction.z * direction.z)
+                .sqrt();
+        if !length.is_finite()
+            || length <= 1.0e-12
+            || !origin.x.is_finite()
+            || !origin.y.is_finite()
+            || !origin.z.is_finite()
+            || origin.x.abs() > 30_000_000.0
+            || origin.z.abs() > 30_000_000.0
+            || origin.y.abs() > 2048.0
+            || !max_distance.is_finite()
+            || !(0.0..=1024.0).contains(&max_distance)
+        {
+            return None;
+        }
+        let direction = Vec3 {
+            x: direction.x / length,
+            y: direction.y / length,
+            z: direction.z / length,
+        };
         let mut x = origin.x.floor() as i32;
         let mut y = origin.y.floor() as i32;
         let mut z = origin.z.floor() as i32;
@@ -692,7 +782,9 @@ impl World {
                     .then(|| Aabb::block(x, y, z));
                 for shape in shapes
                     .iter()
-                    .map(|shape| shape.at(x, y, z))
+                    .map(|shape| {
+                        crate::versions::java_1_16_1::collision::RelativeAabb(*shape).at(x, y, z)
+                    })
                     .chain(target_cell)
                 {
                     let Some((distance, face)) = ray_aabb(origin, direction, shape) else {
@@ -892,7 +984,8 @@ impl World {
                         return None;
                     }
                     for shape in shapes_for(state) {
-                        let b = shape.at(x, y, z);
+                        let b = crate::versions::java_1_16_1::collision::RelativeAabb(*shape)
+                            .at(x, y, z);
                         if escape.min_x < b.max_x
                             && escape.max_x > b.min_x
                             && escape.min_y < b.max_y
@@ -979,11 +1072,13 @@ impl World {
                 for x in min_x..max_x {
                     let state = self.block(x, y, z)?;
                     let scaffolding = block_name(state) == Some("scaffolding");
-                    obstacles.extend(
-                        shapes_for(state)
-                            .iter()
-                            .map(|shape| (shape.at(x, y, z), scaffolding)),
-                    );
+                    obstacles.extend(shapes_for(state).iter().map(|shape| {
+                        (
+                            crate::versions::java_1_16_1::collision::RelativeAabb(*shape)
+                                .at(x, y, z),
+                            scaffolding,
+                        )
+                    }));
                 }
             }
         }
@@ -1529,6 +1624,7 @@ fn read_light_mask(
     Ok(target)
 }
 
+#[cfg(test)]
 fn dda_axis(origin: f64, direction: f64) -> (i32, f64, f64) {
     if direction > 1.0e-12 {
         let boundary = origin.floor() + 1.0;
@@ -1541,6 +1637,7 @@ fn dda_axis(origin: f64, direction: f64) -> (i32, f64, f64) {
     }
 }
 
+#[cfg(test)]
 fn ray_aabb(origin: Vec3, direction: Vec3, aabb: Aabb) -> Option<(f64, BlockFace)> {
     let axes = [
         (
@@ -3139,3 +3236,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod raycast_parity;

@@ -806,6 +806,60 @@ impl crate::client::adapter::CoreOps for Bot {
     }
 }
 
+impl Bot {
+    /// Walk received ids under the same gate as pose/world updates. Geometry is
+    /// registry-owned; only a hit is decoded into the public complete state.
+    pub(crate) async fn raycast_ids(
+        &self,
+        origin: [f64; 3],
+        direction: [f64; 3],
+        max_distance: f64,
+    ) -> Result<api::BlockRaycastObservation> {
+        use crate::client::blocks as b;
+        b::raycast_region(origin, direction, max_distance).volume()?;
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let dimension = player
+            .dimension
+            .ok_or_else(|| common_state("dimension height is unknown"))?;
+        let (bottom, top) = (dimension.min_y, dimension.min_y + dimension.height - 1);
+        let mut region = b::raycast_region(origin, direction, max_distance);
+        region.min[1] = region.min[1].clamp(bottom, top);
+        region.max[1] = region.max[1].clamp(bottom, top);
+        region.volume()?;
+        if region.min[1] < 0 || region.max[1] > 255 {
+            return Err(api::registry::invalid("region outside dimension height"));
+        }
+        if self.is_stopped() {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Disconnected,
+                anyhow::anyhow!("connection closed before observation"),
+            ));
+        }
+        let snapshot = self.world.lock().await.map_snapshot(|world| {
+            b::raycast_core(
+                origin,
+                direction,
+                max_distance,
+                |p| {
+                    Some(if p[1] < bottom || p[1] > top {
+                        Some(0)
+                    } else {
+                        world.block(p[0], p[1], p[2])
+                    })
+                },
+                |id| crate::versions::java_1_16_1::collision::ray_boxes(*id),
+                crate::versions::java_1_16_1::native_state,
+            )
+        });
+        Ok(api::BlockRaycastObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            result: snapshot.value?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -986,7 +1040,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn long_raycast_rejects_world_switch_between_height_and_capture() {
+    async fn long_raycast_is_atomic_with_world_switch() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
         super::super::common_motion::tests::seed_motion(&bot).await;
@@ -999,7 +1053,7 @@ mod tests {
                 .await
                 .is_err()
         );
-        // The fair gate queues reset behind the metadata read, before capture.
+        // The fair gate queues reset after the entire ray observation.
         let reset_bot = bot.clone();
         let mut reset = tokio::spawn(async move {
             let mut respawn = Vec::new();
@@ -1015,12 +1069,8 @@ mod tests {
                 .is_err()
         );
         drop(gate);
-        let error = timeout(Duration::from_secs(2), ray)
-            .await
-            .unwrap()
-            .unwrap_err();
-        assert_eq!(error.kind(), ErrorKind::State);
-        assert!(error.to_string().contains("world changed during raycast"));
+        let observation = timeout(Duration::from_secs(2), ray).await.unwrap().unwrap();
+        assert_eq!(observation.session.world_generation, 0);
         reset.await.unwrap();
         assert!(
             timeout(Duration::from_millis(30), packets.recv())

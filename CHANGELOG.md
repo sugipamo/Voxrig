@@ -9,6 +9,18 @@
 
 ## Unreleased
 
+- Speed up `Client::raycast_blocks` on Java 1.16.1 and 1.21.11 by walking
+  received state IDs under one observation lock and borrowing registry-owned
+  `StateBoxes`; only the hit state is decoded. Remove per-ray bounding-box
+  capture, decoded-state HashMap, and experimental environment switches.
+  Java 1.16.1 native world queries share the same walker and shape owner,
+  retaining their existing visibility/containment and boundary rules explicitly.
+  Queued world changes now follow a complete ray observation rather than
+  splitting its metadata and geometry reads. Unknown IDs are validated along
+  the ray, so corrupt off-ray cells no longer fail the common query; the native
+  world API retains its existing unknown-ID handling. Public signatures are unchanged.
+  See [raycast ownership and compatibility](docs/state-id-raycast.md).
+
 - Inventory sends that the server processed without an observed effect are now
   explicit. Add `InventoryDivergence::effect()` and `#[non_exhaustive]`
   `InventoryEffect { NoEffect, Different }`, derived only from the received

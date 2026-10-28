@@ -122,10 +122,11 @@ async fn common_long_raycast_retains_shapes_unloaded_and_bounds() {
 }
 
 #[tokio::test]
-async fn long_raycast_rejects_world_switch_between_height_and_capture() {
+async fn long_raycast_is_atomic_with_world_switch() {
     let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let client = crate::Client::from_java_1_21_11(api.bot.clone());
     let guard = session.state.lock().await;
+    let generation = guard.loading.generation;
     let mut ray = Box::pin(client.raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0));
     assert!(
         timeout(Duration::from_millis(20), ray.as_mut())
@@ -149,12 +150,8 @@ async fn long_raycast_rejects_world_switch_between_height_and_capture() {
             .is_err()
     );
     drop(guard);
-    let error = timeout(Duration::from_secs(2), ray)
-        .await
-        .unwrap()
-        .unwrap_err();
-    assert_eq!(error.kind(), ErrorKind::State);
-    assert!(error.to_string().contains("world changed during raycast"));
+    let observation = timeout(Duration::from_secs(2), ray).await.unwrap().unwrap();
+    assert_eq!(observation.session.world_generation, generation);
     reset.await.unwrap();
     assert!(
         timeout(Duration::from_millis(30), read_packet(&mut peer, None))

@@ -53,6 +53,7 @@ pub(crate) struct RegistryFns {
     pub native_state: fn(i32) -> Result<NativeBlockState>,
     pub state_id: fn(&NativeBlockState) -> Result<i32>,
     /// Cell-relative native collision boxes of a complete state.
+    #[cfg(test)]
     pub collision_boxes: fn(&NativeBlockState) -> Result<Vec<[f64; 6]>>,
     /// Native item id of an item name without its namespace.
     pub item_id: fn(&str) -> Result<i32>,
@@ -273,12 +274,10 @@ macro_rules! data_files {
     };
 }
 
+#[cfg(test)]
 fn legacy_collision_boxes(state: &NativeBlockState) -> Result<Vec<[f64; 6]>> {
     let id = super::java_1_16_1::state_id(state)?;
-    Ok(super::java_1_16_1::collision::shapes_for(id)
-        .iter()
-        .map(|aabb| aabb.bounds())
-        .collect())
+    Ok(super::java_1_16_1::collision::shapes_for(id).to_vec())
 }
 fn invalid(message: &str) -> crate::Error {
     crate::Error::new(crate::ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
@@ -300,6 +299,7 @@ fn modern_item_id(name: &str) -> Result<i32> {
 fn modern_item(value: i32) -> Result<(String, u32)> {
     super::java_1_21_11::operations::item_definition(value)
 }
+#[cfg(test)]
 fn modern_collision_boxes(state: &NativeBlockState) -> Result<Vec<[f64; 6]>> {
     Ok(super::java_1_21_11::raycast::collision_boxes(state)?.to_vec())
 }
@@ -329,6 +329,7 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
     registry: RegistryFns {
         native_state: super::java_1_16_1::native_state,
         state_id: super::java_1_16_1::state_id,
+        #[cfg(test)]
         collision_boxes: legacy_collision_boxes,
         item_id: legacy_item_id,
         item: legacy_item,
@@ -365,6 +366,7 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
     registry: RegistryFns {
         native_state: super::java_1_21_11::native_state,
         state_id: super::java_1_21_11::state_id,
+        #[cfg(test)]
         collision_boxes: modern_collision_boxes,
         item_id: modern_item_id,
         item: modern_item,

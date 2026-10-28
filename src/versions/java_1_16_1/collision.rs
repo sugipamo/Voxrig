@@ -4,14 +4,7 @@ use serde_json::Value;
 use std::{collections::HashMap, sync::OnceLock};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct RelativeAabb([f64; 6]);
-impl RelativeAabb {
-    /// Cell-relative min x/y/z then max x/y/z.
-    pub(crate) fn bounds(self) -> [f64; 6] {
-        self.0
-    }
-}
-
+pub(crate) struct RelativeAabb(pub(crate) [f64; 6]);
 impl RelativeAabb {
     pub fn at(self, x: i32, y: i32, z: i32) -> Aabb {
         Aabb {
@@ -40,21 +33,34 @@ struct ShapeData {
 }
 
 struct CollisionRegistry {
-    by_state: Vec<Vec<RelativeAabb>>,
+    by_state: crate::client::blocks::StateBoxes,
     names_by_state: Vec<String>,
 }
 static REGISTRY: OnceLock<CollisionRegistry> = OnceLock::new();
 
-pub(crate) fn shapes_for(state_id: i32) -> &'static [RelativeAabb] {
+pub(crate) fn shapes_for(state_id: i32) -> &'static [[f64; 6]] {
     if state_id < 0 {
         return &[];
     }
     REGISTRY
         .get_or_init(load)
         .by_state
-        .get(state_id as usize)
-        .map(Vec::as_slice)
+        .get(state_id)
         .unwrap_or(&[])
+}
+
+pub(crate) fn ray_boxes(id: i32) -> crate::Result<std::borrow::Cow<'static, [[f64; 6]]>> {
+    REGISTRY
+        .get_or_init(load)
+        .by_state
+        .get(id)
+        .map(std::borrow::Cow::Borrowed)
+        .ok_or_else(|| {
+            crate::Error::new(
+                crate::ErrorKind::Protocol,
+                anyhow::anyhow!("unknown block state ID {id}"),
+            )
+        })
 }
 
 pub(crate) fn block_name(state_id: i32) -> Option<&'static str> {
@@ -130,36 +136,36 @@ pub fn block_support_surface(state_id: i32) -> Option<BlockSupportSurface> {
     support_surface_from_shapes(shapes_for(state_id))
 }
 
-fn support_surface_from_shapes(shapes: &[RelativeAabb]) -> Option<BlockSupportSurface> {
+fn support_surface_from_shapes(shapes: &[[f64; 6]]) -> Option<BlockSupportSurface> {
     let valid = shapes.iter().all(|shape| {
-        shape.0.iter().all(|value| value.is_finite())
-            && shape.0[0] <= shape.0[3]
-            && shape.0[1] <= shape.0[4]
-            && shape.0[2] <= shape.0[5]
+        shape.iter().all(|value| value.is_finite())
+            && shape[0] <= shape[3]
+            && shape[1] <= shape[4]
+            && shape[2] <= shape[5]
     });
     if !valid {
         return None;
     }
     let unit_bounded = shapes.iter().all(|shape| {
-        shape.0[0] >= 0.0
-            && shape.0[1] >= 0.0
-            && shape.0[2] >= 0.0
-            && shape.0[3] <= 1.0
-            && shape.0[4] <= 1.0
-            && shape.0[5] <= 1.0
+        shape[0] >= 0.0
+            && shape[1] >= 0.0
+            && shape[2] >= 0.0
+            && shape[3] <= 1.0
+            && shape[4] <= 1.0
+            && shape[5] <= 1.0
     });
     if !unit_bounded {
         return Some(BlockSupportSurface::NotFullTop);
     }
     let rectangles = shapes
         .iter()
-        .filter(|shape| shape.0[1] < 1.0 && shape.0[4] == 1.0)
+        .filter(|shape| shape[1] < 1.0 && shape[4] == 1.0)
         .map(|shape| {
             (
-                shape.0[0].clamp(0.0, 1.0),
-                shape.0[3].clamp(0.0, 1.0),
-                shape.0[2].clamp(0.0, 1.0),
-                shape.0[5].clamp(0.0, 1.0),
+                shape[0].clamp(0.0, 1.0),
+                shape[3].clamp(0.0, 1.0),
+                shape[2].clamp(0.0, 1.0),
+                shape[5].clamp(0.0, 1.0),
             )
         })
         .filter(|(min_x, max_x, min_z, max_z)| min_x < max_x && min_z < max_z)
@@ -202,12 +208,12 @@ pub fn block_collision_shapes(state_id: i32) -> Option<Vec<BlockCollisionShape>>
         shapes_for(state_id)
             .iter()
             .map(|shape| BlockCollisionShape {
-                min_x: shape.0[0],
-                min_y: shape.0[1],
-                min_z: shape.0[2],
-                max_x: shape.0[3],
-                max_y: shape.0[4],
-                max_z: shape.0[5],
+                min_x: shape[0],
+                min_y: shape[1],
+                min_z: shape[2],
+                max_x: shape[3],
+                max_y: shape[4],
+                max_z: shape[5],
             })
             .collect(),
     )
@@ -241,12 +247,12 @@ fn load() -> CollisionRegistry {
                 continue;
             };
             if let Some(boxes) = data.shapes.get(&shape_id.to_string()) {
-                *slot = boxes.iter().copied().map(RelativeAabb).collect();
+                *slot = boxes.clone();
             }
         }
     }
     CollisionRegistry {
-        by_state,
+        by_state: crate::client::blocks::StateBoxes::new(by_state),
         names_by_state,
     }
 }
@@ -257,19 +263,16 @@ mod tests {
     #[test]
     fn registry_distinguishes_air_full_blocks_and_slabs() {
         assert!(shapes_for(0).is_empty());
-        assert_eq!(
-            shapes_for(1),
-            &[RelativeAabb([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])]
-        );
+        assert_eq!(shapes_for(1), &[[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]]);
         let ranges: Vec<BlockRange> =
             serde_json::from_str(include_str!("../../../data/block_state_ranges.json")).unwrap();
         let slab = ranges.iter().find(|r| r.name == "oak_slab").unwrap();
         assert!(
             shapes_for(slab.min_state_id as i32)
                 .iter()
-                .any(|shape| shape.0[4] == 0.5 || shape.0[1] == 0.5)
+                .any(|shape| shape[4] == 0.5 || shape[1] == 0.5)
         );
-        assert!(shapes_for(3968).iter().any(|shape| shape.0[4] == 1.5));
+        assert!(shapes_for(3968).iter().any(|shape| shape[4] == 1.5));
     }
 
     #[test]
@@ -304,8 +307,8 @@ mod tests {
     #[test]
     fn full_top_support_accepts_bounded_rectangle_unions_but_not_partial_shapes() {
         let halves = [
-            RelativeAabb([0.0, 0.0, 0.0, 0.5, 1.0, 1.0]),
-            RelativeAabb([0.5, 0.0, 0.0, 1.0, 1.0, 1.0]),
+            [0.0, 0.0, 0.0, 0.5, 1.0, 1.0],
+            [0.5, 0.0, 0.0, 1.0, 1.0, 1.0],
         ];
         assert_eq!(
             support_surface_from_shapes(&halves),
@@ -316,15 +319,15 @@ mod tests {
             Some(BlockSupportSurface::NotFullTop)
         );
         assert_eq!(
-            support_surface_from_shapes(&[RelativeAabb([0.0, 0.0, 0.0, 1.0, 0.5, 1.0])]),
+            support_surface_from_shapes(&[[0.0, 0.0, 0.0, 1.0, 0.5, 1.0]]),
             Some(BlockSupportSurface::NotFullTop)
         );
         assert_eq!(
-            support_surface_from_shapes(&[RelativeAabb([0.0, 0.0, 0.0, 1.0, 1.5, 1.0])]),
+            support_surface_from_shapes(&[[0.0, 0.0, 0.0, 1.0, 1.5, 1.0]]),
             Some(BlockSupportSurface::NotFullTop)
         );
         assert_eq!(
-            support_surface_from_shapes(&[RelativeAabb([0.0, 0.0, 0.0, f64::NAN, 1.0, 1.0,])]),
+            support_surface_from_shapes(&[[0.0, 0.0, 0.0, f64::NAN, 1.0, 1.0,]]),
             None
         );
     }
