@@ -6109,7 +6109,7 @@ impl Bot {
             0x5b => self.receive_tags(&p, packet_sequence).await?,
             _ => {}
         }
-        self.body_received(id, packet_sequence).await;
+        self.body_received(id, &p, packet_sequence).await;
         self.commit_received_snapshot(id, &p, packet_sequence)
             .await?;
         self.common_dismount_context_received().await;
