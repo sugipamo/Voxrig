@@ -22,6 +22,13 @@
   instead of a 3-second `ErrorKind::Timeout`. New stage variants are additive on
   `#[non_exhaustive]` enums. Audit I1/I2/I3. See
   [no-effect sends](docs/inventory-divergence.md#no-effect-sends).
+- Body `UseItem` reports `Corrected { InventoryResync }` only for an original
+  full-content packet of the player inventory window (0) on both Java 1.16.1 and
+  1.21.11. A container window's WINDOW_ITEMS / ContainerSetContent (for example an
+  open chest being resynchronized) no longer marks the use as corrected; such uses
+  now finish `Accepted`. Vanilla's own use-item resync of window 0 still corrects,
+  also while a container is open. Behaviour change only; no signature changes.
+  See [UseItem inventory resync](docs/design/body-api.md#useitem-の-inventory-resync).
 - Java 1.21.11 selected drop and hand swap no longer stay `Pending` forever
   (audit I6/I7). A record whose fresh full player contents after the send still
   show the original hands/selected stack and cursor ends as the new terminal
