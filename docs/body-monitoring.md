@@ -1,4 +1,4 @@
-# Body の遅延訂正監視（Java 1.16.1）
+# Body の遅延訂正監視（Java 1.16.1 / 1.21.11）
 
 `Body::action_observation(id)` は、操作結果と後追い監視の完全性を別々に返す。
 `HeadlessBody` の同名メソッドも利用できる。送信や再試行は行わない。
@@ -8,8 +8,11 @@
 - `outcome`: 観測できた最初の後発 Corrected、または当時の結果。
 - `monitoring`: 証拠をどこまで確認できたか。操作を Rejected に変更しない。
 
-`BodyBackend` の新メソッドは既定で Unsupported。Java 1.21.11 の
-`HeadlessBody` も新メソッドに Unsupported を返す。既存の同版処理は変更しない。
+`BodyBackend` の新メソッドは既定で Unsupported。`HeadlessBody` は Java 1.16.1 と
+1.21.11 の両方で対応し、両版は同じ証拠 reducer と監視状態を共有する。1.21.11 の
+証拠は `src/versions/java_1_21_11/client/operations/body.rs` が元の
+BlockChange / chunk unload / 自位置訂正 / 選択slot / WindowItems / respawn・login・
+再構成から記録する。
 
 | monitoring | 意味・上位の処理 |
 |---|---|
@@ -44,8 +47,13 @@ monitor log の eviction は `MonitorChanges.gap=true`。外側の
 古いaction IDや別backend IDの照会も明示的な InvalidInput。
 
 status/events/monitorの読取時に更新する方式であり、バックグラウンド通知ではない。
-1.16.1 の既存 `events_after` と send-and-trust の `action_status` /
+両版の既存 `events_after` と send-and-trust の `action_status` /
 `action_outcome` も新しい監視経路を通り、失効を monitor log に書く。
+これらの戻り値は従来どおり当時の結果または後発 Corrected であり、gap・world 変更・
+chunk 失効・取得 timeout/エラーでも Accepted のまま返りうる。Accepted は
+「訂正がなかった」ことの証明ではないため、完全性は `action_observation` の
+`monitoring` で読む。1.21.11 の旧経路は以前、これらの失効を記録せずに黙って
+Accepted を返し、Unknown（chunk/world 失効）も捨てていた。
 普通の `submit` の `action_status` は従来どおり不変の当時の結果を返す。
 監視のためには新APIを購読する。ログ自体の欠落時には保持されているIDを
 `action_observation` で読み直す。失効情報はIDに残るが、期限切れIDや欠落した
@@ -85,16 +93,23 @@ let next = changes.cursor;
 
 ## 検証
 
-1.16.1 fixture は内部4096件のeviction、取得timeout/エラーと回復、world/chunk
+1.16.1 と 1.21.11 の fixture は内部4096件のeviction、取得timeout/エラーと回復、world/chunk
 境界、Unknownの理由保持、普通のsubmitの後発訂正、並行読取と重複抑制、
-monitor log eviction/ページング/cursor検査を確認する。
-公式1.16.1 LIVEは `scripts/run_body_monitor_live.py`。既存の
+monitor log eviction/ページング/cursor検査を確認する。1.21.11 は TCP placement
+fixture（`src/versions/java_1_21_11/client/operations/placement/tests/body_monitor.rs`）
+で訂正・chunk失効・設置結果に元の POSITION / BLOCK_CHANGE / UNLOAD_CHUNK / ACK
+packet を使う（大量の無関係な証拠は受信側ログへ直接追加、world 変更は世代の更新）。
+send-and-trust の設置が Accepted 後に元の air へ戻される訂正も確認する。
+公式1.16.1 / 1.21.11 LIVEは `scripts/run_body_monitor_live.py`。既存の
 `run_climbing_control` ハーネスでSHA-1確認済み公式サーバー、RCON、元packet
 プロキシを使い、当時Acceptedの保持、実teleport訂正、内部証拠gap、world変更、
-専用ログの欠落/ページングを確認する。timeout/取得エラーはfixtureで決定的に確認。
+専用ログの欠落/ページングを確認する（`--version 1.21.11` で同じ4チェック）。
+timeout/取得エラーはfixtureで決定的に確認。
 
 2026-10-27 の [LIVE証跡](evidence/body-monitor-live-1.16.1-20261027.json.gz)
-は全4チェックが pass、trace error は0件。公式server SHA-1、probe binaryと
+は全4チェックが pass、trace error は0件。1.21.11 の
+[LIVE証跡](evidence/body-monitor-live-1.21.11-20261027.json.gz) も同じ4チェックが
+pass、trace error は0件。公式server SHA-1、probe binaryと
 関連sourceのSHA-256、RCONと元packetの証拠を含む。
 
 [4構成の検証結果](evidence/body-monitor-validation-20261027.json) に、実行コマンド、

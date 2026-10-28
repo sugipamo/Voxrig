@@ -295,10 +295,10 @@ ACK だけでも slot 更新だけでも次を送らず、期限後は元の cli
 close の完全送信は SubmittedClose であり、受信 opening/cursor や close echo を生成しない。
 署名・最小例・BREAKING な native 受信タイミング変更は [0.3 migration](../migration-0.3.md) を参照。
 
-## 遅延訂正監視の完全性（1.16.1）
+## 遅延訂正監視の完全性（1.16.1 / 1.21.11）
 
 `action_observation` は当時の acceptance と後発 outcome、monitoring を分離する。
 `monitor_changes_after` は内部証拠gap、world/chunk失効、一時的取得失敗を
 専用の有界ログで公開する。既存 `BodyEvents.gap` は通常イベントのevictionのみ。
 詳細と回復手順は [Body monitoring](../body-monitoring.md)。新APIはadditiveで、
-1.21.11はUnsupported。旧結果を永続保証として使わず、上位は監視の完全性も読む。
+1.16.1 と 1.21.11 の `HeadlessBody` が対応する。旧結果を永続保証として使わず、上位は監視の完全性も読む。
