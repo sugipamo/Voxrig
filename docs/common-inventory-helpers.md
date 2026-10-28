@@ -1,6 +1,6 @@
 # inventory の補助（`move_inventory`・`compact_inventory`・`fill_crafting_grid`・`craft_once`・`craft_once_checked`）
 
-共通の `Survival::click_inventory`（通常の左・右クリック）と `transfer_crafting_result` を組み合わせた補助です。両版とも同じ手順で動きます。各クリックは、その記録が `Pending` を抜ける（受信した結果がそろう）まで最大 3 秒待ってから次へ進みます。`ObservedClicked` 以外で終わったクリックはエラーになり、そこで止まります。
+共通の `Survival::click_inventory`（通常の左・右クリック）と `transfer_crafting_result` を組み合わせた補助です。両版とも同じ手順で動きます。各クリックは、その記録が `Pending` を抜ける（受信した結果がそろう）まで最大 3 秒待ってから次へ進みます。`ObservedClicked` 以外で終わったクリックはエラーになり、そこで止まります。サーバーが処理した全量境界が送信前と同じだったクリック（`ObservedUnchanged`）は `ErrorKind::Rejected`（`click on slot N had no effect: full received boundary unchanged`）で、3 秒待った後の `ErrorKind::Timeout` にはなりません。`Timeout` は、期限までに応答・全量境界がそろわなかった場合だけです。
 
 ## `move_inventory(&mut record)`
 
@@ -34,6 +34,7 @@ result?;
 
 recordは呼出側が保持します。futureをdropしても既に保持した子と完了段階は残り、
 親は`Stopped`になります。各回の3秒timeout、送信不確実性、前提・screenの変更でも止まります。
+子クリックが`ObservedUnchanged`（全量境界が送信前と同じ）なら、timeoutではなく`ErrorKind::Rejected`です。
 rollback・再送・別slotへの迂回は行わず、cursorにstackが残る場合があります。
 `Stopped`のrecordを再実行できません。期限後にserverが適用する場合もあるため、
 新しい操作の前に受信在庫と子recordを照合してください。

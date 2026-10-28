@@ -150,6 +150,53 @@ follows the existing lifetime. Fresh capture/comparison and remaining swap plann
 are bounded local work over 46 player slots plus cursor, without another owner or
 server round trip for hydration.
 
+## No-effect sends
+
+Voxrig never writes predicted slots, so a send the server refused (for example a
+non-armor item placed into an armor slot, or a click from a spectator) does not
+show up as a change being undone. Instead, the server-processed boundary simply
+still equals `before`. `InventoryDivergence::effect()` classifies this explicitly:
+
+```rust,ignore
+#[non_exhaustive]
+pub enum InventoryEffect { NoEffect, Different }
+impl InventoryDivergence { pub fn effect(&self) -> InventoryEffect; }
+```
+
+`NoEffect` means `actual` is empty at the response/full-state boundary that ended
+the send (every captured location still holds its pre-send value), and every
+intended location was received there. `Different` covers everything else,
+including an intended location that is still unknown. The classification uses
+received values only: the Java 1.16.1 `Rejected` hint is on every legacy click
+because Voxrig deliberately sends a mismatching comparison stack, so it is never
+the deciding signal. A transient external change that was restored before the
+boundary keeps its `External` hint and is still `NoEffect`.
+
+When an ordinary (non-crafting) send ends `NoEffect` and no hint was received,
+`causes` is now **empty**. It previously fell back to `[External]`, so Java
+1.21.11 labelled the caller's own no-op click as an external change. Crafting
+sends keep the old fallback; their strict take record owns that outcome.
+
+The strict click/transfer record bound to the same pre-send boundary
+(`Survival::click_inventory`, `transfer_inventory`, and the strict record created
+by `send_inventory_click`/`send_inventory_transfer`) then ends at the terminal
+`InventoryClickStage::ObservedUnchanged` / `InventoryTransferStage::ObservedUnchanged`
+instead of staying `Pending`. A record that already holds a fresh changed receipt
+or a latched conflict keeps its stage. Inventory helpers report this as
+`ErrorKind::Rejected` instead of a 3-second `ErrorKind::Timeout`.
+
+[Official-server LIVE evidence](evidence/inventory-no-effect-live-20261027.json.gz)
+holds one original click while RCON switches the player to spectator, so vanilla
+processes it without applying it. Java 1.21.11 resends full contents and answers
+the fence: `Diverged`, `NoEffect`, empty `causes`. Java 1.16.1 refreshes the
+container without a transaction reply. The send becomes `ResyncRequired`, and the
+explicit resync ends `Diverged`/`NoEffect` with `TimedOutResync` and `Rejected`.
+In both cases the strict record latches `RequiresInspection` because the received
+game mode changed. That conservative stage takes precedence over `ObservedUnchanged`.
+Reproduce with `cargo build --locked --example climbing_control_probe` and
+`flock ~/logs/voxrig-live.lock python3 scripts/run_inventory_no_effect_live.py
+--accept-eula --output .local/no-effect-live`.
+
 ## Read received differences with a cursor
 
 ```rust,no_run

@@ -125,6 +125,23 @@ impl Executor {
         }
         Ok(self.divergence.clone())
     }
+    /// `(session, after_sequence)` of the current ordinary send when its full
+    /// boundary ended `Diverged` with no observed effect. Strict records bound
+    /// to the same pre-send boundary use it as their terminal unchanged proof.
+    pub(crate) fn unchanged_boundary(&self) -> Option<(SessionStamp, u64)> {
+        let record = self
+            .current
+            .as_ref()
+            .filter(|r| r.status == InventorySendStatus::Diverged && !r.resync)?;
+        self.divergence
+            .as_ref()
+            .filter(|d| {
+                d.send == record.id
+                    && matches!(d.intended, super::InventoryIntendedChange::Exact { .. })
+                    && d.effect() == super::InventoryEffect::NoEffect
+            })
+            .map(|_| (record.id.session, record.after_sequence))
+    }
     pub(crate) fn busy(&self) -> bool {
         self.current.as_ref().is_some_and(|r| {
             !matches!(

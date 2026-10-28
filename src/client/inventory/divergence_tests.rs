@@ -521,3 +521,81 @@ fn collect_hint_does_not_attach_to_arbitrary_later_give() {
         [InventoryCause::External]
     );
 }
+
+#[test]
+fn unchanged_full_boundary_is_no_effect_without_inventing_external() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for case in 0..4 {
+            let mut before = snapshot(version, 10);
+            before.player_slots[9] = Some(received(item(version, "minecraft:stone", 3), 10));
+            let mut expected = before.clone();
+            expected.set(InventoryLocation::Player { slot: 9 }, SlotKnowledge::Empty);
+            expected.set(
+                InventoryLocation::Cursor,
+                item(version, "minecraft:stone", 3),
+            );
+            let mut e = Executor::default();
+            let id = begin(&mut e, &before, expected, 3);
+            if version == MinecraftVersion::Java1_16_1 {
+                // Voxrig's deliberate mismatch: present on every legacy click.
+                e.rejected();
+            }
+            // Fresh receipts with the pre-send values: a server-processed no-op.
+            let mut current = before.clone();
+            for value in current.player_slots.iter_mut().flatten() {
+                value.source = crate::client::ValueSource::Received { sequence: 12 };
+            }
+            current.cursor = Some(received(SlotKnowledge::Empty, 12));
+            current.receive_sequence = 12;
+            match case {
+                // A transient external change, restored before the boundary.
+                1 => {
+                    let mut temporary = before.clone();
+                    temporary.player_slots[19] =
+                        Some(received(item(version, "minecraft:dirt", 1), 11));
+                    temporary.receive_sequence = 11;
+                    e.receive(temporary, false);
+                }
+                // Partial: an unrelated slot really changed.
+                2 => {
+                    current.player_slots[19] =
+                        Some(received(item(version, "minecraft:dirt", 1), 12))
+                }
+                // The intended source is unknown at the boundary.
+                3 => current.player_slots[9] = None,
+                _ => {}
+            }
+            finish(&mut e, id, 3, current);
+            assert_eq!(e.record().unwrap().status, InventorySendStatus::Diverged);
+            let d = e.divergence(id).unwrap().unwrap();
+            let legacy = version == MinecraftVersion::Java1_16_1;
+            match case {
+                0 => {
+                    assert_eq!(d.effect(), InventoryEffect::NoEffect);
+                    assert_eq!(
+                        d.causes,
+                        if legacy {
+                            vec![InventoryCause::Rejected]
+                        } else {
+                            Vec::new()
+                        }
+                    );
+                    assert_eq!(e.unchanged_boundary(), Some((id.session(), 10)));
+                }
+                1 => {
+                    // Received hints are kept; the net effect is still none.
+                    assert_eq!(d.effect(), InventoryEffect::NoEffect);
+                    assert!(d.causes.contains(&InventoryCause::External));
+                    assert_eq!(e.unchanged_boundary(), Some((id.session(), 10)));
+                }
+                _ => {
+                    assert_eq!(d.effect(), InventoryEffect::Different, "case={case}");
+                    assert!(d.causes.contains(&InventoryCause::External));
+                    assert_eq!(d.causes.contains(&InventoryCause::Rejected), legacy);
+                    assert_eq!(e.unchanged_boundary(), None);
+                }
+            }
+            assert!(!e.busy());
+        }
+    }
+}
