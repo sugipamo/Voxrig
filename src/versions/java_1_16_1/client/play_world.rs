@@ -230,12 +230,47 @@ impl Bot {
         Ok(())
     }
 
+    pub(super) async fn maintain_chunk_capacity(
+        &self,
+        incoming: Option<[i32; 2]>,
+    ) -> Result<usize> {
+        let view = self.common_receipts.lock().await.context.world_view.clone();
+        let body = if *self.positioned.lock().await {
+            let p = self.player.lock().await;
+            Some([
+                (p.x.floor() as i32).div_euclid(16),
+                (p.z.floor() as i32).div_euclid(16),
+            ])
+        } else {
+            None
+        };
+        let removed = self.world.lock().await.retain_columns(
+            self.connection_options.chunk_capacity,
+            &view,
+            body,
+            incoming,
+        )?;
+        for [x, z] in removed {
+            self.advance_block_geometry_revision();
+            self.common_mining_chunk_changed([x, z]).await;
+            self.common_placement_chunk_changed([x, z]).await;
+            self.body_chunk_received([x, z]).await;
+            self.emit(Event::ChunkUnloaded { x, z });
+        }
+        Ok(self
+            .connection_options
+            .chunk_capacity
+            .resolve(view.distance.as_ref().map(|v| v.value))?)
+    }
+
     pub(super) async fn receive_chunk_data(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
-        let (x, z) = self
-            .world
-            .lock()
-            .await
-            .apply_chunk(p, self.connection_options.max_chunks)?;
+        let mut c = std::io::Cursor::new(p);
+        let column = [
+            c.read_i32::<byteorder::BigEndian>()?,
+            c.read_i32::<byteorder::BigEndian>()?,
+        ];
+        let cap = self.maintain_chunk_capacity(Some(column)).await?;
+        let (x, z) = self.world.lock().await.apply_chunk(p, cap)?;
         self.world
             .lock()
             .await
@@ -250,11 +285,10 @@ impl Bot {
     }
 
     pub(super) async fn receive_light_update(&self, p: &[u8]) -> Result<()> {
-        let (x, z) = self
-            .world
-            .lock()
-            .await
-            .apply_light(p, self.connection_options.max_chunks)?;
+        let mut rest = p;
+        let column = [get_varint(&mut rest)?, get_varint(&mut rest)?];
+        let cap = self.maintain_chunk_capacity(Some(column)).await?;
+        let (x, z) = self.world.lock().await.apply_light(p, cap)?;
         self.world_updated.notify_waiters();
         self.emit(Event::ChunkLightUpdated { x, z });
         Ok(())

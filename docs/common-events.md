@@ -37,7 +37,7 @@ loop {
 | `EventKind` | 1.16.1（既存`Event`からの対応） | 1.21.11（パケット） |
 | --- | --- | --- |
 | `BlocksChanged { min, max }` | `BlockChanged`、`DiggingAcknowledged`、`BlockEntityUpdated`、multi-block変更、爆発の非空消失座標一覧（変更位置の範囲） | `BLOCK_CHANGE`、`TILE_ENTITY_DATA`、`MULTI_BLOCK_CHANGE`（section全体の範囲） |
-| `ChunkLoaded` / `ChunkUnloaded` | `ChunkLoaded` / `ChunkUnloaded` | `MAP_CHUNK` / `UNLOAD_CHUNK` |
+| `ChunkLoaded` / `ChunkUnloaded` | `ChunkLoaded` / `ChunkUnloaded` (including local cache eviction) | `MAP_CHUNK` / `UNLOAD_CHUNK` |
 | `InventoryChanged` | `InventoryUpdated`、`SlotUpdated`、`HeldItemChanged` | window 0の`WINDOW_ITEMS`/`SET_SLOT`、`SET_PLAYER_INVENTORY`、`SET_CURSOR_ITEM`、`HELD_ITEM_SLOT` |
 | `ScreenChanged` | `WindowOpened`、`WindowClosed`、`WindowProperty`、`MerchantOffers` | それ以外のwindowの`WINDOW_ITEMS`/`SET_SLOT`、`OPEN_WINDOW`、`CLOSE_WINDOW`、`CRAFT_PROGRESS_BAR` |
 | `PlayerChanged` | `Position`、`PositionCorrection`、`Vitals`、`Experience`、`GameStateChange`、`SurvivalStateUpdated`、自分宛ての速度 `0x46` | `POSITION`、`UPDATE_HEALTH`、`EXPERIENCE`、`ABILITIES`、`GAME_STATE_CHANGE`、自分宛ての`ENTITY_VELOCITY`（[速度上書き](own-velocity.md)） |
@@ -245,7 +245,7 @@ async fn connect() -> Result<(Client, Receiver<NativeEvent>)> {
     let mut config = ConnectionConfig::offline(
         Server::default(), "AgentOne", MinecraftVersion::Java1_16_1,
     );
-    config.limits.max_chunks = 256;
+    config.limits.chunk_capacity = voxrig::client::ChunkCapacity::Fixed(1058);
     config.limits.native_event_channel_capacity = Some(8192);
     let client = Client::connect(config).await?;
     // features = ["native"] の場合、同じtransportの元イベント源を購読できる。
@@ -296,3 +296,9 @@ python3 scripts/run_native_event_capacity.py --accept-eula \
 前者は依存地形・経路の無効化、後者は元の成否とactionの履歴に使う。
 `successful=true`は除去成功の証明ではない。現在値は再観測する。
 詳細は[掘削ACKの訂正と結果](digging-ack-corrections.md)を参照。
+
+Local cache eviction on both versions is observed through
+[`Client::chunk_cache`](chunk-capacity.md), with session/epoch, total loss and
+the last eviction's received view and cap. Legacy native/common ChunkUnloaded
+notifications also describe local retirement; they do not prove that an
+UNLOAD_CHUNK packet arrived.

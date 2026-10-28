@@ -253,7 +253,13 @@ impl State {
         );
     }
     // Receive, trace and apply share a single boundary for live operation and replay.
-    fn receive(&mut self, id: i32, payload: &[u8], max_chunks: usize) -> anyhow::Result<Responses> {
+    fn receive(
+        &mut self,
+        id: i32,
+        payload: &[u8],
+        chunk_capacity: impl Into<crate::client::ChunkCapacity>,
+    ) -> anyhow::Result<Responses> {
+        let chunk_capacity = chunk_capacity.into();
         if self.failure.is_some() {
             bail!("cannot apply packets after a failed receive");
         }
@@ -306,7 +312,7 @@ impl State {
         let in_play = self.phase == Phase::Play;
         let result = match self.phase {
             Phase::Configuration => apply_configuration(self, id, payload),
-            Phase::Play => apply_play(self, id, payload, max_chunks),
+            Phase::Play => apply_play(self, id, payload, chunk_capacity),
         }
         .and_then(|responses| {
             self.commit_received_snapshot(id, payload, in_play)?;
@@ -820,6 +826,9 @@ impl Session {
             return outbound;
         }
         if let Some(error) = &state.failure {
+            if let Some(capacity) = error.chunk_capacity() {
+                return Err(capacity.clone().into());
+            }
             return Err(Error::new(error.kind(), anyhow::anyhow!("{error}")));
         }
         outbound
@@ -863,7 +872,8 @@ impl Session {
                 {
                     self.ledger.set_ready(false);
                 }
-                let mut responses = state.receive(packet.0, &packet.1, self.limits.max_chunks)?;
+                let mut responses =
+                    state.receive(packet.0, &packet.1, self.limits.chunk_capacity)?;
                 self.ledger
                     .set_ready(state.ready && state.phase == Phase::Play);
                 self.observe_stop_context(&state);
@@ -1151,12 +1161,39 @@ fn apply_spawn_info(
     Ok(())
 }
 
+fn retain_columns(
+    state: &mut State,
+    policy: crate::client::ChunkCapacity,
+    incoming: Option<[i32; 2]>,
+) -> anyhow::Result<usize> {
+    let body = state.position.map(|p| {
+        [
+            (p[0].floor() as i32).div_euclid(16),
+            (p[2].floor() as i32).div_euclid(16),
+        ]
+    });
+    let removed = state
+        .world
+        .retain_columns(policy, &state.context.world_view, body, incoming)?;
+    for chunk in removed {
+        operations::body::chunk(state, chunk);
+        if let Some(capture) = &mut state.recording {
+            capture.chunk_changed(chunk);
+        }
+        state.reconstruction.chunk_replaced(chunk);
+        operations::mining_chunk_changed(state, chunk);
+        operations::placement_chunk_changed(state, chunk);
+    }
+    Ok(policy.resolve(state.context.world_view.distance.as_ref().map(|v| v.value))?)
+}
+
 fn apply_play(
     state: &mut State,
     id: i32,
     payload: &[u8],
-    max_chunks: usize,
+    chunk_capacity: impl Into<crate::client::ChunkCapacity>,
 ) -> anyhow::Result<Responses> {
+    let chunk_capacity = chunk_capacity.into();
     use ids::{play_clientbound as input, play_serverbound as output};
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
@@ -1178,6 +1215,12 @@ fn apply_play(
     }
     entity::receive(state, id, payload)?;
     if context::receive(state, id, payload)? {
+        if matches!(
+            id,
+            input::UPDATE_VIEW_POSITION | input::UPDATE_VIEW_DISTANCE
+        ) {
+            retain_columns(state, chunk_capacity, None)?;
+        }
         return Ok(responses);
     }
     if operations::receive(state, id, payload)? {
@@ -1411,7 +1454,8 @@ fn apply_play(
         }
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
-            let pistons = state.world.load(payload, max_chunks)?;
+            let maximum = retain_columns(state, chunk_capacity, Some(chunk))?;
+            let pistons = state.world.load(payload, maximum)?;
             operations::body::chunk(state, chunk);
             state.world.stamp_context(chunk, state.sequence);
             operations::mining_chunk_changed(state, chunk);
@@ -1429,7 +1473,7 @@ fn apply_play(
         input::CHUNK_BIOMES => {
             state
                 .world
-                .update_biomes(payload, max_chunks, state.sequence)?;
+                .update_biomes(payload, chunk_capacity.maximum(), state.sequence)?;
         }
         input::BLOCK_CHANGE => {
             let changes = state.world.block_change(payload)?;

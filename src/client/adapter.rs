@@ -80,6 +80,7 @@ pub(crate) type InventoryMoveCapture = (
 
 /// Connection identity, received-state observation and the basic one-shot actions.
 pub(crate) trait CoreOps {
+    async fn chunk_cache(&self) -> Result<super::ChunkCacheObservation>;
     async fn connection_identity(&self) -> Result<ConnectionIdentity>;
     async fn server_registry_state(&self) -> Result<ServerRegistryObservation>;
     async fn player_state(&self) -> Result<PlayerObservation>;

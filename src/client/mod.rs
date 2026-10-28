@@ -5,7 +5,7 @@
 //! [`Client::server_registry_state`], [`Client::screen_state`],
 //! [`Client::received_recipes`], [`Client::received_recipe_ghost`],
 //! [`Client::received_crafting_context`], [`Client::recipe_book_materials`],
-//! [`Client::received_crafting`], [`Client::capture`] and [`Client::observe_region`],
+//! [`Client::received_crafting`], [`Client::chunk_cache`], [`Client::capture`] and [`Client::observe_region`],
 //! plus the [`Survival::player_state`] and [`Creative::player_state`] wrappers.
 //! These reads never send packets, admit writes, initiate cleanup, or advance or
 //! reconcile work. The guarantee is that the read itself causes no sends: a read
@@ -40,7 +40,9 @@ pub use resource_pack::ResourcePackRequest;
 mod wait;
 pub use chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
 mod capabilities;
+pub mod chunk_capacity;
 mod config;
+pub use chunk_capacity::{ChunkCacheObservation, ChunkCapacity, ChunkCapacityError, ChunkEviction};
 pub(crate) mod constructor;
 pub mod container;
 pub mod context;
@@ -328,7 +330,7 @@ pub mod prelude {
         UseItemRefusal, ValueSource,
     };
     pub use super::{
-        Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
+        ChunkCapacity, Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
         ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,
         CraftingGridUnreturnedSplit, CraftingResultDestination, CraftingSource, CraftingTakeId,
         CraftingTakeRecord, CraftingTakeStage, Creative, DismountGrounding, DismountId,

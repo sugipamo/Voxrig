@@ -44,7 +44,7 @@ optional NBTを保持する。legacyのupdate actionはregistry type IDと混同
 block変更でそのcellのNBTを失効させる。full chunk以外や失効後のentity listは
 `block_entities_complete=false`で、listにないcellを「entityなし」と推測しない。
 
-metadataは読み込まれた列だけで保持し、既存の`max_chunks`と同じ寿命・上限を使う。
+metadataは読み込まれた列だけで保持し、`chunk_capacity`と同じ寿命・上限を使う。
 1列4096 entity、合計2 MiBのentity NBTを上限とし、各NBTは1 MiB／65536 node／depth 64。
 上限を超えたfieldや壊れた更新を部分適用しない。更新対象がunloadedの場合もpacketを
 検証するが、列を作り直さない。light-onlyのlegacy列からmetadataを補完しない。

@@ -34,7 +34,7 @@ Wolf は Unknown のまま、Step 6 (#128 option 3) では contact の影響を�
 [接触スコープ](player-contact-scope.md)を適用する。model-origin／明示 tick 契約内で、
 受信履歴の包絡と接触伝播により無関係と証明できる body の数値更新・地形問い合わせを省略する。
 サーバーの実時間位置の証明ではない。近傍の騎乗組・未知入力・省略 tick 後の再入域は送信前に拒否する。
-`max_contact_bodies` の既定値は scoped remote 256、`max_chunks` は 512。
+`max_contact_bodies` の既定値は scoped remote 256、`chunk_capacity` は受信 view に追随する Auto（上限 16,384 列）。
 停止済み owner は再利用せず、原因の除去後に同じ接続で新しい `start_control` を試せる。
 詳細な再開始条件と診断 API は上記の契約を参照。以下の従来の全 body 上限の記述は
 独立数値 API／boat lane のものとし、player scope の body 数には適用しない。

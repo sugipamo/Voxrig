@@ -53,7 +53,7 @@ impl ConnectionConfig {
                 .all(|c| c.is_ascii_alphanumeric() || c == b'_')
             || self.server.host.is_empty()
             || self.server.port == 0
-            || self.limits.max_chunks == 0
+            || self.limits.chunk_capacity.maximum() == 0
             || self
                 .limits
                 .native_event_channel_capacity

@@ -275,8 +275,8 @@ pub struct ConnectionOptions {
     pub play_packet_timeout: Duration,
     /// Default deadline used while waiting for the initial playable state.
     pub ready_timeout: Duration,
-    /// Maximum chunks retained by one connection.
-    pub max_chunks: usize,
+    /// Received-view column retention, including light-only columns.
+    pub chunk_capacity: crate::client::ChunkCapacity,
     /// Maximum remote bodies in the per-tick player contact scope (default 256).
     /// Excluded native slots do not consume this budget. Zero refuses any contact.
     pub max_contact_bodies: usize,
@@ -307,7 +307,7 @@ impl Default for ConnectionOptions {
             login_packet_timeout: Duration::from_secs(15),
             play_packet_timeout: Duration::from_secs(60),
             ready_timeout: Duration::from_secs(15),
-            max_chunks: 512,
+            chunk_capacity: crate::client::ChunkCapacity::default(),
             max_contact_bodies: 256,
             max_entities: 4_096,
             max_maps: 128,
@@ -2637,7 +2637,7 @@ impl Bot {
             .await
             .map_snapshot(|world| world.loaded_geometry_parts())
             .value;
-        if loaded_chunks.len() > self.connection_options.max_chunks
+        if loaded_chunks.len() > self.connection_options.chunk_capacity.maximum()
             || sections.len()
                 > loaded_chunks
                     .len()
@@ -3106,6 +3106,16 @@ impl Bot {
     pub async fn wait_until_ready(&self) -> Result<()> {
         loop {
             if self.stopped.load(Ordering::Acquire) {
+                let receipts = self.common_receipts.lock().await;
+                let session = crate::client::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_16_1,
+                    connection_id: self.connection_id(),
+                    world_generation: receipts.generation,
+                };
+                drop(receipts);
+                if let Some(error) = self.world.lock().await.cache_observation(session).refusal {
+                    return Err(error.into());
+                }
                 // `spawned` and `positioned` are never reset for a connection, so
                 // together they mean this session had already become ready.
                 let phase = if self.player.lock().await.spawned && *self.positioned.lock().await {
@@ -6039,6 +6049,7 @@ impl Bot {
                 view.center_z = z;
                 let snapshot = **view;
                 drop(view);
+                self.maintain_chunk_capacity(None).await?;
                 self.emit(Event::WorldViewUpdated(snapshot));
             }
             0x41 => {
@@ -6057,6 +6068,7 @@ impl Bot {
                 view.distance = distance;
                 let snapshot = **view;
                 drop(view);
+                self.maintain_chunk_capacity(None).await?;
                 self.emit(Event::WorldViewUpdated(snapshot));
             }
             0x42 => {

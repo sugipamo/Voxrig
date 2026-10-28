@@ -45,6 +45,9 @@ impl crate::client::adapter::ChunkOps for Bot {
         };
         // Legacy columns are 16 sections (0..256); absent sections are air. Light keys
         // run from -1 (below) to 16 (above).
+        if !snapshot.terrain_received && snapshot.sections.is_empty() {
+            return Ok(None);
+        }
         let sections = (0..16)
             .map(|y| {
                 snapshot
