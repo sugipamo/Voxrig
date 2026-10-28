@@ -37,7 +37,7 @@ async fn executor_interruptions_discard_tail_neutralize_and_inherit_current_mode
                 );
             }
             let stale = session.state.lock().await.survival_motion.clone().unwrap();
-            {
+            let interrupted_at = {
                 let mut state = session.state.lock().await;
                 interrupt(&mut state, cause);
                 if cause == "impulse" {
@@ -46,7 +46,8 @@ async fn executor_interruptions_discard_tail_neutralize_and_inherit_current_mode
                         state.operations.local_player.velocity.map(|v| v.value)
                     );
                 }
-            }
+                state.sequence
+            };
             timeout(Duration::from_secs(2), async {
                 while session.state.lock().await.control.finite.is_some() {
                     tokio::time::sleep(Duration::from_millis(5)).await;
@@ -57,6 +58,29 @@ async fn executor_interruptions_discard_tail_neutralize_and_inherit_current_mode
             let record = client.survival().motion_record().await.unwrap().unwrap();
             assert_eq!(record.status, MotionStatus::RequiresInspection, "{cause}");
             assert_eq!(record.dispatched_ticks, sent, "old tail sent: {cause}");
+            // Typed received cause beside the unchanged free-text problem;
+            // a local terrain stop is not an interruption.
+            use crate::client::survival::MotionInterruptionKind as Kind;
+            assert!(record.problem.is_some(), "{cause}");
+            let kind = record.interruption.clone().map(|i| i.kind);
+            match cause {
+                "correction" => assert_eq!(
+                    kind,
+                    Some(Kind::Correction {
+                        position: [9.5, 65.0, 8.5],
+                        rotation: [0.0; 2],
+                    })
+                ),
+                "impulse" => assert!(
+                    matches!(kind, Some(Kind::Velocity { velocity: Some(v) }) if v[0] > 0.0),
+                    "{kind:?}"
+                ),
+                "terrain" => assert_eq!(kind, None),
+                _ => assert_eq!(kind, Some(Kind::WorldChanged)),
+            }
+            if let Some(interruption) = &record.interruption {
+                assert_eq!(interruption.receive_sequence, interrupted_at, "{cause}");
+            }
             if cause != "world" {
                 assert_eq!(
                     read_packet(&mut peer, None).await.unwrap(),

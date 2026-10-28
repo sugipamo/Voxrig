@@ -18,6 +18,13 @@ pub(crate) use changes::{ControlChangeLedger, ControlChangeSource};
 
 pub use crate::client::physics::{Controls, ItemUse, Modifier, ModifierOperation, Pose};
 
+#[path = "control_states.rs"]
+mod states;
+pub(crate) use states::ControlStateTracker;
+pub use states::{
+    ControlStateChange, ControlStateEvent, ControlStateLog, ControlStopCause, ControlTransition,
+};
+
 /// Maximum speculative walking ticks before a new pose or usable terrain is required.
 pub const MAX_UNPROVEN_WALK_TICKS: u16 = 20;
 

@@ -154,3 +154,6 @@ I/O前のintent、地形変更での停止、送信失敗、零impulseによる�
 
 両版のpacket fixture・公式server実接続・ローカル検証の結果とsource／binary／JAR／trace hashは
 [`motion-executor-20261026.json`](evidence/motion-executor-20261026.json) に保存する。
+
+受信した状態変化による中断は`MotionRecord.interruption`に型付きで残る。
+[中断原因の契約](control-state-changes.md)を参照。

@@ -23,6 +23,8 @@ pub(in crate::versions::java_1_21_11::client) struct MotionExecutor {
     jump_work: Option<crate::client::ledger::WorkGuard>,
     generation: Option<u64>,
     model_attempt: Option<u64>,
+    /// Publishes the selected owner's committed status transitions.
+    states: crate::client::control::ControlStateTracker,
     // Complete local disable wins only over older abilities in the same world.
     flight_disabled: Option<(u64, u64)>,
     // A modelled impulse is not a stationary received-velocity baseline.
@@ -95,6 +97,33 @@ impl MotionExecutor {
         self.session = Some(session);
         self.generation = Some(generation);
     }
+}
+
+/// Publish the selected owner's committed status under the State lock that
+/// committed it. The received unmodeled-motion packet refines the shared
+/// "vehicle or explosion" stop reason into a typed cause.
+pub(in crate::versions::java_1_21_11::client) fn publish_states(
+    state: &mut State,
+    connection_id: u64,
+) {
+    use crate::client::control::ControlStopCause;
+    let hint = match &state.operations.local_player.motion_interruption {
+        Some(m) if m.packet_id == ids::play_clientbound::EXPLOSION => {
+            Some(ControlStopCause::Explosion)
+        }
+        Some(_) => Some(ControlStopCause::Vehicle),
+        None if state.vehicles.motion_interrupted() => Some(ControlStopCause::Vehicle),
+        None => None,
+    };
+    let control = &mut state.control;
+    let session = crate::client::SessionStamp {
+        version: crate::MinecraftVersion::Java1_21_11,
+        connection_id,
+        world_generation: control.generation.unwrap_or_default(),
+    };
+    control
+        .states
+        .publish(control.session.as_ref(), session, state.sequence, hint);
 }
 
 /// A release was sent: the running session stops applying the item-use slowdown.
@@ -583,6 +612,7 @@ impl Operations {
             state.control.released_ground = Some(session.id);
         }
         state.control.session = Some(session);
+        publish_states(&mut state, self.bot.session.id);
         self.bot.session.changed.notify_waiters();
         if release.is_ok() {
             self.bot.session.ledger.retire_common_control(id);
@@ -931,6 +961,8 @@ impl Operations {
             }
             true
             }).await;
+            // Every status this iteration committed, including local stops.
+            publish_states(&mut state, self.bot.session.id);
             drop(state);
             if queued_jump {
                 let completed = self
@@ -1215,6 +1247,7 @@ impl Operations {
             let record = session.record();
             self.bot.session.ledger.bind_movement(crate::client::SessionStamp { version: crate::MinecraftVersion::Java1_21_11, connection_id: self.bot.session.id, world_generation: generation }, mode, Some(id))?;
             state.control.session = Some(session);
+            publish_states(&mut state, self.bot.session.id);
             drop(state);
             let ops = self.clone();
             let producer = self.bot.session.ledger.register_producer().map_err(crate::client::ledger::finite::admission_error)?;
@@ -1450,6 +1483,16 @@ impl crate::client::adapter::ControlOps for Operations {
             .await
     }
 
+    async fn control_state_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::control::ControlStateLog> {
+        let mut state = self.bot.session.state.lock().await;
+        // Idempotent catch-up; transitions are normally published at commit.
+        publish_states(&mut state, self.bot.session.id);
+        state.control.states.ledger.after(after_sequence)
+    }
+
     async fn control_record(&self) -> Result<Option<ControlRecord>> {
         Ok(self
             .bot
@@ -1500,6 +1543,7 @@ impl Operations {
         state.control.session.as_mut().unwrap().status = ControlStatus::Stopped {
             reason: "neutralized during quiesce".into(),
         };
+        publish_states(&mut state, self.bot.session.id);
         self.bot.session.ledger.clear_target(target);
         Ok(())
     }

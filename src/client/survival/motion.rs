@@ -115,4 +115,56 @@ pub struct MotionRecord {
     pub status: MotionStatus,
     /// First retained interruption/failure, including after transport closure.
     pub problem: Option<String>,
+    /// Typed received boundary behind `problem`, when the first retained
+    /// problem was an interruption by a received state change. None for local
+    /// failures (send, terrain, timeout) and while uninterrupted.
+    pub interruption: Option<MotionInterruption>,
+}
+
+/// The received state change that interrupted a finite motion. It reports
+/// what superseded the local plan, never a server-side teleport/rejection cause.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct MotionInterruption {
+    /// Receive ordinal of the interrupting packet (the latest applied packet
+    /// when the adapter detects the change only from projected state).
+    pub receive_sequence: u64,
+    /// What changed.
+    pub kind: MotionInterruptionKind,
+}
+
+/// Typed interruption cause; the free-text `problem` is unchanged.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum MotionInterruptionKind {
+    /// A received own pose (teleport or movement correction; indistinguishable).
+    Correction {
+        /// Resolved received feet position.
+        position: [f64; 3],
+        /// Resolved received yaw/pitch.
+        rotation: [f32; 2],
+    },
+    /// A received own velocity. None when the projected velocity was cleared.
+    Velocity {
+        /// Received velocity in blocks per tick.
+        velocity: Option<[f64; 3]>,
+    },
+    /// A received explosion (knockback impulse outside the finite model).
+    Explosion,
+    /// Mount/passenger or vehicle motion.
+    VehicleChanged,
+    /// Respawn, dimension change or reconfiguration.
+    WorldChanged,
+    /// The received game mode changed.
+    GameModeChanged,
+    /// Received abilities/flying left the admitted ground model.
+    FlightChanged,
+    /// The received own posture changed.
+    PostureChanged,
+    /// Received movement attributes or scale changed.
+    AttributesChanged,
+    /// A received own effect changed.
+    EffectChanged,
+    /// Received health reached zero.
+    Died,
 }

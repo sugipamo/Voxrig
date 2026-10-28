@@ -18,6 +18,8 @@ pub(crate) struct MotionExecutor {
     changes: std::sync::Arc<crate::client::control::ControlChangeLedger>,
     session: Option<ControlSession>,
     next_id: u64,
+    /// Publishes the selected owner's committed status transitions.
+    states: crate::client::control::ControlStateTracker,
     jump_work: Option<crate::client::ledger::WorkGuard>,
     generation: Option<u64>,
     model_tick: Option<u64>,
@@ -58,6 +60,16 @@ impl MotionExecutor {
         if let Some(session) = self.session.as_mut().filter(|s| s.running()) {
             session.item_released(received);
         }
+    }
+    /// Publish the selected owner's committed status under this executor lock.
+    pub(super) fn publish_states(&mut self, connection_id: u64, receive_sequence: u64) {
+        let session = crate::client::SessionStamp {
+            version: MinecraftVersion::Java1_16_1,
+            connection_id,
+            world_generation: self.generation.unwrap_or_default(),
+        };
+        self.states
+            .publish(self.session.as_ref(), session, receive_sequence, None);
     }
 }
 
@@ -326,7 +338,12 @@ impl Bot {
         if release.is_ok() {
             self.connection.ledger().retire_common_control(id);
         }
-        release.map(|()| Some(session.record()))
+        let record = session.record();
+        control.publish_states(
+            self.connection_id(),
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+        );
+        release.map(|()| Some(record))
     }
 
     async fn run_control(
@@ -635,6 +652,11 @@ impl Bot {
                     true
                 })
                 .await;
+            // Every status this iteration committed, including local stops.
+            self.common_control.lock().await.publish_states(
+                self.connection_id(),
+                self.protocol_packet_sequence.load(Ordering::Acquire),
+            );
             if queued_jump {
                 let completed = self
                     .common_control
@@ -962,6 +984,10 @@ impl Bot {
                 )?;
                 session.publish_admission_degradation();
                 control.session = Some(session);
+                control.publish_states(
+                    self.connection_id(),
+                    self.protocol_packet_sequence.load(Ordering::Acquire),
+                );
                 drop(control);
                 let bot = self.clone();
                 let producer = self
@@ -1223,6 +1249,19 @@ impl crate::client::adapter::ControlOps for Bot {
             .await
     }
 
+    async fn control_state_changes_after(
+        &self,
+        after_sequence: u64,
+    ) -> Result<crate::client::control::ControlStateLog> {
+        let mut control = self.common_control.lock().await;
+        // Idempotent catch-up; transitions are normally published at commit.
+        control.publish_states(
+            self.connection_id(),
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+        );
+        control.states.ledger.after(after_sequence)
+    }
+
     async fn control_changes_after(
         &self,
         after_sequence: u64,
@@ -1276,6 +1315,10 @@ impl Bot {
         session.status = ControlStatus::Stopped {
             reason: "neutralized during quiesce".into(),
         };
+        control.publish_states(
+            self.connection_id(),
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+        );
         self.connection.ledger().clear_target(target);
         Ok(())
     }
@@ -2382,3 +2425,7 @@ mod flight_landing_tests {
         server.abort();
     }
 }
+
+#[cfg(test)]
+#[path = "control_state_tests.rs"]
+mod state_tests;

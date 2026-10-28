@@ -82,6 +82,21 @@
   contents inside the handler, before either boundary. `ContainerOpenStage` is
   now `#[non_exhaustive]` and gains `is_resolved()`; new `ContainerOpenNoScreen`.
   Audit row C4. See [contract](docs/common-container-open.md).
+- Add `MotionRecord.interruption: Option<MotionInterruption>` on Java 1.16.1 and
+  1.21.11: the typed received boundary (`Correction { position, rotation }`,
+  `Velocity`, `Explosion`, `VehicleChanged`, `WorldChanged`, mode/flight/posture/
+  attribute/effect changes, death) and its receive ordinal behind the first
+  retained `problem` of a finite survival motion. Local failures stay None; the
+  free-text `problem`, status and stop policy are unchanged.
+- Add `Client::control_state_changes_after` and the PlayerControl equivalent on
+  both versions: a bounded (256) connection-owned log of control owner
+  transitions (Started, Paused, Resumed, Stopped with a typed `ControlStopCause`
+  and the original reason, Expired) with owner id, world, receive ordinal and
+  ticks, published under the executor lock that committed the status. Same
+  cursor/`ControlChangeGap` semantics as `control_changes_after`, independent
+  retention. Stop/pause policies and `ControlRecord` are unchanged.
+  See [contract](docs/control-state-changes.md). `MotionRecord` gains a public
+  field, so struct-literal construction outside the crate must add it.
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.
