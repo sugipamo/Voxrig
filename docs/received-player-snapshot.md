@@ -64,6 +64,10 @@ iteration includes supplied current-scope keys; `attribute(name)` supplies the
 shared Missing/Invalidated fallback for other names. Map omission never proves
 absence. Initial adapters never emit an absent attribute.
 
+`velocity_override()` is the latest server velocity packet targeting the own
+player (knockback), decoded literally, with that packet's receipt. It is not the
+current local motion. See [own velocity override](own-velocity.md).
+
 Coverage scopes are precise:
 
 | Accessor | Scope |

@@ -285,6 +285,10 @@ impl PacketKey {
             EntityHistoryKind::Passengers { .. } => Self::Passengers,
             EntityHistoryKind::WorldChanged { .. } => Self::WorldChanged,
             EntityHistoryKind::OwnPositionCorrection { .. } => Self::OwnPositionCorrection,
+            // Own-player receipt without a remote target: it shares the existing
+            // own-player key, which no policy revokes or admits as a callback.
+            // The correction fence is the history kind, not this key.
+            EntityHistoryKind::OwnVelocity { .. } => Self::OwnPositionCorrection,
         }
     }
 }

@@ -716,3 +716,56 @@ fn actual_retention_loss_and_unreceived_spawn_provenance_are_not_model_baselines
         assert!(!replay.frame().valid);
     }
 }
+
+#[test]
+fn own_velocity_history_is_not_a_replay_or_contact_fence() {
+    use crate::MinecraftVersion as V;
+    for version in [V::Java1_16_1, V::Java1_21_11] {
+        let (mut ledger, stamp, initial) = receipts(version);
+        ledger.contact_local_player(99);
+        let mut contacts =
+            super::owned_contacts::OwnedContacts::new(stamp, 8, 99, &ledger, 1).unwrap();
+        let mut replay = LivingEntityPacketReplay::from_spawn(&initial.records[0]).unwrap();
+        let guards = LivingPacketGuards {
+            local_authoritative: false,
+            ticking: true,
+        };
+        // Own knockback: recorded for readers, but only the control owner applies it.
+        ledger.history_context(version, 3, 2);
+        ledger.history_own_velocity([0.25, 0.42, 0.]);
+        let page = ledger
+            .history_after(stamp, 2, Some(initial.next_cursor), 10)
+            .unwrap();
+        assert!(matches!(
+            page.records[..],
+            [EntityHistoryRecord {
+                receive_sequence: 2,
+                kind: EntityHistoryKind::OwnVelocity {
+                    velocity: [0.25, 0.42, 0.]
+                },
+                ..
+            }]
+        ));
+        assert_eq!(replay.apply_page(&page, guards).unwrap(), 0);
+        assert!(replay.frame().valid);
+        contacts.refresh(8, &ledger, 2).unwrap();
+        // An own position correction remains the explicit fence for both.
+        ledger.history_context(version, 3, 3);
+        ledger.history_pose(
+            crate::client::ReceivedPose {
+                position: [0.5, 64., 0.5],
+                rotation: [0.; 2],
+                receive_sequence: 3,
+            },
+            None,
+        );
+        let fenced = ledger
+            .history_after(stamp, 3, Some(page.next_cursor), 10)
+            .unwrap();
+        assert_eq!(
+            replay.apply_page(&fenced, guards),
+            Err(LivingReplayUnavailable::CorrectionFence)
+        );
+        assert!(contacts.refresh(8, &ledger, 3).is_err());
+    }
+}

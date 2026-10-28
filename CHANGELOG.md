@@ -97,6 +97,13 @@
   retention. Stop/pause policies and `ControlRecord` are unchanged.
   See [contract](docs/control-state-changes.md). `MotionRecord` gains a public
   field, so struct-literal construction outside the crate must add it.
+- Expose the server velocity override targeting the own player (knockback) on
+  both versions: `ReceivedPlayerSnapshot::velocity_override()` with the packet's
+  receipt, an `EntityHistoryKind::OwnVelocity` record per receipt (not a contact
+  or replay fence), and `EventKind::PlayerChanged`. Java 1.21.11 keeps its
+  existing `EntityUpdated { native_id: self }` for compatibility. Control and
+  motion behavior are unchanged. BREAKING for exhaustive matches on
+  `EntityHistoryKind` (not `#[non_exhaustive]`). See [own velocity](docs/own-velocity.md).
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.

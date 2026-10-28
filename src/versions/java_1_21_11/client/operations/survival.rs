@@ -315,6 +315,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         _ => unreachable!(),
     }
     r.end()?;
+    if id == input::ENTITY_VELOCITY {
+        if let Some(velocity) = &next.velocity {
+            state.entities.history_own_velocity(velocity.value);
+        }
+    }
     state.posture_pose = posture_pose;
     state.posture_swimming = posture_swimming;
     if id == input::UPDATE_HEALTH {

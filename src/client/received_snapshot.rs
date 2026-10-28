@@ -316,6 +316,7 @@ pub struct ReceivedPlayerSnapshot {
     pub(crate) using_item: FieldState<Option<Hand>>,
     pub(crate) air_supply: FieldState<i32>,
     pub(crate) fall_flying: FieldState<bool>,
+    pub(crate) velocity_override: FieldState<[f64; 3]>,
     pub(crate) world_time: FieldState<WorldTime>,
     pub(crate) entity_id: FieldState<i32>,
     pub(crate) dimension_selection: FieldState<ReceivedDimensionSelection>,
@@ -384,6 +385,14 @@ impl ReceivedPlayerSnapshot {
     /// Fall flying.
     pub fn fall_flying(&self) -> &FieldState<bool> {
         &self.fall_flying
+    }
+    /// Latest server velocity override targeting the own player (Java 1.16.1
+    /// `0x46` / Java 1.21.11 `ENTITY_VELOCITY`), e.g. knockback, as decoded
+    /// from the packet in blocks per tick. Its receipt ordinal is that packet's
+    /// receive sequence. It is the received fact, not the current local motion,
+    /// which the following ticks, corrections and explosions keep changing.
+    pub fn velocity_override(&self) -> &FieldState<[f64; 3]> {
+        &self.velocity_override
     }
     /// World time.
     pub fn world_time(&self) -> &FieldState<WorldTime> {
@@ -666,6 +675,7 @@ impl ReceivedPlayerSnapshot {
             using_item: FieldState::Missing,
             air_supply: FieldState::Missing,
             fall_flying: FieldState::Missing,
+            velocity_override: FieldState::Missing,
             world_time: FieldState::Missing,
             entity_id: FieldState::Missing,
             dimension_selection: FieldState::Missing,
@@ -706,6 +716,7 @@ impl ReceivedPlayerSnapshot {
         self.using_item.invalidate(invalidation);
         self.air_supply.invalidate(invalidation);
         self.fall_flying.invalidate(invalidation);
+        self.velocity_override.invalidate(invalidation);
         self.world_time.invalidate(invalidation);
         self.entity_id.invalidate(invalidation);
         self.dimension_selection.invalidate(invalidation);

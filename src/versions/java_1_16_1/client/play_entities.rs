@@ -219,11 +219,21 @@ impl Bot {
             z: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
         };
         if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
+            let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+            let value = [velocity.x, velocity.y, velocity.z];
             self.motion.lock().await.velocity = velocity;
-            *self.own_velocity_receipt.lock().await = Some((
-                self.protocol_packet_sequence.load(Ordering::Acquire),
-                [velocity.x, velocity.y, velocity.z],
-            ));
+            *self.own_velocity_receipt.lock().await = Some((sequence, value));
+            self.common_receipts
+                .lock()
+                .await
+                .entities
+                .history_own_velocity(value);
+            // The own player is normally not in the entity cache, so the
+            // EntityUpdated below rarely fires for it; report a player change.
+            self.common_events
+                .lock()
+                .expect("event ledger poisoned")
+                .record(sequence, crate::client::EventKind::PlayerChanged);
             self.interrupt_common_motion("native own-player velocity interrupted finite motion")
                 .await;
         }

@@ -272,6 +272,31 @@ async fn main() -> anyhow::Result<()> {
                     )?
                 }
                 "entities" => serde_json::to_value(client.entities().await?)?,
+                "own_velocity" => {
+                    // Received own-velocity fact, its history records and change events.
+                    let snapshot = client.received_player_snapshot().await?;
+                    let field = match snapshot.velocity_override() {
+                        FieldState::Received(v) => {
+                            json!({"value": v.value(), "ordinal": v.receipt().ordinal()})
+                        }
+                        FieldState::Missing => json!("missing"),
+                        _ => json!("invalidated"),
+                    };
+                    let history: Vec<_> = client
+                        .entity_history_after(None, MAX_ENTITY_HISTORY_READ)
+                        .await?
+                        .records
+                        .into_iter()
+                        .filter(|r| matches!(r.kind, EntityHistoryKind::OwnVelocity { .. }))
+                        .collect();
+                    let events = client.events_after(0).await?;
+                    json!({
+                        "velocity_override": field,
+                        "history": history,
+                        "events": events.events,
+                        "player": client.player_state().await?,
+                    })
+                }
                 "control_start" => serde_json::to_value(client.survival().start_control().await?)?,
                 "control_set" => serde_json::to_value(
                     client
