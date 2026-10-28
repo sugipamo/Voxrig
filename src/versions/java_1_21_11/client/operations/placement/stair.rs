@@ -235,11 +235,16 @@ pub(super) fn confirmed(state: &State) -> bool {
         .and_then(|c| c.stairs.as_ref())
         .is_none_or(|c| c.updates.iter().all(|u| u.receipt.is_some()))
 }
-fn active(state: &State) -> bool {
+/// No required neighbor shape change has been received (a rejection keeps them all).
+pub(super) fn untouched(state: &State) -> bool {
     state
-        .placement
+        .common_placement
         .as_ref()
-        .is_some_and(|r| r.observation.is_none())
+        .and_then(|c| c.stairs.as_ref())
+        .is_none_or(|c| c.updates.iter().all(|u| u.receipt.is_none()))
+}
+fn active(state: &State) -> bool {
+    state.placement.as_ref().is_some_and(|r| !r.is_resolved())
 }
 pub(super) fn received(state: &mut State, changes: &[([i32; 3], i32)]) -> anyhow::Result<()> {
     if !active(state) {
@@ -385,6 +390,7 @@ pub(super) fn record_in(
         target_receipt: r.target_receipt,
         material_receipt: r.material_receipt,
         processing: r.processing,
+        rejection: r.rejection,
         requires_inspection: r.requires_inspection,
         stage: r.stage,
     }))

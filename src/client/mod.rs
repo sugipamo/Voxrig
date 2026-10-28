@@ -296,10 +296,11 @@ pub mod prelude {
         BlockTargetHit, BlockTargetObservation, CapturedSurvivalScene, FluidSlabPlacementRecord,
         MiningEstimate, MiningId, MiningProfileRecovery, MiningRecord, MiningRecoveryAttempt,
         MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget, MiningStage,
-        MotionPreview, MotionRecord, MotionStatus, PlacementId, PlacementRecord, PlacementStage,
-        RecoveredSurvivalClient, ReplaceableCubePlacementRecord, ScenePreview, SceneSource,
-        SlabFluidState, SlabPlacementRecord, StairNeighborUpdate, StairPlacementRecord,
-        StairShapeInput, SurvivalControl, SurvivalInput,
+        MotionPreview, MotionRecord, MotionStatus, PlacementId, PlacementRecord,
+        PlacementRejection, PlacementStage, RecoveredSurvivalClient,
+        ReplaceableCubePlacementRecord, ScenePreview, SceneSource, SlabFluidState,
+        SlabPlacementRecord, StairNeighborUpdate, StairPlacementRecord, StairShapeInput,
+        SurvivalControl, SurvivalInput,
     };
     pub use super::ui::{
         BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, PlayerChatSession,

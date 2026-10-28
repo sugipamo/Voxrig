@@ -1,0 +1,166 @@
+{
+  "audit_rows": [
+    "B1",
+    "B2",
+    "B14"
+  ],
+  "official_server_basis": {
+    "class": "net.minecraft.server.network.ServerGamePacketListenerImpl.handleUseItemOn (Mojang-mapped)",
+    "1.16.1": {
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "block_updates": "offsets 358-393: BlockUpdate(clicked) then BlockUpdate(clicked.relative(face)), reached by every path (height, distance, mayInteract, useItemOn)",
+      "ack": "none for placement"
+    },
+    "1.21.11": {
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "ack": "offset 25 ackBlockChangesUpTo(sequence) before checks; ClientboundBlockChangedAckPacket is sent later from the connection tick",
+      "early_returns": "offsets 19, 63, 97, 198 (client not loaded, feature disabled, out of range, bad cursor) send no block update",
+      "block_updates": "offsets 461-490: BlockUpdate(clicked) then BlockUpdate(clicked.relative(face)) on every other path"
+    }
+  },
+  "live": {
+    "binary_sha256": "eb34ce68ecf832f1da2e9cf1fdd94bb14f0a3cbb2b22d4d1d47d6fac5af09c4e",
+    "source_sha256": {
+      "src/client/survival/placement.rs": "37cb78eea9e58e2e5babfe57262760ace02602c91c341b65aa75c7d5d04907a8",
+      "src/versions/java_1_16_1/client/common_placement.rs": "dce81a9db61bdf3f9113a432205b66badf1bf04b5a2f4ec3f80c37c58b606d3c",
+      "src/versions/java_1_21_11/client/operations/placement.rs": "5049c9e2abbbd4096e90a2f998b5339a26f558fdc64a57c012ad303c5deb4b29",
+      "examples/body_probe.rs": "f57aa6a98820c6bd565c99a43d4732b8ea9320c9a6a960e6c84e7b780c0c6255",
+      "scripts/run_placement_rejection_live.py": "cb1335964454952b0befa1ecc8f93e09c3744b152f0ec196ebc737d58e6e84d4",
+      "Cargo.lock": "8bf7e3de1d117dc1b42243ac611431b022f09bc297f38160981c6979ead35668"
+    },
+    "versions": {
+      "1.16.1": {
+        "passed": true,
+        "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "fixture": "non-OP survival ClimbingProbe; NoGravity armor stand occupies target [0,65,-1]; click top face of stone [0,64,-1]. RCON: target air and 5 dirt after rejection; dirt and 4 after the second placement",
+        "rejected": {
+          "stage": "observed_rejected",
+          "send": {
+            "after_sequence": 77,
+            "dispatched": true,
+            "interaction_sequence": null
+          },
+          "processing": null,
+          "rejection": {
+            "boundary_receive_sequence": 84,
+            "support_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 83
+              },
+              "value": {
+                "name": "minecraft:stone",
+                "properties": {}
+              }
+            },
+            "target_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 84
+              },
+              "value": {
+                "name": "minecraft:air",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "play_frames_after_send_excluding_chunk_light": [
+          [
+            "serverbound",
+            "0x2d"
+          ],
+          [
+            "clientbound",
+            "0xb"
+          ],
+          [
+            "clientbound",
+            "0xb"
+          ],
+          [
+            "serverbound",
+            "0x13"
+          ],
+          [
+            "serverbound",
+            "0x13"
+          ]
+        ],
+        "released_then_placed": {
+          "look": {
+            "connection_id": 1,
+            "interaction_sequence": null,
+            "version": "Java1_16_1"
+          },
+          "stage": "observed_placed",
+          "attempt": 2
+        },
+        "report": "placement-rejection-live-1.16.1-20261027.json.gz"
+      },
+      "1.21.11": {
+        "passed": true,
+        "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "fixture": "non-OP survival ClimbingProbe; NoGravity armor stand occupies target [0,65,-1]; click top face of stone [0,64,-1]. RCON: target air and 5 dirt after rejection; dirt and 4 after the second placement",
+        "rejected": {
+          "stage": "observed_rejected",
+          "send": {
+            "after_sequence": 134,
+            "dispatched": true,
+            "interaction_sequence": 1
+          },
+          "processing": {
+            "receive_sequence": 138,
+            "sequence": 1
+          },
+          "rejection": {
+            "boundary_receive_sequence": 138,
+            "support_receipt": null,
+            "target_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 137
+              },
+              "value": {
+                "name": "minecraft:air",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "play_frames_after_send_excluding_chunk_light": [
+          [
+            "clientbound",
+            "0x6f"
+          ],
+          [
+            "serverbound",
+            "0x3f"
+          ],
+          [
+            "clientbound",
+            "0x8"
+          ],
+          [
+            "clientbound",
+            "0x8"
+          ],
+          [
+            "clientbound",
+            "0x4"
+          ]
+        ],
+        "released_then_placed": {
+          "look": {
+            "connection_id": 1,
+            "interaction_sequence": null,
+            "version": "Java1_21_11"
+          },
+          "stage": "observed_placed",
+          "attempt": 3
+        },
+        "report": "placement-rejection-live-1.21.11-20261027.json.gz"
+      }
+    }
+  }
+}

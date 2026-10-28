@@ -136,6 +136,21 @@
   and `is_resolved()`; `wait_survival_mining` no longer expires the connection
   when the attempt resolved by its deadline. An ACK alone stays pending.
   See [dig outcome](docs/common-dig.md#観測の終わり方digrecordoutcome).
+- BREAKING (exhaustive matches, Rust struct literals): strict survival placement
+  gains the terminal `PlacementStage::ObservedRejected` (the enum is now
+  `#[non_exhaustive]`, with `is_resolved()`) and a `rejection` field on
+  `PlacementRecord`, `ReplaceableCubePlacementRecord`, `SlabPlacementRecord` and
+  `StairPlacementRecord` (fluid slabs through `placement`). A server-processed
+  boundary with target, support and material still at their predecessors now
+  ends the attempt and releases the one-shot owner instead of staying `Pending`
+  with look/select/move/next placement refused. Java 1.16.1 has no placement ACK
+  and uses the original handler's adjacent support-then-target BlockChange pair;
+  Java 1.21.11 needs the target echo plus a covering fresh BlockChangedAck.
+  Native 1.21.11 adds `PlacementStatus::ObservedRejected`, `PlacementRejection`
+  and record fields; `wait_survival_placement` no longer expires the connection
+  when the attempt resolved by its deadline. Early handler returns with an ACK
+  only stay `Pending`. Historical placed results are unchanged.
+  See [common placement](docs/common-survival-placement.md#結果と次の操作).
 
 - Inventory send comparison no longer treats first receipts for unrelated,
   previously unreceived slots/cursor as external changes or effect mismatches.

@@ -48,7 +48,46 @@ legacyの`interaction_sequence`と`processing`は`None`である。
 | --- | --- |
 | `Pending` | 必要な実受信が揃っていない。再送しない |
 | `ObservedPlaced` | 完全送信、新しい対象block、ちょうど1個の材料消費を照合。modernは新しい実processing ACKも要求 |
+| `ObservedRejected` | serverが処理した境界が届き、対象・支持・材料がすべて送信前のまま。終端でgateを解放する。理由（保護・entity等）は示さず、再試行の指示でもない |
 | `RequiresInspection` | 最初の競合・前提喪失・不確実な送信を保持。後で復元しても消さない |
+
+`PlacementStage`は`#[non_exhaustive]`で、`is_resolved()`は`ObservedPlaced`と`ObservedRejected`でtrueになる。
+`rejection`は`ObservedRejected`のときだけ存在し、処理済み境界の受信ordinal（`boundary_receive_sequence`）と、
+`before`に等しい新しい対象受信（`target_receipt`）を持つ。
+
+処理済み境界は公式server JARの`ServerGamePacketListenerImpl.handleUseItemOn`に合わせる。
+両版とも、早期returnを除くすべての経路の最後で、BlockUpdate(clicked)とBlockUpdate(clicked + face)を
+この順に無条件で送る（1.16.1はoffset 358–393、1.21.11はoffset 461–490）。拒否でも送られる。
+
+- 1.16.1にはplacementのACKがない。送信後の単独BlockChange(0x0B)で、支持が`support_state`のまま届き、
+  その**直後のpacket**で対象が`before`のまま届いた組を、handlerの終わりとみなす。
+  組の両方を`support_receipt`と`target_receipt`に残す。multi-block changeや掘削ACKは組に数えない。
+  間に別のpacketが挟まった場合や、材料の受信が変わった場合は`Pending`のまま。
+- 1.21.11はACKをhandlerの先頭で登録し、次のconnection tickで送る。
+  そのため、handlerが置いた対象は必ずACKより先に届く。
+  `before`に等しい新しい対象受信と、intentを覆う新しいACKが両方揃い、
+  対象・支持・stairの隣接cell・材料が変わっていなければ拒否とする。`processing`にもそのACKを残す。
+  対象のechoがない早期return（client未ロード、無効なitem、距離外、cursor不正）は、
+  対象を調べた根拠がないので`Pending`のまま。
+
+拒否は、本当に置かれていないことの保証ではない。終端の後に届いた受信で履歴を書き換えず、
+後の変化は`inventory_changes_after`や通常のblock変更として見る。
+
+公式vanilla両版（SHA-1照合済み）で、非OPのsurvival botが、armor standの占める対象cellへ
+`place_cube`し、`ObservedRejected`になることを確認した。1.21.11の送信後は
+BlockUpdate×2の後にBlockChangedAckが届き、上の順序の前提と一致する。
+RCONで対象がairのまま・dirtが5個のままであることを別経路で確認した。
+armor standを除いた後、同じ接続で`look`と次の`place_cube`が通り、`ObservedPlaced`
+（RCONでdirt設置・4個）になる。
+[要約](evidence/placement-rejection-validation-20261027.json)、
+[1.16.1報告](evidence/placement-rejection-live-1.16.1-20261027.json.gz)、
+[1.21.11報告](evidence/placement-rejection-live-1.21.11-20261027.json.gz)。
+
+```sh
+cargo build --locked --features native -j2 --example body_probe
+python3 scripts/run_placement_rejection_live.py --accept-eula \
+  --binary target/debug/examples/body_probe --jars /path/to/official-jars --output /tmp/placement-rejection
+```
 
 `target_receipt`は指定cellの新しい実block update、`material_receipt`は選択slotの新しい実更新である。
 一方だけ、無関係なblock更新、cacheの一致、ACKだけでは完了しない。
@@ -58,7 +97,7 @@ modernの`processing`は実際の処理sequenceとACK packet ordinalで、設置
 
 未解決の間は視点・選択・移動・二重設置等を拒否する。
 legacyはconnection actorが通常操作を排他し、autonomous physicsを停止する。
-実受信が揃った後、`placement_record()`が同じattemptのgateを解放する。解放packetは送らない。
+実受信が揃った後、または拒否の境界が届いた後、`placement_record()`が同じattemptのgateを解放する。解放packetは送らない。
 modernは既存のnative placement guardで同じ前提と結果を検査する。
 完了後は新しい場所で次の操作を明示的に開始でき、その場のmode・材料・身体・支持・対象を再検証する。
 採掘のair/ABORTによる継続とは別の契約であり、未解決の採掘・移動を設置で解除しない。
