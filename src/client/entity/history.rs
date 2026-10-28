@@ -150,6 +150,13 @@ pub enum EntityHistoryKind {
         /// Resolved velocity if supplied and resolvable by this native correction.
         velocity: Option<ObservedValue<[f64; 3]>>,
     },
+    /// Server velocity override targeting the own player (knockback and similar),
+    /// recorded at receipt. Unlike `OwnPositionCorrection` it is not a contact
+    /// fence: the control owner adopts it as its body velocity.
+    OwnVelocity {
+        /// Decoded packet velocity in blocks per tick.
+        velocity: [f64; 3],
+    },
 }
 /// One sample recorded during native packet application, never reconstructed at poll time.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -600,6 +607,9 @@ impl SpawnLedger {
     ) {
         self.1
             .record(EntityHistoryKind::OwnPositionCorrection { pose, velocity });
+    }
+    pub(crate) fn history_own_velocity(&mut self, velocity: [f64; 3]) {
+        self.1.record(EntityHistoryKind::OwnVelocity { velocity });
     }
     /// Configure the local map member before any receipt can be evicted.
     pub(crate) fn contact_local_player(&mut self, native_id: i32) {

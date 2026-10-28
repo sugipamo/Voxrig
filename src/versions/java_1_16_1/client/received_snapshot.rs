@@ -12,6 +12,13 @@ impl Bot {
         sequence: u64,
     ) -> Result<()> {
         let own_id = lock_packet_state(&self.player).await.entity_id;
+        let own_velocity = if id == 0x46 {
+            (*self.own_velocity_receipt.lock().await)
+                .filter(|(receipt, _)| *receipt == sequence)
+                .map(|(_, value)| value)
+        } else {
+            None
+        };
         let mut receipts = lock_packet_state(&self.common_receipts).await;
         let session = api::SessionStamp {
             version: crate::MinecraftVersion::Java1_16_1,
@@ -44,6 +51,9 @@ impl Bot {
             out.using_item.apply(receipts.using_item.as_ref(), event);
             out.air_supply.apply(receipts.air_supply.as_ref(), event);
             out.fall_flying.apply(receipts.fall_flying.as_ref(), event);
+            if let Some(value) = own_velocity {
+                out.velocity_override.set(value, event);
+            }
             out.world_time.apply(receipts.world_time.as_ref(), event);
             for (name, attribute) in &receipts.attributes {
                 if attribute.source == (api::ValueSource::Received { sequence }) {
@@ -646,6 +656,79 @@ mod tests {
         assert!(client.received_player_snapshot().await.is_err());
         let _revocation = bot.revoke_connection();
         assert!(client.received_player_snapshot().await.is_err());
+        drop(client);
+        finish(bot, release, server).await;
+    }
+    #[tokio::test]
+    async fn own_velocity_override_is_received_recorded_and_a_player_change() {
+        use api::{EntityHistoryKind, EventKind};
+        let velocity = |entity: u8| {
+            let mut p = vec![entity];
+            for value in [640i16, -800, 0] {
+                p.extend(value.to_be_bytes());
+            }
+            p
+        };
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x25, join()).await.unwrap();
+        bot.player.lock().await.entity_id = Some(42);
+        // A remote (uncached) entity's velocity is neither the player's nor a change.
+        bot.apply_packet(0x46, velocity(7)).await.unwrap();
+        let cursor = client.events_after(0).await.unwrap().cursor;
+        assert!(matches!(
+            client
+                .received_player_snapshot()
+                .await
+                .unwrap()
+                .velocity_override(),
+            FieldState::Missing
+        ));
+        bot.apply_packet(0x46, velocity(42)).await.unwrap();
+        let sequence = bot.protocol_packet_sequence.load(Ordering::Acquire);
+        let expected = [0.08, -0.1, 0.0];
+        let snapshot = client.received_player_snapshot().await.unwrap();
+        let field = received(snapshot.velocity_override());
+        assert_eq!(field.value(), &expected);
+        assert_eq!(field.receipt().ordinal(), sequence);
+        bot.apply_packet(0x3f, vec![1]).await.unwrap();
+        let later = client.received_player_snapshot().await.unwrap();
+        assert_eq!(
+            received(later.velocity_override()).receipt(),
+            field.receipt()
+        );
+        let kinds: Vec<_> = client
+            .events_after(cursor)
+            .await
+            .unwrap()
+            .events
+            .into_iter()
+            .filter(|e| e.receive_sequence == sequence)
+            .map(|e| e.kind)
+            .collect();
+        assert_eq!(kinds, [EventKind::PlayerChanged]);
+        let own: Vec<_> = client
+            .entity_history_after(None, api::MAX_ENTITY_HISTORY_READ)
+            .await
+            .unwrap()
+            .records
+            .into_iter()
+            .filter_map(|r| match r.kind {
+                EntityHistoryKind::OwnVelocity { velocity } => Some((r.receive_sequence, velocity)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(own, [(sequence, expected)]);
+        bot.apply_packet(0x3a, respawn()).await.unwrap();
+        assert!(matches!(
+            client
+                .received_player_snapshot()
+                .await
+                .unwrap()
+                .velocity_override(),
+            FieldState::Invalidated(_)
+        ));
         drop(client);
         finish(bot, release, server).await;
     }

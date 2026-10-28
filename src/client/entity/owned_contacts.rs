@@ -1317,6 +1317,7 @@ impl OwnedContacts {
                     EntityHistoryKind::OwnPositionCorrection { .. } => {
                         (None, None, "OwnPositionCorrection", 0)
                     }
+                    EntityHistoryKind::OwnVelocity { .. } => (None, None, "OwnVelocity", 0),
                 };
                 c.session = Some(record.session);
                 c.entity = entity;

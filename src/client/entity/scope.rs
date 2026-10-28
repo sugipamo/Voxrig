@@ -243,6 +243,7 @@ fn trigger(kind: &K) -> crate::MovementPacketTrigger {
         K::Removed { .. } => ("Removed", 0),
         K::WorldChanged { .. } => ("WorldChanged", 0),
         K::OwnPositionCorrection { .. } => ("OwnPositionCorrection", 0),
+        K::OwnVelocity { .. } => ("OwnVelocity", 0),
     };
     crate::MovementPacketTrigger {
         packet_type: packet_type.into(),

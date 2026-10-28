@@ -31,6 +31,7 @@ Microsoftアカウント認証・online-mode暗号化、および署名付きcha
 - [共通のentity現在状態](common-entities.md)
 - [受信targetのentity rayとblock遮蔽](common-entity-targeting.md)
 - [Entityの受信履歴](common-entity-history.md)
+- [自分への速度上書き（ノックバック）](own-velocity.md)
 - [共通の継続操作（キーを押し続ける移動）](common-control.md)
 - [bodyの領域別admission・期限付きreceipt観測・strict API互換性](domain-gates.md)
 - [共通のアイテム使用](common-item-use.md)

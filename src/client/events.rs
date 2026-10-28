@@ -84,6 +84,10 @@ pub enum EventKind {
     /// sent one, is `Client::disconnect_reason`.
     Disconnected,
     /// Received motion, rotation, velocity, entity data or equipment of an entity.
+    /// A velocity targeting the own player is a player change: both versions
+    /// record `PlayerChanged`, and Java 1.21.11 also keeps this kind with the own
+    /// numeric id for compatibility. Read `velocity_override()` on the received
+    /// player snapshot for the value.
     EntityUpdated {
         /// Native entity id within the current world.
         native_id: i32,

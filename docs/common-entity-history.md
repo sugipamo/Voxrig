@@ -58,6 +58,8 @@ sequenceを保つ。後からのsnapshotやモデル値、未受信の速度・�
 そのlifetimeも持つ。spawn不明ならidentityは`None`。own playerはremote spawnとは別に
 `OwnPositionCorrection`として保存し、解決済みposeと、解決できたnative velocityを返す。
 legacyのown補正にはvelocityがないため`None`である。
+自分宛ての速度packet（ノックバックなど）は`OwnVelocity { velocity }`として受信ごとに保存する。
+`OwnPositionCorrection`と違い接触・再生のfenceではない。[速度上書き](own-velocity.md)を参照。
 
 `Metadata`／`Equipment`は**その1 packetの差分**を保存する。後からの現在状態をコピーせず、
 元のentry順序と重複index／slotを保つ。値の出典はrecordの`receive_sequence`で、受信済みの

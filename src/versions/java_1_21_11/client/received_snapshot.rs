@@ -93,6 +93,17 @@ impl State {
         if let Some((value, _)) = own.fall_flying.filter(|(_, seq)| *seq == sequence) {
             out.fall_flying.set(value, event);
         }
+        if id == input::ENTITY_VELOCITY {
+            // Re-read the packet: the projected local velocity may already have
+            // been cleared by a motion interruption at this same receipt.
+            let mut r = Reader::new(payload);
+            if own.entity_id.is_some() && Some(r.varint()?) == own.entity_id {
+                out.velocity_override.set(
+                    crate::versions::java_1_21_11::wire::velocity(&mut r)?,
+                    event,
+                );
+            }
+        }
         if let Some(value) = native
             .server_time
             .as_ref()
@@ -746,5 +757,85 @@ mod tests {
         assert!(s.receive(packet::UPDATE_HEALTH, &health(), 64).is_err());
         assert_eq!(s.sequence, u64::MAX);
         assert!(s.failure.is_some());
+    }
+    fn knockback(entity: u8) -> Vec<u8> {
+        // Native packed vector with x = 17694 * 2 / 32766 - 1, y = z = 0.
+        let packed = 1u64 | (17694u64 << 3) | (16383u64 << 18) | (16383u64 << 33);
+        let mut p = vec![entity, packed as u8, (packed >> 8) as u8];
+        p.extend(((packed >> 16) as u32).to_be_bytes());
+        p
+    }
+    #[test]
+    fn own_velocity_override_is_received_recorded_and_a_player_change() {
+        use crate::client::{EntityHistoryKind, EventKind, MAX_ENTITY_HISTORY_READ};
+        let mut s = state();
+        assert!(matches!(
+            capture(&s).velocity_override(),
+            FieldState::Missing
+        ));
+        // A remote entity's velocity is not the player's.
+        s.receive(packet::ENTITY_VELOCITY, &knockback(7), 64)
+            .unwrap();
+        assert!(matches!(
+            capture(&s).velocity_override(),
+            FieldState::Missing
+        ));
+        s.receive(packet::ENTITY_VELOCITY, &knockback(42), 64)
+            .unwrap();
+        let sequence = s.sequence;
+        let expected = [17694. * 2. / 32766. - 1., 0., 0.];
+        let snapshot = capture(&s);
+        let field = received(snapshot.velocity_override());
+        assert_eq!(field.value(), &expected);
+        assert_eq!(field.receipt().ordinal(), sequence);
+        // A later unrelated receipt keeps the original receive sequence.
+        s.receive(packet::UPDATE_HEALTH, &health(), 64).unwrap();
+        assert_eq!(
+            received(capture(&s).velocity_override())
+                .receipt()
+                .ordinal(),
+            sequence
+        );
+        let kinds: Vec<_> = s
+            .events
+            .after(0, s.sequence)
+            .unwrap()
+            .events
+            .into_iter()
+            .filter(|e| e.receive_sequence == sequence)
+            .map(|e| e.kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                EventKind::EntityUpdated { native_id: 42 },
+                EventKind::PlayerChanged
+            ]
+        );
+        let history = s
+            .entities
+            .history_after(
+                s.snapshot_session(),
+                s.sequence,
+                None,
+                MAX_ENTITY_HISTORY_READ,
+            )
+            .unwrap();
+        let own: Vec<_> = history
+            .records
+            .iter()
+            .filter_map(|r| match r.kind {
+                EntityHistoryKind::OwnVelocity { velocity } => Some((r.receive_sequence, velocity)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(own, [(sequence, expected)]);
+        let mut respawn = spawn();
+        respawn.push(3);
+        s.receive(packet::RESPAWN, &respawn, 64).unwrap();
+        let FieldState::Invalidated(event) = capture(&s).velocity_override().clone() else {
+            panic!("reset")
+        };
+        assert_eq!(event.reason(), InvalidationReason::RespawnReset);
     }
 }

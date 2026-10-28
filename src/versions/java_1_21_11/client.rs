@@ -340,8 +340,18 @@ impl State {
             operations::inventory::changes_received(self, id, in_play)?;
             self.reconcile_finite();
             if in_play {
+                let own = self.operations.local_player.entity_id;
                 for kind in event_kinds::kinds(id, payload) {
+                    // An own ENTITY_VELOCITY keeps its EntityUpdated{self} kind for
+                    // compatibility and is also a player change, as on Java 1.16.1.
+                    let player = id == ids::play_clientbound::ENTITY_VELOCITY
+                        && matches!(kind, crate::client::EventKind::EntityUpdated { native_id }
+                            if Some(native_id) == own);
                     self.events.record(self.sequence, kind);
+                    if player {
+                        self.events
+                            .record(self.sequence, crate::client::EventKind::PlayerChanged);
+                    }
                 }
             }
         }
