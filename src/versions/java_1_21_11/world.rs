@@ -790,7 +790,8 @@ mod tests {
             Dimension::new(-64, 384).unwrap(),
         );
         for x in std::iter::once(0i32).chain(100..197) {
-            world.chunks.insert((x, 0), vec![Arc::new([1; 4096]); 24]);
+            let section = Arc::new([1; 4096]);
+            world.chunks.insert((x, 0), vec![section; 24]);
             world.contexts.insert((x, 0), Default::default());
             world.light.insert((x, 0), Default::default());
         }
