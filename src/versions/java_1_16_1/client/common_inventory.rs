@@ -3319,6 +3319,11 @@ mod tests {
                     .unwrap(),
                 (0x19, api::crafting::dispatch::payload(&pending).unwrap())
             );
+            // One no-op resync click (window 0, slot -1, PICKUP) follows the request.
+            let resync = packets.recv().await.unwrap();
+            assert_eq!(resync.0, 0x09);
+            assert_eq!(&resync.1[..4], &[0, 0xff, 0xff, 0]);
+            let action = i16::from_be_bytes([resync.1[4], resync.1[5]]);
             slot(&bot, 1, &plank(1), false).await;
             slot(&bot, 3, &plank(1), false).await;
             let partial = client
@@ -3332,6 +3337,28 @@ mod tests {
             assert!(client.survival().place_recipe(&old_plan).await.is_err());
             assert!(client.survival().select_hotbar(0).await.is_err());
             slot(&bot, 9, &plank(8), false).await;
+            // Conserved inputs alone keep the owner until the resync's full contents.
+            assert_eq!(
+                client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                RecipePlacementStage::Pending
+            );
+            recipe_resync(
+                &bot,
+                &mut packets,
+                action,
+                &[
+                    (1, "oak_planks", 1),
+                    (3, "oak_planks", 1),
+                    (9, "oak_planks", 8),
+                ],
+            )
+            .await;
             let complete = client
                 .survival()
                 .recipe_placement_record()
@@ -3365,6 +3392,94 @@ mod tests {
             drop(bot);
             server.await.unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn recipe_placement_unchanged_full_resync_after_reply_is_terminal_and_releases_owner() {
+        use api::crafting::RecipePlacementStage;
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let planks = ItemStack {
+            item_id: crate::item_id("oak_planks").unwrap(),
+            count: 10,
+            nbt: None,
+        };
+        let mut set = vec![0];
+        set.extend(9i16.to_be_bytes());
+        write_slot(&mut set, Some(&planks));
+        bot.apply_packet(0x16, set).await.unwrap();
+        slot(&bot, 36, &api::SlotKnowledge::Empty, false).await;
+        {
+            let mut receipts = bot.common_receipts.lock().await;
+            receipts.registries.finish();
+            receipts.recipes = api::tests::recipe_placement_book_fixture(
+                crate::MinecraftVersion::Java1_16_1,
+                bot.protocol_packet_sequence.load(Ordering::Acquire),
+            );
+        }
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let plan = api::tests::common_recipe_placement_plan(&client).await;
+        let sent = client.survival().place_recipe(&plan).await.unwrap();
+        assert!(sent.send.dispatched && sent.resync_dispatched);
+        assert_eq!(packets.recv().await.unwrap().0, 0x19);
+        let (id, click) = packets.recv().await.unwrap();
+        assert_eq!(id, 0x09);
+        let action = i16::from_be_bytes([click[4], click[5]]);
+        let full = || {
+            let mut full = vec![0, 0, 46];
+            for index in 0..46 {
+                write_slot(&mut full, (index == 9).then_some(&planks));
+            }
+            full
+        };
+        let record = |client: crate::Client| async move {
+            client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+        };
+        // Vanilla ignored the request. Full contents without the resync's own
+        // reply could predate the request, so they are not a boundary.
+        bot.apply_packet(0x14, full()).await.unwrap();
+        bot.apply_packet(0x16, vec![255, 255, 255, 0])
+            .await
+            .unwrap();
+        assert_eq!(
+            record(client.clone()).await.stage,
+            RecipePlacementStage::Pending
+        );
+        // The reply is deliberately `accepted=false`; it only orders the contents.
+        ack(&bot, action, false).await;
+        assert_eq!(packets.recv().await.unwrap().0, 0x07);
+        assert_eq!(
+            record(client.clone()).await.stage,
+            RecipePlacementStage::Pending
+        );
+        bot.apply_packet(0x14, full()).await.unwrap();
+        bot.apply_packet(0x16, vec![255, 255, 255, 0])
+            .await
+            .unwrap();
+        let unchanged = record(client.clone()).await;
+        assert_eq!(unchanged.id, sent.id);
+        assert_eq!(unchanged.stage, RecipePlacementStage::ObservedUnchanged);
+        assert!(unchanged.unchanged_boundary.unwrap() > sent.send.after_sequence);
+        assert!(unchanged.after.is_none() && unchanged.requires_inspection.is_none());
+        // The owner is released: an ordinary selection is admitted again.
+        client.survival().select_hotbar(0).await.unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x24);
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            record(client.clone()).await.stage,
+            RecipePlacementStage::ObservedUnchanged
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
     }
 
     #[tokio::test]
@@ -3415,6 +3530,9 @@ mod tests {
             let plan = api::tests::common_ghost_recipe_plan(&client).await;
             let request = client.survival().place_recipe(&plan).await.unwrap();
             assert_eq!(packets.recv().await.unwrap().0, 0x19);
+            let click = packets.recv().await.unwrap();
+            assert_eq!(click.0, 0x09);
+            let action = i16::from_be_bytes([click.1[4], click.1[5]]);
             assert_eq!(
                 client
                     .survival()
@@ -3460,12 +3578,33 @@ mod tests {
                 );
                 slot(&bot, 36, &item("minecraft:dirt", 1), false).await;
             }
+            let returned: &[(usize, &str, i8)] = if with_input {
+                &[(9, "oak_planks", 1), (36, "dirt", 1)]
+            } else {
+                &[(9, "oak_planks", 1)]
+            };
+            // The ghost completes only with the resync's full contents.
+            assert_eq!(
+                client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                RecipePlacementStage::Pending
+            );
+            recipe_resync(&bot, &mut packets, action, returned).await;
             api::tests::common_ghost_completed(&client, request.id).await;
             assert!(client.survival().place_recipe(&plan).await.is_err());
             let fresh = api::tests::common_ghost_recipe_plan(&client).await;
             let second = client.survival().place_recipe(&fresh).await.unwrap();
             assert_eq!(packets.recv().await.unwrap().0, 0x19);
+            let click = packets.recv().await.unwrap();
+            assert_eq!(click.0, 0x09);
+            let action = i16::from_be_bytes([click.1[4], click.1[5]]);
             bot.apply_packet(0x30, ghost(0)).await.unwrap();
+            recipe_resync(&bot, &mut packets, action, returned).await;
             api::tests::common_ghost_completed(&client, second.id).await;
             assert!(client.survival().place_recipe(&fresh).await.is_err());
             client.survival().select_hotbar(0).await.unwrap();
@@ -3871,6 +4010,33 @@ mod tests {
         };
         write_slot(&mut payload, stack.as_ref());
         bot.apply_packet(0x16, payload).await.unwrap();
+    }
+    /// The resync's `accepted=false` reply, the client's acknowledgement, then
+    /// full player contents and the cursor, as vanilla answers the click.
+    async fn recipe_resync(
+        bot: &Bot,
+        packets: &mut tokio::sync::mpsc::UnboundedReceiver<(i32, Vec<u8>)>,
+        action: i16,
+        slots: &[(usize, &str, i8)],
+    ) {
+        ack(bot, action, false).await;
+        assert_eq!(packets.recv().await.unwrap().0, 0x07);
+        let mut full = vec![0, 0, 46];
+        for index in 0..46 {
+            let stack = slots
+                .iter()
+                .find(|(slot, _, _)| *slot == index)
+                .map(|(_, name, count)| ItemStack {
+                    item_id: crate::item_id(name).unwrap(),
+                    count: *count,
+                    nbt: None,
+                });
+            write_slot(&mut full, stack.as_ref());
+        }
+        bot.apply_packet(0x14, full).await.unwrap();
+        bot.apply_packet(0x16, vec![255, 255, 255, 0])
+            .await
+            .unwrap();
     }
     async fn ack(bot: &Bot, action: i16, accepted: bool) {
         let mut payload = vec![0];

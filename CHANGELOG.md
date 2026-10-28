@@ -80,6 +80,21 @@
   Fixes coherent Java 1.16.1 tool pickups diverging when player slots 0..4 hydrate
   (sugipamo/Golemkit#424), without changing the public API.
 
+- Recipe-book placement no longer stays `Pending` forever when the server ignores
+  the request (audit C3). Vanilla sends nothing for an ignored request, so both
+  versions now follow each request with one no-op full-resync click
+  (`RecipePlacementRecord::resync_dispatched`). Fresh full contents after it that
+  still equal the pre-send grid, result, main/hotbar and cursor (1.16.1: after the
+  click's own reply, whose `accepted=false` is never read as a refusal) end as the
+  new terminal `ObservedUnchanged` (with `unchanged_boundary`) and release the
+  placement owner. `ObservedPlaced` / `ObservedGhost` now also wait for that full
+  contents, so a plan captured after completion is not invalidated by them. A record still `Pending` 5 s after it was retained ends as
+  `Expired` (outcome unknown) and fails the connection ledger with
+  `TransactionExpired`. Additive: `RecipePlacementStage` is `#[non_exhaustive]` and
+  the record (not constructible outside Voxrig) only gains fields. Callers that
+  count serverbound click frames see one more per placement.
+  See [ignored requests](docs/common-recipes.md#ignored-requests-observedunchanged-and-expired).
+
 - Add Java 1.16.1 Body `action_observation` and `monitor_changes_after`, separating
   immutable acceptance from late corrections and evidence completeness. Internal
   evidence gaps, world/target-chunk loss and retryable timeout/read errors are

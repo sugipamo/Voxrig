@@ -34,7 +34,7 @@ pub(super) enum MotionCommand {
         run_id: u64,
         expected_revision: u64,
         payload: Vec<u8>,
-        reply: oneshot::Sender<crate::Result<()>>,
+        reply: oneshot::Sender<crate::Result<i16>>,
     },
     FinishRecipePlacement {
         run_id: u64,
@@ -414,6 +414,7 @@ impl MotionGate {
         Ok(())
     }
     // Returns true only after possible delivery fails: the caller terminates the actor.
+    #[allow(clippy::too_many_arguments)]
     pub(super) async fn process(
         &mut self,
         work: &crate::client::ledger::WorkGuard,
@@ -422,6 +423,7 @@ impl MotionGate {
         writer: &Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
         control: &Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
         pending: bool,
+        next_actions: &mut HashMap<i8, i16>,
     ) -> bool {
         match command {
             MotionCommand::CursorReturn {
@@ -597,12 +599,41 @@ impl MotionGate {
                         });
                         Ok(())
                     });
-                let admitted = admission.is_ok();
-                let result = match admission {
+                // Vanilla sends nothing when it ignores the request. One following
+                // no-op resync click (PICKUP slot -1 returns Empty without changing a
+                // slot) with a deliberately unequal comparison is answered with an
+                // `accepted=false` reply and full contents after the request was
+                // handled. The reply is only an ordering point, never a refusal.
+                let window = payload.first().map_or(0, |w| *w as i8);
+                let resync = admission.and_then(|()| {
+                    let next = next_actions.entry(window).or_insert(0);
+                    let action = next
+                        .checked_add(1)
+                        .filter(|v| *v > 0)
+                        .ok_or(OperationAdmissionError::InvalidOperation)?;
+                    *next = action;
+                    let mut click = vec![window as u8];
+                    click.extend((-1i16).to_be_bytes());
+                    click.push(0);
+                    click.extend(action.to_be_bytes());
+                    click.push(0);
+                    crate::versions::java_1_16_1::inventory::write_slot(
+                        &mut click,
+                        Some(&crate::versions::java_1_16_1::ItemStack {
+                            item_id: crate::registry::item_id("stone")
+                                .ok_or(OperationAdmissionError::InvalidOperation)?,
+                            count: i8::MAX,
+                            nbt: None,
+                        }),
+                    );
+                    Ok((action, click))
+                });
+                let admitted = resync.is_ok();
+                let result = match resync {
                     Err(e) => Err(crate::client::inventory::unavailable(format!(
                         "recipe placement admission: {e:?}"
                     ))),
-                    Ok(()) => {
+                    Ok((action, click)) => {
                         let mut writer = writer.lock().await;
                         let compression = writer.compression;
                         let result = writer
@@ -613,7 +644,15 @@ impl MotionGate {
                         if result.is_ok() {
                             self.owner = Some(Owner::RecipePlacement { run_id, sent: true });
                         }
-                        result
+                        match result {
+                            Ok(()) => writer
+                                .inner
+                                .send(work, compression, 0x09, &click)
+                                .await
+                                .map(|()| action)
+                                .map_err(crate::Error::from),
+                            Err(e) => Err(e),
+                        }
                     }
                 };
                 let failed = admitted && result.is_err();
@@ -1266,7 +1305,7 @@ impl ConnectionActor {
         run_id: u64,
         expected_revision: u64,
         payload: Vec<u8>,
-    ) -> crate::Result<()> {
+    ) -> crate::Result<i16> {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::Motion(MotionCommand::RecipePlacement {
