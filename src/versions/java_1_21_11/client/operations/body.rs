@@ -19,7 +19,11 @@ pub(in crate::versions::java_1_21_11::client) fn chunk(state: &mut State, chunk:
         .body_evidence
         .push(state.sequence, Update::Chunk(chunk));
 }
-pub(in crate::versions::java_1_21_11::client) fn received(state: &mut State, id: i32) {
+pub(in crate::versions::java_1_21_11::client) fn received(
+    state: &mut State,
+    id: i32,
+    payload: &[u8],
+) {
     use ids::play_clientbound as input;
     match id {
         input::POSITION => {
@@ -40,7 +44,15 @@ pub(in crate::versions::java_1_21_11::client) fn received(state: &mut State, id:
                     .push(state.sequence, Update::Selection(slot.slot));
             }
         }
-        input::WINDOW_ITEMS => state.body_evidence.push(state.sequence, Update::Resync),
+        // Only the player inventory window (0) resyncs the used hand; an open
+        // container's ContainerSetContent is unrelated evidence.
+        input::WINDOW_ITEMS
+            if Reader::new(payload)
+                .varint()
+                .is_ok_and(|window| window == 0) =>
+        {
+            state.body_evidence.push(state.sequence, Update::Resync)
+        }
         input::RESPAWN | input::START_CONFIGURATION | input::LOGIN => {
             state.body_evidence.push(state.sequence, Update::World)
         }
