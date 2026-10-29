@@ -1492,6 +1492,20 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn crafting_foreign_collect_preserves_proof_and_stock_guards() {
+        for stock_conflict in [false, true] {
+            let (bot, packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.apply_packet(0x3f, vec![0]).await.unwrap();
+            let mut f = LegacyFixture { bot, packets };
+            script::crafting_foreign_collect(&mut f, stock_conflict).await;
+            drop(release);
+            drop(f.bot);
+            server.await.unwrap();
+        }
+    }
+    #[tokio::test]
     async fn crafting_pickup_adversarial_evidence_and_continuation() {
         for case in 0..10 {
             let (bot, packets, release, server) =

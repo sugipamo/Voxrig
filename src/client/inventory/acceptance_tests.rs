@@ -996,7 +996,7 @@ pub(crate) async fn crafting_pickup_ownership(
         assert_eq!(delta.items[0].change, 1);
     }
     let operational = client.operational_crafting_outcome(send.id).await.unwrap();
-    let success = (pickup_slot.is_none() && collector.is_none())
+    let success = (pickup_slot.is_none() && collector != Some(true))
         || (pickup_slot.is_some() && collector == Some(true));
     assert_eq!(
         operational.stage,
@@ -1057,6 +1057,119 @@ pub(crate) async fn crafting_pickup_ownership(
             .stage,
         take.stage
     );
+    client.disconnect().await.unwrap();
+}
+
+/// Foreign animations are neither pickup proof nor a conflict for this owner.
+/// Run through both packet adapters, including missing foreign item metadata.
+pub(crate) async fn crafting_foreign_collect(f: &mut impl Fixture, stock_conflict: bool) {
+    use crate::client::OperationalCraftingStage as Stage;
+    let client = f.client();
+    let version = client.version();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    let output = item(version, "minecraft:oak_planks", 4);
+    slots[0] = output.clone();
+    slots[1] = item(version, "minecraft:oak_log", 1);
+    slots[9] = item(version, "minecraft:oak_log", 2);
+    f.item_entity(1182, 1).await;
+    f.item_entity(1183, 1).await;
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let send = client
+        .survival()
+        .send_operational_crafting_result(&grid)
+        .await
+        .unwrap();
+    f.click().await;
+    let pending = client.operational_crafting_outcome(send.id).await.unwrap();
+    assert_eq!(pending.stage, Stage::Pending);
+    for entity in [1183, 9999] {
+        f.collect(entity, false).await;
+        let after = client.operational_crafting_outcome(send.id).await.unwrap();
+        assert_eq!(
+            serde_json::to_value(&after).unwrap(),
+            serde_json::to_value(&pending).unwrap()
+        );
+    }
+    f.collect(1182, true).await;
+    assert_eq!(
+        client
+            .operational_crafting_outcome(send.id)
+            .await
+            .unwrap()
+            .stage,
+        Stage::Pending
+    );
+    let mut first_failure = None;
+    if stock_conflict {
+        // A transient removal must not disappear behind a matching full proof.
+        f.slot(9, &item(version, "minecraft:oak_log", 1)).await;
+        let failed = client.operational_crafting_outcome(send.id).await.unwrap();
+        assert_eq!(failed.stage, Stage::RequiresInspection);
+        first_failure = failed.requires_inspection;
+        assert!(
+            first_failure
+                .as_deref()
+                .unwrap()
+                .contains("unexplained intermediate stock change")
+        );
+        f.slot(9, &slots[9]).await;
+    }
+    slots[0] = SlotKnowledge::Empty;
+    slots[1] = SlotKnowledge::Empty;
+    slots[10] = item(version, "minecraft:oak_log", 1);
+    f.complete(&send, &slots, &output, false).await;
+    let outcome = client.operational_crafting_outcome(send.id).await.unwrap();
+    if stock_conflict {
+        assert_eq!(outcome.stage, Stage::RequiresInspection);
+        assert_eq!(outcome.requires_inspection, first_failure);
+        assert!(client.continue_operational_crafting(send.id).await.is_err());
+    } else {
+        assert_eq!(outcome.stage, Stage::Crafted, "{outcome:?}");
+        assert!(outcome.requires_inspection.is_none());
+        assert_eq!(outcome.external.len(), 1);
+        assert_eq!(outcome.external[0].metadata.entity.native_id(), 1182);
+        assert_eq!(outcome.external[0].collector, 42);
+        assert_eq!(outcome.external[0].count, 1);
+        let delta = outcome.external_delta.as_ref().unwrap();
+        assert_eq!(delta.items.len(), 1);
+        assert_eq!(delta.items[0].change, 1);
+        assert_eq!(delta.slots.len(), 1);
+        assert_eq!(
+            delta.slots[0].location,
+            InventoryLocation::Player { slot: 10 }
+        );
+        // Claimed Crafted remains guarded until explicit continuation, but an
+        // unrelated player's pickup cannot invalidate that proven basis.
+        for entity in [1183, 9999] {
+            f.collect(entity, false).await;
+            let after = client.operational_crafting_outcome(send.id).await.unwrap();
+            assert_eq!(
+                serde_json::to_value(&after).unwrap(),
+                serde_json::to_value(&outcome).unwrap()
+            );
+        }
+        assert!(
+            client
+                .continue_operational_crafting(send.id)
+                .await
+                .unwrap()
+                .released
+        );
+    }
+    let divergence = client.inventory_divergence(send.id).await.unwrap().unwrap();
+    let collected: Vec<_> = divergence
+        .causes
+        .iter()
+        .filter_map(|cause| {
+            if let InventoryCause::Collected { entity_ids } = cause {
+                Some(entity_ids.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(collected, vec![vec![1182]]);
     client.disconnect().await.unwrap();
 }
 

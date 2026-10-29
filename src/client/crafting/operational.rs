@@ -136,12 +136,17 @@ impl Owner {
         if self.released || self.outcome.stage == OperationalCraftingStage::RequiresInspection {
             return;
         }
-        if self.outcome.stage == OperationalCraftingStage::Crafted {
-            self.fail("collect received after proof but before continuation");
+        let Some(player) = self.record.initial.entity_id else {
+            self.fail("operational crafting player entity_id is unknown");
+            return;
+        };
+        // The original player's identity owns attribution, including after proof.
+        // Another collector changes neither our stock nor our pickup evidence.
+        if collector != player {
             return;
         }
-        if Some(collector) != self.record.initial.entity_id {
-            self.fail("another player's collect cannot explain this craft's stock");
+        if self.outcome.stage == OperationalCraftingStage::Crafted {
+            self.fail("collect received after proof but before continuation");
             return;
         }
         let Some(metadata) = metadata else {
