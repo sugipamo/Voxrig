@@ -13,7 +13,9 @@ pub use changes::{
     InventoryCause, InventoryChange, InventoryChangeLog, InventoryDelta, InventoryItemDelta,
     InventoryLocation, InventorySlotDelta, InventorySnapshot, MAX_RETAINED_INVENTORY_CHANGES,
 };
-pub use executor::{InventorySendId, InventorySendRecord, InventorySendStatus};
+pub use executor::{
+    InventorySendId, InventorySendInspectionReason, InventorySendRecord, InventorySendStatus,
+};
 pub use outcome::{InventoryDivergence, InventoryEffect, InventoryIntendedChange};
 #[cfg(test)]
 mod crafting_swap_tests;

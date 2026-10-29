@@ -723,6 +723,79 @@ impl Operations {
             resync,
         )
     }
+    fn start_inventory_completion_deadline(&self, id: crate::client::inventory::InventorySendId) {
+        let bot = self.bot.clone();
+        let first =
+            tokio::time::Instant::now() + self.bot.session.limits.inventory_click_receipt_timeout;
+        self.bot.session.spawn_finite(Box::pin(async move {
+            loop {
+                tokio::time::sleep_until(
+                    first.min(tokio::time::Instant::now() + Duration::from_millis(20)),
+                )
+                .await;
+                let mut state = bot.session.state.lock().await;
+                state.inventory_executor.record();
+                if tokio::time::Instant::now() >= first {
+                    break;
+                }
+                if !state.inventory_executor.completion_waiting(id) {
+                    return;
+                }
+            }
+            let second = bot.session.limits.inventory_click_receipt_timeout;
+            let result = tokio::time::timeout(second, async {
+                let mut state = bot.session.state.lock().await;
+                if !state.inventory_executor.recovery_needed(id) {
+                    return Ok(());
+                }
+                if execution_scope(&state) != (id.session(), id.source()) {
+                    state.inventory_executor.invalidate_owned(id);
+                    return Ok(());
+                }
+                let record = state.inventory_executor.record().expect("retained");
+                let after = state.sequence;
+                let token = state.inventory_executor.recovery_fence_token(id)?;
+                let bytes = recipe_placement::resync_payload(record.window());
+                bot.session
+                    .send(ids::play_serverbound::WINDOW_CLICK, &bytes)
+                    .await?;
+                let mut fence = Vec::new();
+                put_varint(&mut fence, token as i32);
+                put_string(&mut fence, "/");
+                bot.session
+                    .send(ids::play_serverbound::TAB_COMPLETE, &fence)
+                    .await?;
+                state
+                    .inventory_executor
+                    .recovery_written(id, after, None, second);
+                Ok::<(), crate::Error>(())
+            })
+            .await;
+            if !matches!(result, Ok(Ok(()))) {
+                bot.session
+                    .state
+                    .lock()
+                    .await
+                    .inventory_executor
+                    .recovery_failed(id);
+                return;
+            }
+            let deadline = tokio::time::Instant::now() + second;
+            loop {
+                tokio::time::sleep_until(
+                    deadline.min(tokio::time::Instant::now() + Duration::from_millis(20)),
+                )
+                .await;
+                let mut state = bot.session.state.lock().await;
+                state.inventory_executor.record();
+                if !state.inventory_executor.completion_waiting(id)
+                    || tokio::time::Instant::now() >= deadline
+                {
+                    break;
+                }
+            }
+        }));
+    }
     pub(super) async fn send_inventory_fence(
         &self,
         state: &mut State,
@@ -731,6 +804,9 @@ impl Operations {
         state
             .inventory_executor
             .written(id, self.bot.session.limits.inventory_click_receipt_timeout);
+        if state.inventory_executor.completion_waiting(id) {
+            self.start_inventory_completion_deadline(id);
+        }
         use crate::client::ledger::finite::Family;
         let after = state
             .inventory_executor

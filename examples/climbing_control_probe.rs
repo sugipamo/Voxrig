@@ -733,7 +733,9 @@ async fn main() -> anyhow::Result<()> {
                 use voxrig::client::inventory::{InventoryClickButton as Button, InventorySource};
                 let slot = request["slot"].as_u64().unwrap().try_into()?;
                 let button = if request["button"] == "right" { Button::Right } else { Button::Left };
-                serde_json::to_value(survival.send_inventory_click(InventorySource::Player, slot, button).await?)?
+                serde_json::to_value(if client.player_state().await?.game_mode == Some(GameMode::Creative) {
+                    client.creative().send_inventory_click(InventorySource::Player, slot, button).await?
+                } else { survival.send_inventory_click(InventorySource::Player, slot, button).await? })?
             }
             "inventory_record" => serde_json::to_value(survival.inventory_click_record().await?)?,
             "inventory_click" => {
