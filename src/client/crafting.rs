@@ -30,6 +30,8 @@ pub(crate) mod dispatch;
 pub use dispatch::{
     RecipePlacementId, RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage,
 };
+pub(crate) mod operational;
+pub use operational::{CraftExternal, OperationalCraftingOutcome, OperationalCraftingStage};
 pub(crate) mod take;
 pub use take::{
     CraftingResultDestination, CraftingTakeId, CraftingTakeInspectionReason, CraftingTakeRecord,

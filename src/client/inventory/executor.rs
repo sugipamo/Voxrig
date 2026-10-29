@@ -79,6 +79,7 @@ impl InventorySendRecord {
 #[derive(Default)]
 pub(crate) struct Executor {
     next: u64,
+    pub(crate) operational: Option<crate::client::crafting::operational::Owner>,
     pub(crate) changes: super::changes::InventoryChangeLedger,
     current: Option<InventorySendRecord>,
     deadline: Option<Instant>,
@@ -89,6 +90,38 @@ pub(crate) struct Executor {
     own_actions: std::sync::Arc<super::own_action::OwnActionSink>,
 }
 impl Executor {
+    pub(crate) fn operational_access(
+        &mut self,
+        id: InventorySendId,
+        release: bool,
+        session: SessionStamp,
+        source: InventorySource,
+        current: &super::InventorySnapshot,
+        player: &crate::client::PlayerObservation,
+    ) -> Result<crate::client::crafting::OperationalCraftingOutcome> {
+        self.expire();
+        if id.session() != session || id.source() != source {
+            return Err(unavailable("operational crafting scope retired"));
+        }
+        let send = self
+            .current
+            .as_ref()
+            .filter(|r| r.id == id)
+            .ok_or_else(|| unavailable("operational crafting send superseded"))?;
+        let owner = self
+            .operational
+            .as_mut()
+            .filter(|o| o.outcome.send == id)
+            .ok_or_else(|| unavailable("send has no operational crafting owner"))?;
+        owner.player(player);
+        owner.receive(send, current, self.ready);
+        owner.claimed = true;
+        if release {
+            owner.release(current)?;
+        }
+        Ok(owner.outcome.clone())
+    }
+
     /// Handoff the socket writer records own action frames into.
     pub(crate) fn own_action_sink(&self) -> std::sync::Arc<super::own_action::OwnActionSink> {
         self.own_actions.clone()
@@ -162,6 +195,15 @@ impl Executor {
     }
     pub(crate) fn admit(&mut self) -> Result<()> {
         self.expire();
+        if self
+            .operational
+            .as_ref()
+            .is_some_and(|o| o.claimed && !o.released)
+        {
+            return Err(unavailable(
+                "operational crafting owns inventory; inspect or explicitly continue",
+            ));
+        }
         if self.busy() {
             return Err(unavailable(
                 "inventory executor awaiting response/state; resync after timeout",
@@ -200,6 +242,11 @@ impl Executor {
             source,
             number: self.next,
         };
+        if resync {
+            if let Some(owner) = &mut self.operational {
+                owner.fail("operational crafting required resynchronization");
+            }
+        }
         let inherited = if resync {
             self.comparison
                 .take()
@@ -311,6 +358,9 @@ impl Executor {
         }
     }
     pub(crate) fn invalidate(&mut self) {
+        if let Some(owner) = &mut self.operational {
+            owner.fail("operational crafting scope or delivery invalidated");
+        }
         if let Some(r) = self
             .current
             .as_mut()
@@ -349,12 +399,13 @@ impl Executor {
             }
         }
     }
-    pub(crate) fn comparison(&mut self, comparison: super::outcome::Comparison) {
+    pub(crate) fn comparison(&mut self, mut comparison: super::outcome::Comparison) {
         if self
             .current
             .as_ref()
             .is_some_and(|r| r.id == comparison.send && !r.dispatched)
         {
+            self.operational = comparison.operational.take();
             self.comparison = Some(comparison);
         }
     }
@@ -428,6 +479,9 @@ impl Executor {
     }
     pub(crate) fn observe(&mut self, current: super::InventorySnapshot, crafting_complete: bool) {
         self.expire();
+        if let (Some(owner), Some(send)) = (&mut self.operational, &self.current) {
+            owner.receive(send, &current, self.ready);
+        }
         if self.current.as_ref().is_some_and(|r| {
             r.status == InventorySendStatus::Pending
                 && current.receive_sequence > r.after_sequence

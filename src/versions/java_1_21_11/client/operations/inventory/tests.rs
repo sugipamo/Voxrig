@@ -6160,6 +6160,37 @@ mod single_owner {
         }
     }
     impl Fixture for CommonFixture {
+        async fn item_entity(&mut self, entity: i32, count: u32) {
+            self.api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .operations
+                .local_player
+                .entity_id = Some(42);
+            let mut spawn = Vec::new();
+            put_varint(&mut spawn, entity);
+            spawn.extend([0; 16]);
+            let kind =
+                crate::client::registry::Registry::for_version(MinecraftVersion::Java1_21_11)
+                    .builtin_id("minecraft:entity_type", "minecraft:item")
+                    .unwrap()
+                    .value();
+            put_varint(&mut spawn, kind);
+            spawn.extend([0; 29]);
+            self.receive(ids::play_clientbound::SPAWN_ENTITY, &spawn)
+                .await;
+            let mut metadata = Vec::new();
+            put_varint(&mut metadata, entity);
+            metadata.extend([8, 7]);
+            put_slot(&mut metadata, &plain("oak_log", count as u8));
+            metadata.push(255);
+            self.receive(ids::play_clientbound::ENTITY_METADATA, &metadata)
+                .await;
+        }
+
         async fn crafting_probe(&mut self) {
             let p = timeout(Duration::from_secs(2), read_packet(&mut self.peer, None))
                 .await
@@ -6220,6 +6251,36 @@ mod single_owner {
             assert_eq!(packet.0, ids::play_serverbound::WINDOW_CLICK);
             let fence = read_packet(&mut self.peer, None).await.unwrap();
             assert_eq!(fence.0, ids::play_serverbound::TAB_COMPLETE);
+        }
+    }
+    #[tokio::test]
+    async fn crafting_pickup_adversarial_evidence_and_continuation() {
+        for case in 0..10 {
+            let mut f = CommonFixture::new().await;
+            crate::client::inventory::armor_tests::install(
+                &mut f.api.bot.session.state.lock().await.registries,
+                MinecraftVersion::Java1_21_11,
+                None,
+            );
+            f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+            script::crafting_pickup_adversarial(&mut f, case).await;
+            f.stop().await;
+        }
+    }
+    #[tokio::test]
+    async fn crafting_pickup_ownership_keeps_strict_and_operational_outcomes_separate() {
+        for slot in [None, Some(9), Some(36)] {
+            for collector in [None, Some(false), Some(true)] {
+                let mut f = CommonFixture::new().await;
+                crate::client::inventory::armor_tests::install(
+                    &mut f.api.bot.session.state.lock().await.registries,
+                    MinecraftVersion::Java1_21_11,
+                    None,
+                );
+                f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+                script::crafting_pickup_ownership(&mut f, slot, collector).await;
+                f.stop().await;
+            }
         }
     }
     #[tokio::test]

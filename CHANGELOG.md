@@ -9,6 +9,33 @@
 
 ## Unreleased
 
+- Add independent operational crafting proof on both adapters. Submit one cursor
+  result with `Survival::send_operational_crafting_result` or its `Creative`
+  counterpart, poll `Client::operational_crafting_outcome(send.id)`, and inspect
+  `OperationalCraftingOutcome` / `OperationalCraftingStage`. `Crafted` requires
+  fresh received grid/result/cursor consumption/output proof AND exact residual
+  stock attribution to local-player collect packets plus item entity metadata,
+  native item data and quantities. Expose pickups separately as `CraftExternal`
+  and `external_delta`; always report inventory divergence to the upper layer.
+  Unknown evidence, quantity mismatches, foreign collect, history overflow,
+  uncertain delivery and unsupported recipe effects stay `RequiresInspection`.
+- Operational continuation is explicit: retain the outcome/External report, then
+  call `Client::continue_operational_crafting(send.id)` and plan the next
+  acceptance inventory operation from its full received `basis`, including the
+  occupied result cursor. Claiming blocks subsequent inventory executor sends
+  until successful continuation; inspection cannot be released this way. No
+  result click is resent and no strict history is cleared.
+- Golemkit migration from main `d6df3f0` `backend_inventory/craft_reconciliation.rs`:
+  replace the craft operation's strict-inspection/`take.is_resolved()` gate and
+  partial-send `Diverged` classification with the exact send/take's operational
+  `Crafted` outcome; propagate External before continuing. Caller recipe-goal
+  checks may remain. Preserve `CraftingTakeRecord` and send comparison diagnostics
+  unchanged: selected-hand pickups can still leave strict inspection permanently.
+  Existing `send_crafting_result` can opt in by claiming its still-retained outcome.
+  The proof supports one ordinary result PICKUP with one-item-per-input
+  consumption; remainders/different regenerated results/repeated shift crafts
+  conservatively require inspection. See [ownership and migration](docs/crafting-pickup-ownership.md).
+
 - Bound crafting take Pending on Java 1.16.1 and 1.21.11 to a configurable
   inventory receipt wait (default 5 s), one no-effect full resync, and a second
   wait (default 5 s). Missing receipts retain a typed RequiresInspection reason;

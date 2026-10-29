@@ -24,7 +24,7 @@ impl Bot {
         );
         inventory
     }
-    async fn inventory_execution_snapshot(&self) -> inv::InventorySnapshot {
+    pub(super) async fn inventory_execution_snapshot(&self) -> inv::InventorySnapshot {
         let receipts = self.common_receipts.lock().await;
         let session = api::SessionStamp {
             version: crate::MinecraftVersion::Java1_16_1,
@@ -57,6 +57,21 @@ impl Bot {
             lock_packet_state(&self.inventory_executor)
                 .await
                 .own_actions_received(session, selected);
+        }
+        if lock_packet_state(&self.inventory_executor)
+            .await
+            .operational
+            .as_ref()
+            .is_some_and(|owner| owner.tracking())
+        {
+            if let Ok(player) = self.common_player_unlocked().await {
+                if let Some(owner) = &mut lock_packet_state(&self.inventory_executor)
+                    .await
+                    .operational
+                {
+                    owner.player(&player);
+                }
+            }
         }
         if !matches!(packet, 0x12 | 0x13 | 0x14 | 0x16 | 0x25 | 0x2e | 0x3a) {
             return;
@@ -343,9 +358,10 @@ impl api::adapter::InventorySendOps for Bot {
         mode: crate::client::GameMode,
         grid: &crate::client::crafting::ReceivedCrafting,
         destination: crate::client::crafting::CraftingResultDestination,
+        operational: bool,
     ) -> Result<crate::client::inventory::InventorySendRecord> {
         Ok(self
-            .start_crafting_take(mode, grid, destination, None, true)
+            .start_crafting_take(mode, grid, destination, None, true, operational)
             .await?
             .1)
     }
@@ -546,6 +562,34 @@ mod tests {
         super::super::common_click::legacy_comparison_stack(v)
     }
     impl Fixture for LegacyFixture {
+        async fn item_entity(&mut self, entity: i32, count: u32) {
+            self.bot.player.lock().await.entity_id = Some(42);
+            let mut spawn = Vec::new();
+            crate::protocol::put_varint(&mut spawn, entity);
+            spawn.extend([0; 16]);
+            let kind = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                .builtin_id("minecraft:entity_type", "minecraft:item")
+                .unwrap()
+                .value();
+            crate::protocol::put_varint(&mut spawn, kind);
+            spawn.extend([0; 36]);
+            self.bot.apply_packet(0x00, spawn).await.unwrap();
+            let mut metadata = Vec::new();
+            crate::protocol::put_varint(&mut metadata, entity);
+            metadata.extend([7, 6]);
+            crate::inventory::write_slot(
+                &mut metadata,
+                native(&script::item(
+                    crate::MinecraftVersion::Java1_16_1,
+                    "minecraft:oak_log",
+                    count,
+                ))
+                .as_ref(),
+            );
+            metadata.push(255);
+            self.bot.apply_packet(0x44, metadata).await.unwrap();
+        }
+
         async fn crafting_probe(&mut self) {
             let p = tokio::time::timeout(Duration::from_secs(2), async {
                 loop {
@@ -1191,6 +1235,36 @@ mod tests {
         drop(client);
         drop(f.bot);
         server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn crafting_pickup_adversarial_evidence_and_continuation() {
+        for case in 0..10 {
+            let (bot, packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.apply_packet(0x3f, vec![0]).await.unwrap();
+            let mut f = LegacyFixture { bot, packets };
+            script::crafting_pickup_adversarial(&mut f, case).await;
+            drop(release);
+            drop(f);
+            server.await.unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn crafting_pickup_ownership_keeps_strict_and_operational_outcomes_separate() {
+        for slot in [None, Some(9), Some(36)] {
+            for collector in [None, Some(false), Some(true)] {
+                let (bot, packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                super::super::common_motion::tests::seed_motion(&bot).await;
+                bot.apply_packet(0x3f, vec![0]).await.unwrap();
+                let mut f = LegacyFixture { bot, packets };
+                script::crafting_pickup_ownership(&mut f, slot, collector).await;
+                drop(release);
+                drop(f);
+                server.await.unwrap();
+            }
+        }
     }
     #[tokio::test]
     async fn crafting_take_two_phase_deadline_and_late_receipts() {

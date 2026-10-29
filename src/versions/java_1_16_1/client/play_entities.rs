@@ -341,8 +341,26 @@ impl Bot {
             .get(&collected_entity_id)
             .and_then(EntityState::item_drop)
             .and_then(ItemStack::name);
+        let (session, source) = self.inventory_execution_scope().await;
+        let metadata = self
+            .common_receipts
+            .lock()
+            .await
+            .entities
+            .collected_stack(session, collected_entity_id);
+        if let Some(owner) = &mut lock_packet_state(&self.inventory_executor)
+            .await
+            .operational
+        {
+            owner.collect(
+                collected_entity_id,
+                collector_entity_id,
+                count,
+                packet_sequence,
+                metadata,
+            );
+        }
         if self.player.lock().await.entity_id == Some(collector_entity_id) {
-            let (session, source) = self.inventory_execution_scope().await;
             let mut executor = lock_packet_state(&self.inventory_executor).await;
             executor
                 .changes

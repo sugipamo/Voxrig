@@ -11,6 +11,7 @@ pub(crate) trait Fixture {
     async fn cursor(&mut self, value: &SlotKnowledge);
     async fn response(&mut self, send: &InventorySendRecord, accepted: bool);
     async fn collect(&mut self, entity: i32, own: bool);
+    async fn item_entity(&mut self, entity: i32, count: u32);
     /// Consume exactly one original click (and the modern response request).
     async fn click(&mut self);
     /// Consume the additional deadline probe, validating its no-effect wire shape.
@@ -303,7 +304,7 @@ pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
         }
     }
 }
-fn item(version: MinecraftVersion, name: &str, count: u32) -> SlotKnowledge {
+pub(crate) fn item(version: MinecraftVersion, name: &str, count: u32) -> SlotKnowledge {
     let definition = Registry::for_version(version).item(name).unwrap();
     SlotKnowledge::Item {
         item: crate::client::ItemStack {
@@ -872,4 +873,261 @@ pub(crate) async fn crafting_deadline(
             latest.stage
         );
     }
+}
+
+/// Characterize the ownership fork without changing either strict take or the
+/// partial crafting comparison. A collect is evidence of an event, not a recipe
+/// delta or proof that an arbitrary storage gain came from that entity.
+pub(crate) async fn crafting_pickup_ownership(
+    f: &mut impl Fixture,
+    pickup_slot: Option<usize>,
+    collector: Option<bool>,
+) {
+    use crate::client::{CraftingTakeStage, OperationalCraftingStage};
+    let client = f.client();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    let output = item(client.version(), "minecraft:oak_planks", 4);
+    slots[0] = output.clone();
+    slots[1] = item(client.version(), "minecraft:oak_log", 1);
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    f.item_entity(1182, 1).await;
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let send = client
+        .survival()
+        .send_operational_crafting_result(&grid)
+        .await
+        .unwrap();
+    f.click().await;
+    if let Some(own) = collector {
+        f.collect(1182, own).await;
+    }
+    slots[0] = SlotKnowledge::Empty;
+    slots[1] = SlotKnowledge::Empty;
+    if let Some(slot) = pickup_slot {
+        slots[slot] = item(client.version(), "minecraft:oak_log", 1);
+    }
+    f.inventory(&slots, &output).await;
+    f.response(&send, false).await;
+    let take = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    let equipped_changed = pickup_slot == Some(36);
+    assert_eq!(
+        take.stage,
+        if equipped_changed {
+            CraftingTakeStage::RequiresInspection
+        } else {
+            CraftingTakeStage::ObservedTaken
+        }
+    );
+    if equipped_changed {
+        assert!(
+            take.requires_inspection
+                .as_deref()
+                .unwrap()
+                .contains("equipped hand changed")
+        );
+    }
+    // Even a normal craft is deliberately not an exact material prediction.
+    assert_eq!(
+        client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        InventorySendStatus::Diverged
+    );
+    let divergence = client.inventory_divergence(send.id).await.unwrap().unwrap();
+    assert_eq!(divergence.send, send.id);
+    assert_eq!(
+        divergence.causes.contains(&InventoryCause::Collected {
+            entity_ids: vec![1182]
+        }),
+        collector == Some(true)
+    );
+    let InventoryIntendedChange::CraftingResult { cursor, .. } = &divergence.intended else {
+        panic!("partial recipe intention")
+    };
+    assert_eq!(cursor.slots.len(), 1);
+    assert_eq!(cursor.slots[0].location, InventoryLocation::Cursor);
+    assert_eq!(divergence.current.cursor.as_ref().unwrap().value, output);
+    assert_eq!(
+        divergence.current.player_slots[1].as_ref().unwrap().value,
+        SlotKnowledge::Empty
+    );
+    for (slot, count) in [(0, -4), (1, -1)] {
+        let delta = divergence
+            .actual
+            .slots
+            .iter()
+            .find(|d| d.location == InventoryLocation::Player { slot })
+            .unwrap();
+        assert_eq!(delta.items[0].change, count);
+    }
+    if let Some(slot) = pickup_slot {
+        let delta = divergence
+            .actual
+            .slots
+            .iter()
+            .find(|d| d.location == InventoryLocation::Player { slot })
+            .unwrap();
+        assert_eq!(delta.items[0].change, 1);
+    }
+    let operational = client.operational_crafting_outcome(send.id).await.unwrap();
+    let success = (pickup_slot.is_none() && collector.is_none())
+        || (pickup_slot.is_some() && collector == Some(true));
+    assert_eq!(
+        operational.stage,
+        if success {
+            OperationalCraftingStage::Crafted
+        } else {
+            OperationalCraftingStage::RequiresInspection
+        },
+        "{operational:?}"
+    );
+    assert_eq!(
+        operational.external.len(),
+        usize::from(success && pickup_slot.is_some())
+    );
+    assert!(
+        client
+            .survival()
+            .send_inventory_click(InventorySource::Player, 10, Button::Left)
+            .await
+            .is_err()
+    );
+    if success {
+        let continued = client.continue_operational_crafting(send.id).await.unwrap();
+        assert!(continued.released);
+        assert_eq!(
+            continued
+                .basis
+                .as_ref()
+                .unwrap()
+                .cursor
+                .as_ref()
+                .unwrap()
+                .value,
+            output
+        );
+        // This is a new cursor put-down, never another result click.
+        let next = client
+            .survival()
+            .send_inventory_click(InventorySource::Player, 10, Button::Left)
+            .await
+            .unwrap();
+        f.click().await;
+        slots[10] = output.clone();
+        f.inventory(&slots, &SlotKnowledge::Empty).await;
+        f.response(&next, false).await;
+    } else {
+        assert!(client.continue_operational_crafting(send.id).await.is_err());
+    }
+    // Historical conflict stays latched after another fresh full boundary.
+    f.inventory(&slots, &output).await;
+    assert_eq!(
+        client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        take.stage
+    );
+    client.disconnect().await.unwrap();
+}
+
+/// Packet evidence failures must stay latched even after a matching later full resync.
+pub(crate) async fn crafting_pickup_adversarial(f: &mut impl Fixture, case: u8) {
+    use crate::client::OperationalCraftingStage as Stage;
+    let client = f.client();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    let output = item(client.version(), "minecraft:oak_planks", 4);
+    slots[0] = output.clone();
+    slots[1] = item(client.version(), "minecraft:oak_log", 1);
+    f.item_entity(if case == 1 { 9999 } else { 1182 }, 1).await;
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let send = client
+        .survival()
+        .send_operational_crafting_result(&grid)
+        .await
+        .unwrap();
+    f.click().await;
+    f.collect(1182, true).await;
+    if case == 4 {
+        f.collect(1182, true).await;
+    }
+    if case == 7 {
+        for id in 2000..2064 {
+            f.item_entity(id, 1).await;
+            f.collect(id, true).await;
+        }
+    }
+    if case == 8 {
+        f.cursor(&item(client.version(), "minecraft:stone", 1))
+            .await;
+    }
+    if case == 5 {
+        f.slot(36, &item(client.version(), "minecraft:oak_log", 1))
+            .await;
+        f.slot(36, &SlotKnowledge::Empty).await;
+    }
+    slots[0] = SlotKnowledge::Empty;
+    if case != 3 {
+        slots[1] = SlotKnowledge::Empty;
+    }
+    slots[36] = item(
+        client.version(),
+        if case == 2 {
+            "minecraft:stone"
+        } else {
+            "minecraft:oak_log"
+        },
+        if case == 0 { 2 } else { 1 },
+    );
+    f.inventory(&slots, &output).await;
+    f.response(&send, false).await;
+    if case == 9 {
+        assert_eq!(
+            client
+                .operational_crafting_outcome(send.id)
+                .await
+                .unwrap()
+                .stage,
+            Stage::Crafted
+        );
+        f.collect(1182, true).await;
+    }
+    if case == 6 {
+        assert_eq!(
+            client
+                .operational_crafting_outcome(send.id)
+                .await
+                .unwrap()
+                .stage,
+            Stage::Crafted
+        );
+        slots[37] = item(client.version(), "minecraft:stone", 1);
+        f.slot(37, &slots[37]).await;
+    }
+    let outcome = client.operational_crafting_outcome(send.id).await.unwrap();
+    assert_eq!(
+        outcome.stage,
+        Stage::RequiresInspection,
+        "case={case}: {outcome:?}"
+    );
+    let first = outcome.requires_inspection;
+    f.inventory(&slots, &output).await;
+    let later = client.operational_crafting_outcome(send.id).await.unwrap();
+    assert_eq!(later.stage, Stage::RequiresInspection);
+    assert_eq!(later.requires_inspection, first);
+    assert!(client.continue_operational_crafting(send.id).await.is_err());
+    client.disconnect().await.unwrap();
 }

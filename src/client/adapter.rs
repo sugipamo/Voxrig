@@ -167,6 +167,11 @@ pub(crate) trait ChunkOps {
 /// Change notifications.
 pub(crate) trait EventOps {
     fn health_log(&self) -> &std::sync::Arc<super::health::HealthLedger>;
+    async fn operational_crafting(
+        &self,
+        send: super::inventory::InventorySendId,
+        release: bool,
+    ) -> Result<super::crafting::OperationalCraftingOutcome>;
     async fn inventory_divergence(
         &self,
         send: super::inventory::InventorySendId,
@@ -263,6 +268,7 @@ pub(crate) trait InventorySendOps {
         mode: GameMode,
         grid: &ReceivedCrafting,
         destination: CraftingResultDestination,
+        operational: bool,
     ) -> Result<super::inventory::InventorySendRecord>;
     async fn send_inventory_click(
         &self,

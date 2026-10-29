@@ -1644,6 +1644,22 @@ impl crate::client::adapter::EventOps for operations::Operations {
     fn health_log(&self) -> &Arc<crate::client::health::HealthLedger> {
         &self.bot.session.health_log
     }
+    async fn operational_crafting(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+        release: bool,
+    ) -> Result<crate::client::crafting::OperationalCraftingOutcome> {
+        let mut state = self.bot.session.state.lock().await;
+        let (session, source) = operations::inventory::execution_scope(&state);
+        let player = operations::common_player_in_state(&state, state.connection_id, false)?;
+        let current = crate::client::inventory::InventorySnapshot::capture(
+            &player,
+            state.operations.inventory.screen(session),
+        );
+        state
+            .inventory_executor
+            .operational_access(send, release, session, source, &current, &player)
+    }
     async fn inventory_divergence(
         &self,
         send: crate::client::inventory::InventorySendId,

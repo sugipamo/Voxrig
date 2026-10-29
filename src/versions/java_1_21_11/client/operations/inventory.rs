@@ -820,6 +820,12 @@ pub(in crate::versions::java_1_21_11::client) fn execution_received(
             let mut reader = Reader::new(payload);
             let entity = reader.varint()?;
             let collector = reader.varint()?;
+            let amount = reader.varint()?;
+            reader.end()?;
+            let metadata = state.entities.collected_stack(session, entity);
+            if let Some(owner) = &mut state.inventory_executor.operational {
+                owner.collect(entity, collector, amount, state.sequence, metadata);
+            }
             if state.operations.local_player.entity_id == Some(collector) {
                 state
                     .inventory_executor
@@ -862,9 +868,10 @@ impl crate::client::adapter::InventorySendOps for Operations {
         mode: crate::client::GameMode,
         grid: &crate::client::crafting::ReceivedCrafting,
         destination: crate::client::crafting::CraftingResultDestination,
+        operational: bool,
     ) -> Result<crate::client::inventory::InventorySendRecord> {
         Ok(self
-            .start_crafting_take(mode, grid, destination, None, true)
+            .start_crafting_take(mode, grid, destination, None, true, operational)
             .await?
             .1)
     }
@@ -982,6 +989,18 @@ pub(in crate::versions::java_1_21_11::client) fn changes_received(
         state
             .inventory_executor
             .own_actions_received(session, selected);
+    }
+    if state
+        .inventory_executor
+        .operational
+        .as_ref()
+        .is_some_and(|owner| owner.tracking())
+    {
+        if let Ok(player) = super::common_player_in_state(state, state.connection_id, false) {
+            if let Some(owner) = &mut state.inventory_executor.operational {
+                owner.player(&player);
+            }
+        }
     }
     if !in_play
         || !matches!(

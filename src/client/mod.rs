@@ -162,14 +162,14 @@ pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock
 pub use capabilities::{Capabilities, Feature, Restriction, Support};
 pub use config::{ClientLimits, Server};
 pub use crafting::{
-    CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
+    CraftExternal, CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
     CraftingResultDestination, CraftingSource, CraftingTakeId, CraftingTakeInspectionReason,
-    CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting, ReceivedCraftingContext,
-    ReceivedRecipe, ReceivedRecipeGhost, ReceivedRecipes, RecipeBookMaterials, RecipeBookStock,
-    RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
-    RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,
-    RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
-    RecipeTrimPattern,
+    CraftingTakeRecord, CraftingTakeStage, OperationalCraftingOutcome, OperationalCraftingStage,
+    ReceivedCrafting, ReceivedCraftingContext, ReceivedRecipe, ReceivedRecipeGhost,
+    ReceivedRecipes, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
+    RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
+    RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend,
+    RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use entity::{
     EntitiesObservation, EntityDataField, EntityDataReading, EntityDataSource, EntityDataValue,

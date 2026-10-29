@@ -18,6 +18,7 @@ impl Bot {
         revision: u64,
         _gate: tokio::sync::OwnedMutexGuard<()>,
         submission: Option<Arc<take::Submission>>,
+        operational: bool,
     ) -> Result<(
         CraftingTakeRecord,
         crate::client::inventory::InventorySendRecord,
@@ -101,6 +102,7 @@ impl Bot {
                     &record,
                     &basis,
                     basis_screen,
+                    operational,
                 ));
             self.connection
                 .bounded_crafting_result_click(
@@ -375,7 +377,7 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
         destination: CraftingResultDestination,
         submission: Option<Arc<take::Submission>>,
     ) -> Result<CraftingTakeRecord> {
-        self.start_crafting_take(mode, grid, destination, submission, false)
+        self.start_crafting_take(mode, grid, destination, submission, false, false)
             .await
             .map(|(record, _)| record)
     }
@@ -412,6 +414,7 @@ impl Bot {
         destination: CraftingResultDestination,
         submission: Option<Arc<take::Submission>>,
         acceptance: bool,
+        operational: bool,
     ) -> Result<(
         CraftingTakeRecord,
         crate::client::inventory::InventorySendRecord,
@@ -490,7 +493,7 @@ impl Bot {
                     // Transfer the original admission lock to the connection owner:
                     // queued receipts cannot change the predecessor between reservation and I/O.
                     let _ = reply.send(crate::client::ledger::finite::checked(
-                        bot.common_crafting_send_owned(id, revision, gate, submission)
+                        bot.common_crafting_send_owned(id, revision, gate, submission, operational)
                             .await,
                     ));
                 });
