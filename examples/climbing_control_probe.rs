@@ -669,6 +669,16 @@ async fn main() -> anyhow::Result<()> {
                 let grid = client.received_crafting().await?.ok_or_else(|| anyhow::anyhow!("no crafting grid"))?;
                 serde_json::to_value(survival.take_crafting_result(&grid).await?)?
             }
+            "send_operational_crafting_result" => {
+                let grid = client.received_crafting().await?.ok_or_else(|| anyhow::anyhow!("no crafting grid"))?;
+                serde_json::to_value(survival.send_operational_crafting_result(&grid).await?)?
+            }
+            "operational_crafting_outcome" | "continue_operational_crafting" => {
+                let send = survival.inventory_send_record().await?.ok_or_else(|| anyhow::anyhow!("no inventory send"))?;
+                serde_json::to_value(if request["command"] == "continue_operational_crafting" {
+                    client.continue_operational_crafting(send.id).await?
+                } else { client.operational_crafting_outcome(send.id).await? })?
+            }
             "crafting_take_record" => serde_json::to_value(survival.crafting_take_record().await?)?,
             "craft_once" => {
                 let names: Vec<Option<String>> = serde_json::from_value(request["ingredients"].clone())?;

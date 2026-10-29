@@ -89,6 +89,7 @@ pub(crate) struct Comparison {
     pub(crate) interrupted: bool,
     pub(crate) crafting: bool,
     native_effects: Vec<InventoryLocation>,
+    pub(crate) operational: Option<crate::client::crafting::operational::Owner>,
 }
 impl Comparison {
     pub(crate) fn click(
@@ -142,6 +143,7 @@ impl Comparison {
             interrupted: false,
             crafting: false,
             native_effects: Vec::new(),
+            operational: None,
         }
     }
     pub(crate) fn crafting(
@@ -149,6 +151,7 @@ impl Comparison {
         record: &CraftingTakeRecord,
         current: &crate::client::PlayerObservation,
         screen: Option<crate::client::container::ContainerScreen>,
+        operational: bool,
     ) -> Self {
         let before = InventorySnapshot::capture(current, screen);
         let mut expected = before.clone();
@@ -182,12 +185,18 @@ impl Comparison {
         }
         Self {
             send,
-            before,
+            before: before.clone(),
             expected,
             intended,
             causes: Vec::new(),
             interrupted: false,
             crafting: true,
+            operational: Some(crate::client::crafting::operational::Owner::new(
+                send,
+                record,
+                before.clone(),
+                operational,
+            )),
             native_effects,
         }
     }

@@ -3,7 +3,7 @@
 
 No frames are fabricated or replayed. The server owns the item, collect event,
 grid consumption and output. Selected and unselected hotbar pickups demonstrate
-why a separate operation outcome is a design decision, not a strict-API fix.
+the separate operational outcome while preserving strict diagnostics.
 """
 import sys,json,threading,time,argparse
 from pathlib import Path
@@ -42,7 +42,7 @@ def check(version,command,request,trace,report):
  request('inventory_click',slot=9);request('inventory_click',slot=1)
  until(lambda:item(request('crafting')['result'],'oak_planks',4),5)
  before=request('player');mark=trace.mark();trace.armed=True
- sent=request('take_crafting_result');assert sent['send']['dispatched'],sent
+ sent=request('send_operational_crafting_result');assert sent['dispatched'],sent
  until(lambda:len(trace.held)==1,5)
  if args.case!='none':command('summon minecraft:item 0.5 65 0.5 {Item:{id:"minecraft:oak_log",Count:1b},PickupDelay:0s,Tags:["Mo5Pickup"]}')
  collect=until(lambda:[r for r in trace.since(mark) if r['phase']=='play' and r['direction']=='clientbound' and r['packet_id']==0x55],10) if args.case!='none' else []
@@ -50,14 +50,29 @@ def check(version,command,request,trace,report):
  def done():
   r=request('crafting_take_record');return r if r['stage']!='pending' else None
  complete=until(done,10);time.sleep(.5);complete=request('crafting_take_record')
+ operational=until(lambda:(r if (r:=request('operational_crafting_outcome'))['stage']!='pending' else None),10)
  player=request('player');native=command('data get entity ClimbingProbe Inventory')
- report['checks'].append(dict(name='pickup_during_dispatched_take',case=args.case,inventory_send=request('inventory_send_record'),changes=request('inventory_changes'),before=before,sent=sent,collect=collect,complete=complete,player=player,native=native,frames=trace.since(mark)))
+ report['checks'].append(dict(name='pickup_during_dispatched_take',case=args.case,inventory_send=request('inventory_send_record'),changes=request('inventory_changes'),before=before,sent=sent,collect=collect,complete=complete,operational=operational,player=player,native=native,frames=trace.since(mark)))
  print('stage',complete['stage'],'reason',complete['requires_inspection'],'native',native,flush=True)
  assert complete['stage']==('requires_inspection' if args.case=='selected' else 'observed_taken'),complete
  if args.case=='selected':assert 'equipped hand changed' in complete['requires_inspection'],complete
  assert item(player['inventory']['cursor'],'oak_planks',4),player
  if args.case!='none':assert item(player['inventory']['slots'][36 if args.case=='selected' else 37],'oak_log',1),player
  assert player['inventory']['slots'][1]['value']['kind']=='empty',player
+ assert operational['stage']=='crafted',operational
+ assert len(operational['external'])==(0 if args.case=='none' else 1),operational
+ report['checks'][-1]['continuation']=request('continue_operational_crafting')
+ assert report['checks'][-1]['continuation']['released']
+ report['checks'][-1]['next_send']=request('send_inventory_click',slot=10)
+ after_next=until(lambda:(r if item((r:=request('player'))['inventory']['slots'][10],'oak_planks',4) and r['inventory']['cursor']['value']['kind']=='empty' else None),10)
+ report['checks'][-1]['after_next']=after_next
+ report['checks'][-1]['strict_after_next']=request('crafting_take_record')
+ assert report['checks'][-1]['strict_after_next']['stage']==complete['stage']
+ report['checks'][-1]['continuation_frames']=trace.since(mark)
+ clicks=[r for r in trace.since(mark) if r['phase']=='play' and r['direction']=='serverbound' and r['packet_id']==0x09]
+ clicked_slots=[int.from_bytes(bytes.fromhex(r['body_hex'])[1:3],'big',signed=True) for r in clicks]
+ assert clicked_slots==[0,10],clicked_slots
+ report['checks'][-1]['clicked_slots']=clicked_slots
  trace.expect_disconnect();request('disconnect')
 h.ROOT=ROOT
 h.run('1.16.1',args.binary.resolve(),args.jars.resolve(),check=check,trace_factory=InflightTake)

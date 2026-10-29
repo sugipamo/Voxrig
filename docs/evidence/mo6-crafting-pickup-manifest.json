@@ -1,0 +1,167 @@
+[
+  {
+    "case": "selected",
+    "report": "/home/dev/logs/contact/mo6/live-final-selected/1.16.1-20261029-044531/report.json",
+    "passed": true,
+    "trace_errors": [],
+    "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "strict": "requires_inspection",
+    "operational": "crafted",
+    "external": [
+      {
+        "collector": 36,
+        "count": 1,
+        "metadata": {
+          "entity": {
+            "native_id": 37,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 85
+          },
+          "index": 7,
+          "stack": {
+            "source": {
+              "kind": "received",
+              "sequence": 86
+            },
+            "value": {
+              "item": {
+                "count": 1,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 37,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:oak_log"
+              },
+              "kind": "item"
+            }
+          }
+        },
+        "receive_sequence": 90
+      }
+    ],
+    "full_contents_sequence": 97,
+    "inventory_send": "diverged",
+    "continued": true,
+    "clicked_slots": [
+      0,
+      10
+    ],
+    "evidence": [
+      {
+        "path": "docs/evidence/mo6-crafting-pickup-selected-1.16.1-20261029.json.gz",
+        "sha256": "aa14e3d7241fbf8d49029d720830f343d940231cee6396e411aeb02b9e1ef01b",
+        "original_sha256": "4dd624f2854d89e4db44d73cc68c91ca5a14803e2b64d3ddd3a84eac1239cd24"
+      },
+      {
+        "path": "docs/evidence/mo6-crafting-pickup-selected-1.16.1-20261029.packets.jsonl.gz",
+        "sha256": "cbd53af6f4c3aebf0eb69587b0a1685e8d5c39cca58580536484fb0db98f805c",
+        "original_sha256": "1c62d300aa92ba64b80aa9a100306831f63091b7644c3b81c0e543a891ec9050"
+      }
+    ]
+  },
+  {
+    "case": "unselected",
+    "report": "/home/dev/logs/contact/mo6/live-final-unselected/1.16.1-20261029-044549/report.json",
+    "passed": true,
+    "trace_errors": [],
+    "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "strict": "observed_taken",
+    "operational": "crafted",
+    "external": [
+      {
+        "collector": 36,
+        "count": 1,
+        "metadata": {
+          "entity": {
+            "native_id": 37,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "spawn_sequence": 98
+          },
+          "index": 7,
+          "stack": {
+            "source": {
+              "kind": "received",
+              "sequence": 99
+            },
+            "value": {
+              "item": {
+                "count": 1,
+                "data": {
+                  "kind": "default"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 37,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:oak_log"
+              },
+              "kind": "item"
+            }
+          }
+        },
+        "receive_sequence": 101
+      }
+    ],
+    "full_contents_sequence": 108,
+    "inventory_send": "diverged",
+    "continued": true,
+    "clicked_slots": [
+      0,
+      10
+    ],
+    "evidence": [
+      {
+        "path": "docs/evidence/mo6-crafting-pickup-unselected-1.16.1-20261029.json.gz",
+        "sha256": "53f5f3b9c8228dbec59c715d2a7887f2798110f530dffbd850a0fb25c426fb67",
+        "original_sha256": "869f610746e41a846848571dc8fc344e2cf9e961888e6d4c4c7c8c7e5feba2c2"
+      },
+      {
+        "path": "docs/evidence/mo6-crafting-pickup-unselected-1.16.1-20261029.packets.jsonl.gz",
+        "sha256": "b1e799b318a888e81efba4af0b423893aed167db06a9e31a4edd68fcb1de52ef",
+        "original_sha256": "8e0d4c77be24722c2522d202e6805ccf25aef555865fc2262bc02925e9ce8d23"
+      }
+    ]
+  },
+  {
+    "case": "none",
+    "report": "/home/dev/logs/contact/mo6/live-final-none/1.16.1-20261029-044609/report.json",
+    "passed": true,
+    "trace_errors": [],
+    "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "strict": "observed_taken",
+    "operational": "crafted",
+    "external": [],
+    "full_contents_sequence": 100,
+    "inventory_send": "diverged",
+    "continued": true,
+    "clicked_slots": [
+      0,
+      10
+    ],
+    "evidence": [
+      {
+        "path": "docs/evidence/mo6-crafting-pickup-none-1.16.1-20261029.json.gz",
+        "sha256": "1ad2ccfcb397a4637e705439d41bd5cef7aa5603866238c1b1bb6fdf59ab0566",
+        "original_sha256": "6cf04e8b3412f07baf9c925bc4522d048f6524e7e0be63a6a66ac8c539df44cd"
+      },
+      {
+        "path": "docs/evidence/mo6-crafting-pickup-none-1.16.1-20261029.packets.jsonl.gz",
+        "sha256": "ad46c0deb761d2bcdf60eb7040045d5167a6fab79aa1e59a0b411b1f9ef53b39",
+        "original_sha256": "0b7e221e0c914be6e52997082ddd4e05ebfa8296f21615272ca0524abf1f17cb"
+      }
+    ]
+  }
+]

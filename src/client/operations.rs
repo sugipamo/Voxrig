@@ -225,13 +225,23 @@ impl Survival {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
+    /// Submit one single-result craft and claim its independent operational owner.
+    /// Poll `Client::operational_crafting_outcome`, retain its External report, then
+    /// call `Client::continue_operational_crafting` before the next inventory send.
+    /// Strict take history and the partial inventory comparison remain unchanged.
+    pub async fn send_operational_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Survival, grid, super::crafting::CraftingResultDestination::Cursor, true).await)
+    }
     /// Submit one sealed crafting result take; inspect strict evidence separately.
     pub async fn send_crafting_result(
         &self,
         grid: &super::crafting::ReceivedCrafting,
         destination: super::crafting::CraftingResultDestination,
     ) -> Result<super::inventory::InventorySendRecord> {
-        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Survival, grid, destination).await)
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Survival, grid, destination, false).await)
     }
     /// Submit one PICKUP using current received preconditions. Read strict evidence separately.
     pub async fn send_inventory_click(
@@ -817,13 +827,23 @@ impl Creative {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
+    /// Submit one single-result craft and claim its independent operational owner.
+    /// Poll `Client::operational_crafting_outcome`, retain its External report, then
+    /// call `Client::continue_operational_crafting` before the next inventory send.
+    /// Strict take history and the partial inventory comparison remain unchanged.
+    pub async fn send_operational_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+    ) -> Result<super::inventory::InventorySendRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Creative, grid, super::crafting::CraftingResultDestination::Cursor, true).await)
+    }
     /// Submit one sealed crafting result take; inspect strict evidence separately.
     pub async fn send_crafting_result(
         &self,
         grid: &super::crafting::ReceivedCrafting,
         destination: super::crafting::CraftingResultDestination,
     ) -> Result<super::inventory::InventorySendRecord> {
-        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Creative, grid, destination).await)
+        crate::client::dispatch!(&self.client.adapter, a => InventorySendOps::send_crafting_result(a, GameMode::Creative, grid, destination, false).await)
     }
     /// Submit one PICKUP using current received preconditions. Read strict evidence separately.
     pub async fn send_inventory_click(

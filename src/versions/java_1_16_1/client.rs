@@ -7257,6 +7257,18 @@ impl crate::client::adapter::EventOps for Bot {
             self.protocol_packet_sequence.load(Ordering::Acquire),
         )
     }
+    async fn operational_crafting(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+        release: bool,
+    ) -> Result<crate::client::crafting::OperationalCraftingOutcome> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let (session, source) = self.inventory_execution_scope().await;
+        let current = self.inventory_execution_snapshot().await;
+        let player = self.common_player_unlocked().await?;
+        let mut executor = lock_packet_state(&self.inventory_executor).await;
+        executor.operational_access(send, release, session, source, &current, &player)
+    }
     async fn inventory_divergence(
         &self,
         send: crate::client::inventory::InventorySendId,

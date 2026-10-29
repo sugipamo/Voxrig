@@ -24,6 +24,25 @@ pub struct EntityItemStacksObservation {
     pub stacks: Vec<EntityItemStackObservation>,
 }
 impl SpawnLedger {
+    pub(crate) fn collected_stack(
+        &self,
+        session: SessionStamp,
+        native: i32,
+    ) -> Option<EntityItemStackObservation> {
+        let spawn = self.0.get(&native)?;
+        if spawn.name.as_deref() != Some("minecraft:item") {
+            return None;
+        }
+        let index = match session.version {
+            crate::MinecraftVersion::Java1_16_1 => 7,
+            crate::MinecraftVersion::Java1_21_11 => 8,
+        };
+        Some(EntityItemStackObservation {
+            entity: self.identity(session, native)?,
+            index,
+            stack: spawn.extra.item_metadata.get(&index)?.clone(),
+        })
+    }
     pub(crate) fn receive_item_metadata(
         &mut self,
         native_id: i32,

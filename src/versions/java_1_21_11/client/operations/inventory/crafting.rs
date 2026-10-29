@@ -169,6 +169,7 @@ impl Operations {
         id: contract::CraftingTakeId,
         execution: crate::client::inventory::InventorySendId,
         submission: Option<Arc<take::Submission>>,
+        operational: bool,
     ) -> Result<(
         CraftingTakeRecord,
         crate::client::inventory::InventorySendRecord,
@@ -223,6 +224,7 @@ impl Operations {
                     &record,
                     &current,
                     basis_screen,
+                    operational,
                 ),
             );
             self.bot
@@ -271,7 +273,7 @@ impl crate::client::adapter::CraftingTakeOps for Operations {
         destination: CraftingResultDestination,
         submission: Option<Arc<take::Submission>>,
     ) -> Result<CraftingTakeRecord> {
-        self.start_crafting_take(mode, grid, destination, submission, false)
+        self.start_crafting_take(mode, grid, destination, submission, false, false)
             .await
             .map(|(record, _)| record)
     }
@@ -301,6 +303,7 @@ impl Operations {
         destination: CraftingResultDestination,
         submission: Option<Arc<take::Submission>>,
         acceptance: bool,
+        operational: bool,
     ) -> Result<(
         CraftingTakeRecord,
         crate::client::inventory::InventorySendRecord,
@@ -375,7 +378,7 @@ impl Operations {
                 self.bot.session.spawn_finite_work(work, async move {
                     let _ = reply.send(crate::client::ledger::finite::checked(
                         bot.operations()
-                            .crafting_send_owned(id, execution, submission)
+                            .crafting_send_owned(id, execution, submission, operational)
                             .await,
                     ));
                 });
