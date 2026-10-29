@@ -674,10 +674,10 @@ impl Client {
     /// cancel/join their own source tasks. A caller holding writer serialization
     /// can delay completion. No bounded completion time or timeout is provided.
     ///
-    /// Voxrig defines no generic client "retire" step. Golemkit's old-Body
-    /// retirement corresponds to revocation and not authorizing work with old
-    /// evidence; evolto's retirement policy requires confirmed shutdown, whose
-    /// Voxrig completion fact is this method returning `Ok(())`. A drain or stop
+    /// `Client::retire_connection` combines revocation with bounded observation
+    /// of this completion. Its Unconfirmed result certifies revocation only.
+    /// Golemkit must stop authorizing work with old evidence; policies requiring
+    /// confirmed shutdown need this method returning `Ok(())`. A drain or stop
     /// receipt alone does not supply that fact. Mining, acknowledgement-identity,
     /// entity and ledger-owner retirement have separate domain-specific meanings.
     pub fn wait_shutdown(

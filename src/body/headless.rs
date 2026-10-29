@@ -151,6 +151,48 @@ pub struct HeadlessBody {
     inner: Arc<Inner>,
 }
 impl HeadlessBody {
+    /// Begin bounded observation of the initial send-and-trust boundary. Supply
+    /// an explicit world from observe; no successor world may be selected later.
+    /// Sent is only the first local write. Continue observing ActionId for late
+    /// Corrected, finite movement completion, lease release and cleanup.
+    /// Body SendStatus::NotSent alone is NOT proof that queued writes were sealed.
+    pub fn begin_send_and_trust(
+        &self,
+        request: ActionRequest,
+        limits: crate::client::OperationLimits,
+    ) -> Result<crate::client::OwnedOperation<ActionDispatch>> {
+        use crate::client::{
+            OperationOutcome, OperationScope, OperationUnknownReason,
+            owned_operation::OperationResult,
+        };
+        let world = request
+            .world
+            .ok_or_else(|| invalid("owned Body request requires an explicit observed world"))?;
+        let owner = self.clone();
+        self.inner.client.begin_owned(
+            OperationScope::Body(world),
+            limits,
+            move |state| async move {
+                state.handoff();
+                match owner.send_and_trust(request).await {
+                    Ok(record) => OperationResult::record(
+                        match record.dispatch {
+                            SendStatus::Sent => OperationOutcome::SentUnconfirmed,
+                            SendStatus::NotSent { .. } => {
+                                OperationOutcome::Unknown(OperationUnknownReason::Failed)
+                            }
+                        },
+                        record,
+                    ),
+                    Err(e) => OperationResult::error(
+                        OperationOutcome::Unknown(OperationUnknownReason::Failed),
+                        e,
+                    ),
+                }
+            },
+        )
+    }
+
     /// Submit atomic item use on either native version, returning a normal Body
     /// action ID. Checks selected index 0..8 and received held item ID inside the
     /// dispatch lock; count/data are ignored. Refusal sends nothing, produces

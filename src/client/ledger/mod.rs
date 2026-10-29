@@ -169,6 +169,7 @@ struct State {
 static NEXT_PROVENANCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 struct Shared {
+    operations: Arc<super::owned_operation::OperationBook>,
     shutdown: super::shutdown::Registry,
     provenance: u64,
     generation: GenerationKey,
@@ -248,6 +249,9 @@ pub(crate) struct Ledger {
 }
 
 impl Ledger {
+    pub(crate) fn operation_book(&self) -> Arc<super::owned_operation::OperationBook> {
+        self.shared.operations.clone()
+    }
     pub(crate) fn tasks(&self) -> &super::shutdown::Registry {
         &self.shared.shutdown
     }
@@ -266,6 +270,7 @@ impl Ledger {
             .ok();
         Self {
             shared: Arc::new(Shared {
+                operations: Arc::default(),
                 shutdown: super::shutdown::Registry::new(super::GenerationKey::new(
                     generation.version,
                     generation.connection_id,

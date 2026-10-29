@@ -11231,3 +11231,6 @@ mod use_on_block_expect_tests;
 
 #[cfg(test)]
 mod world_decode_failure_tests;
+
+#[cfg(test)]
+mod mo9_owned;

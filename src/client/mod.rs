@@ -80,7 +80,7 @@ pub(crate) mod dig_operation;
 pub(crate) mod domain;
 pub use dig_operation::{
     DigCancelOutcome, DigCompletion, DigDispatchEvidence, DigOperation, DigOperationId,
-    DigOwnerExit, DigPhase, DigResult, DigSnapshot, DigWriteEvidence,
+    DigOwnerExit, DigPhase, DigResult, DigSnapshot, DigWait, DigWriteEvidence,
 };
 pub(crate) mod operational_dig;
 pub use dig::{DigEstimate, DigOutcome, DigRecord, DigRefusal, DigRejection};
@@ -102,7 +102,15 @@ pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
 pub(crate) mod item_use;
 pub use item_use::UseItemRefusal;
+pub(crate) mod owned_operation;
 pub(crate) mod placement_check;
+pub use owned_operation::{
+    ConnectionRetirement, OperationCompletion, OperationFailure, OperationLimits, OperationOutcome,
+    OperationScope, OperationSnapshot, OperationUnknownReason, OperationWait, OwnedOperation,
+    OwnedOperationId,
+};
+mod owned_inventory;
+pub use owned_inventory::OwnedCraftingRecord;
 mod player_control;
 pub(crate) mod player_facts;
 pub use chunk_context::{
@@ -347,6 +355,11 @@ pub mod prelude {
         RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
         RecipeTrimPattern, RespawnRecord, RespawnStage, Server, Support, Survival,
         VehicleObservation, VehicleRelation,
+    };
+    pub use super::{
+        ConnectionRetirement, DigWait, OperationCompletion, OperationFailure, OperationLimits,
+        OperationOutcome, OperationScope, OperationSnapshot, OperationUnknownReason, OperationWait,
+        OwnedCraftingRecord, OwnedOperation, OwnedOperationId,
     };
     pub use super::{
         DrainError, DrainErrorKind, DrainHandle, QuiesceHandle, StopError, StopPermit, StopTarget,

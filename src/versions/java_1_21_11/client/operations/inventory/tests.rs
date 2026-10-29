@@ -1,5 +1,6 @@
 mod crafting_swap;
 mod furnace_transfer;
+mod owned;
 mod properties;
 use super::*;
 #[tokio::test]
@@ -2582,8 +2583,7 @@ async fn ordinary_pickup_both_modes_player_storage_and_appended_player_require_a
     }
 }
 #[tokio::test]
-async fn ordinary_pickup_cancelled_before_full_write_retains_unsent_intent_and_latches_later_values()
- {
+async fn ordinary_pickup_dropped_before_writer_is_not_sent_and_releases_gate() {
     use crate::client::inventory::{
         InventoryClickButton as Button, InventoryClickSource as Source,
         InventoryClickStage as Stage,
@@ -2608,20 +2608,25 @@ async fn ordinary_pickup_cancelled_before_full_write_retains_unsent_intent_and_l
         .unwrap()
         .unwrap();
     assert!(!retained.send.dispatched);
-    assert_eq!(retained.stage, Stage::Pending);
-    assert!(
+    assert_eq!(retained.stage, Stage::NotSent);
+    assert_eq!(
         client
             .survival()
-            .click_inventory(Source::Player, 9, Button::Left)
+            .inventory_send_record()
             .await
-            .is_err()
+            .unwrap()
+            .unwrap()
+            .status,
+        crate::client::inventory::InventorySendStatus::NotSent
     );
     f.fence_response().await;
-    assert!(
-        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
-            .await
-            .is_err()
-    );
+    let mut no_packet = Box::pin(read_packet(&mut f.peer, None));
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(no_packet.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(no_packet);
     f.slot(9, InventorySlot::Empty).await;
     let mut p = vec![];
     put_slot(&mut p, &plain("stone", 32));
@@ -2634,8 +2639,19 @@ async fn ordinary_pickup_cancelled_before_full_write_retains_unsent_intent_and_l
         .unwrap();
     assert_eq!(record.id, retained.id);
     assert!(!record.send.dispatched);
-    assert_eq!(record.stage, Stage::RequiresInspection);
+    assert_eq!(record.stage, Stage::NotSent);
     assert!(record.source_receipt.is_none() && record.cursor_receipt.is_none());
+    let next = client
+        .survival()
+        .click_inventory(Source::Player, 10, Button::Left)
+        .await
+        .unwrap();
+    assert_ne!(next.id, retained.id);
+    assert!(next.send.dispatched);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::WINDOW_CLICK
+    );
     f.stop().await;
 }
 #[tokio::test]
@@ -2823,8 +2839,7 @@ async fn shift_transfer_same_consumer_both_modes_storage_player_equipment_and_ol
 }
 
 #[tokio::test]
-async fn shift_transfer_cancelled_before_full_write_retains_intent_and_cannot_confirm_from_other_actor_values()
- {
+async fn shift_transfer_dropped_before_writer_is_not_sent_and_releases_gate() {
     use crate::client::inventory::{InventorySource as Source, InventoryTransferStage as Stage};
     let mut f = CommonFixture::new().await;
     let client = f.client();
@@ -2846,20 +2861,25 @@ async fn shift_transfer_cancelled_before_full_write_retains_intent_and_cannot_co
         .unwrap()
         .unwrap();
     assert!(!retained.send.dispatched);
-    assert_eq!(retained.stage, Stage::Pending);
-    assert!(
+    assert_eq!(retained.stage, Stage::NotSent);
+    assert_eq!(
         client
             .survival()
-            .transfer_inventory(Source::Player, 9)
+            .inventory_send_record()
             .await
-            .is_err()
+            .unwrap()
+            .unwrap()
+            .status,
+        crate::client::inventory::InventorySendStatus::NotSent
     );
     f.fence_response().await;
-    assert!(
-        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
-            .await
-            .is_err()
-    );
+    let mut no_packet = Box::pin(read_packet(&mut f.peer, None));
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(no_packet.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(no_packet);
     for c in &retained.changed_slots {
         let value = match &c.prediction.value {
             crate::client::SlotKnowledge::Empty => InventorySlot::Empty,
@@ -2875,9 +2895,21 @@ async fn shift_transfer_cancelled_before_full_write_retains_intent_and_cannot_co
         .unwrap()
         .unwrap();
     assert_eq!(current.id, retained.id);
-    assert_eq!(current.stage, Stage::RequiresInspection);
+    assert_eq!(current.stage, Stage::NotSent);
     assert!(!current.send.dispatched);
     assert!(current.changed_slots.iter().all(|c| c.receipt.is_none()));
+    f.slot(10, plain("dirt", 5)).await;
+    let next = client
+        .survival()
+        .transfer_inventory(Source::Player, 10)
+        .await
+        .unwrap();
+    assert_ne!(next.id, retained.id);
+    assert!(next.send.dispatched);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::WINDOW_CLICK
+    );
     f.stop().await;
 }
 #[tokio::test]

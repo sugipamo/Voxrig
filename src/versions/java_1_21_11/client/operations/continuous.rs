@@ -604,7 +604,10 @@ impl Operations {
             && session.running()
             && self.ready(&state).is_ok()
             && session.kind == crate::client::control::ControlKind::Ground;
+        let mut sent = false;
         let release = if !old_world && session.running() && self.ready(&state).is_ok() {
+            let (_, sprint, input) = session.release();
+            sent = input.is_some() || (sprint == Some(false) && entity.is_some());
             self.write_release(&session, entity).await
         } else {
             Ok(())
@@ -627,6 +630,9 @@ impl Operations {
         self.bot.session.changed.notify_waiters();
         if release.is_ok() {
             self.bot.session.ledger.retire_common_control(id);
+        }
+        if release.is_ok() {
+            crate::client::owned_operation::complete_stop(sent);
         }
         release.map(|()| Some(record))
     }
@@ -1448,9 +1454,10 @@ impl crate::client::adapter::ControlOps for Operations {
                 let owner = self.clone();
                 self.bot
                     .session
-                    .spawn_finite_result(
+                    .spawn_finite_result(crate::client::owned_operation::with_stop_observer(
+                        crate::client::owned_operation::capture_stop_observer(),
                         async move { owner.stop_control_owned(id, Some(mode)).await },
-                    )
+                    ))
                     .await
                     .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
             })

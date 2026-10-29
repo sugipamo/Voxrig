@@ -971,4 +971,95 @@ mod tests {
         ledger.tasks().start(async { Ok(()) });
         ledger.tasks().wait().await.unwrap();
     }
+    #[tokio::test(start_paused = true)]
+    async fn dig_bounded_wait_preserves_owner_and_projects_terminal_vocabulary() {
+        use crate::client::{OperationOutcome as O, OperationUnknownReason as U};
+        let op = operation();
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
+        let DigWait::Unknown(snapshot) = op.finished_until(deadline).await else {
+            panic!("owner must remain live");
+        };
+        assert_eq!(snapshot.id(), op.id());
+        assert_eq!(snapshot.id().generation().connection_id(), 7);
+        assert_eq!(snapshot.id().ordinal(), 1);
+        assert!(!snapshot.cancel_requested());
+        assert!(snapshot.finished().is_none());
+        op.state
+            .publish(&Ok(Err(crate::error::state_error("not admitted"))), false);
+        let DigWait::Completed(done) = op.finished_until(tokio::time::Instant::now()).await else {
+            panic!("joined result must be immediately available");
+        };
+        assert_eq!(done.operation_outcome(), O::NotSent);
+        let op = operation();
+        write(&op.state, Action::Start);
+        op.state
+            .publish(&Ok(Err(crate::error::state_error("no receipt"))), false);
+        assert_eq!(op.finished().await.operation_outcome(), O::SentUnconfirmed);
+        let op = operation();
+        assert!(op.state.try_commit(Action::Start));
+        op.state
+            .publish(&Ok(Err(crate::error::state_error("interrupted"))), false);
+        assert_eq!(
+            op.finished().await.operation_outcome(),
+            O::Unknown(U::Failed)
+        );
+    }
+}
+
+/// Finite observation using the existing DigOperation identity and owner.
+#[derive(Clone, Debug)]
+pub enum DigWait {
+    /// Original joined completion, including independent START/STOP/ABORT evidence.
+    Completed(Arc<DigCompletion>),
+    /// Deadline elapsed; no cancellation, join, seal or server-effect proof.
+    Unknown(DigSnapshot),
+}
+impl DigOperationId {
+    /// Original immutable connection generation.
+    pub fn generation(self) -> GenerationKey {
+        self.generation
+    }
+    /// Monotonic invocation number within that generation.
+    pub fn ordinal(self) -> u64 {
+        self.ordinal
+    }
+}
+impl DigOperation {
+    /// Bounded passive observation. Use request_cancel explicitly, and retire the
+    /// connection if cleanup remains unconfirmed. Does not create a second owner.
+    pub async fn finished_until(&self, deadline: tokio::time::Instant) -> DigWait {
+        match tokio::time::timeout_at(deadline, self.finished()).await {
+            Ok(done) => DigWait::Completed(done),
+            Err(_) => DigWait::Unknown(self.snapshot()),
+        }
+    }
+}
+impl DigCompletion {
+    /// Same terminal vocabulary as owned operations; detailed per-packet
+    /// evidence and the original strict DigResult remain authoritative.
+    pub fn operation_outcome(&self) -> super::OperationOutcome {
+        use super::{OperationOutcome as O, OperationUnknownReason as U};
+        let writes = [
+            &self.dispatch.start,
+            &self.dispatch.stop,
+            &self.dispatch.abort,
+        ];
+        if writes.iter().all(|w| **w == DigWriteEvidence::NotSent) {
+            return O::NotSent;
+        }
+        if writes
+            .iter()
+            .any(|w| matches!(w, DigWriteEvidence::Unknown | DigWriteEvidence::Pending))
+        {
+            return O::Unknown(U::Failed);
+        }
+        match &self.result {
+            DigResult::Finished(record)
+                if !matches!(record.outcome, super::DigOutcome::Unconfirmed) =>
+            {
+                O::SentReceived
+            }
+            _ => O::SentUnconfirmed,
+        }
+    }
 }

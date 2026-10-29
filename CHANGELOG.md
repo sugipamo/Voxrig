@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Add bounded owned primitive handles for selected controller stop, HeadlessBody
+  initial dispatch, strict/acceptance click and transfer, strict result takes and
+  operational crafting. Typed terminal evidence and original scope survive waiter
+  drop; late owner exit is retained separately. Add explicit bounded connection
+  retirement and finite observation on the existing DigOperation. Modern unsent
+  caller-owned click/transfer drops now close as NotSent and release their gate.
+  See [owned operations](docs/client/owned-operations.md).
+
 - Bind inventory completion to the final send boundary on both adapters. Legacy
   negative stack comparisons no longer imply rejection; completion waits for the
   ordered full contents and fresh cursor. Missing ordinary click/transfer receipts

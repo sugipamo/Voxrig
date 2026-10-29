@@ -1108,3 +1108,45 @@ pub(in crate::versions::java_1_21_11::client) fn changes_received(
     state.inventory_executor.receive(current, crafting_complete);
     Ok(())
 }
+
+// This guard is destroyed while coherent State is still locked. It borrows
+// that state through the entire caller-owned send, including future drop.
+// False at destruction proves no writer invocation/queued descendant exists.
+struct OriginalAttempt<'a> {
+    state: &'a mut State,
+    execution: crate::client::inventory::InventorySendId,
+    started: &'a AtomicBool,
+    transfer: bool,
+    complete: bool,
+}
+impl Drop for OriginalAttempt<'_> {
+    fn drop(&mut self) {
+        if self.complete {
+            return;
+        }
+        let not_sent = !self.started.load(Ordering::Acquire);
+        if self.transfer {
+            if let Some(record) = self.state.common_inventory_transfer.as_mut() {
+                if not_sent {
+                    record.stage = crate::client::inventory::InventoryTransferStage::NotSent;
+                } else {
+                    record.inspection("original transfer write interrupted; effects unknown");
+                }
+            }
+        } else if let Some(record) = self.state.common_inventory_click.as_mut() {
+            if not_sent {
+                record.stage = crate::client::inventory::InventoryClickStage::NotSent;
+            } else {
+                record.inspection("original click write interrupted; effects unknown");
+            }
+        }
+        if not_sent {
+            self.state.inventory_executor.not_sent(self.execution);
+        } else {
+            self.state
+                .inventory_executor
+                .invalidate_owned(self.execution);
+        }
+        self.state.reconcile_finite();
+    }
+}
