@@ -22,6 +22,9 @@ pub struct DigEstimate {
 /// Outcome of one `dig`.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct DigRecord {
+    /// Original invocation evidence captured when this call returns.
+    /// No live client or replay authority is retained.
+    pub snapshot: Option<Box<super::DigSnapshot>>,
     /// Target cell.
     pub target: [i32; 3],
     /// The estimate the dig was timed with.
@@ -503,6 +506,10 @@ impl super::Survival {
     /// Dropping the waiter requests one owned ABORT after a timed START, unless
     /// STOP was already completely written. Instant START needs no ABORT;
     /// changed context or uncertain I/O never causes replay into another world.
+    /// The compatibility call has a 30-second total internal deadline covering
+    /// every await. Expiry returns OperationUnconfirmed with Error::dig_snapshot;
+    /// it never confirms success, replays the mutation, or frees an uncertain gate.
+    /// For longer digs use begin_dig and observe/cancel its original owner explicitly.
     pub async fn dig(&self, target: [i32; 3], face: BlockFace) -> Result<DigRecord> {
         self.operational_dig(target, face).await
     }

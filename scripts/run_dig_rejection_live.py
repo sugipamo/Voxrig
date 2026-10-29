@@ -26,6 +26,23 @@ MINED = [1, 65, 2]
 ROTATION = [-33.69, 31.85]
 
 
+def verify_stages(record):
+    snapshot = record['snapshot']
+    assert snapshot['target'] == record['target'], snapshot
+    assert snapshot['face'] == 'North', snapshot
+    assert not snapshot['deadline_exceeded'], snapshot
+    assert snapshot['estimate'] == record['estimate'], snapshot
+    stages = {(r['phase'], r['stage']) for r in snapshot['stages']}
+    assert {('Preparing', 'GateAcquired'), ('Preparing', 'Estimate'),
+            ('Starting', 'Write'), ('Starting', 'Written'),
+            ('Waiting', 'Wait'), ('Waiting', 'Waited'),
+            ('Stopping', 'Write'), ('Stopping', 'Written'),
+            ('Observing', 'Capture'), ('Observing', 'Captured')} <= stages, snapshot
+    assert 'Written' in snapshot['dispatch']['start'], snapshot
+    assert 'Written' in snapshot['dispatch']['stop'], snapshot
+    assert snapshot['dispatch']['abort'] == 'NotSent', snapshot
+
+
 def check(version, command, request, trace, report):
     legacy = version == '1.16.1'
     dig = 0x1b if legacy else 0x28
@@ -76,6 +93,7 @@ def check(version, command, request, trace, report):
     mark = trace.mark()
     rejected = request('strict_dig', pos=TARGET)
     assert 'error' not in rejected, rejected
+    verify_stages(rejected)
     outcome = rejected['outcome']
     assert outcome['kind'] == 'rejected', rejected
     assert not rejected['removed'] and rejected['final_state']['name'] == 'minecraft:dirt', rejected
@@ -93,6 +111,7 @@ def check(version, command, request, trace, report):
     mark = trace.mark()
     removed = request('strict_dig', pos=TARGET)
     assert 'error' not in removed, removed
+    verify_stages(removed)
     assert removed['outcome']['kind'] == 'removed' and removed['removed'], removed
     assert target_is('air'), 'native target not removed'
     report['checks'].append(dict(name='same_connection_dig_removed', record=removed, frames=frames(mark)))
@@ -113,6 +132,7 @@ def check(version, command, request, trace, report):
     mark = trace.mark()
     stale = request('strict_dig', pos=TARGET)
     assert 'error' not in stale, stale
+    verify_stages(stale)
     assert stale['outcome']['kind'] == 'removed' and stale['removed'], stale
     assert target_is('air'), 'native target not removed'
     report['checks'].append(dict(name='stale_destroy_position_stop_removes_inside_refusal',
@@ -163,7 +183,7 @@ if __name__ == '__main__':
     parser.add_argument('--version', choices=['1.16.1', '1.21.11'], action='append')
     args = parser.parse_args()
     harness.ROOT = args.output.resolve()
-    sources = ['src/client/dig.rs', 'src/client/operational_dig.rs',
+    sources = ['src/client/dig.rs', 'src/client/dig_operation.rs', 'src/client/operational_dig.rs',
                'src/versions/java_1_16_1/client/operational_dig.rs',
                'src/versions/java_1_21_11/client/operations/operational_dig.rs',
                'src/versions/java_1_21_11/client/operations/mining.rs',

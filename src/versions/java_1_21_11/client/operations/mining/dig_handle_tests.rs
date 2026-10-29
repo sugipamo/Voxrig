@@ -445,3 +445,97 @@ async fn dig_handle_context_change_has_no_abort_and_revoke_still_joins() {
         f.stop().await;
     }
 }
+
+async fn plain_modern(f: &Fixture) -> (tokio::task::JoinHandle<crate::Result<crate::client::DigRecord>>, DigOperation) {
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let task = tokio::spawn(async move { client.survival().dig(TARGET, crate::BlockFace::Up).await });
+    loop {
+        if let Some(op) = f.session.operational_dig.testing_plain.lock().unwrap().clone() { return (task, op); }
+        assert!(!task.is_finished());
+        tokio::task::yield_now().await;
+    }
+}
+async fn modern_boundary(op: &DigOperation, phase: DigPhase, stage: crate::client::DigStage) {
+    for _ in 0..20_000 {
+        let s = op.snapshot();
+        if s.phase() == phase && s.stage() == stage { return; }
+        assert!(s.finished().is_none(), "expected {phase:?}/{stage:?}: {s:?}");
+        tokio::task::yield_now().await;
+    }
+    panic!("expected {phase:?}/{stage:?}: {:?}", op.snapshot());
+}
+#[tokio::test]
+async fn plain_dig_modern_state_and_writer_lock_stalls_are_bounded() {
+    use crate::client::{DigStage as S, OperationOutcome as O, OperationUnknownReason as U};
+    for state_stall in [true, false] {
+        let f = Fixture::new().await;
+        let state = if state_stall { Some(f.session.state.lock().await) } else { None };
+        let writer = if !state_stall { Some(f.session.writer.lock().await) } else { None };
+        tokio::time::pause();
+        let (task, op) = plain_modern(&f).await;
+        modern_boundary(&op, if state_stall { DigPhase::Preparing } else { DigPhase::Starting },
+            if state_stall { S::Gate } else { S::Writer }).await;
+        tokio::time::advance(crate::client::operational_dig::PLAIN_DIG_BUDGET).await;
+        let error = task.await.unwrap().unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::OperationUnconfirmed);
+        let s = error.dig_snapshot().unwrap();
+        assert!(s.deadline_exceeded());
+        assert_eq!(*s.dispatch().start(), DigWriteEvidence::NotSent);
+        assert_eq!(s.id(), op.id());
+        assert_eq!(op.finished().await.operation_outcome(), O::Unknown(U::Deadline));
+        drop(state); drop(writer);
+        tokio::time::resume();
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn plain_dig_modern_partial_start_and_flush_deadlines_never_become_success() {
+    use crate::client::{DigStage as S, OperationOutcome as O, OperationUnknownReason as U};
+    for bytes in [Some(0), Some(1), Some(3), None] {
+        let f = Fixture::new().await;
+        let control = crate::client::ledger::testing::Control::default();
+        control.release(bytes.unwrap_or(usize::MAX), false);
+        f.session.writer.lock().await.stream.test_replace(control.writer());
+        tokio::time::pause();
+        let (task, op) = plain_modern(&f).await;
+        control.until(|c| if let Some(bytes) = bytes { c.progress().0 > 0 && c.bytes().len() == bytes } else { c.progress().1 > 0 }).await;
+        // Native transport commitment is separate from holding the writer lock.
+        modern_boundary(&op, DigPhase::Starting, S::Write).await;
+        tokio::time::advance(crate::client::operational_dig::PLAIN_DIG_BUDGET).await;
+        let error = task.await.unwrap().unwrap_err();
+        assert!(error.dig_snapshot().unwrap().deadline_exceeded());
+        let done = op.finished().await;
+        assert_eq!(done.operation_outcome(), O::Unknown(U::Deadline));
+        assert_eq!(*done.dispatch().start(), DigWriteEvidence::Unknown);
+        assert_eq!(*done.dispatch().stop(), DigWriteEvidence::NotSent);
+        assert_eq!(*done.dispatch().abort(), DigWriteEvidence::NotSent);
+        let before = control.bytes();
+        control.release(usize::MAX, true);
+        assert_eq!(control.bytes(), before);
+        assert_eq!(*op.finished().await.dispatch().start(), DigWriteEvidence::Unknown);
+        tokio::time::resume();
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn plain_dig_modern_long_estimate_deadline_retains_start_and_gate() {
+    use crate::client::{DigStage as S, OperationOutcome as O, OperationUnknownReason as U};
+    let mut f = Fixture::new().await;
+    f.change(TARGET, &native("obsidian")).await;
+    tokio::time::pause();
+    let (task, op) = plain_modern(&f).await;
+    modern_boundary(&op, DigPhase::Waiting, S::Wait).await;
+    assert!(op.snapshot().estimate().unwrap().ticks > 600);
+    tokio::time::advance(crate::client::operational_dig::PLAIN_DIG_BUDGET).await;
+    let error = task.await.unwrap().unwrap_err();
+    let s = error.dig_snapshot().unwrap();
+    assert_eq!(s.stage(), S::Wait);
+    assert!(matches!(s.dispatch().start(), DigWriteEvidence::Written { .. }));
+    assert_eq!(*s.dispatch().stop(), DigWriteEvidence::NotSent);
+    assert_eq!(*s.dispatch().abort(), DigWriteEvidence::NotSent);
+    assert_eq!(op.finished().await.operation_outcome(), O::Unknown(U::Deadline));
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    assert_eq!(client.survival().dig(TARGET, crate::BlockFace::Up).await.unwrap_err().kind(), ErrorKind::OperationUnconfirmed);
+    tokio::time::resume();
+    f.stop().await;
+}

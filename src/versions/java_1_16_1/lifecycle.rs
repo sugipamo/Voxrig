@@ -610,6 +610,7 @@ impl DigPermit {
         let tracking = DigTracking { operation, action };
         let (reply, result) = oneshot::channel();
         let actor_tracking = Some(Box::new(tracking.clone()));
+        tracking.operation.stage(crate::client::DigStage::Write);
         if !tracking.operation.try_commit(action) {
             return None;
         }
@@ -646,7 +647,15 @@ impl DigReply {
                 self.tracking.settle(DigWriteEvidence::Unknown);
                 Err(crate::Error::new(
                     crate::ErrorKind::UncertainDispatch,
-                    anyhow::anyhow!("dig actor delivery unknown"),
+                    anyhow::anyhow!(if self.tracking.operation.is_plain()
+                        && matches!(
+                            self.tracking.action,
+                            crate::client::operational_dig::Action::Abort
+                        ) {
+                        "dig cleanup ABORT delivery unknown"
+                    } else {
+                        "dig actor delivery unknown"
+                    }),
                 ))
             }
         }
@@ -1012,7 +1021,13 @@ impl ConnectionActor {
                         let result = match admission {
                             Ok(()) => {
                                 let write_result = {
+                                    if let Some(tracking) = &dig_tracking {
+                                        tracking.operation.stage(crate::client::DigStage::Writer);
+                                    }
                                     let mut writer = writer.lock().await;
+                                    if let Some(tracking) = &dig_tracking {
+                                        tracking.operation.stage(crate::client::DigStage::WriterAcquired);
+                                    }
                                     if actor_revoked.load(Ordering::Acquire) {
                                         return;
                                     }

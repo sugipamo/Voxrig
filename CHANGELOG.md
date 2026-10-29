@@ -9,6 +9,12 @@
 
 ## Unreleased
 
+- Bound plain survival digging to a 30-second total deadline on both adapters.
+  Preserve original START/STOP/ABORT evidence and uncertain gates on expiry;
+  expose native stages and estimates through the existing DigOperation snapshots,
+  plain results/errors and opt-in operation tracing. Explicit begin_dig ownership
+  and cancellation contracts are unchanged. See [await audit](docs/plain-dig-bounds.md).
+
 - Add bounded owned primitive handles for selected controller stop, HeadlessBody
   initial dispatch, strict/acceptance click and transfer, strict result takes and
   operational crafting. Typed terminal evidence and original scope survive waiter

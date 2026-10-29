@@ -86,6 +86,11 @@ impl Error {
         self.source.downcast_ref::<crate::client::DigRefusal>()
     }
 
+    /// Invocation-bound plain-dig progress, preserved through error context.
+    pub fn dig_snapshot(&self) -> Option<&crate::client::DigSnapshot> {
+        self.source.downcast_ref::<crate::client::DigSnapshot>()
+    }
+
     /// Held-item identity refusal; the operation sent no use-item or block-use packet.
     pub fn use_item_refusal(&self) -> Option<&crate::client::UseItemRefusal> {
         self.source.downcast_ref::<crate::client::UseItemRefusal>()
