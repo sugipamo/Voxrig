@@ -134,6 +134,11 @@ pub(crate) trait DigOps {
     fn dig_work(&self) -> Result<super::ledger::WorkGuard>;
     fn dig_coordinator(&self) -> std::sync::Arc<super::operational_dig::Coordinator>;
     async fn dig_snapshot(&self, target: [i32; 3]) -> Result<super::operational_dig::Inputs>;
+    async fn dig_snapshot_tracked(
+        &self,
+        target: [i32; 3],
+        operation: &std::sync::Arc<super::dig_operation::OperationState>,
+    ) -> Result<super::operational_dig::Inputs>;
     async fn dig_dispatch(
         &self,
         initial: &super::operational_dig::Inputs,

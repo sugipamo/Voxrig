@@ -269,3 +269,6 @@ consoleから置いたblockを掘った。両版とも、すべてserverが壊�
 | 草（硬さ0） | 0（STARTで壊れる） | 0.02 s | 0.04 s |
 | 石・木のつるはし・採掘速度上昇II | 17 | 0.93 s | 0.95 s |
 | 鉄鉱石・木のつるはし（正しい道具ではない） | 151 | 7.63 s | 7.65 s |
+
+The compatibility `dig` call has a 30-second total deadline and original-operation
+stage evidence on results/errors. See [plain dig bounds and await audit](plain-dig-bounds.md).

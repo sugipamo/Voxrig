@@ -148,6 +148,7 @@ impl Session {
         use crate::client::DigWriteEvidence;
         // No await between the Q2 transition and initiating the non-retractable
         // write attempt. check_outbound ran under this lock before commitment.
+        operation.stage(crate::client::DigStage::Write);
         if !operation.try_commit(action) {
             return Err(crate::client::operational_dig::unavailable(
                 "dig cancelled before commit",

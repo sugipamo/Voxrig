@@ -80,7 +80,8 @@ pub(crate) mod dig_operation;
 pub(crate) mod domain;
 pub use dig_operation::{
     DigCancelOutcome, DigCompletion, DigDispatchEvidence, DigOperation, DigOperationId,
-    DigOwnerExit, DigPhase, DigResult, DigSnapshot, DigWait, DigWriteEvidence,
+    DigOwnerExit, DigPhase, DigResult, DigSnapshot, DigStage, DigStageRecord, DigWait,
+    DigWriteEvidence,
 };
 pub(crate) mod operational_dig;
 pub use dig::{DigEstimate, DigOutcome, DigRecord, DigRefusal, DigRejection};
@@ -333,10 +334,10 @@ pub mod prelude {
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceError, CraftOnceRecord,
         CraftOnceUnknownCause, CraftingFillRecord, DigCancelOutcome, DigCompletion,
         DigDispatchEvidence, DigEstimate, DigOperation, DigOperationId, DigOutcome, DigOwnerExit,
-        DigPhase, DigRecord, DigRefusal, DigRejection, DigResult, DigSnapshot, DigWriteEvidence,
-        Hand, InventoryMoveRecord, InventoryMoveStage, LoadedChunks, ObservedValue, PlacementCheck,
-        PlayerAttribute, PlayerControl, PlayerEffect, PlayerEyeHeight, PlayerPostureObservation,
-        UseItemRefusal, ValueSource,
+        DigPhase, DigRecord, DigRefusal, DigRejection, DigResult, DigSnapshot, DigStage,
+        DigStageRecord, DigWriteEvidence, Hand, InventoryMoveRecord, InventoryMoveStage,
+        LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute, PlayerControl, PlayerEffect,
+        PlayerEyeHeight, PlayerPostureObservation, UseItemRefusal, ValueSource,
     };
     pub use super::{
         ChunkCapacity, Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

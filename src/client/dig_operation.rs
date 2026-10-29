@@ -12,7 +12,7 @@ use std::{
 use tokio::sync::Notify;
 
 /// Opaque process-local identity. No lookup, reconstruction or persistence is supported.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct DigOperationId {
     generation: GenerationKey,
     ordinal: u64,
@@ -34,7 +34,7 @@ impl DigOperationId {
 }
 
 /// Local write evidence, never a server acknowledgement or rollback proof.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub enum DigWriteEvidence {
     /// Not admitted; in a completion this is sealed against later dispatch.
@@ -50,7 +50,7 @@ pub enum DigWriteEvidence {
     Unknown,
 }
 /// Independent evidence for the three possible writes.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct DigDispatchEvidence {
     start: DigWriteEvidence,
     stop: DigWriteEvidence,
@@ -78,7 +78,7 @@ impl DigDispatchEvidence {
     }
 }
 /// Current local owner phase; snapshots do not certify task exit.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[non_exhaustive]
 pub enum DigPhase {
     /// Preparing the original snapshot.
@@ -95,6 +95,51 @@ pub enum DigPhase {
     Observing,
     /// The owner has actually been joined.
     Finished,
+}
+/// Last local await boundary or completed milestone, interpreted with DigPhase.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[non_exhaustive]
+pub enum DigStage {
+    /// Waiting for the initial native snapshot or readiness.
+    Snapshot,
+    /// Waiting for native send queue capacity.
+    Capacity,
+    /// Waiting for the coherence/state gate.
+    Gate,
+    /// Coherence/state gate acquired.
+    GateAcquired,
+    /// Waiting for the native writer.
+    Writer,
+    /// Native writer acquired.
+    WriterAcquired,
+    /// Reading and validating original prerequisites.
+    Validate,
+    /// At the transport commitment boundary; consult dispatch evidence for admission.
+    Write,
+    /// A complete local write was proved.
+    Written,
+    /// Original estimate is available in the snapshot.
+    Estimate,
+    /// Waiting the estimate before STOP.
+    Wait,
+    /// Estimate wait completed.
+    Waited,
+    /// Awaiting a target capture.
+    Capture,
+    /// Target capture completed.
+    Captured,
+    /// Reading processed-boundary rejection evidence.
+    Rejection,
+}
+/// First occurrence of a phase/stage pair. Repeated capture polling is coalesced.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct DigStageRecord {
+    /// Owner phase at this boundary.
+    pub phase: DigPhase,
+    /// Boundary or milestone.
+    pub stage: DigStage,
+    /// Monotonic elapsed time since this invocation was registered.
+    pub elapsed: std::time::Duration,
 }
 /// Terminal disposition, independent of result and owner exit.
 ///
@@ -133,7 +178,7 @@ pub enum DigCancelOutcome {
     },
 }
 /// Owner result, separate from local packet disposition.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum DigResult {
     /// Normal observation completed, including after a late cancellation request.
@@ -180,7 +225,7 @@ pub enum DigOwnerExit {
 /// cancellation and `Returned`. Abnormal exits have `Failed` results, but retain
 /// proved write dispositions. No terminal evidence is `Pending`. This is not a
 /// shutdown receipt: use `Client::wait_shutdown` for connection retirement.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DigCompletion {
     id: DigOperationId,
     session: Option<SessionStamp>,
@@ -190,8 +235,14 @@ pub struct DigCompletion {
     owner_exit: DigOwnerExit,
     cancel_requested: bool,
     cleanup_failure: Option<(ErrorKind, String)>,
+    progress: DigSnapshot,
 }
 impl DigCompletion {
+    /// Frozen progress immediately before joined publication, including deadline evidence.
+    pub fn snapshot(&self) -> &DigSnapshot {
+        &self.progress
+    }
+
     /// Invocation identity.
     pub fn id(&self) -> DigOperationId {
         self.id
@@ -230,16 +281,64 @@ impl DigCompletion {
     }
 }
 /// Point-in-time state. Only `finished()` supplies a joined receipt.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct DigSnapshot {
+    target: Option<[i32; 3]>,
+    face: Option<super::BlockFace>,
     id: DigOperationId,
     session: Option<SessionStamp>,
     phase: DigPhase,
     cancel_requested: bool,
     dispatch: DigDispatchEvidence,
+    #[serde(skip)]
     finished: Option<Arc<DigCompletion>>,
+    stage: DigStage,
+    stages: Vec<DigStageRecord>,
+    estimate: Option<super::DigEstimate>,
+    deadline_exceeded: bool,
 }
+impl std::fmt::Display for DigSnapshot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "dig {:?} {:?} {:?} at {:?}/{:?}, deadline_exceeded={}, dispatch={:?}",
+            self.id,
+            self.target,
+            self.face,
+            self.phase,
+            self.stage,
+            self.deadline_exceeded,
+            self.dispatch
+        )
+    }
+}
+impl std::error::Error for DigSnapshot {}
 impl DigSnapshot {
+    /// Original target, available before any native state lock is acquired.
+    pub fn target(&self) -> Option<[i32; 3]> {
+        self.target
+    }
+    /// Original face, never rederived from a later scene.
+    pub fn face(&self) -> Option<super::BlockFace> {
+        self.face
+    }
+    /// Most recent boundary, including a blocked await.
+    pub fn stage(&self) -> DigStage {
+        self.stage
+    }
+    /// Bounded history of first phase/stage occurrences.
+    pub fn stages(&self) -> &[DigStageRecord] {
+        &self.stages
+    }
+    /// Original timing estimate, if preparation completed.
+    pub fn estimate(&self) -> Option<&super::DigEstimate> {
+        self.estimate.as_ref()
+    }
+    /// The plain dig's immutable internal deadline expired; never success evidence.
+    pub fn deadline_exceeded(&self) -> bool {
+        self.deadline_exceeded
+    }
+
     /// Invocation identity.
     pub fn id(&self) -> DigOperationId {
         self.id
@@ -317,6 +416,8 @@ impl DigOperation {
 
 #[derive(Debug)]
 struct State {
+    target: Option<[i32; 3]>,
+    face: Option<super::BlockFace>,
     session: Option<SessionStamp>,
     phase: DigPhase,
     dispatch: DigDispatchEvidence,
@@ -327,6 +428,11 @@ struct State {
     context_changed: bool,
     cleanup_failure: Option<(ErrorKind, String)>,
     finished: Option<Arc<DigCompletion>>,
+    stage: DigStage,
+    stages: Vec<DigStageRecord>,
+    estimate: Option<super::DigEstimate>,
+    deadline_exceeded: bool,
+    plain: bool,
 }
 #[derive(Debug)]
 pub(crate) struct OperationState {
@@ -334,6 +440,7 @@ pub(crate) struct OperationState {
     pub(crate) cancelled: Arc<AtomicBool>,
     inner: Mutex<State>,
     changed: Notify,
+    started: tokio::time::Instant,
 }
 impl OperationState {
     pub(crate) fn new(id: DigOperationId) -> Arc<Self> {
@@ -341,7 +448,10 @@ impl OperationState {
             id,
             cancelled: Arc::new(AtomicBool::new(false)),
             changed: Notify::new(),
+            started: tokio::time::Instant::now(),
             inner: Mutex::new(State {
+                target: None,
+                face: None,
                 session: None,
                 phase: DigPhase::Preparing,
                 dispatch: DigDispatchEvidence {
@@ -356,13 +466,26 @@ impl OperationState {
                 context_changed: false,
                 cleanup_failure: None,
                 finished: None,
+                stage: DigStage::Snapshot,
+                stages: Vec::new(),
+                estimate: None,
+                deadline_exceeded: false,
+                plain: false,
             }),
         })
+    }
+    pub(crate) fn plain(id: DigOperationId) -> Arc<Self> {
+        let operation = Self::new(id);
+        operation.lock().plain = true;
+        operation
+    }
+    pub(crate) fn is_plain(&self) -> bool {
+        self.lock().plain
     }
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
-    fn request_cancel(&self) {
+    pub(crate) fn request_cancel(&self) {
         let state = self.lock();
         if state.finished.is_none() {
             self.cancelled.store(true, Ordering::Release);
@@ -381,16 +504,78 @@ impl OperationState {
             wake.await;
         }
     }
-    fn snapshot(&self) -> DigSnapshot {
-        let state = self.lock();
+    pub(crate) fn snapshot(&self) -> DigSnapshot {
+        self.snapshot_locked(&self.lock())
+    }
+    fn snapshot_locked(&self, state: &State) -> DigSnapshot {
         DigSnapshot {
+            target: state.target,
+            face: state.face,
             id: self.id,
             session: state.session,
             phase: state.phase,
             cancel_requested: self.cancelled.load(Ordering::Acquire),
             dispatch: state.dispatch.clone(),
             finished: state.finished.clone(),
+            stage: state.stage,
+            stages: state.stages.clone(),
+            estimate: state.estimate.clone(),
+            deadline_exceeded: state.deadline_exceeded,
         }
+    }
+    pub(crate) fn stage(&self, stage: DigStage) {
+        let mut state = self.lock();
+        if state.finished.is_some() {
+            return;
+        }
+        let phase = state.phase;
+        state.stage = stage;
+        let elapsed = self.started.elapsed();
+        if state
+            .stages
+            .iter()
+            .any(|r| r.phase == phase && r.stage == stage)
+        {
+            return;
+        }
+        state.stages.push(DigStageRecord {
+            phase,
+            stage,
+            elapsed,
+        });
+        let dispatch = state.dispatch.clone();
+        drop(state);
+        crate::lifecycle::emit_dig_lifecycle(|| {
+            serde_json::json!({
+                "stage": "operational_stage", "operation": self.id,
+                "phase": phase, "boundary": stage, "elapsed_ms": elapsed.as_millis(),
+                "dispatch": dispatch,
+            })
+        });
+    }
+    pub(crate) fn estimate(&self, estimate: &super::DigEstimate) {
+        self.lock().estimate = Some(estimate.clone());
+        self.stage(DigStage::Estimate);
+        crate::lifecycle::emit_dig_lifecycle(|| {
+            serde_json::json!({
+                "stage": "operational_estimate", "operation": self.id, "estimate": estimate,
+            })
+        });
+    }
+    pub(crate) fn deadline(&self) -> DigSnapshot {
+        self.lock().deadline_exceeded = true;
+        let snapshot = self.snapshot();
+        crate::lifecycle::emit_dig_lifecycle(|| {
+            serde_json::json!({
+                "stage": "operational_deadline", "snapshot": snapshot,
+            })
+        });
+        snapshot
+    }
+    pub(crate) fn target(&self, target: [i32; 3], face: super::BlockFace) {
+        let mut state = self.lock();
+        state.target = Some(target);
+        state.face = Some(face);
     }
     pub(crate) fn prepare(&self, session: SessionStamp, instant: bool) {
         let mut state = self.lock();
@@ -458,7 +643,12 @@ impl OperationState {
         let mut state = self.lock();
         if state.finished.is_none() && *state.dispatch.get_mut(action) == DigWriteEvidence::Pending
         {
+            let complete = matches!(evidence, DigWriteEvidence::Written { .. });
             *state.dispatch.get_mut(action) = evidence;
+            drop(state);
+            if complete {
+                self.stage(DigStage::Written);
+            }
         }
     }
     pub(crate) fn publish(
@@ -525,6 +715,7 @@ impl OperationState {
             owner_exit: exit,
             cancel_requested: self.cancelled.load(Ordering::Acquire),
             cleanup_failure: state.cleanup_failure.clone(),
+            progress: self.snapshot_locked(&state),
         }));
         state.phase = DigPhase::Finished;
         drop(state);
@@ -1039,6 +1230,9 @@ impl DigCompletion {
     /// evidence and the original strict DigResult remain authoritative.
     pub fn operation_outcome(&self) -> super::OperationOutcome {
         use super::{OperationOutcome as O, OperationUnknownReason as U};
+        if self.progress.deadline_exceeded {
+            return O::Unknown(U::Deadline);
+        }
         let writes = [
             &self.dispatch.start,
             &self.dispatch.stop,

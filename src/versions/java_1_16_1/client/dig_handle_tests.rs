@@ -435,3 +435,253 @@ async fn dig_handle_legacy_context_change_and_revoke_are_joined_without_replacem
         f.stop().await;
     }
 }
+
+// The compatibility call uses the same handle state; the test-only observer
+// lets these fixtures synchronize on actual boundaries, never elapsed sleeps.
+async fn plain(
+    f: &Fixture,
+) -> (
+    tokio::task::JoinHandle<crate::Result<crate::client::DigRecord>>,
+    DigOperation,
+) {
+    let client = f.client();
+    let task =
+        tokio::spawn(async move { client.survival().dig(TARGET, crate::BlockFace::Up).await });
+    loop {
+        if let Some(op) = f.bot.operational_dig.testing_plain.lock().unwrap().clone() {
+            return (task, op);
+        }
+        assert!(!task.is_finished());
+        tokio::task::yield_now().await;
+    }
+}
+async fn boundary(op: &DigOperation, phase: DigPhase, stage: crate::client::DigStage) {
+    for _ in 0..20_000 {
+        let s = op.snapshot();
+        if s.phase() == phase && s.stage() == stage {
+            return;
+        }
+        assert!(
+            s.finished().is_none(),
+            "expected {phase:?}/{stage:?}: {s:?}"
+        );
+        tokio::task::yield_now().await;
+    }
+    panic!("expected {phase:?}/{stage:?}: {:?}", op.snapshot());
+}
+fn deadline(error: &crate::Error) -> &crate::client::DigSnapshot {
+    assert_eq!(error.kind(), crate::ErrorKind::OperationUnconfirmed);
+    let s = error.dig_snapshot().expect("structured original snapshot");
+    assert!(s.deadline_exceeded());
+    s
+}
+#[tokio::test]
+async fn plain_dig_legacy_snapshot_gate_and_state_stalls_are_bounded() {
+    use crate::client::{DigStage as S, OperationOutcome, OperationUnknownReason};
+    for gate_stall in [true, false] {
+        let f = Fixture::new().await;
+        let gate = if gate_stall {
+            Some(f.bot.coherent_state_gate.lock().await)
+        } else {
+            None
+        };
+        let player = if !gate_stall {
+            Some(f.bot.player.lock().await)
+        } else {
+            None
+        };
+        tokio::time::pause();
+        let (task, op) = plain(&f).await;
+        let stage = if gate_stall { S::Gate } else { S::Snapshot };
+        boundary(&op, DigPhase::Preparing, stage).await;
+        tokio::time::advance(crate::client::operational_dig::PLAIN_DIG_BUDGET).await;
+        let error = task.await.unwrap().unwrap_err();
+        let s = deadline(&error);
+        assert_eq!(s.id(), op.id());
+        assert_eq!(s.stage(), stage);
+        assert_eq!(*s.dispatch().start(), DigWriteEvidence::NotSent);
+        assert_eq!(
+            op.finished().await.operation_outcome(),
+            OperationOutcome::Unknown(OperationUnknownReason::Deadline)
+        );
+        drop(gate);
+        drop(player);
+        assert!(f.packets.is_empty());
+        tokio::time::resume();
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn plain_dig_legacy_partial_start_deadline_keeps_evidence_gate_and_no_replay() {
+    use crate::client::DigStage as S;
+    for bytes in [0, 1, 3] {
+        let f = Fixture::new().await;
+        let control = crate::client::ledger::testing::Control::default();
+        control.release(bytes, false);
+        f.bot
+            .writer
+            .lock()
+            .await
+            .inner
+            .test_replace(control.writer());
+        tokio::time::pause();
+        let (task, op) = plain(&f).await;
+        control
+            .until(|c| c.progress().0 > 0 && c.bytes().len() == bytes)
+            .await;
+        boundary(&op, DigPhase::Starting, S::WriterAcquired).await;
+        tokio::time::advance(crate::client::operational_dig::PLAIN_DIG_BUDGET).await;
+        let error = task.await.unwrap().unwrap_err();
+        let s = deadline(&error);
+        assert!(matches!(
+            s.dispatch().start(),
+            DigWriteEvidence::Pending | DigWriteEvidence::Unknown
+        ));
+        let done = op.finished().await;
+        assert_eq!(*done.dispatch().start(), DigWriteEvidence::Unknown);
+        assert_eq!(*done.dispatch().stop(), DigWriteEvidence::NotSent);
+        assert_eq!(*done.dispatch().abort(), DigWriteEvidence::NotSent);
+        assert_eq!(
+            f.client().survival().dig_cleanup_record().unwrap().status,
+            crate::client::DigCleanupStatus::Failed
+        );
+        // A queued legacy actor can finish its original write late. Its sealed
+        // deadline completion stays Unknown; neither STOP nor ABORT is added.
+        control.release(usize::MAX, true);
+        control.until(|c| c.progress().2 == 1).await;
+        assert_eq!(statuses(&control).await, [0]);
+        let before = control.bytes();
+        assert_eq!(
+            f.client()
+                .survival()
+                .dig(TARGET, crate::BlockFace::Up)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::OperationUnconfirmed
+        );
+        assert_eq!(control.bytes(), before);
+        assert_eq!(
+            *op.finished().await.dispatch().start(),
+            DigWriteEvidence::Unknown
+        );
+        tokio::time::resume();
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn plain_dig_legacy_stop_gate_capture_and_abort_stalls_have_distinct_stages() {
+    use crate::client::{DigStage as S, adapter::DigOps};
+    for case in ["stop_gate", "capture", "abort"] {
+        let f = Fixture::new().await;
+        f.target("dirt").await;
+        let ticks = f.bot.dig_snapshot(TARGET).await.unwrap().estimate.ticks;
+        tokio::time::pause();
+        let (task, op) = plain(&f).await;
+        phase(&op, DigPhase::Waiting).await;
+        let gate = if case == "stop_gate" {
+            Some(f.bot.coherent_state_gate.lock().await)
+        } else {
+            None
+        };
+        let control = crate::client::ledger::testing::Control::default();
+        if case != "stop_gate" {
+            control.release(usize::MAX, false);
+            f.bot
+                .writer
+                .lock()
+                .await
+                .inner
+                .test_replace(control.writer());
+        }
+        if case == "abort" {
+            op.request_cancel();
+        } else {
+            tokio::time::advance(Duration::from_millis((ticks + 1) * 50 + 1)).await;
+        }
+        let player = if case == "capture" {
+            control.until(|c| c.progress().1 > 0).await;
+            let player = f.bot.player.lock().await;
+            control.release(usize::MAX, true);
+            boundary(&op, DigPhase::Observing, S::Capture).await;
+            Some(player)
+        } else {
+            boundary(
+                &op,
+                if case == "abort" {
+                    DigPhase::CleaningUp
+                } else {
+                    DigPhase::Stopping
+                },
+                if case == "abort" {
+                    S::WriterAcquired
+                } else {
+                    S::Gate
+                },
+            )
+            .await;
+            None
+        };
+        tokio::time::advance(crate::client::operational_dig::PLAIN_DIG_BUDGET).await;
+        let error = task.await.unwrap().unwrap_err();
+        let s = deadline(&error);
+        assert!(matches!(
+            s.dispatch().start(),
+            DigWriteEvidence::Written { .. }
+        ));
+        assert!(s.estimate().is_some());
+        assert!(s.stages().iter().any(|r| r.stage == S::Wait));
+        assert_eq!(
+            s.phase(),
+            match case {
+                "capture" => DigPhase::Observing,
+                "abort" => DigPhase::CleaningUp,
+                _ => DigPhase::Stopping,
+            }
+        );
+        assert!(op.finished().await.snapshot().deadline_exceeded());
+        drop(player);
+        drop(gate);
+        control.release(usize::MAX, true);
+        tokio::time::resume();
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn plain_dig_legacy_entity_packet_flood_and_target_competition_finish_with_stages() {
+    use crate::client::DigStage as S;
+    let f = Fixture::new().await;
+    f.target("dirt").await;
+    tokio::time::pause();
+    let (task, op) = plain(&f).await;
+    phase(&op, DigPhase::Waiting).await;
+    for id in 100..108 {
+        let mut spawn = vec![id as u8];
+        spawn.extend([id as u8; 16]);
+        for coordinate in [8.5f64, 65., 8.5] {
+            spawn.extend(coordinate.to_be_bytes());
+        }
+        spawn.extend([0, 0]);
+        f.bot.apply_packet(0x04, spawn).await.unwrap();
+    }
+    // Actual decoded native relative-move packets, eight IDs and 1024 updates.
+    // No packet backlog is taken as proof of the production incident's cause.
+    for n in 0..1024 {
+        let mut packet = vec![100 + (n % 8) as u8];
+        packet.extend([0, 1, 0, 0, 0, 1, 1]);
+        f.bot.apply_packet(0x28, packet).await.unwrap();
+    }
+    f.target("air").await;
+    tokio::time::advance(Duration::from_secs(1)).await;
+    let record = task.await.unwrap().unwrap();
+    assert!(record.removed);
+    let s = record.snapshot.unwrap();
+    assert_eq!(s.id(), op.id());
+    assert!(!s.deadline_exceeded());
+    assert!(s.stages().iter().any(|r| r.stage == S::GateAcquired));
+    assert!(s.stages().iter().any(|r| r.stage == S::Written));
+    assert!(s.stages().iter().any(|r| r.stage == S::Waited));
+    assert_eq!(*s.dispatch().stop(), DigWriteEvidence::NotSent);
+    tokio::time::resume();
+    f.stop().await;
+}

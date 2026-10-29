@@ -1,5 +1,6 @@
 use super::*;
 use crate::client::{
+    DigStage,
     adapter::DigOps,
     operational_dig::{self as dig, Action, Dispatch, Inputs},
 };
@@ -53,6 +54,18 @@ impl DigOps for Operations {
     }
     async fn dig_snapshot(&self, target: [i32; 3]) -> Result<Inputs> {
         let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        self.dig_snapshot_unlocked(&mut state, target)
+    }
+    async fn dig_snapshot_tracked(
+        &self,
+        target: [i32; 3],
+        operation: &Arc<crate::client::dig_operation::OperationState>,
+    ) -> Result<Inputs> {
+        operation.stage(DigStage::Gate);
+        let mut state = self.bot.session.state.lock().await;
+        operation.stage(DigStage::GateAcquired);
+        operation.stage(DigStage::Validate);
         self.ready(&state)?;
         self.dig_snapshot_unlocked(&mut state, target)
     }
@@ -129,9 +142,14 @@ impl DigOps for Operations {
     ) -> Result<Dispatch> {
         // Match the existing state -> writer lock order. The state remains held
         // while queued, and every final check is repeated under the writer lock.
+        operation.stage(DigStage::Gate);
         let mut state = self.bot.session.state.lock().await;
+        operation.stage(DigStage::GateAcquired);
         let work = crate::client::ledger::ScopedWork::new(self.bot.session.ledger.try_work()?);
+        operation.stage(DigStage::Writer);
         let mut writer = self.bot.session.writer.lock().await;
+        operation.stage(DigStage::WriterAcquired);
+        operation.stage(DigStage::Validate);
         self.bot.session.check_outbound()?;
         let player = self.common_player_unlocked(&state)?;
         if player.session != initial.player.session || player.game_mode != Some(GameMode::Survival)

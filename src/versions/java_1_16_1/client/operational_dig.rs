@@ -1,6 +1,6 @@
 use super::*;
 use crate::client::{
-    GameMode,
+    DigStage, GameMode,
     adapter::DigOps,
     operational_dig::{self as dig, Action, Dispatch, Inputs},
 };
@@ -40,6 +40,18 @@ impl DigOps for Bot {
     async fn dig_snapshot(&self, target: [i32; 3]) -> Result<Inputs> {
         self.wait_until_ready().await?;
         let _gate = self.coherent_state_gate.lock().await;
+        self.dig_snapshot_unlocked(target).await
+    }
+    async fn dig_snapshot_tracked(
+        &self,
+        target: [i32; 3],
+        operation: &Arc<crate::client::dig_operation::OperationState>,
+    ) -> Result<Inputs> {
+        self.wait_until_ready().await?;
+        operation.stage(DigStage::Gate);
+        let _gate = self.coherent_state_gate.lock().await;
+        operation.stage(DigStage::GateAcquired);
+        operation.stage(DigStage::Validate);
         self.dig_snapshot_unlocked(target).await
     }
     async fn dig_dispatch(
@@ -140,8 +152,12 @@ impl DigOps for Bot {
         operation: &Arc<crate::client::dig_operation::OperationState>,
     ) -> Result<Dispatch> {
         // Capacity first; final resnapshot/validation then commit/enqueue with no await.
+        operation.stage(DigStage::Capacity);
         let permit = self.connection.reserve_dig().await?;
+        operation.stage(DigStage::Gate);
         let _gate = self.coherent_state_gate.lock().await;
+        operation.stage(DigStage::GateAcquired);
+        operation.stage(DigStage::Validate);
         let player = self.common_player_unlocked().await?;
         if player.session != initial.player.session || player.game_mode != Some(GameMode::Survival)
         {
