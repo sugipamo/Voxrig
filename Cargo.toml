@@ -19,6 +19,7 @@ include = [
     "/scripts/run_common_native.py",
     "/scripts/run_chunk_capacity_live.py",
     "/scripts/run_crafting_take_deadline_live.py",
+    "/scripts/run_crafting_pickup_ownership_live.py",
     "/scripts/run_crafting_take_outcome_live.py",
     "/scripts/run_inventory_divergence_live.py",
     "/scripts/run_inventory_no_effect_live.py",

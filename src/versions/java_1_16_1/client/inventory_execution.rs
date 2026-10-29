@@ -1193,6 +1193,22 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn crafting_pickup_ownership_keeps_strict_and_comparison_separate() {
+        for slot in [None, Some(9), Some(36)] {
+            for collector in [None, Some(false), Some(true)] {
+                let (bot, packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                super::super::common_motion::tests::seed_motion(&bot).await;
+                bot.apply_packet(0x3f, vec![0]).await.unwrap();
+                let mut f = LegacyFixture { bot, packets };
+                script::crafting_pickup_ownership(&mut f, slot, collector).await;
+                drop(release);
+                drop(f);
+                server.await.unwrap();
+            }
+        }
+    }
+    #[tokio::test]
     async fn crafting_take_two_phase_deadline_and_late_receipts() {
         for destination in [
             api::CraftingResultDestination::Cursor,

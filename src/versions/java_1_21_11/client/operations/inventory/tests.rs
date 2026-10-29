@@ -6223,6 +6223,22 @@ mod single_owner {
         }
     }
     #[tokio::test]
+    async fn crafting_pickup_ownership_keeps_strict_and_comparison_separate() {
+        for slot in [None, Some(9), Some(36)] {
+            for collector in [None, Some(false), Some(true)] {
+                let mut f = CommonFixture::new().await;
+                crate::client::inventory::armor_tests::install(
+                    &mut f.api.bot.session.state.lock().await.registries,
+                    MinecraftVersion::Java1_21_11,
+                    None,
+                );
+                f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+                script::crafting_pickup_ownership(&mut f, slot, collector).await;
+                f.stop().await;
+            }
+        }
+    }
+    #[tokio::test]
     async fn crafting_take_two_phase_deadline_and_late_receipts() {
         for destination in [
             crate::client::CraftingResultDestination::Cursor,
