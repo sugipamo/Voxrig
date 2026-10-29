@@ -1,0 +1,63 @@
+{
+  "base_main": "38dc8734b3f44d7230a41f70c956d9182d4e69b4",
+  "version": "1.16.1",
+  "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+  "rust_and_cargo_source": {
+    "hash": "6cd999a49e288217b2b923644cfe6bca614c8c457476be8ffdf41adae4704dd3",
+    "files": 530
+  },
+  "binary_sha256": "ab716225c591b07dd377b7b4592d8bd48fe38219b9b5d4ec1e2a24f2e80a96e9",
+  "live_source": "/home/dev/logs/contact/mo7/live-qualified-setup/1.16.1-20261029-053121/report.json",
+  "cycles": 24,
+  "ordinary_clicks": 96,
+  "ordinary_diverged": 0,
+  "delayed_cursor_clicks": 48,
+  "deadline_cases": [
+    "cursor_recovered_by_no_effect_probe",
+    "missing_cursor_inspection"
+  ],
+  "real_refusal": "vanilla_binding_refusal",
+  "trace_errors": [],
+  "artifacts": [
+    {
+      "file": "docs/evidence/mo7-inventory-boundary-1.16.1-20261029.report.json.gz",
+      "sha256": "a45fffa933bac8261ee7362a702fd4ebb43b24434f76daaa4bed425e3716cb31",
+      "raw_sha256": "e06f011bac60953f2012f8ae7baafc6143191d4594205099610d8c50ea58ee9a",
+      "raw_bytes": 1325064
+    },
+    {
+      "file": "docs/evidence/mo7-inventory-boundary-1.16.1-20261029.packets.jsonl.gz",
+      "sha256": "37ac0d0680806381dff9991b02d8e80623c69b6dcd77322e2f1c7369dfe1f5e6",
+      "raw_sha256": "453a7e4b66c82f3930e9a47a4a302e4a56628aa78e60fa2e54e97fddf74c3177",
+      "raw_bytes": 527163
+    }
+  ],
+  "setup": "RCON clear/replaceitem followed by separate no-effect full resync before the four ordinary clicks in each cycle.",
+  "caveat": "Deterministic packet schedules reproduce excerpt move shapes and ordinal relationships; the excerpts lack complete original wire/later cursor, so no historical wire replay is claimed.",
+  "excerpts": [
+    {
+      "file": "new7662_iron__direct__03.txt",
+      "sha256": "08e0fa7632545d263b0b985ce29042d84dd90c5d0681e477ffab2ecf54bf5387"
+    },
+    {
+      "file": "new7662_oak16__rule__00.txt",
+      "sha256": "f9ca115bf5f5f6e67a09b4188889543714bbabbe8c27ede8b452e4e3473c6a8b"
+    },
+    {
+      "file": "new7662_wpick__rule__01.txt",
+      "sha256": "92c6e641baefaa0e933766b792b232b3e4e3ccdaf26abbecfc7946c7d0c177d0"
+    },
+    {
+      "file": "old_iron__direct__00.txt",
+      "sha256": "846f7003e7ed2c5aa4ae30f62504223afc0b817e85544eb043c982de87531bc6"
+    },
+    {
+      "file": "old_oak16__rule__02.txt",
+      "sha256": "aac6847b51614343eca7e7136233fb9869c2869f65d3be9672d619342eb84fec"
+    },
+    {
+      "file": "old_wpick__direct__01.txt",
+      "sha256": "1884d535ca17fb7ecd1c2ebcee47f8918eb7b9decfb57a5a1891c408945b5267"
+    }
+  ]
+}

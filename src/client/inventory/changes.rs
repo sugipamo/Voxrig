@@ -306,7 +306,8 @@ pub enum InventoryCause {
         /// Original send identity.
         id: InventorySendId,
     },
-    /// A matching legacy negative comparison reply, not necessarily rollback.
+    /// Retained diagnostic variant for compatibility. Native negative stack
+    /// comparisons no longer produce this cause; use received no-effect proof.
     Rejected,
     /// Actual collect_item for this player, received in this operation/batch.
     Collected {

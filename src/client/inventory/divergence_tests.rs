@@ -65,11 +65,22 @@ fn response(e: &mut Executor, id: InventorySendId, action: i16, sequence: u64) {
         e.fence(id.session(), id.source(), id.number(), sequence);
     }
 }
-fn finish(e: &mut Executor, id: InventorySendId, action: i16, current: InventorySnapshot) {
-    let seq = current.receive_sequence;
+fn finish(e: &mut Executor, id: InventorySendId, action: i16, mut current: InventorySnapshot) {
+    // Older comparison-only fixtures used one synthetic ordinal for the entire
+    // response. Leave room for the three distinct legacy receive packets.
+    let seq = current
+        .receive_sequence
+        .max(e.record().unwrap().after_sequence + 3);
+    current.receive_sequence = seq;
     let window = e.record().unwrap().window();
-    e.contents(current.session, current.source, window, seq, true);
-    response(e, id, action, seq + 1);
+    if id.session().version == MinecraftVersion::Java1_16_1 {
+        response(e, id, action, seq - 2);
+        e.contents(current.session, current.source, window, seq - 1, false);
+        e.cursor(current.session, current.source, seq);
+    } else {
+        e.contents(current.session, current.source, window, seq, true);
+        response(e, id, action, seq + 1);
+    }
     e.receive(current, false);
 }
 
@@ -83,11 +94,14 @@ async fn completed_response_state_keeps_deadline_until_comparison_finishes() {
     assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
     // A missing comparison capture must never turn ready into an endless lock.
     tokio::time::advance(Duration::from_secs(1)).await;
-    assert_eq!(
-        e.record().unwrap().status,
-        InventorySendStatus::ResyncRequired
-    );
+    assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
+    assert!(e.recovery_needed(id));
     assert!(e.admit().is_err());
+    e.recovery_failed(id);
+    assert_eq!(
+        e.record().unwrap().inspection_reason,
+        Some(InventorySendInspectionReason::ResyncDeliveryUncertain)
+    );
     e.begin(
         before.session,
         before.source,
@@ -157,7 +171,7 @@ fn f96_seed2_action23_preserves_received_table_and_conflicting_log_cursor() {
     let mut current = before.clone();
     current.receive_sequence = 9214;
     e.receive(current.clone(), false);
-    e.rejected();
+    e.hint_for_test(InventoryCause::Rejected);
     response(&mut e, id, 23, 9215);
     current.player_slots[37] = Some(received(item(version, "minecraft:crafting_table", 1), 9216));
     current.receive_sequence = 9216;
@@ -229,7 +243,7 @@ fn f96_window4_three_to_four_and_explicit_collect_evidence_in_both_versions() {
                 e.changes.collect(314, 50036);
             }
             if version == MinecraftVersion::Java1_16_1 {
-                e.rejected();
+                e.hint_for_test(InventoryCause::Rejected);
             }
             let mut current = before.clone();
             current.player_slots[slot] = Some(received(SlotKnowledge::Empty, 50038));
@@ -393,7 +407,7 @@ fn intended_unknown_location_is_not_exempt_from_agreement() {
             current.player_slots[9] = received_value.map(|v| received(v, 11));
             current.receive_sequence = 11;
             // Rejection is an independent hint; a first receipt must not add External.
-            e.rejected();
+            e.hint_for_test(InventoryCause::Rejected);
             finish(&mut e, id, 2, current);
             assert_eq!(e.record().unwrap().status, InventorySendStatus::Diverged);
             assert_eq!(
@@ -536,10 +550,6 @@ fn unchanged_full_boundary_is_no_effect_without_inventing_external() {
             );
             let mut e = Executor::default();
             let id = begin(&mut e, &before, expected, 3);
-            if version == MinecraftVersion::Java1_16_1 {
-                // Voxrig's deliberate mismatch: present on every legacy click.
-                e.rejected();
-            }
             // Fresh receipts with the pre-send values: a server-processed no-op.
             let mut current = before.clone();
             for value in current.player_slots.iter_mut().flatten() {
@@ -568,18 +578,10 @@ fn unchanged_full_boundary_is_no_effect_without_inventing_external() {
             finish(&mut e, id, 3, current);
             assert_eq!(e.record().unwrap().status, InventorySendStatus::Diverged);
             let d = e.divergence(id).unwrap().unwrap();
-            let legacy = version == MinecraftVersion::Java1_16_1;
             match case {
                 0 => {
                     assert_eq!(d.effect(), InventoryEffect::NoEffect);
-                    assert_eq!(
-                        d.causes,
-                        if legacy {
-                            vec![InventoryCause::Rejected]
-                        } else {
-                            Vec::new()
-                        }
-                    );
+                    assert!(d.causes.is_empty());
                     assert_eq!(e.unchanged_boundary(), Some((id.session(), 10)));
                 }
                 1 => {
@@ -591,7 +593,7 @@ fn unchanged_full_boundary_is_no_effect_without_inventing_external() {
                 _ => {
                     assert_eq!(d.effect(), InventoryEffect::Different, "case={case}");
                     assert!(d.causes.contains(&InventoryCause::External));
-                    assert_eq!(d.causes.contains(&InventoryCause::Rejected), legacy);
+                    assert!(!d.causes.contains(&InventoryCause::Rejected));
                     assert_eq!(e.unchanged_boundary(), None);
                 }
             }

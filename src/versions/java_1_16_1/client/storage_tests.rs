@@ -8,8 +8,8 @@ async fn acknowledge_storage_clicks(bot:&Bot,work:&tokio::task::JoinHandle<Resul
             if let Some(pending)=pending{
                 let mut server_state=actual.clone();
                 crate::inventory::predict_normal_click(&mut server_state,pending.window_id,pending.slot,pending.button).unwrap();
-                native_inventory_fixture(bot,pending.window_id,server_state.windows[&pending.window_id].clone(),server_state.cursor.clone()).await;
                 if reply {native_click_reply(bot,pending.action,false).await;}
+                native_inventory_fixture(bot,pending.window_id,server_state.windows[&pending.window_id].clone(),server_state.cursor.clone()).await;
             } else {tokio::task::yield_now().await;}
         }
     }).await.unwrap();

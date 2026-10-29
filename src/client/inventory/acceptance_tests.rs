@@ -3,6 +3,7 @@ use super::*;
 use crate::MinecraftVersion;
 use crate::client::registry::Registry;
 use crate::client::{Client, SlotKnowledge, inventory::InventoryClickButton as Button};
+use tokio::time::Duration;
 
 pub(crate) trait Fixture {
     fn client(&self) -> Client;
@@ -12,6 +13,24 @@ pub(crate) trait Fixture {
     async fn response(&mut self, send: &InventorySendRecord, accepted: bool);
     async fn collect(&mut self, entity: i32, own: bool);
     async fn item_entity(&mut self, entity: i32, count: u32);
+    async fn open_crafting_table(&mut self);
+    /// Full contents only on legacy; modern packet includes its cursor.
+    async fn contents(&mut self, window: i32, slots: &[SlotKnowledge], cursor: &SlotKnowledge);
+    async fn complete(
+        &mut self,
+        send: &InventorySendRecord,
+        slots: &[SlotKnowledge],
+        cursor: &SlotKnowledge,
+        accepted: bool,
+    ) {
+        if self.client().version() == MinecraftVersion::Java1_16_1 {
+            self.response(send, accepted).await;
+            self.inventory(slots, cursor).await;
+        } else {
+            self.inventory(slots, cursor).await;
+            self.response(send, accepted).await;
+        }
+    }
     /// Consume exactly one original click (and the modern response request).
     async fn click(&mut self);
     /// Consume the additional deadline probe, validating its no-effect wire shape.
@@ -39,8 +58,7 @@ pub(crate) async fn collect_and_external_log(f: &mut impl Fixture) {
     f.collect(222, true).await; // deduplicate entity IDs
     slots[9] = SlotKnowledge::Empty;
     let cursor = item(version, "minecraft:cobblestone", 4);
-    f.inventory(&slots, &cursor).await;
-    f.response(&send, false).await;
+    f.complete(&send, &slots, &cursor, false).await;
     assert_eq!(
         client
             .survival()
@@ -117,8 +135,8 @@ pub(crate) async fn no_effect_click_and_transfer(f: &mut impl Fixture) {
         f.click().await;
         // Strict records do not see a fresh receipt equal to `before` as an
         // outcome; until the executor boundary completes they stay Pending.
-        f.inventory(&slots, &SlotKnowledge::Empty).await;
-        f.response(&send, false).await;
+        f.complete(&send, &slots, &SlotKnowledge::Empty, false)
+            .await;
         let record = client
             .survival()
             .inventory_send_record()
@@ -134,16 +152,8 @@ pub(crate) async fn no_effect_click_and_transfer(f: &mut impl Fixture) {
             "{version:?} {transfer}"
         );
         assert!(d.actual.slots.is_empty() && d.actual.items.is_empty());
-        // 1.16.1's deliberate mismatch keeps its Rejected hint; modern has no
-        // hint at all and no longer reports the caller's own no-op as External.
-        assert_eq!(
-            d.causes,
-            if version == MinecraftVersion::Java1_16_1 {
-                vec![InventoryCause::Rejected]
-            } else {
-                Vec::new()
-            }
-        );
+        // Comparison false supplies protocol progress, never a rejection cause.
+        assert!(d.causes.is_empty());
         if transfer {
             let strict = client
                 .survival()
@@ -181,9 +191,13 @@ pub(crate) async fn no_effect_click_and_transfer(f: &mut impl Fixture) {
         .unwrap();
     f.click().await;
     slots[9] = SlotKnowledge::Empty;
-    f.inventory(&slots, &item(version, "minecraft:cobblestone", 3))
-        .await;
-    f.response(&next, false).await;
+    f.complete(
+        &next,
+        &slots,
+        &item(version, "minecraft:cobblestone", 3),
+        false,
+    )
+    .await;
     assert_eq!(
         client
             .survival()
@@ -254,8 +268,7 @@ pub(crate) async fn crafting_result_outcomes(f: &mut impl Fixture) {
                 // range. A fresh full grid and output increase cannot certify it.
                 slots[19] = item(client.version(), "minecraft:dirt", 2);
             }
-            f.inventory(&slots, &cursor).await;
-            f.response(&sent, false).await;
+            f.complete(&sent, &slots, &cursor, false).await;
             assert_eq!(
                 client
                     .survival()
@@ -325,7 +338,8 @@ pub(crate) async fn pickup_matrix(f: &mut impl Fixture) {
         for crafting_input in [false, true] {
             for timing in 0..4 {
                 for injection in 0..4 {
-                    for response_first in [false, true] {
+                    let response_first = version == MinecraftVersion::Java1_16_1;
+                    {
                         let source = if crafting_input { 1 } else { 9 };
                         let mut slots = vec![SlotKnowledge::Empty; 46];
                         slots[source] = stone.clone();
@@ -426,7 +440,7 @@ pub(crate) async fn pickup_matrix(f: &mut impl Fixture) {
                             assert!(d.current.receive_sequence > d.before.receive_sequence);
                             assert!(d.causes.contains(&InventoryCause::External));
                             if version == MinecraftVersion::Java1_16_1 {
-                                assert!(d.causes.contains(&InventoryCause::Rejected));
+                                assert!(!d.causes.contains(&InventoryCause::Rejected));
                             }
                         }
                         let old = if transfer {
@@ -472,8 +486,7 @@ pub(crate) async fn pickup_matrix(f: &mut impl Fixture) {
                         f.click().await;
                         assert_ne!(send.id, next.id);
                         pickup(&mut slots[20], &mut cursor);
-                        f.inventory(&slots, &cursor).await;
-                        f.response(&next, true).await;
+                        f.complete(&next, &slots, &cursor, true).await;
                         assert_eq!(
                             client
                                 .survival()
@@ -515,7 +528,8 @@ pub(crate) async fn missing_response_resync_and_late_response(f: &mut impl Fixtu
     f.click().await;
     pickup(&mut slots[9], &mut cursor);
     f.inventory(&slots, &cursor).await; // state alone cannot acknowledge this click
-    tokio::time::sleep(std::time::Duration::from_millis(5100)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(10100)).await;
+    f.crafting_probe().await; // drain the one owned no-effect recovery before explicit resync
     assert_eq!(
         client
             .survival()
@@ -547,6 +561,9 @@ pub(crate) async fn missing_response_resync_and_late_response(f: &mut impl Fixtu
         InventorySendStatus::Pending
     );
     f.inventory(&slots, &cursor).await;
+    if client.version() == MinecraftVersion::Java1_21_11 {
+        f.response(&sync, false).await;
+    }
     assert_eq!(
         client
             .survival()
@@ -568,8 +585,7 @@ pub(crate) async fn missing_response_resync_and_late_response(f: &mut impl Fixtu
         .unwrap();
     f.click().await;
     pickup(&mut slots[9], &mut cursor);
-    f.inventory(&slots, &cursor).await;
-    f.response(&old, true).await; // expired action/token, arriving during the next click
+    f.complete(&old, &slots, &cursor, true).await; // expired action/token, arriving during the next click
     assert_eq!(
         client
             .survival()
@@ -581,6 +597,9 @@ pub(crate) async fn missing_response_resync_and_late_response(f: &mut impl Fixtu
         InventorySendStatus::Pending
     );
     f.response(&next, false).await;
+    if client.version() == MinecraftVersion::Java1_16_1 {
+        f.inventory(&slots, &cursor).await;
+    }
     assert_eq!(
         client
             .survival()
@@ -822,8 +841,7 @@ pub(crate) async fn crafting_deadline(
         }
         SlotKnowledge::Empty
     };
-    f.inventory(&slots, &cursor).await;
-    f.response(&sent, false).await;
+    f.complete(&sent, &slots, &cursor, false).await;
     let latest = client
         .survival()
         .crafting_take_record()
@@ -906,8 +924,7 @@ pub(crate) async fn crafting_pickup_ownership(
     if let Some(slot) = pickup_slot {
         slots[slot] = item(client.version(), "minecraft:oak_log", 1);
     }
-    f.inventory(&slots, &output).await;
-    f.response(&send, false).await;
+    f.complete(&send, &slots, &output, false).await;
     let take = client
         .survival()
         .crafting_take_record()
@@ -1023,8 +1040,8 @@ pub(crate) async fn crafting_pickup_ownership(
             .unwrap();
         f.click().await;
         slots[10] = output.clone();
-        f.inventory(&slots, &SlotKnowledge::Empty).await;
-        f.response(&next, false).await;
+        f.complete(&next, &slots, &SlotKnowledge::Empty, false)
+            .await;
     } else {
         assert!(client.continue_operational_crafting(send.id).await.is_err());
     }
@@ -1092,8 +1109,7 @@ pub(crate) async fn crafting_pickup_adversarial(f: &mut impl Fixture, case: u8) 
         },
         if case == 0 { 2 } else { 1 },
     );
-    f.inventory(&slots, &output).await;
-    f.response(&send, false).await;
+    f.complete(&send, &slots, &output, false).await;
     if case == 9 {
         assert_eq!(
             client
@@ -1130,4 +1146,287 @@ pub(crate) async fn crafting_pickup_adversarial(f: &mut impl Fixture, case: u8) 
     assert_eq!(later.requires_inspection, first);
     assert!(client.continue_operational_crafting(send.id).await.is_err());
     client.disconnect().await.unwrap();
+}
+
+/// The six excerpt move shapes, with an old cursor on both sides of send.
+/// The supplied reports lack raw sends/later cursor, so these are deterministic
+/// schedules supported by their frozen sequence relationships, not replay claims.
+pub(crate) async fn mo7_excerpt(f: &mut impl Fixture, case: usize) {
+    let client = f.client();
+    let v = client.version();
+    let table = matches!(case, 0 | 1 | 3 | 4);
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    let (name, count, slot, right) = match case {
+        0 => ("stick", 2, 11, false),
+        1 => ("stick", 2, 11, false),
+        2 => ("oak_planks", 3, 9, false),
+        3 => ("stick", 3, 8, true),
+        4 => ("wooden_axe", 1, 12, false),
+        _ => ("oak_log", 1, 1, true),
+    };
+    let mut old_cursor = item(v, &format!("minecraft:{name}"), count);
+    if case == 4 && v == MinecraftVersion::Java1_16_1 {
+        if let SlotKnowledge::Item { item } = &mut old_cursor {
+            item.data = crate::client::ItemData::LegacyNbt {
+                bytes: vec![10, 0, 0, 3, 0, 6, 68, 97, 109, 97, 103, 101, 0, 0, 0, 0, 0],
+            };
+        }
+    }
+    if table {
+        slots[10] = item(v, "minecraft:oak_planks", 3);
+    }
+    if case == 4 {
+        slots[11] = item(v, "minecraft:stick", 2);
+    }
+    if case == 5 {
+        slots[9] = item(v, "minecraft:oak_planks", 4);
+    }
+    if matches!(case, 0 | 1 | 3) {
+        for index in [1, 2, 4] {
+            slots[index] = item(v, "minecraft:oak_planks", 1);
+        }
+        slots[5] = item(v, "minecraft:stick", 1);
+        if case != 3 {
+            slots[8] = item(v, "minecraft:stick", 1);
+            slots[0] = item(v, "minecraft:wooden_axe", 1);
+        }
+    }
+    if case == 2 {
+        slots[1] = item(v, "minecraft:oak_planks", 1);
+        slots[0] = item(v, "minecraft:oak_button", 1);
+    }
+    f.inventory(&vec![SlotKnowledge::Empty; 46], &old_cursor)
+        .await;
+    if table {
+        f.open_crafting_table().await;
+    }
+    let window = if table { 3 } else { 0 };
+    f.contents(window, &slots, &old_cursor).await;
+    f.cursor(&old_cursor).await;
+    let source = if table {
+        InventorySource::Container {
+            screen: client.screen_state().await.unwrap().screen.unwrap().id,
+        }
+    } else {
+        InventorySource::Player
+    };
+    let sent = client
+        .survival()
+        .send_inventory_click(
+            source,
+            slot,
+            if right { Button::Right } else { Button::Left },
+        )
+        .await
+        .unwrap();
+    f.click().await;
+    f.cursor(&old_cursor).await; // newer than send, still belonging to previous state
+    if v == MinecraftVersion::Java1_16_1 {
+        f.response(&sent, false).await;
+    }
+    slots[slot as usize] = if right {
+        item(v, &format!("minecraft:{name}"), 1)
+    } else {
+        old_cursor.clone()
+    };
+    let cursor = if right && count > 1 {
+        item(v, &format!("minecraft:{name}"), count - 1)
+    } else {
+        SlotKnowledge::Empty
+    };
+    if case == 3 {
+        slots[0] = item(v, "minecraft:wooden_axe", 1);
+    }
+    if case == 5 {
+        slots[0] = item(v, "minecraft:oak_planks", 4);
+    }
+    f.contents(window, &slots, &cursor).await;
+    let pending = client
+        .survival()
+        .inventory_send_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        pending.status,
+        InventorySendStatus::Pending,
+        "case={case}, {v:?}"
+    );
+    assert!(
+        client
+            .inventory_divergence(sent.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        client
+            .survival()
+            .send_inventory_click(source, slot, Button::Left)
+            .await
+            .is_err()
+    );
+    if v == MinecraftVersion::Java1_16_1 {
+        f.cursor(&cursor).await;
+    } else {
+        f.response(&sent, false).await;
+    }
+    let done = client
+        .survival()
+        .inventory_send_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(done.id, sent.id);
+    assert_eq!(
+        done.status,
+        InventorySendStatus::Received,
+        "case={case}, {v:?}"
+    );
+    assert!(
+        client
+            .inventory_divergence(sent.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        client
+            .survival()
+            .inventory_click_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventoryClickStage::ObservedClicked
+    );
+}
+
+/// Missing cursor/full boundary: one no-effect probe, same original identity;
+/// original reply cannot complete the probe, and a second timeout is typed.
+pub(crate) async fn mo7_deadline(f: &mut impl Fixture, outcome: usize, transfer: bool) {
+    let client = f.client();
+    let v = client.version();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    let stack = item(v, "minecraft:stone", 3);
+    slots[9] = stack.clone();
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let sent = if transfer {
+        client
+            .survival()
+            .send_inventory_transfer(InventorySource::Player, 9)
+            .await
+    } else {
+        client
+            .survival()
+            .send_inventory_click(InventorySource::Player, 9, Button::Left)
+            .await
+    }
+    .unwrap();
+    f.click().await;
+    tokio::time::sleep(Duration::from_millis(350)).await;
+    f.crafting_probe().await;
+    let probe = client
+        .survival()
+        .inventory_send_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(probe.id, sent.id);
+    assert!(probe.deadline_resync_dispatched);
+    assert_eq!(probe.status, InventorySendStatus::Pending);
+    // A late original reply/fence, even followed by fresh state, does not own
+    // the new probe. Its native action/token is a distinct response debt.
+    f.response(&sent, false).await;
+    f.contents(0, &slots, &SlotKnowledge::Empty).await;
+    f.cursor(&SlotKnowledge::Empty).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        InventorySendStatus::Pending
+    );
+    assert!(
+        client
+            .inventory_divergence(sent.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    if outcome == 2 {
+        tokio::time::sleep(Duration::from_millis(350)).await;
+        let expired = client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(expired.status, InventorySendStatus::ResyncRequired);
+        assert_eq!(
+            expired.inspection_reason,
+            Some(InventorySendInspectionReason::ReceiptDeadlineAfterResync)
+        );
+        f.complete(&probe, &slots, &SlotKnowledge::Empty, false)
+            .await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            InventorySendStatus::ResyncRequired
+        );
+        assert!(
+            client
+                .inventory_divergence(sent.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    } else {
+        let cursor = if outcome == 0 {
+            slots[9] = SlotKnowledge::Empty;
+            if transfer {
+                slots[36] = stack.clone();
+                SlotKnowledge::Empty
+            } else {
+                stack
+            }
+        } else {
+            SlotKnowledge::Empty
+        };
+        f.complete(&probe, &slots, &cursor, false).await;
+        let done = client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(done.id, sent.id);
+        assert_eq!(
+            done.status,
+            if outcome == 0 {
+                InventorySendStatus::Received
+            } else {
+                InventorySendStatus::Diverged
+            }
+        );
+        if outcome == 1 {
+            assert_eq!(
+                client
+                    .inventory_divergence(sent.id)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .effect(),
+                InventoryEffect::NoEffect
+            );
+        }
+    }
 }

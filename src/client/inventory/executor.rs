@@ -46,6 +46,20 @@ pub enum InventorySendStatus {
     /// Deadline or opening change; stop clicks and request resynchronization.
     ResyncRequired,
 }
+/// Why authoritative inventory completion still needs inspection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum InventorySendInspectionReason {
+    /// The original response group did not arrive within its receipt budget.
+    ReceiptDeadline,
+    /// The bounded no-effect probe also failed to establish a complete group.
+    ReceiptDeadlineAfterResync,
+    /// The no-effect probe's complete delivery could not be established.
+    ResyncDeliveryUncertain,
+    /// The original scope or delivery authority was invalidated.
+    ScopeOrDeliveryChanged,
+}
 /// Acceptance receipt, separate from the strict click/transfer/crafting record.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct InventorySendRecord {
@@ -67,8 +81,30 @@ pub struct InventorySendRecord {
     pub status: InventorySendStatus,
     /// This is an explicit, no-effect resync probe, never a replay of the old intent.
     pub resync: bool,
+    /// Final receive boundary before the additional no-effect deadline probe.
+    pub deadline_resync_after_sequence: Option<u64>,
+    /// The probe's native action; the original action remains above.
+    pub deadline_resync_action: Option<i16>,
+    /// Fresh modern fence token for the probe, distinct from the original send.
+    pub deadline_resync_token: Option<u64>,
+    /// Complete no-effect probe write; never a replay of the original click.
+    pub deadline_resync_dispatched: bool,
+    /// Typed uncertainty; no divergent effect is inferred from missing receipts.
+    pub inspection_reason: Option<InventorySendInspectionReason>,
 }
 impl InventorySendRecord {
+    pub(crate) fn completion_after(&self) -> u64 {
+        self.deadline_resync_after_sequence
+            .unwrap_or(self.after_sequence)
+    }
+    pub(crate) fn completion_action(&self) -> Option<i16> {
+        self.deadline_resync_action.or(self.legacy_action)
+    }
+    fn clear_completion(&mut self) {
+        self.response_sequence = None;
+        self.contents_sequence = None;
+        self.cursor_sequence = None;
+    }
     pub(crate) fn window(&self) -> i32 {
         match self.id.source {
             InventorySource::Player => 0,
@@ -277,6 +313,11 @@ impl Executor {
             cursor_sequence: None,
             status: InventorySendStatus::Pending,
             resync,
+            deadline_resync_after_sequence: None,
+            deadline_resync_action: None,
+            deadline_resync_token: None,
+            deadline_resync_dispatched: false,
+            inspection_reason: None,
         });
         // Reservations are finite too; a complete write starts a fresh receipt
         // timeout via written(). No Pending record may lose its deadline.
@@ -299,6 +340,8 @@ impl Executor {
         })?;
         r.legacy_action = Some(action);
         r.after_sequence = after;
+        r.clear_completion();
+        self.ready = false;
         self.deadline = Some(Instant::now() + timeout.max(MIN_RESERVATION_TIMEOUT));
         Some(r.id)
     }
@@ -328,6 +371,8 @@ impl Executor {
             .filter(|r| r.id == id && r.status == InventorySendStatus::Pending && !r.dispatched)
             .ok_or_else(|| unavailable("inventory reservation superseded before send"))?;
         r.after_sequence = after;
+        r.clear_completion();
+        self.ready = false;
         Ok(())
     }
     pub(crate) fn invalidate_owned(&mut self, id: InventorySendId) {
@@ -352,7 +397,23 @@ impl Executor {
                 .as_mut()
                 .filter(|r| r.status == InventorySendStatus::Pending)
             {
+                self.timed_out = true;
+                // Exact acceptance retains Pending throughout the first expiry
+                // and bounded probe write. Pollers must not see a terminal gap
+                // before the owned no-effect recovery has had its budget.
+                if r.dispatched
+                    && !r.resync
+                    && r.deadline_resync_after_sequence.is_none()
+                    && self.comparison.as_ref().is_some_and(|c| !c.crafting)
+                {
+                    return;
+                }
                 r.status = InventorySendStatus::ResyncRequired;
+                r.inspection_reason = Some(if r.deadline_resync_after_sequence.is_some() {
+                    InventorySendInspectionReason::ReceiptDeadlineAfterResync
+                } else {
+                    InventorySendInspectionReason::ReceiptDeadline
+                });
                 self.timed_out = true;
             }
         }
@@ -367,6 +428,70 @@ impl Executor {
             .filter(|r| r.status == InventorySendStatus::Pending)
         {
             r.status = InventorySendStatus::ResyncRequired;
+            r.inspection_reason = Some(InventorySendInspectionReason::ScopeOrDeliveryChanged);
+        }
+    }
+    /// Only exact acceptance operations use this owner. Strict crafting retains
+    /// its separate #307 deadline and inspection contract.
+    pub(crate) fn completion_waiting(&self, id: InventorySendId) -> bool {
+        self.current
+            .as_ref()
+            .is_some_and(|r| r.id == id && !r.resync && r.status == InventorySendStatus::Pending)
+            && self.comparison.as_ref().is_some_and(|c| !c.crafting)
+    }
+    pub(crate) fn recovery_needed(&mut self, id: InventorySendId) -> bool {
+        self.expire();
+        self.current.as_ref().is_some_and(|r| {
+            r.id == id
+                && r.dispatched
+                && !r.resync
+                && r.deadline_resync_after_sequence.is_none()
+                && r.status == InventorySendStatus::Pending
+                && self.timed_out
+        }) && self.comparison.as_ref().is_some_and(|c| !c.crafting)
+    }
+    pub(crate) fn recovery_fence_token(&mut self, id: InventorySendId) -> Result<u64> {
+        if !self.recovery_needed(id) {
+            return Err(unavailable("inventory completion recovery superseded"));
+        }
+        self.next = self
+            .next
+            .checked_add(1)
+            .filter(|v| *v <= i32::MAX as u64)
+            .ok_or_else(|| unavailable("inventory fence identities exhausted"))?;
+        self.current
+            .as_mut()
+            .expect("owned recovery")
+            .deadline_resync_token = Some(self.next);
+        Ok(self.next)
+    }
+    pub(crate) fn recovery_written(
+        &mut self,
+        id: InventorySendId,
+        after: u64,
+        action: Option<i16>,
+        timeout: Duration,
+    ) {
+        if let Some(r) = self.current.as_mut().filter(|r| r.id == id) {
+            r.deadline_resync_after_sequence = Some(after);
+            r.deadline_resync_action = action;
+            r.deadline_resync_dispatched = true;
+            r.clear_completion();
+            r.status = InventorySendStatus::Pending;
+            r.inspection_reason = None;
+            self.ready = false;
+            self.deadline = Some(Instant::now() + timeout);
+        }
+    }
+    pub(crate) fn recovery_failed(&mut self, id: InventorySendId) {
+        if let Some(r) = self
+            .current
+            .as_mut()
+            .filter(|r| r.id == id && r.status == InventorySendStatus::Pending)
+        {
+            r.status = InventorySendStatus::ResyncRequired;
+            r.inspection_reason = Some(InventorySendInspectionReason::ResyncDeliveryUncertain);
+            self.deadline = None;
         }
     }
     fn update(
@@ -381,14 +506,24 @@ impl Executor {
             r.status == InventorySendStatus::Pending
                 && r.id.session == session
                 && r.id.source == source
-                && sequence > r.after_sequence
+                && r.dispatched
+                && sequence > r.completion_after()
         }) {
             f(r);
-            if r.dispatched
-                && r.response_sequence.is_some()
-                && r.contents_sequence.is_some()
-                && r.cursor_sequence.is_some()
-            {
+            let complete = match (r.response_sequence, r.contents_sequence, r.cursor_sequence) {
+                (Some(response), Some(contents), Some(cursor)) => {
+                    if r.id.session.version == crate::MinecraftVersion::Java1_16_1 {
+                        r.completion_after() < response && response < contents && contents < cursor
+                    } else {
+                        // Modern full contents carries its own cursor atomically.
+                        r.completion_after() < contents
+                            && contents == cursor
+                            && r.completion_after() < response
+                    }
+                }
+                _ => false,
+            };
+            if complete {
                 self.ready = true;
                 if self.comparison.is_none() {
                     r.status = InventorySendStatus::Received;
@@ -409,9 +544,10 @@ impl Executor {
             self.comparison = Some(comparison);
         }
     }
-    pub(crate) fn rejected(&mut self) {
+    #[cfg(test)]
+    pub(crate) fn hint_for_test(&mut self, cause: super::InventoryCause) {
         if let Some(c) = &mut self.comparison {
-            c.hint(super::InventoryCause::Rejected);
+            c.hint(cause);
         }
     }
     pub(crate) fn collected(
@@ -523,7 +659,7 @@ impl Executor {
         sequence: u64,
     ) {
         self.update(session, source, sequence, |r| {
-            if r.legacy_action == Some(action) {
+            if r.completion_action() == Some(action) {
                 r.response_sequence = Some(sequence);
             }
         });
@@ -536,7 +672,9 @@ impl Executor {
         sequence: u64,
     ) {
         self.update(session, source, sequence, |r| {
-            if r.legacy_action.is_none() && r.id.number == token {
+            if r.completion_action().is_none()
+                && r.deadline_resync_token.unwrap_or(r.id.number) == token
+            {
                 r.response_sequence = Some(sequence);
             }
         });
@@ -660,49 +798,39 @@ mod tests {
         assert!(e.refresh_boundary(new, 23).is_err());
     }
     #[tokio::test(start_paused = true)]
-    async fn response_and_received_state_are_independent_in_both_orders() {
+    async fn completion_requires_version_order_and_post_write_receipts() {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
-            for response_first in [false, true] {
-                let mut e = Executor::default();
-                let s = session(version);
-                let src = InventorySource::Player;
-                let legacy = version == MinecraftVersion::Java1_16_1;
-                let id = e
-                    .begin(
-                        s,
-                        src,
-                        10,
-                        legacy.then_some(5),
-                        Duration::from_secs(1),
-                        false,
-                    )
-                    .unwrap();
-                let sent = e.current.as_ref().unwrap().id;
-                e.written(sent, Duration::from_secs(1));
-                let response = |e: &mut Executor| {
-                    if legacy {
-                        e.response(s, src, 5, 12);
-                    } else {
-                        e.fence(s, src, id.number, 12);
-                    }
-                };
-                if response_first {
-                    response(&mut e);
-                    assert!(e.busy());
-                }
-                e.contents(s, src, 0, 11, !legacy);
-                if legacy || !response_first {
-                    assert!(e.busy());
-                }
-                if legacy {
-                    e.cursor(s, src, 13);
-                }
-                if !response_first {
-                    assert!(e.busy());
-                    response(&mut e);
-                }
+            let mut e = Executor::default();
+            let s = session(version);
+            let src = InventorySource::Player;
+            let legacy = version == MinecraftVersion::Java1_16_1;
+            let id = e
+                .begin(
+                    s,
+                    src,
+                    10,
+                    legacy.then_some(5),
+                    Duration::from_secs(1),
+                    false,
+                )
+                .unwrap();
+            e.contents(s, src, 0, 11, !legacy);
+            e.cursor(s, src, 12);
+            assert!(e.record().unwrap().contents_sequence.is_none());
+            e.refresh_boundary(id, 12).unwrap();
+            e.written(id, Duration::from_secs(1));
+            if legacy {
+                e.cursor(s, src, 13);
+                e.response(s, src, 5, 14);
+                e.contents(s, src, 0, 15, false);
+                assert_eq!(e.record().unwrap().status, InventorySendStatus::Pending);
+                e.cursor(s, src, 16);
+            } else {
+                e.fence(s, src, id.number, 13);
+                e.contents(s, src, 0, 14, true);
                 assert_eq!(e.record().unwrap().status, InventorySendStatus::Received);
             }
+            assert_eq!(e.record().unwrap().status, InventorySendStatus::Received);
         }
     }
     #[tokio::test(start_paused = true)]
@@ -732,6 +860,9 @@ mod tests {
         assert!(e.busy());
         // accepted=false is also a protocol response; contents still required.
         e.response(s, src, 6, 24);
+        assert!(e.busy());
+        e.contents(s, src, 0, 25, false);
+        e.cursor(s, src, 26);
         assert!(!e.busy());
         e.begin(s, src, 25, Some(7), Duration::from_secs(1), false)
             .unwrap();
@@ -746,6 +877,9 @@ mod tests {
         e.response(other, src, 7, 29);
         assert!(e.busy());
         e.response(s, src, 7, 30);
+        assert!(e.busy());
+        e.contents(s, src, 0, 31, false);
+        e.cursor(s, src, 32);
         assert!(!e.busy());
     }
 }

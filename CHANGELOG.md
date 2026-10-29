@@ -9,6 +9,13 @@
 
 ## Unreleased
 
+- Bind inventory completion to the final send boundary on both adapters. Legacy
+  negative stack comparisons no longer imply rejection; completion waits for the
+  ordered full contents and fresh cursor. Missing ordinary click/transfer receipts
+  trigger one bounded no-effect resync and retain typed inspection reasons without
+  replaying the original intent. Strict API semantics are unchanged. See
+  [completion ownership](docs/inventory-completion-ownership.md).
+
 - Add independent operational crafting proof on both adapters. Submit one cursor
   result with `Survival::send_operational_crafting_result` or its `Creative`
   counterpart, poll `Client::operational_crafting_outcome(send.id)`, and inspect

@@ -9076,10 +9076,11 @@ mod tests {
             .unwrap();
         let mut wait = tokio::spawn(transaction.wait());
         slots[9] = Some(stack.clone());
-        native_inventory_fixture(&bot, 0, slots, None).await;
+        native_inventory_fixture(&bot, 0, slots.clone(), None).await;
         native_click_reply(&bot, action, true).await; // old action never acknowledges second
         assert!(timeout(Duration::from_millis(10), &mut wait).await.is_err());
         native_click_reply(&bot, second, false).await; // comparison mismatch is resync, not rollback
+        native_inventory_fixture(&bot, 0, slots, None).await;
         assert_eq!(wait.await.unwrap(), DispatchOutcome::Acknowledged);
         assert_eq!(bot.inventory().await.player_slots()[9], Some(stack));
         release.send(()).unwrap();
@@ -10923,6 +10924,20 @@ mod tests {
             bot.emit(Event::ChunkLoaded { x, z: 0 });
         }
         release.send(()).unwrap();
+        timeout(Duration::from_secs(1), async {
+            loop {
+                if lock_packet_state(&bot.inventory_executor)
+                    .await
+                    .record()
+                    .is_some_and(|r| r.response_sequence.is_some())
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
         native_inventory_fixture(&bot, 0, vec![None; 46], None).await;
         let result = timeout(Duration::from_secs(2), clicking)
             .await

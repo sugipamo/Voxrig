@@ -279,6 +279,12 @@ impl Bot {
             }
         };
         let Some(execution) = record else { return };
+        if lock_packet_state(&self.inventory_executor)
+            .await
+            .completion_waiting(execution.id)
+        {
+            self.start_inventory_completion_deadline(execution.id);
+        }
         let deadline =
             tokio::time::Instant::now() + self.connection_options.inventory_click_receipt_timeout;
         for (family, state) in [
@@ -322,6 +328,99 @@ impl Bot {
             );
         }
     }
+    fn start_inventory_completion_deadline(&self, id: inv::InventorySendId) {
+        let bot = self.clone_internal();
+        let first =
+            tokio::time::Instant::now() + self.connection_options.inventory_click_receipt_timeout;
+        self.spawn_finite(Box::pin(async move {
+            loop {
+                tokio::time::sleep_until(
+                    first.min(tokio::time::Instant::now() + Duration::from_millis(20)),
+                )
+                .await;
+                let mut executor = lock_packet_state(&bot.inventory_executor).await;
+                executor.record();
+                if tokio::time::Instant::now() >= first {
+                    break;
+                }
+                if !executor.completion_waiting(id) {
+                    return;
+                }
+            }
+            let second = bot.connection_options.inventory_click_receipt_timeout;
+            let result = tokio::time::timeout(second, async {
+                let _gate = bot.coherent_state_gate.lock().await;
+                if !lock_packet_state(&bot.inventory_executor)
+                    .await
+                    .recovery_needed(id)
+                {
+                    return Ok(());
+                }
+                let (session, source) = bot.inventory_execution_scope().await;
+                if session != id.session() || source != id.source() {
+                    lock_packet_state(&bot.inventory_executor)
+                        .await
+                        .invalidate_owned(id);
+                    return Ok(());
+                }
+                let old = lock_packet_state(&bot.inventory_executor)
+                    .await
+                    .record()
+                    .expect("retained");
+                let mut confirm = vec![old.window() as u8];
+                confirm.extend(old.legacy_action.expect("legacy original").to_be_bytes());
+                confirm.push(1);
+                bot.connection
+                    .dispatch_protocol_work(0x07, &confirm, None)
+                    .await?;
+                let after = bot.protocol_packet_sequence.load(Ordering::Acquire);
+                let transaction = bot
+                    .connection
+                    .dispatch_acknowledged_with_diagnostic(
+                        bot.operation_context(0),
+                        OperationClass::Normal,
+                        AcknowledgedOperation::WindowClick {
+                            window_id: old.window() as i8,
+                            slot: -1,
+                            button: 0,
+                            mode: ClickMode::Normal,
+                            clicked: super::common_click::legacy_comparison_stack(
+                                &bot.inventory_resync_comparison()?,
+                            ),
+                        },
+                        None,
+                    )
+                    .await
+                    .map_err(|e| inv::unavailable(format!("inventory completion resync: {e}")))?;
+                if !transaction.was_dispatched() {
+                    return Err(inv::unavailable("inventory completion probe not written"));
+                }
+                lock_packet_state(&bot.inventory_executor)
+                    .await
+                    .recovery_written(id, after, transaction.window_action(), second);
+                Ok::<(), crate::Error>(())
+            })
+            .await;
+            if !matches!(result, Ok(Ok(()))) {
+                lock_packet_state(&bot.inventory_executor)
+                    .await
+                    .recovery_failed(id);
+                return;
+            }
+            let deadline = tokio::time::Instant::now() + second;
+            loop {
+                tokio::time::sleep_until(
+                    deadline.min(tokio::time::Instant::now() + Duration::from_millis(20)),
+                )
+                .await;
+                let mut executor = lock_packet_state(&bot.inventory_executor).await;
+                executor.record();
+                if !executor.completion_waiting(id) || tokio::time::Instant::now() >= deadline {
+                    break;
+                }
+            }
+        }));
+    }
     pub(super) async fn retain_window_prediction(&self, prediction: PendingClick) {
         let Some(execution) = lock_packet_state(&self.inventory_executor).await.record() else {
             return;
@@ -340,13 +439,11 @@ impl Bot {
             r.id.session() == session
                 && r.id.source() == source
                 && r.window() == i32::from(reply.window_id)
-                && r.legacy_action == Some(reply.action)
-                && reply.packet_sequence > r.after_sequence
+                && r.completion_action() == Some(reply.action)
+                && r.dispatched
+                && reply.packet_sequence > r.completion_after()
         });
         if matches {
-            if !reply.accepted {
-                executor.rejected();
-            }
             executor.response(session, source, reply.action, reply.packet_sequence);
         }
         matches
@@ -562,6 +659,30 @@ mod tests {
         super::super::common_click::legacy_comparison_stack(v)
     }
     impl Fixture for LegacyFixture {
+        async fn open_crafting_table(&mut self) {
+            let menu = api::crafting::native_menu(
+                crate::MinecraftVersion::Java1_16_1,
+                "minecraft:crafting",
+            )
+            .unwrap();
+            let mut p = vec![3];
+            crate::protocol::put_varint(&mut p, menu.native_id.unwrap());
+            put_string(&mut p, "{}");
+            self.bot.apply_packet(0x2e, p).await.unwrap();
+        }
+        async fn contents(
+            &mut self,
+            window: i32,
+            slots: &[api::SlotKnowledge],
+            _: &api::SlotKnowledge,
+        ) {
+            let mut p = vec![window as u8];
+            p.extend((slots.len() as i16).to_be_bytes());
+            for v in slots {
+                crate::inventory::write_slot(&mut p, native(v).as_ref());
+            }
+            self.bot.apply_packet(0x14, p).await.unwrap();
+        }
         async fn item_entity(&mut self, entity: i32, count: u32) {
             self.bot.player.lock().await.entity_id = Some(42);
             let mut spawn = Vec::new();
@@ -638,7 +759,7 @@ mod tests {
         }
         async fn response(&mut self, r: &inv::InventorySendRecord, accepted: bool) {
             let mut p = vec![r.window() as u8];
-            p.extend(r.legacy_action.unwrap().to_be_bytes());
+            p.extend(r.completion_action().unwrap().to_be_bytes());
             p.push(u8::from(accepted));
             self.bot.apply_packet(0x12, p).await.unwrap();
         }
@@ -653,6 +774,134 @@ mod tests {
                 }
             }
         }
+    }
+    #[tokio::test]
+    async fn mo7_excerpt_packet_schedules() {
+        for case in 0..6 {
+            let (bot, packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.apply_packet(0x3f, vec![0]).await.unwrap();
+            let mut f = LegacyFixture { bot, packets };
+            script::mo7_excerpt(&mut f, case).await;
+            release.send(()).unwrap();
+            drop(f.bot);
+            server.await.unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn mo7_bounded_probe_success_refusal_and_missing() {
+        for outcome in 0..3 {
+            for transfer in [false, true] {
+                let (mut bot, packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                bot.connection_options.inventory_click_receipt_timeout = Duration::from_millis(300);
+                bot.connection_options.crafting_take_resync_timeout = Duration::from_millis(300);
+                super::super::common_motion::tests::seed_motion(&bot).await;
+                bot.apply_packet(0x3f, vec![0]).await.unwrap();
+                let mut f = LegacyFixture { bot, packets };
+                script::mo7_deadline(&mut f, outcome, transfer).await;
+                release.send(()).unwrap();
+                drop(f.bot);
+                server.await.unwrap();
+            }
+        }
+    }
+    #[tokio::test]
+    async fn mo7_reservation_and_old_cursor_cannot_complete_click() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        let client = f.client();
+        let stack = script::item(client.version(), "minecraft:oak_planks", 3);
+        let mut slots = vec![api::SlotKnowledge::Empty; 46];
+        // Reserve then receive an unchanged cursor, exactly the pre-send gap.
+        f.inventory(&slots, &stack).await;
+        let (session, source) = f.bot.inventory_execution_scope().await;
+        f.bot.reserve_inventory_execution(session).await.unwrap();
+        f.cursor(&stack).await;
+        let after = f.bot.protocol_packet_sequence.load(Ordering::Acquire);
+        let id = lock_packet_state(&f.bot.inventory_executor)
+            .await
+            .bind_legacy_action(session, source, 123, after, Duration::from_secs(5))
+            .unwrap();
+        lock_packet_state(&f.bot.inventory_executor)
+            .await
+            .written(id, Duration::from_secs(5));
+        let reserved = lock_packet_state(&f.bot.inventory_executor)
+            .await
+            .record()
+            .unwrap();
+        assert_eq!(
+            reserved.cursor_sequence, None,
+            "reservation evidence leaked across send"
+        );
+        f.response(&reserved, false).await;
+        f.full_player(&slots).await;
+        assert_eq!(
+            lock_packet_state(&f.bot.inventory_executor)
+                .await
+                .record()
+                .unwrap()
+                .status,
+            inv::InventorySendStatus::Pending
+        );
+        f.cursor(&stack).await;
+        // A second ordinary click: old cursor is newer than send but precedes full contents.
+        let sent = client
+            .survival()
+            .send_inventory_click(source, 1, inv::InventoryClickButton::Right)
+            .await
+            .unwrap();
+        f.click().await;
+        f.cursor(&stack).await;
+        f.response(&sent, false).await;
+        slots[1] = script::item(client.version(), "minecraft:oak_planks", 1);
+        slots[0] = script::item(client.version(), "minecraft:oak_button", 1);
+        f.full_player(&slots).await;
+        let incomplete = client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            incomplete.status,
+            inv::InventorySendStatus::Pending,
+            "full contents must not freeze divergence with a previous cursor"
+        );
+        assert!(
+            client
+                .inventory_divergence(sent.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            client
+                .survival()
+                .send_inventory_click(source, 9, inv::InventoryClickButton::Left)
+                .await
+                .is_err()
+        );
+        f.cursor(&script::item(client.version(), "minecraft:oak_planks", 2))
+            .await;
+        let done = client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(done.status, inv::InventorySendStatus::Received);
+        assert!(done.after_sequence < done.response_sequence.unwrap());
+        assert!(done.response_sequence.unwrap() < done.contents_sequence.unwrap());
+        assert!(done.contents_sequence.unwrap() < done.cursor_sequence.unwrap());
+        release.send(()).unwrap();
+        drop(client);
+        drop(f.bot);
+        server.await.unwrap();
     }
     #[tokio::test]
     async fn submitted_close_missing_late_ack_and_reopen_require_resync() {
@@ -681,8 +930,8 @@ mod tests {
         slots[9] = api::SlotKnowledge::Empty;
         f.inventory(&slots, &stone).await;
         assert!(client.survival().resync_inventory().await.is_err());
-        tokio::time::pause();
-        tokio::time::advance(Duration::from_secs(6)).await;
+        tokio::time::sleep(Duration::from_millis(10100)).await;
+        f.crafting_probe().await;
         assert_eq!(
             client
                 .survival()
@@ -693,7 +942,6 @@ mod tests {
                 .status,
             inv::InventorySendStatus::ResyncRequired
         );
-        tokio::time::resume();
         assert!(
             client
                 .survival()
@@ -716,6 +964,7 @@ mod tests {
             inv::InventorySendStatus::Pending
         );
         f.response(&sync, false).await;
+        f.inventory(&slots, &stone).await;
         assert_eq!(
             client
                 .survival()
@@ -942,7 +1191,7 @@ mod tests {
         client.disconnect().await.unwrap();
         drop(release);
         drop(client);
-        drop(f);
+        drop(f.bot);
         server.await.unwrap();
     }
 
@@ -1004,13 +1253,16 @@ mod tests {
                     assert_eq!(done.id, sent.id);
                     assert_eq!(
                         done.status,
-                        if index < 2 {
+                        if index < 2 || order != [0, 1, 2] {
                             inv::InventorySendStatus::Pending
                         } else {
                             inv::InventorySendStatus::Received
                         },
                         "destination={destination}, order={order:?}"
                     );
+                }
+                if order != [0, 1, 2] {
+                    f.complete(&sent, &slots, &pickaxe, false).await;
                 }
                 let strict = client
                     .survival()
@@ -1065,7 +1317,7 @@ mod tests {
         client.disconnect().await.unwrap();
         drop(release);
         drop(client);
-        drop(f);
+        drop(f.bot);
         server.await.unwrap();
     }
 
@@ -1124,7 +1376,7 @@ mod tests {
                         .unwrap()
                         .unwrap();
                     assert_eq!(done.id, sent.id);
-                    if index < 2 {
+                    if index < 2 || order != [0, 1, 2] {
                         assert_eq!(done.status, inv::InventorySendStatus::Pending);
                     } else if external {
                         assert_eq!(done.status, inv::InventorySendStatus::Diverged);
@@ -1135,6 +1387,9 @@ mod tests {
                             "order={order:?}"
                         );
                     }
+                }
+                if order != [0, 1, 2] {
+                    f.complete(&sent, &slots, &pickaxe, false).await;
                 }
                 assert_eq!(
                     client
@@ -1154,7 +1409,7 @@ mod tests {
                     assert_eq!(evidence.before.source, InventorySource::Player);
                     assert_eq!(evidence.current.source, InventorySource::Player);
                     assert!(evidence.before.screen.is_none() && evidence.current.screen.is_none());
-                    assert!(evidence.causes.contains(&inv::InventoryCause::Rejected));
+                    assert!(!evidence.causes.contains(&inv::InventoryCause::Rejected));
                     assert!(evidence.causes.contains(&inv::InventoryCause::External));
                     assert!(evidence.current.receive_sequence > sent.after_sequence);
                     assert_eq!(
@@ -1203,8 +1458,8 @@ mod tests {
                     .unwrap();
                 f.click().await;
                 slots[9] = pickaxe.clone();
-                f.inventory(&slots, &api::SlotKnowledge::Empty).await;
-                f.response(&next, false).await;
+                f.complete(&next, &slots, &api::SlotKnowledge::Empty, false)
+                    .await;
                 assert_eq!(
                     client
                         .survival()
@@ -1246,7 +1501,7 @@ mod tests {
             let mut f = LegacyFixture { bot, packets };
             script::crafting_pickup_adversarial(&mut f, case).await;
             drop(release);
-            drop(f);
+            drop(f.bot);
             server.await.unwrap();
         }
     }
@@ -1261,7 +1516,7 @@ mod tests {
                 let mut f = LegacyFixture { bot, packets };
                 script::crafting_pickup_ownership(&mut f, slot, collector).await;
                 drop(release);
-                drop(f);
+                drop(f.bot);
                 server.await.unwrap();
             }
         }

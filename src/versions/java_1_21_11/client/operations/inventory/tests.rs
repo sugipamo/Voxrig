@@ -6160,6 +6160,28 @@ mod single_owner {
         }
     }
     impl Fixture for CommonFixture {
+        async fn open_crafting_table(&mut self) {
+            let menu = crate::client::crafting::native_menu(
+                MinecraftVersion::Java1_21_11,
+                "minecraft:crafting",
+            )
+            .unwrap();
+            let mut p = vec![3];
+            put_varint(&mut p, menu.native_id.unwrap());
+            p.extend([10, 0]);
+            self.receive(ids::play_clientbound::OPEN_WINDOW, &p).await;
+        }
+        async fn contents(&mut self, window: i32, slots: &[SlotKnowledge], cursor: &SlotKnowledge) {
+            let mut p = Vec::new();
+            put_varint(&mut p, window);
+            put_varint(&mut p, 131);
+            put_varint(&mut p, slots.len() as i32);
+            for v in slots {
+                put_slot(&mut p, &native(v));
+            }
+            put_slot(&mut p, &native(cursor));
+            self.receive(ids::play_clientbound::WINDOW_ITEMS, &p).await;
+        }
         async fn item_entity(&mut self, entity: i32, count: u32) {
             self.api
                 .bot
@@ -6198,6 +6220,20 @@ mod single_owner {
                 .unwrap();
             assert_eq!(p.0, ids::play_serverbound::WINDOW_CLICK);
             assert_eq!(p.1, super::recipe_placement::resync_payload(0));
+            if self
+                .api
+                .bot
+                .session
+                .state
+                .lock()
+                .await
+                .inventory_executor
+                .record()
+                .is_some_and(|r| r.deadline_resync_dispatched)
+            {
+                let fence = read_packet(&mut self.peer, None).await.unwrap();
+                assert_eq!(fence.0, ids::play_serverbound::TAB_COMPLETE);
+            }
         }
         async fn collect(&mut self, entity: i32, own: bool) {
             self.api
@@ -6242,7 +6278,10 @@ mod single_owner {
             _: bool,
         ) {
             let mut p = Vec::new();
-            put_varint(&mut p, send.id.number() as i32);
+            put_varint(
+                &mut p,
+                send.deadline_resync_token.unwrap_or(send.id.number()) as i32,
+            );
             p.extend([0, 0, 0]);
             self.receive(ids::play_clientbound::TAB_COMPLETE, &p).await;
         }
@@ -6302,6 +6341,82 @@ mod single_owner {
                     None,
                 );
                 script::crafting_deadline(&mut f, destination, outcome).await;
+                f.stop().await;
+            }
+        }
+    }
+    #[tokio::test]
+    async fn mo7_reservation_receipts_cannot_cross_the_final_send_boundary() {
+        use crate::client::inventory::{InventorySendStatus, InventorySource};
+        let mut f = CommonFixture::new().await;
+        let slots = vec![SlotKnowledge::Empty; 46];
+        f.inventory(&slots, &SlotKnowledge::Empty).await;
+        let id = {
+            let mut state = f.api.bot.session.state.lock().await;
+            let (session, source) = super::execution_scope(&state);
+            let after = state.sequence;
+            assert_eq!(source, InventorySource::Player);
+            state
+                .inventory_executor
+                .begin(session, source, after, None, Duration::from_secs(5), false)
+                .unwrap()
+        };
+        f.cursor(&SlotKnowledge::Empty).await;
+        f.inventory(&slots, &SlotKnowledge::Empty).await;
+        let sent = {
+            let mut state = f.api.bot.session.state.lock().await;
+            let after = state.sequence;
+            state
+                .inventory_executor
+                .refresh_boundary(id, after)
+                .unwrap();
+            state.inventory_executor.written(id, Duration::from_secs(5));
+            state.inventory_executor.record().unwrap()
+        };
+        assert!(sent.contents_sequence.is_none() && sent.cursor_sequence.is_none());
+        f.response(&sent, false).await;
+        assert_eq!(
+            f.client()
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            InventorySendStatus::Pending
+        );
+        f.inventory(&slots, &SlotKnowledge::Empty).await;
+        assert_eq!(
+            f.client()
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            InventorySendStatus::Received
+        );
+        f.stop().await;
+    }
+    #[tokio::test]
+    async fn mo7_excerpt_packet_schedules() {
+        for case in 0..6 {
+            let mut f = CommonFixture::new().await;
+            script::mo7_excerpt(&mut f, case).await;
+            f.stop().await;
+        }
+    }
+    #[tokio::test]
+    async fn mo7_bounded_probe_success_refusal_and_missing() {
+        for outcome in 0..3 {
+            for transfer in [false, true] {
+                let limits = crate::client::ClientLimits {
+                    inventory_click_receipt_timeout: Duration::from_millis(300),
+                    crafting_take_resync_timeout: Duration::from_millis(300),
+                    ..Default::default()
+                };
+                let mut f = CommonFixture::with_limits(limits).await;
+                script::mo7_deadline(&mut f, outcome, transfer).await;
                 f.stop().await;
             }
         }
