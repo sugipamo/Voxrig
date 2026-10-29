@@ -6325,6 +6325,20 @@ mod single_owner {
         }
     }
     #[tokio::test]
+    async fn crafting_foreign_collect_preserves_proof_and_stock_guards() {
+        for stock_conflict in [false, true] {
+            let mut f = CommonFixture::new().await;
+            crate::client::inventory::armor_tests::install(
+                &mut f.api.bot.session.state.lock().await.registries,
+                MinecraftVersion::Java1_21_11,
+                None,
+            );
+            f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+            script::crafting_foreign_collect(&mut f, stock_conflict).await;
+            f.stop().await;
+        }
+    }
+    #[tokio::test]
     async fn crafting_pickup_adversarial_evidence_and_continuation() {
         for case in 0..10 {
             let mut f = CommonFixture::new().await;

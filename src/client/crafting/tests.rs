@@ -972,3 +972,35 @@ fn crafting_take_unchanged_full_resync_after_send_is_terminal_not_applied() {
         }
     }
 }
+
+#[test]
+fn operational_collect_without_original_player_id_requires_inspection() {
+    use crate::client::inventory::{InventorySendId, InventorySnapshot, InventorySource};
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (p, grid) = take_fixture(version);
+        assert_eq!(p.entity_id, None);
+        let record = take::prepare(
+            p.clone(),
+            screen(&p),
+            registries(&p),
+            &grid,
+            GameMode::Survival,
+            1,
+        )
+        .unwrap();
+        let send = InventorySendId {
+            session: p.session,
+            source: InventorySource::Player,
+            number: 1,
+        };
+        let mut owner =
+            operational::Owner::new(send, &record, InventorySnapshot::capture(&p, None), true);
+        owner.collect(1182, 43, 1, p.receive_sequence + 1, None);
+        assert_eq!(
+            owner.outcome.stage,
+            OperationalCraftingStage::RequiresInspection
+        );
+        assert!(owner.outcome.requires_inspection.is_some());
+        assert!(owner.outcome.external.is_empty());
+    }
+}
