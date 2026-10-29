@@ -347,6 +347,7 @@ impl Bot {
             return Err(state_error("selected control belongs to a different mode"));
         }
         let mut release = Ok(());
+        let mut sent = false;
         if session.running() {
             session.status = ControlStatus::Stopped {
                 reason: if old_world {
@@ -356,6 +357,8 @@ impl Bot {
                 },
             };
             if !old_world && !self.stopped.load(Ordering::Acquire) {
+                let (sneak, sprint, _) = session.release();
+                sent = sneak.is_some() || sprint.is_some();
                 release = self.release_control(session).await;
             }
             if let Err(error) = &release {
@@ -372,6 +375,9 @@ impl Bot {
             self.connection_id(),
             self.protocol_packet_sequence.load(Ordering::Acquire),
         );
+        if release.is_ok() {
+            crate::client::owned_operation::complete_stop(sent);
+        }
         release.map(|()| Some(record))
     }
 
@@ -1224,9 +1230,10 @@ impl crate::client::adapter::ControlOps for Bot {
                 let id = session.id;
                 drop(control);
                 let owner = self.clone();
-                self.spawn_finite_result(
+                self.spawn_finite_result(crate::client::owned_operation::with_stop_observer(
+                    crate::client::owned_operation::capture_stop_observer(),
                     async move { owner.stop_control_owned(id, Some(mode)).await },
-                )
+                ))
                 .await
                 .map_err(|error| state_error(format!("control stop task failed: {error}")))?
             })
@@ -2251,6 +2258,109 @@ mod tests {
                 .await
                 .is_err()
         );
+        drop(release);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn owned_legacy_stop_deadline_drop_retains_original_and_noop_is_not_sent() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let received = bot.control_received().await;
+        let mut session =
+            ControlSession::new(MinecraftVersion::Java1_16_1, 1, [8.5, 65.0, 8.5], &received);
+        session.dispatched(&Output {
+            sneak: Some(true),
+            sprint: Some(true),
+            input: None,
+            position: [8.5, 65.0, 8.5],
+            rotation: [0.0; 2],
+            on_ground: true,
+            horizontal_collision: false,
+        });
+        let generation = bot.common_receipts.lock().await.generation;
+        {
+            let mut control = bot.common_control.lock().await;
+            control.session = Some(session);
+            control.generation = Some(generation);
+        }
+        let writer = bot.writer.lock().await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let handle = client.player_control(GameMode::Survival);
+        let operation = handle
+            .begin_stop_for(
+                1,
+                crate::client::OperationLimits {
+                    run_budget: Duration::from_millis(30),
+                    cleanup_budget: Duration::ZERO,
+                },
+            )
+            .unwrap();
+        let mut wait = Box::pin(operation.finished());
+        std::future::poll_fn(|cx| {
+            assert!(std::future::Future::poll(wait.as_mut(), cx).is_pending());
+            std::task::Poll::Ready(())
+        })
+        .await;
+        drop(wait);
+        let deadline = timeout(Duration::from_secs(1), operation.finished())
+            .await
+            .unwrap();
+        assert_eq!(
+            deadline.outcome,
+            crate::client::OperationOutcome::Unknown(
+                crate::client::OperationUnknownReason::Deadline
+            )
+        );
+        assert!(!deadline.owner_joined);
+        drop(writer);
+        for action in [4, 1] {
+            assert_eq!(
+                timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap(),
+                (0x1c, vec![42, action, 0])
+            );
+        }
+        let record = bot.control_record().await.unwrap().unwrap();
+        assert_eq!(record.session_id, 1);
+        assert!(matches!(record.status, ControlStatus::Stopped { .. }));
+        timeout(Duration::from_secs(1), async {
+            while operation.snapshot().joined.is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let late = operation.snapshot().joined.unwrap();
+        assert_eq!(late.record.as_ref().unwrap(), &record);
+        assert_eq!(
+            late.outcome,
+            crate::client::OperationOutcome::SentUnconfirmed
+        );
+        let noop = handle
+            .begin_stop_for(1, crate::client::OperationLimits::default())
+            .unwrap();
+        assert_ne!(noop.id(), operation.id());
+        assert_eq!(
+            noop.finished().await.outcome,
+            crate::client::OperationOutcome::NotSent
+        );
+        assert!(std::sync::Arc::ptr_eq(
+            &deadline,
+            &operation.finished().await
+        ));
+        assert!(packets.try_recv().is_err());
+        let _ = client.revoke_connection();
+        client.wait_shutdown().await.unwrap();
+        drop(handle);
+        drop(client);
         drop(release);
         drop(bot);
         timeout(Duration::from_secs(2), server)

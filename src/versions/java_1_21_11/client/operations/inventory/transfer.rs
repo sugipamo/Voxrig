@@ -204,11 +204,16 @@ impl Operations {
         let bytes = payload(&record)?;
         let work = state.finite_work.begin(&self.bot.session.ledger, crate::client::ledger::finite::Family::Transfer, record.id.attempt());
         state.common_inventory_transfer = Some(record);
+        let started = AtomicBool::new(false);
+        let mut attempt = super::OriginalAttempt { state: &mut state, execution,
+            started: &started, transfer: true, complete: false };
         let result = work.run(self
             .bot
             .session
-            .send(ids::play_serverbound::WINDOW_CLICK, &bytes))
+            .send_with_attempt(ids::play_serverbound::WINDOW_CLICK, &bytes, Some(&started)))
             .await;
+        attempt.complete = result.is_ok();
+        drop(attempt);
         let record = state.common_inventory_transfer.as_mut().expect("retained");
         match result {
             Ok(()) => {
@@ -218,8 +223,7 @@ impl Operations {
                         Ok((result,state.inventory_executor.record().expect("retained original send")))
             }
             Err(e) => {
-                record.inspection(format!("transfer submission uncertain: {e}"));
-                        state.inventory_executor.invalidate_owned(execution);
+                // OriginalAttempt already retained NotSent or inspection.
                 Err(e)
             }
         }

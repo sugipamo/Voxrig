@@ -237,13 +237,23 @@ impl Operations {
                     record.id.attempt(),
                 );
                 state.common_inventory_click = Some(record);
+                let started = AtomicBool::new(false);
+                let mut attempt = super::OriginalAttempt {
+                    state: &mut state,
+                    execution,
+                    started: &started,
+                    transfer: false,
+                    complete: false,
+                };
                 let result = work
-                    .run(
-                        self.bot
-                            .session
-                            .send(ids::play_serverbound::WINDOW_CLICK, &bytes),
-                    )
+                    .run(self.bot.session.send_with_attempt(
+                        ids::play_serverbound::WINDOW_CLICK,
+                        &bytes,
+                        Some(&started),
+                    ))
                     .await;
+                attempt.complete = result.is_ok();
+                drop(attempt);
                 let record = state.common_inventory_click.as_mut().expect("retained");
                 match result {
                     Ok(()) => {
@@ -259,8 +269,7 @@ impl Operations {
                         ))
                     }
                     Err(e) => {
-                        record.inspection(format!("click submission uncertain: {e}"));
-                        state.inventory_executor.invalidate_owned(execution);
+                        // OriginalAttempt already retained NotSent or inspection.
                         Err(e)
                     }
                 }

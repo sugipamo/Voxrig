@@ -35,6 +35,38 @@ impl Client {
 }
 
 impl PlayerControl {
+    /// Begin stopping this exact controller owner. The handle owns bounded
+    /// observation; dropping it does not cancel release. Successful local stop
+    /// returns SentUnconfirmed when release writes completed, or NotSent for
+    /// an original no-op stop, with its ControlRecord; never a receipt
+    /// of physical rest. Deadline returns Unknown and preserves the native owner.
+    pub fn begin_stop_for(
+        &self,
+        session_id: u64,
+        limits: super::OperationLimits,
+    ) -> Result<super::OwnedOperation<super::control::ControlRecord>> {
+        use super::{OperationOutcome, OperationScope, owned_operation::OperationResult};
+        let owner = self.clone();
+        self.client.begin_owned(
+            OperationScope::Control { session_id },
+            limits,
+            move |state| async move {
+                use super::owned_operation::STOP_OBSERVER;
+                let observation =
+                    std::sync::Arc::new(std::sync::Mutex::new(OperationOutcome::NotSent));
+                state.handoff();
+                let result = STOP_OBSERVER
+                    .scope(observation.clone(), owner.stop_control_for(session_id))
+                    .await;
+                let outcome = *observation.lock().unwrap_or_else(|p| p.into_inner());
+                match result {
+                    Ok(record) => OperationResult::record(outcome, record),
+                    Err(error) => OperationResult::error(outcome, error),
+                }
+            },
+        )
+    }
+
     /// Read this connection's control owner transitions (Started, Paused,
     /// Resumed, Stopped with a typed cause, Expired) after a log cursor
     /// (initially 0), on both versions, without re-querying `control_record`.

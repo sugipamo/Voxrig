@@ -36,6 +36,8 @@ impl InventorySendId {
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum InventorySendStatus {
+    /// Original sender was destroyed before writing. No later write from it.
+    NotSent,
     /// Reserved or sent; native response and full received state are still required.
     Pending,
     /// Native response/full state arrived and the declared intended effect agrees.
@@ -215,7 +217,9 @@ impl Executor {
         self.current.as_ref().is_some_and(|r| {
             !matches!(
                 r.status,
-                InventorySendStatus::Received | InventorySendStatus::Diverged
+                InventorySendStatus::Received
+                    | InventorySendStatus::Diverged
+                    | InventorySendStatus::NotSent
             )
         })
     }
@@ -223,7 +227,9 @@ impl Executor {
         self.current.as_ref().is_some_and(|r| {
             !matches!(
                 r.status,
-                InventorySendStatus::Received | InventorySendStatus::Diverged
+                InventorySendStatus::Received
+                    | InventorySendStatus::Diverged
+                    | InventorySendStatus::NotSent
             ) && r.id.session == session
                 && r.after_sequence == after
                 && r.legacy_action == action
@@ -374,6 +380,21 @@ impl Executor {
         r.clear_completion();
         self.ready = false;
         Ok(())
+    }
+    // Only the original modern caller-owned attempt may supply this proof.
+    pub(crate) fn not_sent(&mut self, id: InventorySendId) {
+        if let Some(record) = self
+            .current
+            .as_mut()
+            .filter(|r| r.id == id && !r.dispatched)
+        {
+            record.status = InventorySendStatus::NotSent;
+            self.deadline = None;
+            self.comparison = None;
+            self.divergence = None;
+            self.ready = false;
+            self.timed_out = false;
+        }
     }
     pub(crate) fn invalidate_owned(&mut self, id: InventorySendId) {
         if self.current.as_ref().is_some_and(|r| r.id == id) {

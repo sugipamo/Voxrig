@@ -43,6 +43,8 @@ pub struct InventoryTransferSlot {
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum InventoryTransferStage {
+    /// Original attempt ended before any write began; it cannot write later.
+    NotSent,
     /// Submission or required changed-slot receipts are incomplete.
     Pending,
     /// Full write, all exact fresh changed slots and actual legacy reply agree.
@@ -121,7 +123,9 @@ impl InventoryTransferRecord {
     pub(crate) fn unresolved(&self) -> bool {
         !matches!(
             self.stage,
-            InventoryTransferStage::ObservedTransferred | InventoryTransferStage::ObservedUnchanged
+            InventoryTransferStage::ObservedTransferred
+                | InventoryTransferStage::ObservedUnchanged
+                | InventoryTransferStage::NotSent
         )
     }
     /// Terminal when the executor proved `after` produced no observed effect.
@@ -208,6 +212,7 @@ fn prepare_inner(
     screen: Option<ContainerScreen>,
 ) -> Result<InventoryTransferRecord> {
     let (initial, registries, furnace_inputs) = state;
+    crate::client::owned_inventory::check_expected_session(initial.session)?;
     if attempt == 0
         || initial.pending_dispatch
         || initial.game_mode != Some(mode)

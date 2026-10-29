@@ -2442,6 +2442,117 @@ async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
 }
 
 #[tokio::test]
+async fn owned_modern_stop_deadline_drop_retains_original_and_noop_is_not_sent() {
+    use crate::client::adapter::ControlOps;
+    use crate::client::control::{ControlSession, ControlStatus, Output, Received};
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let received = Received {
+        abilities_sequence: None,
+        environment: crate::client::physics::Environment::defaults(
+            crate::MinecraftVersion::Java1_21_11,
+        ),
+        pose: Some((10, [8.5, 65.0, 8.5], Some([0.0; 3]))),
+        velocity: None,
+        using_item: None,
+    };
+    let mut control = ControlSession::new(
+        crate::MinecraftVersion::Java1_21_11,
+        1,
+        [8.5, 65.0, 8.5],
+        &received,
+    );
+    control.dispatched(&Output {
+        sneak: Some(true),
+        sprint: Some(true),
+        input: Some(32),
+        position: [8.5, 65.0, 8.5],
+        rotation: [0.0; 2],
+        on_ground: true,
+        horizontal_collision: false,
+    });
+    {
+        let mut state = session.state.lock().await;
+        let generation = state.loading.generation;
+        state.control.seed_session(control, generation);
+    }
+    let writer = session.writer.lock().await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let handle = client.player_control(crate::client::GameMode::Survival);
+    let operation = handle
+        .begin_stop_for(
+            1,
+            crate::client::OperationLimits {
+                run_budget: Duration::from_millis(30),
+                cleanup_budget: Duration::ZERO,
+            },
+        )
+        .unwrap();
+    let mut wait = Box::pin(operation.finished());
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(wait.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(wait);
+    let deadline = timeout(Duration::from_secs(1), operation.finished())
+        .await
+        .unwrap();
+    assert_eq!(
+        deadline.outcome,
+        crate::client::OperationOutcome::Unknown(crate::client::OperationUnknownReason::Deadline)
+    );
+    assert!(!deadline.owner_joined);
+    drop(writer);
+    assert_eq!(
+        timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+            .await
+            .unwrap()
+            .unwrap(),
+        (ids::play_serverbound::PLAYER_INPUT, vec![0])
+    );
+    assert_eq!(
+        timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+            .await
+            .unwrap()
+            .unwrap(),
+        (ids::play_serverbound::ENTITY_ACTION, vec![42, 2, 0])
+    );
+    let record = api.control_record().await.unwrap().unwrap();
+    assert_eq!(record.session_id, 1);
+    assert!(matches!(record.status, ControlStatus::Stopped { .. }));
+    timeout(Duration::from_secs(1), async {
+        while operation.snapshot().joined.is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    let late = operation.snapshot().joined.unwrap();
+    assert_eq!(late.record.as_ref().unwrap(), &record);
+    assert_eq!(
+        late.outcome,
+        crate::client::OperationOutcome::SentUnconfirmed
+    );
+    let noop = handle
+        .begin_stop_for(1, crate::client::OperationLimits::default())
+        .unwrap();
+    assert_ne!(noop.id(), operation.id());
+    assert_eq!(
+        noop.finished().await.outcome,
+        crate::client::OperationOutcome::NotSent
+    );
+    assert!(Arc::ptr_eq(&deadline, &operation.finished().await));
+    let mut read = Box::pin(read_packet(&mut peer, None));
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(read.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(read);
+    session.stop();
+}
+
+#[tokio::test]
 async fn creative_ground_motion_keeps_mode_and_prediction_contract() {
     use crate::client::{
         GameMode,
