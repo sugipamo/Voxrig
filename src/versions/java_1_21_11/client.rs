@@ -1644,6 +1644,44 @@ impl crate::client::adapter::EventOps for operations::Operations {
     fn health_log(&self) -> &Arc<crate::client::health::HealthLedger> {
         &self.bot.session.health_log
     }
+    async fn inspected_crafting_recovery(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+    ) -> Result<Option<crate::client::inventory::InspectedCraftingRecovery>> {
+        Ok(self
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .inventory_executor
+            .inspected_crafting_recovery(send))
+    }
+    async fn recover_inspected_crafting(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+        basis: &crate::client::ReceivedPlayerSnapshot,
+    ) -> Result<crate::client::inventory::InspectedCraftingRecoveryResult> {
+        let mut state = self.bot.session.state.lock().await;
+        self.bot.check_received_snapshot(&state)?;
+        let (session, _) = operations::inventory::execution_scope(&state);
+        let player = operations::common_player_in_state(&state, state.connection_id, false)?;
+        let current = crate::client::inventory::InventorySnapshot::capture(
+            &player,
+            state.operations.inventory.screen(session),
+        );
+        let live = state.snapshot.capture(
+            session,
+            state.sequence,
+            state.registries.capture(session, state.sequence),
+        );
+        let take = state.common_crafting_take.clone();
+        let pending = state.operations.inventory.pending_swap.is_some()
+            || !state.operations.inventory.pending_creative.is_empty();
+        Ok(state
+            .inventory_executor
+            .recover_inspected_crafting(send, basis, &live, current, take, pending))
+    }
     async fn operational_crafting(
         &self,
         send: crate::client::inventory::InventorySendId,

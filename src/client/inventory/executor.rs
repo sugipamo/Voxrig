@@ -119,10 +119,13 @@ pub(crate) struct Executor {
     next: u64,
     pub(crate) operational: Option<crate::client::crafting::operational::Owner>,
     pub(crate) changes: super::changes::InventoryChangeLedger,
-    current: Option<InventorySendRecord>,
+    pub(super) current: Option<InventorySendRecord>,
+    pub(super) inspection_send: Option<InventorySendRecord>,
+    pub(super) inspected: Option<Box<super::InspectedCraftingRecovery>>,
     deadline: Option<Instant>,
     comparison: Option<super::outcome::Comparison>,
-    divergence: Option<super::InventoryDivergence>,
+    pub(super) divergence: Option<super::InventoryDivergence>,
+    pub(super) inspection_divergence: Option<super::InventoryDivergence>,
     ready: bool,
     timed_out: bool,
     own_actions: std::sync::Arc<super::own_action::OwnActionSink>,
@@ -285,6 +288,14 @@ impl Executor {
             number: self.next,
         };
         if resync {
+            if let Some(send) = self.current.as_ref().filter(|r| {
+                self.operational
+                    .as_ref()
+                    .is_some_and(|o| o.outcome.send == r.id && !o.released)
+            }) {
+                self.inspection_send = Some(send.clone());
+                self.inspection_divergence = self.divergence.clone();
+            }
             if let Some(owner) = &mut self.operational {
                 owner.fail("operational crafting required resynchronization");
             }
@@ -562,6 +573,8 @@ impl Executor {
             .is_some_and(|r| r.id == comparison.send && !r.dispatched)
         {
             self.operational = comparison.operational.take();
+            self.inspection_send = None;
+            self.inspection_divergence = None;
             self.comparison = Some(comparison);
         }
     }

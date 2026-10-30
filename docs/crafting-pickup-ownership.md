@@ -33,7 +33,7 @@ operational outcome proves `Crafted` with typed `CraftExternal` evidence.
 Claiming an outcome through the polling method also supports migration of an
 existing `send_crafting_result` call, provided its original send is still retained.
 Claiming blocks subsequent executor inventory sends until successful explicit
-continuation. Existing unclaimed strict/acceptance APIs retain their admission
+continuation or the separate inspected recovery below. Existing unclaimed strict/acceptance APIs retain their admission
 contracts. Strict admission continues to see strict inspection after operational
 continuation; use the acceptance inventory path for subsequent operational work.
 New sends supersede latest-send operational evidence normally, so retain the
@@ -43,6 +43,73 @@ Inspection cannot be continued with this API. Resync, disconnect, world/opening
 retirement, uncertain delivery, missing metadata or overflow cannot retroactively
 supply the original proof. Stop this inventory operation and surface inspection;
 neither a later matching inventory nor a no-effect resync grants replay authority.
+
+## Inspected recovery for a new plan
+
+`Client::recover_inspected_operational_crafting(original_id, &basis)` releases
+only a claimed operational owner that is terminal `RequiresInspection`. It sends
+no packet. `basis` is the existing immutable `ReceivedPlayerSnapshot` obtained
+from `Client::received_player_snapshot()`. The typed result is
+`inventory::InspectedCraftingRecoveryResult::{Released { recovery }, Rejected { reason }}`;
+connection/reader failures use the ordinary `Result` error channel.
+
+The returned `InspectedCraftingRecovery` preserves the original operational
+verdict (including External, first reason and its original `released` value),
+strict take, send record and divergence. Its separate `basis`, `basis_sequence`,
+`contents_sequence` and `cursor_sequence` record the release authority. Historical
+`RequiresInspection` and `Diverged` remain historical failures. Internal admission
+is released independently of the old outcome's `released` flag, which continues
+to describe successful Crafted continuation. Read the retained recovery with
+`Client::inspected_crafting_recovery(original_id)`; one latest successful recovery
+is retained per connection, independently of the next inventory send. Keep a copy.
+
+Recovery requires the original connection/world/opening, a full contents packet
+newer than the original final send/probe boundary, actual cursor at least as new
+as that full packet, complete active-menu coverage, and unchanged receipt identities
+since the supplied capture. Received later slot updates may refine that full packet.
+Reused numeric menu IDs are different openings. Once a scope is retired, returning
+to player screen zero does not revive it. A slot-only patchwork cannot establish
+the missing full boundary. Unknown or invalidated constituents remain inspection.
+
+Pending sends, incomplete native response/state groups, timed-out `ResyncRequired`,
+native inventory mutation markers and queued own-action writes reject with
+`PendingDebt`. No full packet substitutes for an ACK/fence. If needed, request an
+explicit no-effect `resync_inventory()`, await its own complete native response,
+full contents and cursor under a caller deadline, then capture a new basis. This
+is one new probe, never a replay of the result take. Recovery does not wait for
+receipts or start background work. Gate/state access has a five-second total
+budget (`RecoveryDeadline`); callers must also bound polling/replanning.
+
+```rust,ignore
+let original = client.operational_crafting_outcome(original_id).await?;
+publish_failure_and_external(&original); // retain original send/take/divergence too
+// If response/state debt remains, use resync_inventory and bounded observation.
+let basis = client.received_player_snapshot().await?;
+match client.recover_inspected_operational_crafting(original_id, &basis).await? {
+    InspectedCraftingRecoveryResult::Released { recovery } => {
+        retain(recovery.clone());
+        discard_old_suffix();
+        replan_remaining_goal(&recovery.basis); // includes actual occupied cursor
+        // Dispatch a NEW acceptance send_inventory_click/transfer/crafting_result.
+    }
+    InspectedCraftingRecoveryResult::Rejected { reason } => {
+        surface_inspection(reason); // bounded retry only if new evidence can help
+    }
+}
+```
+
+### Existing gate-release paths audited
+
+| Path | Existing authority and limit |
+| --- | --- |
+| `continue_operational_crafting` | Releases only Crafted with still-matching proven inventory; inspection is rejected. |
+| `resync_inventory` | Establishes a new ordered no-effect received boundary; preserves the claimed operational gate. Recovery retains the superseded original send/divergence. |
+| Strict click / transfer / take inspection | Strict admission still consults unresolved strict records; resync does not rewrite them. Existing acceptance `send_inventory_*` paths use current receipts and the executor, so these records need no new strict-release API. Retain strict diagnostics before a new operation supersedes their latest-record cache. |
+| Scope retirement / disconnect | Invalidates old authority, without proving success or qualifying a different scope for this recovery API. A fresh connection has independent owners. |
+
+Body, OwnedOperation completion/lifetime, foreign-collect attribution and dig
+budgets are unchanged. This API supplies new-plan admission, not old-operation
+success, cancellation proof or a write-sealing capability for Golemkit #498.
 
 ## Proof and conservative limits
 
@@ -92,7 +159,7 @@ any inventory change before explicit continuation invalidates continuation.
    elevated to authority. Selected-hand changes require the same stock proof.
 3. **Retention/release:** one owner per retained crafting send, up to 64 events;
    explicit failure on lost scope, overflow or uncertain delivery. Claiming holds
-   the executor right until proven continuation. Continuation preserves cursor
+   the executor right until proven continuation or inspected recovery. Continuation preserves cursor
    ownership and the received basis, leaving strict history unchanged. New sends
    retire only the ordinary latest-send cache; callers retain historical reports.
 4. **Re-derivation cost:** bounded inventory/grid and retained events; semantic
@@ -153,3 +220,19 @@ operational outcomes, original collect metadata/counts, and `[0, 10]` clicked
 slots: one original result take and one later cursor placement. The selected
 case retains strict inspection after placement. Quantity mismatch is tested on
 both packet adapters; no 1.21.11 LIVE result is claimed.
+
+The inspected recovery LIVE runner is:
+
+```sh
+python3 -B scripts/run_inspected_crafting_recovery_live.py --accept-eula \
+  --binary <climbing_control_probe> --jars <official-jars> --output <artifacts>
+```
+
+It obtains a real craft with one proven own pickup, then changes actual stock
+through RCON while continuation remains claimed. It verifies terminal inspection,
+explicit no-effect resync, successful inspected recovery preserving the original
+verdict/External, and a new successful cursor put-down. Original clicked slots are
+`[0, -1, 10]`; result take is sent once. Official server SHA-1, binary/source/evidence
+hashes, the successful report and original packet trace are retained in
+`docs/evidence/mo12-inspected-recovery-*`. The deterministic suite covers both
+adapters; this LIVE result covers 1.16.1.

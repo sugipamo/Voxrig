@@ -172,6 +172,15 @@ pub(crate) trait ChunkOps {
 /// Change notifications.
 pub(crate) trait EventOps {
     fn health_log(&self) -> &std::sync::Arc<super::health::HealthLedger>;
+    async fn inspected_crafting_recovery(
+        &self,
+        send: super::inventory::InventorySendId,
+    ) -> Result<Option<super::inventory::InspectedCraftingRecovery>>;
+    async fn recover_inspected_crafting(
+        &self,
+        send: super::inventory::InventorySendId,
+        basis: &super::ReceivedPlayerSnapshot,
+    ) -> Result<super::inventory::InspectedCraftingRecoveryResult>;
     async fn operational_crafting(
         &self,
         send: super::inventory::InventorySendId,

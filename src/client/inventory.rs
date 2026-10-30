@@ -8,6 +8,10 @@ pub(crate) mod click;
 #[cfg(test)]
 mod divergence_tests;
 pub(crate) mod executor;
+pub(crate) mod inspected;
+pub use inspected::{
+    InspectedCraftingRecovery, InspectedCraftingRecoveryResult, InspectedRecoveryRejection,
+};
 pub(crate) mod outcome;
 pub use changes::{
     InventoryCause, InventoryChange, InventoryChangeLog, InventoryDelta, InventoryItemDelta,
