@@ -1494,8 +1494,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         | input::CRAFT_PROGRESS_BAR => {
             let player_access_after_close =
                 state.common_container_close.as_ref().is_some_and(|close| {
-                    let mut session = close.initial.session;
-                    session.world_generation = state.loading.generation;
+                    let session = crate::client::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id: state.connection_id,
+                        world_generation: state.loading.generation,
+                    };
                     matches!(
                         crate::client::container::player_screen_access(
                             session,

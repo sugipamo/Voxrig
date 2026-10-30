@@ -6192,6 +6192,10 @@ mod single_owner {
         }
     }
     impl Fixture for CommonFixture {
+        async fn close_dispatched(&mut self) {
+            let packet = read_packet(&mut self.peer, None).await.unwrap();
+            assert_eq!(packet, (ids::play_serverbound::CLOSE_WINDOW, vec![3]));
+        }
         async fn close_received(&mut self) {
             self.receive(ids::play_clientbound::CLOSE_WINDOW, &[3])
                 .await;
