@@ -916,7 +916,29 @@ mod tests {
         ack(&bot, first.send.legacy_action.unwrap(), false).await;
         assert_eq!(packets.recv().await.unwrap().0, 0x07);
         api::tests::common_swap_completed_scenario(&client, first.id).await;
-        api::tests::common_closed_player_screen_scenario(&client, close.id).await;
+        // The protocol boundary supplies real full window-0 contents after
+        // this exact close, so the historical screen has now been retired.
+        let captured = client.capture_inventory_view().await.unwrap();
+        assert_eq!(captured.screen().active_window, Some(0));
+        assert_eq!(
+            captured.screen().player_screen,
+            Some(api::container::PlayerScreenAccess::Received)
+        );
+        assert!(captured.screen().screen.is_none());
+        assert!(matches!(
+            captured.screen().active_screen(),
+            api::container::ActiveScreen::Closed
+        ));
+        assert_eq!(
+            client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .id,
+            close.id
+        );
         let mut mode = vec![3];
         mode.extend(1f32.to_be_bytes());
         bot.apply_packet(0x1e, mode).await.unwrap();

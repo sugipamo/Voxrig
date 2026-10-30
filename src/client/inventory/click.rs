@@ -323,12 +323,23 @@ fn prepare_inner(
             "click requires matching received mode and no unresolved dispatch",
         ));
     }
+    let active_screen = crate::client::container::select_active_screen(
+        initial.inventory.window_id,
+        initial.inventory.player_screen,
+        screen.as_ref(),
+    );
     let (slots, menu, revision) = match source {
         InventoryClickSource::Player => {
             if !(1..=45).contains(&source_slot) {
                 return Err(crate::client::registry::invalid(
                     "ordinary player click requires input/equipment/inventory slot 1..45",
                 ));
+            }
+            if !matches!(
+                active_screen,
+                crate::client::container::ActiveScreen::Closed
+            ) {
+                return Err(unavailable("effective player screen required"));
             }
             match initial.inventory.player_screen {
                 Some(PlayerScreenAccess::Received) if initial.inventory.window_id == Some(0) => {}
@@ -352,12 +363,11 @@ fn prepare_inner(
             (&initial.inventory.slots, "minecraft:player", revision)
         }
         InventoryClickSource::Container { screen: id } => {
-            let s = screen
-                .as_ref()
+            let s = active_screen
+                .as_open()
                 .filter(|s| {
                     s.id == id
                         && id.session() == initial.session
-                        && initial.inventory.window_id == Some(id.window_id())
                         && s.full_contents_sequence.is_some()
                 })
                 .ok_or_else(|| unavailable("same live received audited opening/full required"))?;

@@ -15,6 +15,7 @@ pub(crate) trait Fixture {
     async fn item_entity(&mut self, entity: i32, count: u32);
     async fn open_crafting_table(&mut self);
     async fn close_received(&mut self);
+    async fn close_dispatched(&mut self);
     /// Full contents only on legacy; modern packet includes its cursor.
     async fn contents(&mut self, window: i32, slots: &[SlotKnowledge], cursor: &SlotKnowledge);
     async fn complete(
@@ -1954,6 +1955,18 @@ pub(crate) async fn atomic_inventory_capture(f: &mut impl Fixture) {
     f.cursor(&SlotKnowledge::Empty).await;
     let old = client.survival().capture_inventory_view().await.unwrap();
     let screen = old.screen().active_screen().as_open().unwrap().id;
+    // Player contents alone cannot retire an open container without a close.
+    f.contents(0, &vec![SlotKnowledge::Empty; 46], &SlotKnowledge::Empty)
+        .await;
+    assert!(matches!(
+        client
+            .capture_inventory_view()
+            .await
+            .unwrap()
+            .screen()
+            .active_screen(),
+        ActiveScreen::Open(_)
+    ));
     assert_eq!(old.player().session, old.screen().session);
     assert_eq!(old.player().receive_sequence, old.screen().receive_sequence);
     assert_eq!(old.player().inventory.window_id, old.screen().active_window);
@@ -2022,6 +2035,7 @@ pub(crate) async fn atomic_inventory_capture(f: &mut impl Fixture) {
     f.contents(3, &slots, &SlotKnowledge::Empty).await;
     assert!(same_values.basis_matches_current(&client.capture_inventory_view().await.unwrap()));
     let close = client.survival().close_container(screen).await.unwrap();
+    f.close_dispatched().await;
     let closed = client.capture_inventory_view().await.unwrap();
     assert!(matches!(closed.screen().player_screen,
         Some(crate::client::container::PlayerScreenAccess::SubmittedClose { close: id }) if id == close.id));
@@ -2034,6 +2048,43 @@ pub(crate) async fn atomic_inventory_capture(f: &mut impl Fixture) {
     assert_eq!(closed.snapshot().source, InventorySource::Player);
     assert!(!same_values.basis_matches_current(&closed));
     assert!(old.screen().active_screen().as_open().is_some());
+
+    // mo15: a real full player receipt after the exact submitted close retires
+    // only that historical screen. Both packet adapters run this script.
+    let picked = item(client.version(), "minecraft:cobblestone", 1);
+    let mut player_slots = vec![SlotKnowledge::Empty; 46];
+    player_slots[9] = picked.clone();
+    f.contents(0, &player_slots, &SlotKnowledge::Empty).await;
+    let received_closed = client.capture_inventory_view().await.unwrap();
+    assert_eq!(received_closed.screen().active_window, Some(0));
+    assert_eq!(
+        received_closed.screen().player_screen,
+        Some(PlayerScreenAccess::Received)
+    );
+    assert!(received_closed.screen().screen.is_none());
+    assert!(matches!(
+        received_closed.screen().active_screen(),
+        ActiveScreen::Closed
+    ));
+    assert!(received_closed.snapshot().screen.is_none());
+    let send = client
+        .survival()
+        .send_inventory_click(InventorySource::Player, 9, Button::Left)
+        .await
+        .unwrap();
+    f.click().await;
+    player_slots[9] = SlotKnowledge::Empty;
+    f.complete(&send, &player_slots, &picked, false).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        InventorySendStatus::Received
+    );
 
     // A real new opening reuses the same numeric ID, but not its ScreenId.
     f.open_crafting_table().await;
@@ -2050,6 +2101,31 @@ pub(crate) async fn atomic_inventory_capture(f: &mut impl Fixture) {
     let mut different_cursor = reopened.snapshot();
     different_cursor.cursor = None;
     assert!(!different_cursor.basis_matches_current(&reopened));
+
+    // The old close cannot retire a new opening, even with the same window ID.
+    f.contents(0, &vec![SlotKnowledge::Empty; 46], &SlotKnowledge::Empty)
+        .await;
+    let after_old_close = client.capture_inventory_view().await.unwrap();
+    assert_eq!(
+        after_old_close
+            .screen()
+            .active_screen()
+            .as_open()
+            .unwrap()
+            .id,
+        new_screen
+    );
+    let mut mismatched = after_old_close.screen().clone();
+    mismatched.active_window = Some(0);
+    assert!(matches!(
+        mismatched.active_screen(),
+        ActiveScreen::Unknown(_)
+    ));
+    mismatched.player_screen = closed.screen().player_screen;
+    assert!(matches!(
+        mismatched.active_screen(),
+        ActiveScreen::Unknown(ActiveScreenUnknown::CloseTargetsDifferentScreen { .. })
+    ));
 
     // Every observation variant shares snapshot selection, including stale
     // closes for another opening, missing evidence, and mismatched windows.

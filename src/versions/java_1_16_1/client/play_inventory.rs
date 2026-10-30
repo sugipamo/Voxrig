@@ -182,10 +182,34 @@ impl Bot {
     pub(super) async fn receive_window_items(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
         let (window_id, slots) = parse_window_items(p)?;
         let mut inventory = self.inventory.write().await;
-        self.common_receipts
-            .lock()
-            .await
-            .window_items(window_id, &slots, packet_sequence)?;
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            let session = crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            };
+            let retire = window_id == 0
+                && slots.len() == 46
+                && matches!(
+                    crate::client::container::player_screen_access(
+                        session,
+                        receipts.inventory.window_id,
+                        receipts.container.as_ref().map(|s| s.id(session)),
+                        lock_packet_state(&self.common_container_close)
+                            .await
+                            .as_ref(),
+                    ),
+                    Some(crate::client::container::PlayerScreenAccess::SubmittedClose { .. })
+                );
+            receipts.window_items(window_id, &slots, packet_sequence)?;
+            if retire {
+                // Full player contents after this exact dispatched close retire
+                // the historical opening. A close for another ScreenId cannot.
+                receipts.container = None;
+                receipts.inventory.window_id = Some(0);
+            }
+        }
         let _ = &mut **inventory; // received-domain revision, no duplicate slot writer
         drop(inventory);
         let (session, source) = self.inventory_execution_scope().await;

@@ -47,9 +47,18 @@ write readiness. `Unknown(reason)` distinguishes:
 - `WindowMismatch`: the numeric window differs from the retained screen.
 - `MissingScreen`: there is no retained screen and window zero is not established.
 
+After a successfully dispatched close for the exact retained ScreenId, a fully
+decoded window-zero contents packet retires that historical screen on both
+versions. The resulting observation has received window zero, Received player
+access and Closed selection. A close for another opening, a slot-only update or
+contents without a matching close cannot retire the screen. No server close is
+synthesized; the original close record remains a local dispatch fact.
+
 Close-target comparison takes precedence over the window check. Selection uses
 only this observation. Inventory history's `from_inventory` shares this exact
-implementation, selecting only Open. Closed/Unknown do not contribute container
+implementation, selecting only Open. Ordinary click admission uses the same
+selector (Closed for player clicks, Open for container clicks), in addition to
+its existing access, slot, cursor, mode and debt checks. Closed/Unknown do not contribute container
 slots to a snapshot; the independently observed canonical player slots remain
 available. A snapshot's Player source alone does not assert screen readiness.
 

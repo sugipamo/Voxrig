@@ -659,6 +659,9 @@ mod tests {
         super::super::common_click::legacy_comparison_stack(v)
     }
     impl Fixture for LegacyFixture {
+        async fn close_dispatched(&mut self) {
+            assert_eq!(self.packets.recv().await.unwrap(), (0x0a, vec![3]));
+        }
         async fn close_received(&mut self) {
             self.bot.apply_packet(0x13, vec![3]).await.unwrap();
         }

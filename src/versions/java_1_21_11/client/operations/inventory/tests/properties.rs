@@ -355,17 +355,23 @@ async fn received_close_retires_properties_after_submitted_close_and_player_resy
         .await;
     let screen = client.screen_state().await.unwrap();
     assert_eq!(screen.active_window, Some(0));
-    assert_eq!(screen.screen.unwrap().id, id); // Existing historical-screen contract.
-    assert_eq!(
+    // This full player receipt retires the exactly closed historical screen
+    // and its properties, without manufacturing a received server close.
+    assert!(screen.screen.is_none());
+    assert!(matches!(
+        screen.active_screen(),
+        crate::client::container::ActiveScreen::Closed
+    ));
+    assert!(client.screen_properties().await.unwrap().screen.is_none());
+    assert!(
         client
-            .screen_properties()
+            .survival()
+            .container_close_record()
             .await
             .unwrap()
-            .screen
             .unwrap()
-            .values[&2]
-            .value,
-        33
+            .server_close_sequence
+            .is_none()
     );
     f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await;
     assert!(client.screen_properties().await.unwrap().screen.is_none());
@@ -376,5 +382,29 @@ async fn received_close_retires_properties_after_submitted_close_and_player_resy
     let reopened = client.screen_properties().await.unwrap().screen.unwrap();
     assert_ne!(reopened.id, id);
     assert!(reopened.values.is_empty());
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn window0_full_contents_does_not_retire_close_from_another_connection() {
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    f.open_swap_container().await;
+    let id = client.screen_state().await.unwrap().screen.unwrap().id;
+    client.survival().close_container(id).await.unwrap();
+    let packet = read_packet(&mut f.peer, None).await.unwrap();
+    assert_eq!(packet, (ids::play_serverbound::CLOSE_WINDOW, vec![3]));
+    // Even if an obsolete close were retained across a connection boundary,
+    // its session must not authorize retiring the current received opening.
+    f.api.bot.session.state.lock().await.connection_id += 1;
+    let mut player = vec![0, 1, 46];
+    player.extend([0; 47]);
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &player)
+        .await;
+    {
+        let state = f.api.bot.session.state.lock().await;
+        assert_eq!(state.operations.inventory.window_id, Some(3));
+        assert!(state.operations.inventory.container.is_some());
+    }
     f.stop().await;
 }

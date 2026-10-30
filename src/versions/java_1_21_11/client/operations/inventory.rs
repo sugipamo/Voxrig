@@ -503,6 +503,11 @@ pub(super) fn receive(
                     inventory.screen_revision = Some(revision);
                     inventory.cursor = cursor;
                     inventory.cursor_sequence = Some(sequence);
+                    if player_access_after_close {
+                        // The caller established a dispatched close for this
+                        // exact retained opening before decoding this receipt.
+                        inventory.container = None;
+                    }
                 }
                 inventory.pending_creative.clear();
                 inventory.unsupported_components = false;
