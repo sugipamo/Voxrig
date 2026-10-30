@@ -295,6 +295,11 @@ pub(crate) enum TerminalClassification {
 }
 
 enum Command {
+    GuardedUse {
+        context: OperationContext,
+        command: Box<GuardedUseCommand>,
+        reply: oneshot::Sender<crate::Result<crate::client::guarded_use::GuardedUseResult>>,
+    },
     Motion(bounded_motion::MotionCommand),
     BeginCursorClose {
         identity: (u64, i8, u16),
@@ -528,6 +533,7 @@ impl CommandSender {
             Command::ReplaceControl { .. }
                 | Command::Motion(_)
                 | Command::Dispatch { .. }
+                | Command::GuardedUse { .. }
                 | Command::DispatchPrimitive { .. }
                 | Command::DispatchInteractionBatch { .. }
                 | Command::DispatchAcknowledged { .. }
@@ -660,6 +666,52 @@ impl DigReply {
             }
         }
     }
+}
+
+pub(crate) struct GuardedUsePermit {
+    permit: mpsc::OwnedPermit<QueuedCommand>,
+    work: ScopedWork,
+}
+pub(crate) struct GuardedUseReply {
+    result: oneshot::Receiver<crate::Result<crate::client::guarded_use::GuardedUseResult>>,
+}
+impl GuardedUsePermit {
+    pub(crate) fn enqueue(
+        self,
+        context: OperationContext,
+        command: GuardedUseCommand,
+    ) -> GuardedUseReply {
+        let (reply, result) = oneshot::channel();
+        self.permit.send(QueuedCommand {
+            command: Command::GuardedUse {
+                context,
+                command: Box::new(command),
+                reply,
+            },
+            work: Some(self.work),
+        });
+        GuardedUseReply { result }
+    }
+}
+impl GuardedUseReply {
+    pub(crate) async fn wait(self) -> crate::Result<crate::client::guarded_use::GuardedUseResult> {
+        self.result.await.map_err(|_| {
+            crate::Error::new(
+                crate::ErrorKind::UncertainDispatch,
+                anyhow::anyhow!("guarded use actor result lost; inspect without retry"),
+            )
+        })?
+    }
+}
+pub(crate) struct GuardedUseCommand {
+    pub request: crate::client::guarded_use::Request,
+    pub check: crate::client::guarded_use::Check,
+    pub cut: crate::client::guarded_use::PhysicalCut,
+    pub receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
+    pub id: i32,
+    pub payload: Vec<u8>,
+    pub deadline: Instant,
+    pub attempt: crate::client::guarded_use::Attempt,
 }
 
 #[derive(Clone)]
@@ -940,6 +992,59 @@ impl ConnectionActor {
                                 .bind_native_input(replacement != crate::ControlState::default());
                         }
                         let _ = reply.send(result);
+                    }
+                    Command::GuardedUse { context, command, reply } => {
+                        use crate::client::guarded_use::{GuardedUseResult, UseNotSentReason};
+                        let GuardedUseCommand { request, check, cut, receipts, id, payload, deadline, attempt } = *command;
+                        let admission = motion_gate.admit_domain(generation, state, active_output_sequence,
+                            context, (OperationClass::Normal, crate::client::domain::Domain::Strict));
+                        let mut write_failed = false;
+                        let result = if let Err(error) = admission {
+                            Err(crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!("packet dispatch rejected: {error:?}")))
+                        } else {
+                            match tokio::time::timeout_at(deadline, writer.lock()).await {
+                                Err(_) => Ok(GuardedUseResult::refused(UseNotSentReason::AdmissionDeadline, Some(cut))),
+                                Ok(mut writer) => {
+                                    let _gate = attempt.take_gate();
+                                    let mut frozen_receipts = if _gate.is_some() { Some(receipts.lock().await) } else { None };
+                                    if let Some(r) = frozen_receipts.as_mut() { r.pending_dispatch = true; }
+                                    let outcome = if _gate.is_none() || attempt.cancelled() || Instant::now() >= deadline {
+                                        Ok(GuardedUseResult::refused(UseNotSentReason::AdmissionDeadline, Some(cut)))
+                                    } else if actor_revoked.load(Ordering::Acquire) {
+                                        Err(crate::Error::new(crate::ErrorKind::Disconnected, anyhow::anyhow!("connection revoked before guarded use")))
+                                    } else if let Err(reason) = request.check(&cut, check) {
+                                        Ok(GuardedUseResult::refused(reason, Some(cut)))
+                                    } else if Instant::now() >= deadline || !attempt.commit() {
+                                        Ok(GuardedUseResult::refused(UseNotSentReason::AdmissionDeadline, Some(cut)))
+                                    } else {
+                                        // No readiness/lock/queue await after check: writer and
+                                        // coherent gate are already owned through full flush.
+                                        let compression = writer.compression;
+                                        match tokio::time::timeout_at(deadline, writer.inner.send(
+                                            work.as_ref().expect("guarded writer owner").guard(), compression, id, &payload)).await {
+                                            Ok(Ok(())) => Ok(GuardedUseResult::Sent {
+                                                receipt: crate::client::DispatchReceipt { version: crate::MinecraftVersion::Java1_16_1,
+                                                    connection_id: context.generation.get(), interaction_sequence: None }, cut: Box::new(cut),
+                                            }),
+                                            _ => {
+                                                write_failed = true;
+                                                actor_ledger.fail(Failure::UncertainDispatch);
+                                                Err(crate::Error::new(crate::ErrorKind::UncertainDispatch, anyhow::anyhow!("guarded use frame incomplete; inspect without retry")))
+                                            }
+                                        }
+                                    };
+                                    if !write_failed { if let Some(r) = frozen_receipts.as_mut() { r.pending_dispatch = false; } }
+                                    outcome
+                                }
+                            }
+                        };
+
+                        let _ = reply.send(result);
+                        if write_failed {
+                            state = ConnectionState::ConnectionStateUnknown;
+                            lifecycle_tx.send_replace(state);
+                            break;
+                        }
                     }
                     Command::Dispatch {
                         domain,
@@ -1793,6 +1898,22 @@ impl ConnectionActor {
         self.control.read().await.snapshot()
     }
 
+    pub(crate) async fn reserve_guarded_use(&self) -> crate::Result<GuardedUsePermit> {
+        let work = ScopedWork::new(self.commands.ledger.try_work()?);
+        let permit = self
+            .commands
+            .sender
+            .clone()
+            .reserve_owned()
+            .await
+            .map_err(|_| {
+                crate::Error::new(
+                    crate::ErrorKind::Disconnected,
+                    anyhow::anyhow!("guarded use actor unavailable"),
+                )
+            })?;
+        Ok(GuardedUsePermit { permit, work })
+    }
     pub(crate) async fn dispatch(
         &self,
         context: OperationContext,

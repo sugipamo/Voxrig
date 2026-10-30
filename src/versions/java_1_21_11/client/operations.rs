@@ -4,6 +4,7 @@
 //! Mining removal alone does not authorize further mutations on that connection.
 pub(crate) mod body;
 pub(super) mod container;
+mod guarded_use;
 mod operational_dig;
 use crate::client::adapter::FlightOps;
 pub(super) mod continuous;

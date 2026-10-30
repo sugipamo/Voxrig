@@ -192,7 +192,7 @@ impl Session {
             .await
     }
 
-    async fn write_frame<W: AsyncWrite + Unpin>(
+    pub(super) async fn write_frame<W: AsyncWrite + Unpin>(
         &self,
         stream: &mut SocketWriter<W>,
         compression: Option<i32>,
