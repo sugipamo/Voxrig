@@ -659,6 +659,9 @@ mod tests {
         super::super::common_click::legacy_comparison_stack(v)
     }
     impl Fixture for LegacyFixture {
+        async fn close_received(&mut self) {
+            self.bot.apply_packet(0x13, vec![3]).await.unwrap();
+        }
         async fn open_crafting_table(&mut self) {
             let menu = api::crafting::native_menu(
                 crate::MinecraftVersion::Java1_16_1,
@@ -1490,6 +1493,70 @@ mod tests {
         drop(client);
         drop(f.bot);
         server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn inspected_recovery_held_gate_has_total_deadline() {
+        use std::future::Future;
+        let (bot, _, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let basis = client.received_player_snapshot().await.unwrap();
+        let id = inv::InventorySendId {
+            session: basis.boundary().session(),
+            source: InventorySource::Player,
+            number: 1,
+        };
+        let gate = bot.coherent_state_gate.lock().await;
+        tokio::time::pause();
+        let mut recovery = Box::pin(client.recover_inspected_operational_crafting(id, &basis));
+        std::future::poll_fn(|cx| {
+            assert!(recovery.as_mut().poll(cx).is_pending());
+            std::task::Poll::Ready(())
+        })
+        .await;
+        tokio::time::advance(Duration::from_secs(5) + Duration::from_millis(1)).await;
+        assert!(matches!(
+            recovery.await.unwrap(),
+            inv::InspectedCraftingRecoveryResult::Rejected {
+                reason: inv::InspectedRecoveryRejection::RecoveryDeadline
+            }
+        ));
+        tokio::time::resume();
+        drop(gate);
+        client.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn inspected_recovery_releases_only_fresh_debt_free_inspection() {
+        for case in 0..4 {
+            let (bot, packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.apply_packet(0x3f, vec![0]).await.unwrap();
+            let mut f = LegacyFixture { bot, packets };
+            Box::pin(script::inspected_recovery(&mut f, case)).await;
+            drop(release);
+            drop(f.bot);
+            server.await.unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn inspected_recovery_table_full_boundary_and_reused_opening() {
+        for reopen in [false, true] {
+            let (bot, packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.apply_packet(0x3f, vec![0]).await.unwrap();
+            let mut f = LegacyFixture { bot, packets };
+            Box::pin(script::inspected_table_recovery(&mut f, reopen)).await;
+            drop(release);
+            drop(f.bot);
+            server.await.unwrap();
+        }
     }
     #[tokio::test]
     async fn crafting_foreign_collect_preserves_proof_and_stock_guards() {

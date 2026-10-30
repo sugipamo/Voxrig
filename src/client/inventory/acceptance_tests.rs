@@ -14,6 +14,7 @@ pub(crate) trait Fixture {
     async fn collect(&mut self, entity: i32, own: bool);
     async fn item_entity(&mut self, entity: i32, count: u32);
     async fn open_crafting_table(&mut self);
+    async fn close_received(&mut self);
     /// Full contents only on legacy; modern packet includes its cursor.
     async fn contents(&mut self, window: i32, slots: &[SlotKnowledge], cursor: &SlotKnowledge);
     async fn complete(
@@ -1542,4 +1543,395 @@ pub(crate) async fn mo7_deadline(f: &mut impl Fixture, outcome: usize, transfer:
             );
         }
     }
+}
+
+/// Identical deterministic packet schedules on both protocol adapters.
+pub(crate) async fn inspected_recovery(f: &mut impl Fixture, case: u8) {
+    use super::{InspectedCraftingRecoveryResult as Recovery, InspectedRecoveryRejection as R};
+    use crate::client::OperationalCraftingStage as Stage;
+    let client = f.client();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    let output = item(client.version(), "minecraft:oak_planks", 4);
+    slots[0] = output.clone();
+    slots[1] = item(client.version(), "minecraft:oak_log", 1);
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    let old = client.received_player_snapshot().await.unwrap();
+    f.item_entity(1182, 1).await;
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let send = client
+        .survival()
+        .send_operational_crafting_result(&grid)
+        .await
+        .unwrap();
+    f.click().await;
+    // Claiming Pending cannot be used as an inspection escape hatch.
+    client.operational_crafting_outcome(send.id).await.unwrap();
+    assert!(matches!(
+        client
+            .recover_inspected_operational_crafting(send.id, &old)
+            .await
+            .unwrap(),
+        Recovery::Rejected {
+            reason: R::NotInspectionTerminal
+        }
+    ));
+    if case == 2 {
+        f.collect(1182, true).await;
+    }
+    slots[0] = SlotKnowledge::Empty;
+    slots[1] = SlotKnowledge::Empty;
+    slots[10] = item(client.version(), "minecraft:oak_log", 1);
+    if case == 3 {
+        slots[36] = slots[10].clone();
+    }
+    // Early contradictory stock packet latches inspection while response debt remains.
+    if case == 0 {
+        f.slot(10, &slots[10]).await;
+        assert_eq!(
+            client
+                .operational_crafting_outcome(send.id)
+                .await
+                .unwrap()
+                .stage,
+            Stage::Pending
+        );
+        f.slot(10, &SlotKnowledge::Empty).await;
+        let pending_basis = client.received_player_snapshot().await.unwrap();
+        assert_eq!(
+            client
+                .operational_crafting_outcome(send.id)
+                .await
+                .unwrap()
+                .stage,
+            Stage::RequiresInspection
+        );
+        assert!(matches!(
+            client
+                .recover_inspected_operational_crafting(send.id, &pending_basis)
+                .await
+                .unwrap(),
+            Recovery::Rejected {
+                reason: R::PendingDebt
+            }
+        ));
+    }
+    f.complete(&send, &slots, &output, false).await;
+    if case == 2 {
+        let crafted = client.operational_crafting_outcome(send.id).await.unwrap();
+        assert_eq!(crafted.stage, Stage::Crafted);
+        assert_eq!(crafted.external.len(), 1);
+        // Inspection after proof must preserve already-proven External evidence.
+        f.collect(1182, true).await;
+    }
+    let original = client.operational_crafting_outcome(send.id).await.unwrap();
+    assert_eq!(original.stage, Stage::RequiresInspection, "{original:?}");
+    assert!(client.continue_operational_crafting(send.id).await.is_err());
+    let take = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    let original_send = client
+        .survival()
+        .inventory_send_record()
+        .await
+        .unwrap()
+        .unwrap();
+    let divergence = client.inventory_divergence(send.id).await.unwrap();
+    let fresh = client.received_player_snapshot().await.unwrap();
+    if case == 1 {
+        f.open_crafting_table().await;
+        assert!(matches!(
+            client
+                .recover_inspected_operational_crafting(send.id, &fresh)
+                .await
+                .unwrap(),
+            Recovery::Rejected {
+                reason: R::ScopeMismatch
+            }
+        ));
+        f.close_received().await;
+        f.inventory(&slots, &output).await;
+        let returned = client.received_player_snapshot().await.unwrap();
+        assert!(matches!(
+            client
+                .recover_inspected_operational_crafting(send.id, &returned)
+                .await
+                .unwrap(),
+            Recovery::Rejected {
+                reason: R::ScopeMismatch
+            }
+        ));
+        client.disconnect().await.unwrap();
+        return;
+    }
+    let mut missing_full = fresh.clone();
+    missing_full.inventory.last_full_contents = crate::client::FieldState::Missing;
+    assert!(matches!(
+        client
+            .recover_inspected_operational_crafting(send.id, &missing_full)
+            .await
+            .unwrap(),
+        Recovery::Rejected {
+            reason: R::IncompleteOrOldBasis
+        }
+    ));
+    let mut missing_cursor = fresh.clone();
+    missing_cursor.inventory.cursor = crate::client::FieldState::Missing;
+    assert!(matches!(
+        client
+            .recover_inspected_operational_crafting(send.id, &missing_cursor)
+            .await
+            .unwrap(),
+        Recovery::Rejected {
+            reason: R::IncompleteOrOldBasis
+        }
+    ));
+    assert!(matches!(
+        client
+            .recover_inspected_operational_crafting(send.id, &old)
+            .await
+            .unwrap(),
+        Recovery::Rejected {
+            reason: R::IncompleteOrOldBasis
+        }
+    ));
+    for world in [false, true] {
+        let mut wrong = fresh.clone();
+        if world {
+            wrong.boundary.session.world_generation += 1;
+        } else {
+            wrong.boundary.session.connection_id += 1;
+        }
+        assert!(matches!(
+            client
+                .recover_inspected_operational_crafting(send.id, &wrong)
+                .await
+                .unwrap(),
+            Recovery::Rejected {
+                reason: R::ScopeMismatch
+            }
+        ));
+    }
+    // A post-capture slot receipt, even with identical value, invalidates the basis.
+    f.slot(10, &slots[10]).await;
+    assert!(matches!(
+        client
+            .recover_inspected_operational_crafting(send.id, &fresh)
+            .await
+            .unwrap(),
+        Recovery::Rejected {
+            reason: R::StaleBasis
+        }
+    ));
+    let basis = if case == 0 {
+        let resync = client.survival().resync_inventory().await.unwrap();
+        f.click().await;
+        let pending = client.received_player_snapshot().await.unwrap();
+        assert!(matches!(
+            client
+                .recover_inspected_operational_crafting(send.id, &pending)
+                .await
+                .unwrap(),
+            Recovery::Rejected {
+                reason: R::PendingDebt
+            }
+        ));
+        // A full contents/cursor observation cannot stand in for missing response debt.
+        f.inventory(&slots, &output).await;
+        let no_response = client.received_player_snapshot().await.unwrap();
+        assert!(matches!(
+            client
+                .recover_inspected_operational_crafting(send.id, &no_response)
+                .await
+                .unwrap(),
+            Recovery::Rejected {
+                reason: R::PendingDebt
+            }
+        ));
+        f.complete(&resync, &slots, &output, false).await;
+        client.received_player_snapshot().await.unwrap()
+    } else {
+        f.inventory(&slots, &output).await;
+        client.received_player_snapshot().await.unwrap()
+    };
+    assert!(
+        client
+            .survival()
+            .send_inventory_click(InventorySource::Player, 11, Button::Left)
+            .await
+            .is_err()
+    );
+    let result = client
+        .recover_inspected_operational_crafting(send.id, &basis)
+        .await
+        .unwrap();
+    let Recovery::Released { recovery } = result else {
+        panic!("{result:?}");
+    };
+    assert_eq!(
+        serde_json::to_value(&recovery.original).unwrap(),
+        serde_json::to_value(&original).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(&recovery.original_send).unwrap(),
+        serde_json::to_value(&original_send).unwrap()
+    );
+    // Inspection diagnostics may accumulate fresh observations, never change verdict or ID.
+    assert_eq!(
+        serde_json::to_value(&recovery.original_divergence).unwrap(),
+        serde_json::to_value(&divergence).unwrap()
+    );
+    assert_eq!(recovery.original_take.id, take.id);
+    assert_eq!(recovery.original_take.stage, take.stage);
+    assert_eq!(
+        recovery.original_take.requires_inspection,
+        take.requires_inspection
+    );
+    assert_eq!(recovery.basis_sequence, basis.boundary().ordinal());
+    assert!(recovery.contents_sequence > send.after_sequence);
+    assert_eq!(recovery.basis.cursor.as_ref().unwrap().value, output);
+    assert!(matches!(
+        client
+            .recover_inspected_operational_crafting(send.id, &basis)
+            .await
+            .unwrap(),
+        Recovery::Rejected {
+            reason: R::NotInspectionTerminal
+        }
+    ));
+    // Strict inspection stays conservative. Acceptance plans a new put-down.
+    if take.stage == crate::client::CraftingTakeStage::RequiresInspection {
+        assert!(
+            client
+                .survival()
+                .click_inventory(InventorySource::Player, 11, Button::Left)
+                .await
+                .is_err()
+        );
+    }
+    let next = client
+        .survival()
+        .send_inventory_click(InventorySource::Player, 11, Button::Left)
+        .await
+        .unwrap();
+    f.click().await;
+    slots[11] = output;
+    f.complete(&next, &slots, &SlotKnowledge::Empty, false)
+        .await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_send_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        InventorySendStatus::Received
+    );
+    assert_eq!(
+        serde_json::to_value(
+            client
+                .inspected_crafting_recovery(send.id)
+                .await
+                .unwrap()
+                .unwrap()
+        )
+        .unwrap(),
+        serde_json::to_value(&recovery).unwrap()
+    );
+    client.disconnect().await.unwrap();
+}
+
+pub(crate) async fn inspected_table_recovery(f: &mut impl Fixture, reopen: bool) {
+    use super::{InspectedCraftingRecoveryResult as Recovery, InspectedRecoveryRejection as R};
+    let client = f.client();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    f.item_entity(1182, 1).await;
+    f.open_crafting_table().await;
+    let output = item(client.version(), "minecraft:oak_planks", 4);
+    slots[0] = output.clone();
+    slots[1] = item(client.version(), "minecraft:oak_log", 1);
+    f.contents(3, &slots, &SlotKnowledge::Empty).await;
+    if client.version() == MinecraftVersion::Java1_16_1 {
+        f.cursor(&SlotKnowledge::Empty).await;
+    }
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let send = client
+        .survival()
+        .send_operational_crafting_result(&grid)
+        .await
+        .unwrap();
+    f.click().await;
+    slots[0] = SlotKnowledge::Empty;
+    slots[1] = SlotKnowledge::Empty;
+    slots[10] = item(client.version(), "minecraft:oak_log", 1); // unexplained actual gain
+    if client.version() == MinecraftVersion::Java1_16_1 {
+        f.response(&send, false).await;
+        f.contents(3, &slots, &output).await;
+        f.cursor(&output).await;
+    } else {
+        f.contents(3, &slots, &output).await;
+        f.response(&send, false).await;
+    }
+    let original = client.operational_crafting_outcome(send.id).await.unwrap();
+    assert_eq!(
+        original.stage,
+        crate::client::OperationalCraftingStage::RequiresInspection
+    );
+    let basis = client.received_player_snapshot().await.unwrap();
+    if reopen {
+        f.open_crafting_table().await; // same native ID, different opening identity
+        f.contents(3, &slots, &output).await;
+        assert!(matches!(
+            client
+                .recover_inspected_operational_crafting(send.id, &basis)
+                .await
+                .unwrap(),
+            Recovery::Rejected {
+                reason: R::ScopeMismatch
+            }
+        ));
+    } else {
+        let result = client
+            .recover_inspected_operational_crafting(send.id, &basis)
+            .await
+            .unwrap();
+        let Recovery::Released { recovery } = result else {
+            panic!("{result:?}")
+        };
+        assert_eq!(
+            serde_json::to_value(recovery.original).unwrap(),
+            serde_json::to_value(original).unwrap()
+        );
+        assert_eq!(recovery.basis.source, send.id.source());
+        let next = client
+            .survival()
+            .send_inventory_click(send.id.source(), 11, Button::Left)
+            .await
+            .unwrap();
+        f.click().await;
+        slots[11] = output;
+        if client.version() == MinecraftVersion::Java1_16_1 {
+            f.response(&next, false).await;
+            f.contents(3, &slots, &SlotKnowledge::Empty).await;
+            f.cursor(&SlotKnowledge::Empty).await;
+        } else {
+            f.contents(3, &slots, &SlotKnowledge::Empty).await;
+            f.response(&next, false).await;
+        }
+        assert_eq!(
+            client
+                .survival()
+                .inventory_send_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            InventorySendStatus::Received
+        );
+    }
+    client.disconnect().await.unwrap();
 }

@@ -134,6 +134,8 @@ async fn main() -> anyhow::Result<()> {
     println!("{}", serde_json::json!({"ready":true}));
     std::io::stdout().flush()?;
     let survival = client.survival();
+    let mut recovery_send = None;
+    let mut recovery_basis = None;
     let mut saved_interaction_target = None;
     let mut mounted = None;
     let mut saved_chunk = None;
@@ -671,13 +673,28 @@ async fn main() -> anyhow::Result<()> {
             }
             "send_operational_crafting_result" => {
                 let grid = client.received_crafting().await?.ok_or_else(|| anyhow::anyhow!("no crafting grid"))?;
-                serde_json::to_value(survival.send_operational_crafting_result(&grid).await?)?
+                let sent = survival.send_operational_crafting_result(&grid).await?;
+                recovery_send = Some(sent.id);
+                serde_json::to_value(sent)?
             }
             "operational_crafting_outcome" | "continue_operational_crafting" => {
                 let send = survival.inventory_send_record().await?.ok_or_else(|| anyhow::anyhow!("no inventory send"))?;
                 serde_json::to_value(if request["command"] == "continue_operational_crafting" {
                     client.continue_operational_crafting(send.id).await?
                 } else { client.operational_crafting_outcome(send.id).await? })?
+            }
+            "capture_recovery_basis" => {
+                recovery_basis = Some(client.received_player_snapshot().await?);
+                serde_json::json!({"sequence": recovery_basis.as_ref().unwrap().boundary().ordinal()})
+            }
+            "recover_inspected_crafting" => {
+                let id = recovery_send.ok_or_else(|| anyhow::anyhow!("no original crafting send"))?;
+                let basis = recovery_basis.as_ref().ok_or_else(|| anyhow::anyhow!("no captured recovery basis"))?;
+                serde_json::to_value(client.recover_inspected_operational_crafting(id, basis).await?)?
+            }
+            "inspected_crafting_recovery" => {
+                let id = recovery_send.ok_or_else(|| anyhow::anyhow!("no original crafting send"))?;
+                serde_json::to_value(client.inspected_crafting_recovery(id).await?)?
             }
             "crafting_take_record" => serde_json::to_value(survival.crafting_take_record().await?)?,
             "craft_once" => {

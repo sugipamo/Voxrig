@@ -7257,6 +7257,45 @@ impl crate::client::adapter::EventOps for Bot {
             self.protocol_packet_sequence.load(Ordering::Acquire),
         )
     }
+    async fn inspected_crafting_recovery(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+    ) -> Result<Option<crate::client::inventory::InspectedCraftingRecovery>> {
+        Ok(lock_packet_state(&self.inventory_executor)
+            .await
+            .inspected_crafting_recovery(send))
+    }
+    async fn recover_inspected_crafting(
+        &self,
+        send: crate::client::inventory::InventorySendId,
+        basis: &crate::client::ReceivedPlayerSnapshot,
+    ) -> Result<crate::client::inventory::InspectedCraftingRecoveryResult> {
+        let _gate = self.coherent_state_gate.lock().await;
+        self.check_received_snapshot()?;
+        let current = self.inventory_execution_snapshot().await;
+        let live = {
+            let receipts = self.common_receipts.lock().await;
+            if let Some((kind, error)) = &receipts.snapshot_failure {
+                return Err(crate::Error::new(*kind, anyhow::anyhow!("{error}")));
+            }
+            receipts.snapshot.capture(
+                current.session,
+                current.receive_sequence,
+                receipts
+                    .registries
+                    .capture(current.session, current.receive_sequence),
+            )
+        };
+        let take = lock_packet_state(&self.common_crafting_take)
+            .await
+            .as_ref()
+            .map(|r| r.record.clone());
+        let pending = !self.inventory().await.pending_clicks.is_empty()
+            || self.connection.motion_admission_revision().await.is_err();
+        Ok(lock_packet_state(&self.inventory_executor)
+            .await
+            .recover_inspected_crafting(send, basis, &live, current, take, pending))
+    }
     async fn operational_crafting(
         &self,
         send: crate::client::inventory::InventorySendId,

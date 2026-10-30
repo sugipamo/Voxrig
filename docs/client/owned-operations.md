@@ -122,6 +122,11 @@ For inventory, retain the original send/take ID, inspect the typed outcome and
 existing strict/executor record, and keep inspection gates. Operational crafting
 requires retaining `OwnedCraftingRecord.operational.external` before explicit
 `continue_operational_crafting(original_send_id)` with a current matching basis.
+For a terminal operational inspection, the explicit
+`recover_inspected_operational_crafting(original_send_id, &received_snapshot)`
+can release new-plan admission after fresh same-scope full/cursor receipts and
+zero pending debt. Its separate receipt preserves the original owned completion
+and strict/operational verdicts; see [recovery contract](../crafting-pickup-ownership.md#inspected-recovery-for-a-new-plan).
 Neither success nor handle drop performs continuation. Body callers retain
 `ActionDispatch.id` and keep reading action status/events for late `Corrected`,
 finite tick completion, lease release, and evidence loss.

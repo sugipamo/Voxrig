@@ -6192,6 +6192,10 @@ mod single_owner {
         }
     }
     impl Fixture for CommonFixture {
+        async fn close_received(&mut self) {
+            self.receive(ids::play_clientbound::CLOSE_WINDOW, &[3])
+                .await;
+        }
         async fn open_crafting_table(&mut self) {
             let menu = crate::client::crafting::native_menu(
                 MinecraftVersion::Java1_21_11,
@@ -6322,6 +6326,68 @@ mod single_owner {
             assert_eq!(packet.0, ids::play_serverbound::WINDOW_CLICK);
             let fence = read_packet(&mut self.peer, None).await.unwrap();
             assert_eq!(fence.0, ids::play_serverbound::TAB_COMPLETE);
+        }
+    }
+    #[tokio::test]
+    async fn inspected_recovery_held_gate_has_total_deadline() {
+        use crate::client::inventory::{
+            InspectedCraftingRecoveryResult, InspectedRecoveryRejection, InventorySendId,
+            InventorySource,
+        };
+        use std::future::Future;
+        let f = CommonFixture::new().await;
+        let client = f.client();
+        let basis = client.received_player_snapshot().await.unwrap();
+        let id = InventorySendId {
+            session: basis.boundary().session(),
+            source: InventorySource::Player,
+            number: 1,
+        };
+        let gate = f.api.bot.session.state.lock().await;
+        tokio::time::pause();
+        let mut recovery = Box::pin(client.recover_inspected_operational_crafting(id, &basis));
+        std::future::poll_fn(|cx| {
+            assert!(recovery.as_mut().poll(cx).is_pending());
+            std::task::Poll::Ready(())
+        })
+        .await;
+        tokio::time::advance(Duration::from_secs(5) + Duration::from_millis(1)).await;
+        assert!(matches!(
+            recovery.await.unwrap(),
+            InspectedCraftingRecoveryResult::Rejected {
+                reason: InspectedRecoveryRejection::RecoveryDeadline
+            }
+        ));
+        tokio::time::resume();
+        drop(gate);
+        f.stop().await;
+    }
+    #[tokio::test]
+    async fn inspected_recovery_releases_only_fresh_debt_free_inspection() {
+        for case in 0..4 {
+            let mut f = CommonFixture::new().await;
+            crate::client::inventory::armor_tests::install(
+                &mut f.api.bot.session.state.lock().await.registries,
+                MinecraftVersion::Java1_21_11,
+                None,
+            );
+            f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+            Box::pin(script::inspected_recovery(&mut f, case)).await;
+            f.stop().await;
+        }
+    }
+    #[tokio::test]
+    async fn inspected_recovery_table_full_boundary_and_reused_opening() {
+        for reopen in [false, true] {
+            let mut f = CommonFixture::new().await;
+            crate::client::inventory::armor_tests::install(
+                &mut f.api.bot.session.state.lock().await.registries,
+                MinecraftVersion::Java1_21_11,
+                None,
+            );
+            f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+            Box::pin(script::inspected_table_recovery(&mut f, reopen)).await;
+            f.stop().await;
         }
     }
     #[tokio::test]

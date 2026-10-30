@@ -1,0 +1,46 @@
+{
+  "base": "6a3a5a6d24e9f01a785b8db2f6f7dfdc76cfb1c3",
+  "versions_packet_tested": [
+    "1.16.1",
+    "1.21.11"
+  ],
+  "live_version": "1.16.1",
+  "passed": true,
+  "trace_errors": [],
+  "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+  "binary_sha256": "db1ac201f2dd13b4edc8bda7facc7b74f4c7c3c54e82ea046ae56bd23a6cd165",
+  "clicked_slots": [
+    0,
+    -1,
+    10
+  ],
+  "original_stage": "requires_inspection",
+  "original_reason": "inventory changed before operational continuation",
+  "preserved_external_count": 1,
+  "next_send_status": "received",
+  "original_unchanged": true,
+  "source_sha256": {
+    "examples/climbing_control_probe.rs": "f052362fbfc6f80fbc919153c687cf4760695040f8d2454b88a8779c84bc82c7",
+    "src/client/adapter.rs": "cbe0f6bc226dce82c70405d3068e730f68daf1a79fc3d04ae7e76e14dd064e82",
+    "src/client/crafting/operational.rs": "14bf7bc6440f8611b536eb6ccbd5b2d2153610f81d863b061c2fafd0b7e5f608",
+    "src/client/inventory.rs": "230b44a112cebfa71599b11827e6356827e880219f3b5254de64fcbb6183fbd5",
+    "src/client/inventory/acceptance_tests.rs": "3388dc6ec36b98f422f50a8b7159c92eeb04662969730f538603b40e1ff0dcb8",
+    "src/client/inventory/executor.rs": "ff81f6d8cc5982de7d6c76bea9fc0bfacf82d14a21ed75b0569df004388e39e0",
+    "src/versions/java_1_16_1/client.rs": "0bc8baec455ebd9da5b2d06e0b7135120647193e1fdfc44a3ef43f7d38475d8f",
+    "src/versions/java_1_16_1/client/inventory_execution.rs": "994e0012254f880c3a22c43f792f9fc400eb4a3a1d5db11a9dce99364d2178d6",
+    "src/versions/java_1_21_11/client.rs": "e98891f4b69721fa40c43418f96c960e4443786f2f5c8667fff120024ef93fbc",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "5c1771591654386914a7c00130ec38e1da16bc84a810aa6ef528b24c780b9c42",
+    "src/client/inventory/inspected.rs": "2be7e976d98196c7633aa07da24aa9507333f379ba5a354b3e29bfd5254dfcc0",
+    "scripts/run_inspected_crafting_recovery_live.py": "39db2676fd8aa16d31a2c6c9d5149d545b0e97450e0c5bfb1e665571922d0db6"
+  },
+  "evidence": {
+    "docs/evidence/mo12-inspected-recovery-1.16.1.report.json.gz": {
+      "sha256": "75b9e8fc4715cbd30e1a11dc39d60adf2ff0a14eab0c8a42a0a47a66ccacd7cb",
+      "uncompressed_sha256": "2474c4423e93e9243c3b40edc54523e7d20ab253523ac1d6242a133ebbd3d09f"
+    },
+    "docs/evidence/mo12-inspected-recovery-1.16.1.packets.jsonl.gz": {
+      "sha256": "2b18c4cd92c7fd53e06a1d47f8d5ffd31effba72e78bd5429357948530c51a8f",
+      "uncompressed_sha256": "7ef2c3781190b1696633fcfdd60e21c5b07e61dc4a518176e0a8fd0ec6bdad2b"
+    }
+  }
+}

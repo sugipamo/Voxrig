@@ -9,6 +9,12 @@
 
 ## Unreleased
 
+- Add `Client::recover_inspected_operational_crafting` and the bounded receipt
+  reader `Client::inspected_crafting_recovery`. A fresh immutable received
+  full-contents/cursor basis can release a terminal inspection owner after all
+  response/write debt is discharged. Original verdict, External, strict take,
+  send and divergence remain intact. See `docs/crafting-pickup-ownership.md`.
+
 - Bound plain survival digging to a 30-second total deadline on both adapters.
   Preserve original START/STOP/ABORT evidence and uncertain gates on expiry;
   expose native stages and estimates through the existing DigOperation snapshots,

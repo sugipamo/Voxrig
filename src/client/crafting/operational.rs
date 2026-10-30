@@ -62,6 +62,7 @@ pub(crate) struct Owner {
     pub(crate) outcome: OperationalCraftingOutcome,
     pub(crate) claimed: bool,
     pub(crate) released: bool,
+    pub(crate) scope_retired: bool,
     record: CraftingTakeRecord,
     before: InventorySnapshot,
     last: InventorySnapshot,
@@ -88,6 +89,7 @@ impl Owner {
             },
             claimed,
             released: false,
+            scope_retired: false,
             record: record.clone(),
             last: before.clone(),
             before,
@@ -254,6 +256,11 @@ impl Owner {
         current: &InventorySnapshot,
         ready: bool,
     ) {
+        if current.session != self.before.session || current.source != self.before.source {
+            self.scope_retired = true;
+            self.fail("operational crafting scope/send retired");
+            return;
+        }
         if self.released || self.outcome.stage == OperationalCraftingStage::RequiresInspection {
             return;
         }
