@@ -347,6 +347,78 @@ pub struct ScreenObservation {
     pub cursor: Option<ObservedValue<SlotKnowledge>>,
 }
 
+/// Effective container selection at one immutable observation boundary.
+/// Closed does not establish player-UI readiness or permission to send.
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum ActiveScreen<'a> {
+    /// Matching received window, with no submitted close for another opening.
+    Open(&'a ContainerScreen),
+    /// Player window zero with no container, or this exact opening locally closed.
+    Closed,
+    /// Inconsistent or insufficient evidence; do not treat a container as active.
+    Unknown(ActiveScreenUnknown),
+}
+impl<'a> ActiveScreen<'a> {
+    /// The known open container only. Unknown and Closed both return None.
+    pub fn as_open(self) -> Option<&'a ContainerScreen> {
+        match self {
+            Self::Open(screen) => Some(screen),
+            Self::Closed | Self::Unknown(_) => None,
+        }
+    }
+}
+/// Why this observation cannot establish an effective screen.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum ActiveScreenUnknown {
+    /// A retained local close belongs to another opening (or no screen is observed).
+    CloseTargetsDifferentScreen {
+        /// Original close target, including opening sequence.
+        closed: ScreenId,
+        /// Screen retained by this observation, if any.
+        observed: Option<ScreenId>,
+    },
+    /// The active numeric window differs from the retained screen.
+    WindowMismatch,
+    /// No screen is retained and player window zero has not been established.
+    MissingScreen,
+}
+impl ScreenObservation {
+    /// Select using only this observation's window, access, and received screen.
+    /// SubmittedClose for this exact ScreenId is Closed; a different opening is
+    /// Unknown, including reuse of the same numeric window. Inventory snapshots
+    /// share this implementation and select only Open.
+    pub fn active_screen(&self) -> ActiveScreen<'_> {
+        select_active_screen(self.active_window, self.player_screen, self.screen.as_ref())
+    }
+}
+
+pub(crate) fn select_active_screen(
+    active_window: Option<i32>,
+    player_screen: Option<PlayerScreenAccess>,
+    screen: Option<&ContainerScreen>,
+) -> ActiveScreen<'_> {
+    if let Some(PlayerScreenAccess::SubmittedClose { close }) = player_screen {
+        return if screen.is_some_and(|s| s.id == close.screen()) {
+            ActiveScreen::Closed
+        } else {
+            ActiveScreen::Unknown(ActiveScreenUnknown::CloseTargetsDifferentScreen {
+                closed: close.screen(),
+                observed: screen.map(|s| s.id),
+            })
+        };
+    }
+    match screen {
+        Some(screen) if active_window == Some(screen.id.window_id()) => ActiveScreen::Open(screen),
+        Some(_) => ActiveScreen::Unknown(ActiveScreenUnknown::WindowMismatch),
+        None if active_window == Some(0) => ActiveScreen::Closed,
+        None => ActiveScreen::Unknown(ActiveScreenUnknown::MissingScreen),
+    }
+}
+
 #[derive(Clone, serde::Deserialize)]
 struct NativeMenu {
     native_id: i32,

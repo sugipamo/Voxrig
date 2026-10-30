@@ -686,6 +686,24 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::json!({"record": parent, "error": result.err().map(|e| e.to_string()),
                     "player": client.player_state().await?})
             }
+            "capture_inventory_view" => {
+                let count = request["count"].as_u64().unwrap_or(1).min(512);
+                let mut captures = Vec::new();
+                for i in 0..count {
+                    let cut = if i % 2 == 0 {
+                        survival.capture_inventory_view().await?
+                    } else { client.creative().capture_inventory_view().await? };
+                    let basis_matches = if let Some(id) = recovery_send {
+                        client.operational_crafting_outcome(id).await.ok()
+                            .and_then(|r| r.basis).map(|b| b.basis_matches_current(&cut))
+                    } else { None };
+                    captures.push(serde_json::json!({"capture":cut,
+                        "active_screen":cut.screen().active_screen(), "snapshot":cut.snapshot(),
+                        "basis_matches":basis_matches}));
+                    if count > 1 { tokio::time::sleep(Duration::from_millis(2)).await; }
+                }
+                serde_json::to_value(captures)?
+            }
             "screen" => serde_json::to_value(client.screen_state().await?)?,
             "screen_properties" => serde_json::to_value(client.screen_properties().await?)?,
             "crafting" => serde_json::to_value(client.received_crafting().await?)?,

@@ -6769,9 +6769,9 @@ async fn entity_target_passenger_packets_retire_edges_without_rebinding_reused_i
 }
 
 #[tokio::test]
-async fn inventory_move_capture_is_coherent_during_received_traffic() {
-    use crate::client::adapter::CoreOps;
+async fn atomic_inventory_capture_is_coherent_and_bounded() {
     let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
     let writes = async {
         for _ in 0..100 {
             let mut health = 20f32.to_be_bytes().to_vec();
@@ -6788,14 +6788,28 @@ async fn inventory_move_capture_is_coherent_during_received_traffic() {
     };
     let reads = async {
         for _ in 0..100 {
-            let (p, s, r) = CoreOps::inventory_move_capture(&api).await.unwrap();
+            let cut = client.capture_inventory_view().await.unwrap();
+            let (p, s) = (cut.player(), cut.screen());
             assert_eq!(p.session, s.session);
-            assert_eq!(p.session, r.session());
             assert_eq!(p.receive_sequence, s.receive_sequence);
-            assert_eq!(p.receive_sequence, r.receive_sequence());
             tokio::task::yield_now().await;
         }
     };
     tokio::join!(writes, reads);
+    let gate = session.state.lock().await;
+    tokio::time::pause();
+    let mut blocked = Box::pin(client.capture_inventory_view());
+    std::future::poll_fn(|cx| {
+        use std::future::Future;
+        assert!(blocked.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    tokio::time::advance(std::time::Duration::from_secs(5) + std::time::Duration::from_millis(1))
+        .await;
+    assert_eq!(blocked.await.unwrap_err().kind(), crate::ErrorKind::Timeout);
+    tokio::time::resume();
+    drop(gate);
+    assert!(client.capture_inventory_view().await.is_ok());
     session.stop();
 }

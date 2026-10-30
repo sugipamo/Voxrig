@@ -599,6 +599,11 @@ impl Survival {
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await
     }
+    /// Passive atomic player/inventory and screen read with a five-second budget.
+    /// See [`Client::capture_inventory_view`]; the handle grants no mode permission.
+    pub async fn capture_inventory_view(&self) -> Result<super::InventoryViewCapture> {
+        self.client.capture_inventory_view().await
+    }
     /// Start continuous control from the current SDK model with released keys
     /// and the current local yaw/pitch. A received pose is still required.
     /// Same-world restarts retain model momentum without replaying old velocity
@@ -1020,6 +1025,11 @@ impl Creative {
     /// Other tasks may send while it is pending.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await
+    }
+    /// Passive atomic player/inventory and screen read with a five-second budget.
+    /// See [`Client::capture_inventory_view`]; the handle grants no mode permission.
+    pub async fn capture_inventory_view(&self) -> Result<super::InventoryViewCapture> {
+        self.client.capture_inventory_view().await
     }
     /// Dispatch a view rotation under received creative-mode admission.
     pub async fn look(&self, rotation: [f32; 2]) -> Result<DispatchReceipt> {

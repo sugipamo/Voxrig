@@ -276,7 +276,7 @@ impl Owner {
                 .outcome
                 .basis
                 .as_ref()
-                .is_none_or(|b| !b.delta(current).slots.is_empty())
+                .is_none_or(|b| !b.matches_current_snapshot(current))
             {
                 self.fail("inventory changed before operational continuation");
             }
@@ -451,7 +451,7 @@ impl Owner {
                 .outcome
                 .basis
                 .as_ref()
-                .is_none_or(|b| !b.delta(current).slots.is_empty())
+                .is_none_or(|b| !b.matches_current_snapshot(current))
         {
             return Err(unavailable(
                 "operational continuation requires unchanged proven full inventory",

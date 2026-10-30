@@ -32,6 +32,7 @@ include = [
     "/scripts/run_hand_swap_live.py",
     "/scripts/run_use_item_expect_live.py",
     "/scripts/run_guarded_use_live.py",
+    "/scripts/run_atomic_inventory_capture_live.py",
     "/scripts/run_body_live.py",
     "/scripts/run_health_log_live.py",
     "/scripts/run_hotbar_changes_live.py",

@@ -2,7 +2,7 @@
 //!
 //! Passive observation reads include [`Client::connection_status`], [`Client::player_state`],
 //! [`Client::received_inventory`], [`Client::player_context`],
-//! [`Client::server_registry_state`], [`Client::screen_state`],
+//! [`Client::server_registry_state`], [`Client::screen_state`], [`Client::capture_inventory_view`],
 //! [`Client::received_recipes`], [`Client::received_recipe_ghost`],
 //! [`Client::received_crafting_context`], [`Client::recipe_book_materials`],
 //! [`Client::received_crafting`], [`Client::chunk_cache`], [`Client::capture`] and [`Client::observe_region`],
@@ -91,12 +91,14 @@ mod hash_ops;
 pub(crate) mod identifier;
 pub mod inventory;
 mod inventory_helpers;
+mod inventory_view;
 #[cfg(test)]
 pub(crate) use inventory_helpers::scripted_tests as inventory_helper_tests;
 pub use inventory_helpers::{
     CraftOnceError, CraftOnceRecord, CraftOnceUnknownCause, CraftingFillRecord,
     InventoryMoveRecord, InventoryMoveStage,
 };
+pub use inventory_view::InventoryViewCapture;
 pub mod guarded_use;
 mod item;
 pub(crate) mod item_components;
@@ -348,15 +350,15 @@ pub mod prelude {
         DismountGrounding, DismountId, DismountRecord, DismountStage, EntityId,
         EntityMotionObservation, EntityMotionPacket, EntityPosition, EntityPositionCorrection,
         EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord,
-        FlightStage, FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch,
-        ItemData, ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
-        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
-        ReceivedRecipeGhost, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock,
-        RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
-        RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,
-        RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
-        RecipeTrimPattern, RespawnRecord, RespawnStage, Server, Support, Survival,
-        VehicleObservation, VehicleRelation,
+        FlightStage, FurnaceObservation, FurnaceSlot, GameMode, InventoryViewCapture,
+        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId,
+        PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
+        ReceivedItem, ReceivedRecipe, ReceivedRecipeGhost, ReceivedRecipes, ReceivedSlot,
+        RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout,
+        RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount, RecipePlacementId,
+        RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage,
+        RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, RespawnRecord, RespawnStage,
+        Server, Support, Survival, VehicleObservation, VehicleRelation,
     };
     pub use super::{
         ConnectionRetirement, DigWait, OperationCompletion, OperationFailure, OperationLimits,
