@@ -229,3 +229,6 @@ ender eyeを挿入し、serverの `eye=true` と受信inventoryの3→2を確認
 slot不一致・item不一致は各0 block-use packets、一致は各1 packetです。
 [実機サマリー](evidence/use-on-block-expect-live-20261025.json)と隣接の圧縮reportに
 元packet・期待値/観測値・source/binary hashを保持しています。
+
+See [guarded native admission](guarded-item-use.md) for additive synchronous checks
+after readiness/writer waits and explicit received-empty UseOn expectations.

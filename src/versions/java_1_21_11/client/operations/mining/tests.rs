@@ -3125,3 +3125,6 @@ mod use_item_expect_tests;
 
 #[path = "use_on_block_expect_tests.rs"]
 mod use_on_block_expect_tests;
+
+#[path = "guarded_use_tests.rs"]
+mod guarded_use_tests;

@@ -320,6 +320,28 @@ async fn main() -> anyhow::Result<()> {
                 .map(|entity| serde_json::json!({"entity":entity.motion.entity,"sleeping":entity.sleeping(),"pose":entity.pose()}))
                 .collect::<Vec<_>>()),
             "use_item" => serde_json::to_value(survival.use_item(Hand::Main).await?)?,
+            "use_item_guarded" | "use_on_block_guarded" => {
+                use voxrig::client::guarded_use::{BlockUseTarget, HeldItemExpectation};
+                let hand = if request["offhand"] == true { Hand::Off } else { Hand::Main };
+                let expected = if request["slot"].is_null() { None } else {
+                    Some(HeldItemExpectation {
+                        selected_hotbar: request["slot"].as_u64().unwrap().try_into()?,
+                        item: request["item"].as_str().map(|s| client.registry().item(s).map(|i| i.id)).transpose()?,
+                    })
+                };
+                let allow = request["allow"].as_bool().unwrap();
+                let result = if request["command"] == "use_on_block_guarded" {
+                    let target = BlockUseTarget {
+                        position: serde_json::from_value(request["support"].clone())?,
+                        face: face(&request)?, cursor: serde_json::from_value(request["cursor"].clone())?,
+                    };
+                    survival.use_on_block_guarded(target, hand, expected, move |_| allow).await
+                } else { survival.use_item_guarded(hand, expected, move |_| allow).await };
+                match result {
+                    Ok(result) => serde_json::to_value(result)?,
+                    Err(error) => serde_json::json!({"error":error.to_string(),"kind":format!("{:?}",error.kind())}),
+                }
+            },
             "use_item_expect" => {
                 let hand = if request["offhand"] == true { Hand::Off } else { Hand::Main };
                 let slot = request["slot"].as_u64().unwrap().try_into()?;

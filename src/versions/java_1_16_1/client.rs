@@ -9,6 +9,7 @@ mod common_control;
 mod common_crafting;
 mod common_entity_motion;
 mod common_entity_parts;
+mod guarded_use;
 mod inventory_execution;
 mod operational_dig;
 mod packet_names;
@@ -11273,3 +11274,6 @@ mod world_decode_failure_tests;
 
 #[cfg(test)]
 mod mo9_owned;
+
+#[cfg(test)]
+mod guarded_use_tests;

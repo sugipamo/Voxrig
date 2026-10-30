@@ -97,6 +97,7 @@ pub use inventory_helpers::{
     CraftOnceError, CraftOnceRecord, CraftOnceUnknownCause, CraftingFillRecord,
     InventoryMoveRecord, InventoryMoveStage,
 };
+pub mod guarded_use;
 mod item;
 pub(crate) mod item_components;
 pub(crate) mod item_constructor;
