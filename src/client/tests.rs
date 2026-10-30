@@ -532,6 +532,10 @@ pub(crate) async fn common_closed_player_screen_scenario(
     );
     assert_eq!(screen.player_screen, player.inventory.player_screen);
     assert_eq!(screen.active_window, Some(close.screen().window_id()));
+    assert!(screen.active_screen().as_open().is_none());
+    let capture = client.capture_inventory_view().await.unwrap();
+    assert!(capture.screen().active_screen().as_open().is_none());
+    assert!(capture.snapshot().screen.is_none());
     assert_eq!(screen.screen.unwrap().id, close.screen());
     assert!(!player.pending_dispatch);
     assert!(

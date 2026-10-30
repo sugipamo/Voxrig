@@ -1022,6 +1022,13 @@ pub(crate) async fn crafting_pickup_ownership(
     if success {
         let continued = client.continue_operational_crafting(send.id).await.unwrap();
         assert!(continued.released);
+        assert!(
+            continued
+                .basis
+                .as_ref()
+                .unwrap()
+                .basis_matches_current(&client.capture_inventory_view().await.unwrap())
+        );
         assert_eq!(
             continued
                 .basis
@@ -1934,4 +1941,174 @@ pub(crate) async fn inspected_table_recovery(f: &mut impl Fixture, reopen: bool)
         );
     }
     client.disconnect().await.unwrap();
+}
+
+/// Public capture keeps the original boundary even across later receives/close.
+pub(crate) async fn atomic_inventory_capture(f: &mut impl Fixture) {
+    use crate::client::container::{ActiveScreen, ActiveScreenUnknown, PlayerScreenAccess};
+    let client = f.client();
+    let mut slots = vec![SlotKnowledge::Empty; 46];
+    f.inventory(&slots, &SlotKnowledge::Empty).await;
+    f.open_crafting_table().await;
+    f.contents(3, &slots, &SlotKnowledge::Empty).await;
+    f.cursor(&SlotKnowledge::Empty).await;
+    let old = client.survival().capture_inventory_view().await.unwrap();
+    let screen = old.screen().active_screen().as_open().unwrap().id;
+    assert_eq!(old.player().session, old.screen().session);
+    assert_eq!(old.player().receive_sequence, old.screen().receive_sequence);
+    assert_eq!(old.player().inventory.window_id, old.screen().active_window);
+    assert_eq!(
+        old.player().inventory.player_screen,
+        old.screen().player_screen
+    );
+    assert_eq!(old.player().inventory.cursor, old.screen().cursor);
+    let basis = old.snapshot();
+    assert_eq!(basis.screen.as_ref().map(|s| s.id), Some(screen));
+    assert!(basis.basis_matches_current(&old));
+    // Selection is relative to each observation, including invalid/missing IDs.
+    for window in [None, Some(0), Some(4), Some(3)] {
+        let mut observation = old.screen().clone();
+        observation.active_window = window;
+        let mut inventory = old.player().inventory.clone();
+        inventory.window_id = window;
+        let expected = InventorySnapshot::from_inventory(
+            observation.session,
+            observation.receive_sequence,
+            &inventory,
+            observation.screen.clone(),
+        );
+        assert_eq!(
+            expected.screen.as_ref().map(|s| s.id),
+            observation.active_screen().as_open().map(|s| s.id)
+        );
+        assert_eq!(
+            observation.active_screen().as_open().is_some(),
+            window == Some(3)
+        );
+    }
+    let writes = async {
+        for count in 1..=32 {
+            slots[10] = item(client.version(), "minecraft:oak_log", count);
+            f.contents(3, &slots, &SlotKnowledge::Empty).await;
+            tokio::task::yield_now().await;
+        }
+    };
+    let reads = async {
+        for _ in 0..64 {
+            let cut = client.creative().capture_inventory_view().await.unwrap();
+            assert_eq!(cut.player().receive_sequence, cut.screen().receive_sequence);
+            assert_eq!(cut.player().session, cut.screen().session);
+            // Table screen slot 10 aliases canonical player slot 9.
+            assert_eq!(
+                cut.player().inventory.slots[9],
+                cut.screen().active_screen().as_open().unwrap().slots[10]
+            );
+            tokio::task::yield_now().await;
+        }
+    };
+    tokio::join!(writes, reads);
+    let changed = client.capture_inventory_view().await.unwrap();
+    assert!(changed.player().receive_sequence > old.player().receive_sequence);
+    assert!(!basis.basis_matches_current(&changed));
+    assert!(basis.basis_matches_current(&old));
+    let mut wrong_session = changed.snapshot();
+    wrong_session.session.world_generation += 1;
+    assert!(!wrong_session.basis_matches_current(&changed));
+    wrong_session = changed.snapshot();
+    wrong_session.session.connection_id += 1;
+    assert!(!wrong_session.basis_matches_current(&changed));
+    // Identical-value new receipts are accepted by ordinary continuation.
+    let same_values = changed.snapshot();
+    f.contents(3, &slots, &SlotKnowledge::Empty).await;
+    assert!(same_values.basis_matches_current(&client.capture_inventory_view().await.unwrap()));
+    let close = client.survival().close_container(screen).await.unwrap();
+    let closed = client.capture_inventory_view().await.unwrap();
+    assert!(matches!(closed.screen().player_screen,
+        Some(crate::client::container::PlayerScreenAccess::SubmittedClose { close: id }) if id == close.id));
+    assert_eq!(closed.screen().screen.as_ref().unwrap().id, screen);
+    assert!(matches!(
+        closed.screen().active_screen(),
+        ActiveScreen::Closed
+    ));
+    assert!(closed.snapshot().screen.is_none());
+    assert_eq!(closed.snapshot().source, InventorySource::Player);
+    assert!(!same_values.basis_matches_current(&closed));
+    assert!(old.screen().active_screen().as_open().is_some());
+
+    // A real new opening reuses the same numeric ID, but not its ScreenId.
+    f.open_crafting_table().await;
+    f.contents(3, &slots, &SlotKnowledge::Empty).await;
+    f.cursor(&SlotKnowledge::Empty).await;
+    let reopened = client.capture_inventory_view().await.unwrap();
+    let new_screen = reopened.screen().active_screen().as_open().unwrap().id;
+    assert_eq!(screen.window_id(), new_screen.window_id());
+    assert_ne!(screen.opened_sequence(), new_screen.opened_sequence());
+    assert!(!same_values.basis_matches_current(&reopened));
+    let mut different_source = reopened.snapshot();
+    different_source.source = InventorySource::Player;
+    assert!(!different_source.basis_matches_current(&reopened));
+    let mut different_cursor = reopened.snapshot();
+    different_cursor.cursor = None;
+    assert!(!different_cursor.basis_matches_current(&reopened));
+
+    // Every observation variant shares snapshot selection, including stale
+    // closes for another opening, missing evidence, and mismatched windows.
+    for retained in [
+        old.screen().screen.clone(),
+        reopened.screen().screen.clone(),
+        None,
+    ] {
+        for access in [
+            None,
+            Some(PlayerScreenAccess::Received),
+            closed.screen().player_screen,
+        ] {
+            for window in [None, Some(0), Some(3), Some(4)] {
+                let mut observation = reopened.screen().clone();
+                observation.screen = retained.clone();
+                observation.player_screen = access;
+                observation.active_window = window;
+                let selection = observation.active_screen();
+                if matches!(access, Some(PlayerScreenAccess::SubmittedClose { .. })) {
+                    if retained.as_ref().is_some_and(|s| s.id == screen) {
+                        assert!(matches!(selection, ActiveScreen::Closed));
+                    } else {
+                        assert!(matches!(selection,
+                            ActiveScreen::Unknown(ActiveScreenUnknown::CloseTargetsDifferentScreen {
+                                closed, observed
+                            }) if closed == screen && observed == retained.as_ref().map(|s| s.id)));
+                    }
+                } else if retained.is_some() {
+                    if window == Some(3) {
+                        assert!(matches!(selection, ActiveScreen::Open(_)));
+                    } else {
+                        assert!(matches!(
+                            selection,
+                            ActiveScreen::Unknown(ActiveScreenUnknown::WindowMismatch)
+                        ));
+                    }
+                } else if window == Some(0) {
+                    assert!(matches!(selection, ActiveScreen::Closed));
+                } else {
+                    assert!(matches!(
+                        selection,
+                        ActiveScreen::Unknown(ActiveScreenUnknown::MissingScreen)
+                    ));
+                }
+                let mut inventory = reopened.player().inventory.clone();
+                inventory.window_id = window;
+                inventory.player_screen = access;
+                let snapshot = InventorySnapshot::from_inventory(
+                    observation.session,
+                    observation.receive_sequence,
+                    &inventory,
+                    retained.clone(),
+                );
+                assert_eq!(
+                    snapshot.screen.as_ref().map(|s| s.id),
+                    selection.as_open().map(|s| s.id)
+                );
+            }
+        }
+    }
 }

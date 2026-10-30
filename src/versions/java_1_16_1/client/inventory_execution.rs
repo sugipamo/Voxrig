@@ -1531,6 +1531,18 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn atomic_inventory_capture_screen_and_basis() {
+        let (bot, packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.apply_packet(0x3f, vec![0]).await.unwrap();
+        let mut f = LegacyFixture { bot, packets };
+        Box::pin(script::atomic_inventory_capture(&mut f)).await;
+        drop(release);
+        drop(f);
+        server.await.unwrap();
+    }
+    #[tokio::test]
     async fn inspected_recovery_releases_only_fresh_debt_free_inspection() {
         for case in 0..4 {
             let (bot, packets, release, server) =

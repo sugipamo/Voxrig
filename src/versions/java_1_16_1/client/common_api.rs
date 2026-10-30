@@ -3375,10 +3375,10 @@ mod tests {
         assert_eq!(client.selected_hotbar_changes_after(0).await.unwrap(), log);
     }
     #[tokio::test]
-    async fn inventory_move_capture_is_coherent_during_received_traffic() {
-        use crate::client::adapter::CoreOps;
+    async fn atomic_inventory_capture_is_coherent_and_bounded() {
         let (bot, _packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
         let writes = async {
             for _ in 0..100 {
                 let mut health = 20f32.to_be_bytes().to_vec();
@@ -3390,15 +3390,31 @@ mod tests {
         };
         let reads = async {
             for _ in 0..100 {
-                let (p, s, r) = CoreOps::inventory_move_capture(&bot).await.unwrap();
+                let cut = client.capture_inventory_view().await.unwrap();
+                let (p, s) = (cut.player(), cut.screen());
                 assert_eq!(p.session, s.session);
-                assert_eq!(p.session, r.session());
                 assert_eq!(p.receive_sequence, s.receive_sequence);
-                assert_eq!(p.receive_sequence, r.receive_sequence());
                 tokio::task::yield_now().await;
             }
         };
         tokio::join!(writes, reads);
+        let gate = bot.coherent_state_gate.lock().await;
+        tokio::time::pause();
+        let mut blocked = Box::pin(client.capture_inventory_view());
+        std::future::poll_fn(|cx| {
+            use std::future::Future;
+            assert!(blocked.as_mut().poll(cx).is_pending());
+            std::task::Poll::Ready(())
+        })
+        .await;
+        tokio::time::advance(
+            std::time::Duration::from_secs(5) + std::time::Duration::from_millis(1),
+        )
+        .await;
+        assert_eq!(blocked.await.unwrap_err().kind(), crate::ErrorKind::Timeout);
+        tokio::time::resume();
+        drop(gate);
+        assert!(client.capture_inventory_view().await.is_ok());
         bot.disconnect().await.unwrap();
         drop(release);
         server.await.unwrap();

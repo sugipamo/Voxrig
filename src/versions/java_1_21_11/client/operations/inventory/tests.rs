@@ -6363,6 +6363,12 @@ mod single_owner {
         f.stop().await;
     }
     #[tokio::test]
+    async fn atomic_inventory_capture_screen_and_basis() {
+        let mut f = CommonFixture::new().await;
+        Box::pin(script::atomic_inventory_capture(&mut f)).await;
+        f.stop().await;
+    }
+    #[tokio::test]
     async fn inspected_recovery_releases_only_fresh_debt_free_inspection() {
         for case in 0..4 {
             let mut f = CommonFixture::new().await;

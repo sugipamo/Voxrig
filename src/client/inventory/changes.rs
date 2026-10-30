@@ -78,6 +78,21 @@ pub struct InventorySnapshot {
     pub cursor: Option<ObservedValue<SlotKnowledge>>,
 }
 impl InventorySnapshot {
+    /// Same session/opening and unchanged slot/cursor values at this capture.
+    /// Shares the operational continuation's inventory comparison. Unrelated
+    /// packets and identical-value receipts do not invalidate this comparison.
+    /// This is a planning check, not owner release or a send fence. It does not
+    /// check player mode/selection, pending debt, or mo12 recovery's stricter
+    /// full-content/cursor receipt ordinals. Call the continuation/recovery API
+    /// for admission; the connection can change after any capture.
+    pub fn basis_matches_current(&self, capture: &crate::client::InventoryViewCapture) -> bool {
+        self.matches_current_snapshot(&capture.snapshot())
+    }
+    pub(crate) fn matches_current_snapshot(&self, current: &Self) -> bool {
+        self.session == current.session
+            && self.source == current.source
+            && self.delta(current).slots.is_empty()
+    }
     pub(crate) fn capture(player: &PlayerObservation, screen: Option<ContainerScreen>) -> Self {
         Self::from_inventory(
             player.session,
@@ -92,13 +107,14 @@ impl InventorySnapshot {
         inventory: &InventoryObservation,
         screen: Option<ContainerScreen>,
     ) -> Self {
-        let screen = screen.filter(|s| {
-            inventory.window_id == Some(s.id.window_id())
-                && !matches!(
-                    inventory.player_screen,
-                    Some(crate::client::container::PlayerScreenAccess::SubmittedClose { .. })
-                )
-        });
+        let screen = match crate::client::container::select_active_screen(
+            inventory.window_id,
+            inventory.player_screen,
+            screen.as_ref(),
+        ) {
+            crate::client::container::ActiveScreen::Open(_) => screen,
+            _ => None,
+        };
         let source =
             screen
                 .as_ref()
