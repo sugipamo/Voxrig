@@ -70,25 +70,61 @@ impl CellRevisions {
         let cell = section.cells.entry(index).or_default();
         *cell = (*cell).max(sequence);
     }
-    /// Last ordinal that touched the cell. The caller checks that terrain for
-    /// the cell is loaded and inside the dimension.
-    pub(crate) fn revision(&self, p: [i32; 3]) -> Option<u64> {
-        let column = self.columns.get(&column(p)).filter(|c| c.loaded != 0)?;
-        Some(
-            column
-                .sections
-                .get(&p[1].div_euclid(16))
-                .map_or(column.loaded, |s| {
-                    let cell = s.cells.get(&index(p)).copied().unwrap_or(0);
-                    column.loaded.max(s.floor).max(cell)
-                }),
-        )
+    /// Latest ordinal over every cell of the inclusive box `min..=max`.
+    ///
+    /// `None` if any overlapping column is not `loaded` (per the world store)
+    /// or not yet stamped. Exact for kept cells; a column load and a section
+    /// floor count for every cell they cover, so the result is never earlier
+    /// than the real last touch. A single cell is the box `p..=p`. The caller
+    /// checks Y against the dimension and bounds the box size: the cost is one
+    /// visit per overlapping column plus its kept cells in overlapping sections.
+    pub(crate) fn latest(
+        &self,
+        min: [i32; 3],
+        max: [i32; 3],
+        loaded: impl Fn((i32, i32)) -> bool,
+    ) -> Option<u64> {
+        let sections = min[1].div_euclid(16)..=max[1].div_euclid(16);
+        let mut latest = 0;
+        for x in min[0].div_euclid(16)..=max[0].div_euclid(16) {
+            for z in min[2].div_euclid(16)..=max[2].div_euclid(16) {
+                if !loaded((x, z)) {
+                    return None;
+                }
+                let column = self.columns.get(&(x, z)).filter(|c| c.loaded != 0)?;
+                latest = latest.max(column.loaded);
+                for (&y, section) in &column.sections {
+                    if !sections.contains(&y) {
+                        continue;
+                    }
+                    latest = latest.max(section.floor);
+                    for (&index, &sequence) in &section.cells {
+                        let index = i32::from(index);
+                        let p = [
+                            x * 16 + index % 16,
+                            y * 16 + index / 256,
+                            z * 16 + index / 16 % 16,
+                        ];
+                        if (0..3).all(|a| (min[a]..=max[a]).contains(&p[a])) {
+                            latest = latest.max(sequence);
+                        }
+                    }
+                }
+            }
+        }
+        Some(latest)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl CellRevisions {
+        fn revision(&self, p: [i32; 3]) -> Option<u64> {
+            self.latest(p, p, |_| true)
+        }
+    }
 
     #[test]
     fn ordinals_follow_touches_reloads_and_loss() {
@@ -135,5 +171,67 @@ mod tests {
         }
         assert_eq!(r.revision([0, 20, 0]), Some(500));
         assert_eq!(r.revision([0, 16, 0]), Some(1));
+    }
+
+    #[test]
+    fn box_is_the_latest_of_its_cells_and_fails_closed() {
+        let mut r = CellRevisions::default();
+        for (i, c) in [[-1, -1], [-1, 0], [0, -1], [0, 0]].into_iter().enumerate() {
+            r.replaced(c);
+            r.stamp(c, 1 + i as u64);
+        }
+        // Deterministic spread of touches, including a collapsed section.
+        let mut seed = 7u32;
+        for sequence in 10..400u64 {
+            seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+            let v = (seed >> 8) as i32;
+            let p = [v % 24 - 12, (v >> 5) % 40 - 4, (v >> 11) % 24 - 12];
+            r.touch(p, sequence);
+        }
+        for i in 0..SECTION_CELLS as i32 + 1 {
+            r.touch([i % 16 - 16, 20, i / 16 - 16], 400 + i as u64);
+        }
+        let boxes = [
+            ([-12, -4, -12], [11, 35, 11]),
+            ([-3, 0, -3], [3, 6, 3]),
+            ([-1, 15, -1], [0, 16, 0]),
+            ([-16, 16, -16], [-15, 31, -15]),
+            ([5, -4, 5], [5, -4, 5]),
+            ([-12, 30, 4], [-2, 33, 9]),
+        ];
+        for (min, max) in boxes {
+            let mut cells = 0;
+            for x in min[0]..=max[0] {
+                for y in min[1]..=max[1] {
+                    for z in min[2]..=max[2] {
+                        cells = cells.max(r.revision([x, y, z]).unwrap());
+                    }
+                }
+            }
+            assert_eq!(
+                r.latest(min, max, |_| true),
+                Some(cells),
+                "{min:?}..={max:?}"
+            );
+        }
+        for i in 0..SECTION_CELLS as i32 + 1 {
+            let p = [i % 16 - 16, 20, i / 16 - 16];
+            assert!(
+                r.revision(p).unwrap() >= 400 + i as u64,
+                "never under-reported"
+            );
+        }
+        assert_eq!(
+            r.latest([-1, 0, -1], [16, 0, 0], |_| true),
+            None,
+            "x=16 unloaded"
+        );
+        assert_eq!(r.latest([0, 0, 0], [1, 1, 1], |c| c != (0, 0)), None);
+        r.replaced([0, 0]);
+        assert_eq!(
+            r.latest([-1, 0, -1], [0, 0, 0], |_| true),
+            None,
+            "unstamped"
+        );
     }
 }

@@ -364,3 +364,238 @@ pub(crate) async fn read_cells(f: &mut impl Fixture) {
     );
     f.silent().await;
 }
+
+type Captured = (
+    Vec<([i32; 3], Option<u64>)>,
+    Vec<(GuardedReadBox, Option<u64>)>,
+    u64,
+);
+/// One gated cut with both cells and boxes; the guard refuses, so no frame.
+async fn reads(client: &Client, cells: &[[i32; 3]], boxes: &[GuardedReadBox]) -> Captured {
+    let seen = Arc::new(std::sync::Mutex::new(None));
+    let sink = seen.clone();
+    let request = Request {
+        hand: Hand::Main,
+        target: None,
+        expected: None,
+    };
+    let result = client
+        .guarded_use(
+            Some(GameMode::Survival),
+            request,
+            Reads { cells, boxes },
+            Box::new(move |cut| {
+                let frozen = (cut.cells.clone(), cut.boxes.clone());
+                *sink.lock().unwrap() = Some((frozen, cut.player.receive_sequence));
+                false
+            }),
+        )
+        .await
+        .unwrap();
+    let GuardedUseResult::NotSent {
+        reason: UseNotSentReason::GuardRejected,
+        cut: Some(cut),
+    } = result
+    else {
+        panic!("guard did not run");
+    };
+    let ((cells, boxes), sequence) = seen.lock().unwrap().take().unwrap();
+    assert_eq!((&cut.cells, &cut.boxes), (&cells, &boxes));
+    for ordinal in cells.iter().map(|c| c.1).chain(boxes.iter().map(|b| b.1)) {
+        // Frozen with the player observation: never ahead of its boundary.
+        assert!(ordinal.is_none_or(|o| o <= sequence));
+    }
+    (cells, boxes, sequence)
+}
+async fn latest(client: &Client, boxes: &[GuardedReadBox]) -> (Vec<Option<u64>>, u64) {
+    let (_, read, sequence) = reads(client, &[], boxes).await;
+    assert_eq!(read.iter().map(|b| b.0).collect::<Vec<_>>(), boxes);
+    (read.into_iter().map(|b| b.1).collect(), sequence)
+}
+/// A 4×4×4 box (64 cells) read in the same cut as all its cells: the box is
+/// exactly the latest of its cells.
+async fn consistent(client: &Client, b: GuardedReadBox) -> Option<u64> {
+    let mut cells = Vec::new();
+    for x in b.min[0]..=b.max[0] {
+        for y in b.min[1]..=b.max[1] {
+            for z in b.min[2]..=b.max[2] {
+                cells.push([x, y, z]);
+            }
+        }
+    }
+    assert_eq!(cells.len(), MAX_GUARDED_READS);
+    let (cells, boxes, _) = reads(client, &cells, &[b]).await;
+    let max = cells.iter().try_fold(0, |m, c| c.1.map(|o| o.max(m)));
+    assert_eq!(boxes, [(b, max)], "box is the latest of its cells");
+    max
+}
+pub(crate) async fn read_boxes(f: &mut impl Fixture) {
+    let client = f.client();
+    f.mode(GameMode::Survival).await;
+    let b = |min, max| GuardedReadBox { min, max };
+    // Column (10, 10) is x/z 160..=175; column (11, 10) starts at x = 176.
+    let halo = b([160, 0, 160], [164, 4, 164]);
+    let straddle = b([174, 2, 160], [177, 4, 162]);
+    let tall = b([165, 10, 165], [165, 40, 165]);
+    let upper = b([165, 32, 165], [165, 40, 165]);
+    let below = b([160, -70, 160], [160, 0, 160]);
+    let small = b([160, 0, 160], [163, 3, 163]);
+    let boxes = [halo, straddle, tall, upper, below];
+    let (before, _) = latest(&client, &boxes).await;
+    assert_eq!(before, [None; 5], "unloaded");
+
+    f.chunk([10, 10]).await;
+    let (loaded, at_load) = latest(&client, &boxes).await;
+    let load = loaded[0].expect("loaded box");
+    assert!(load <= at_load);
+    assert_eq!(loaded, [Some(load), None, Some(load), Some(load), None]);
+    f.chunk([11, 10]).await;
+    let (both, _) = latest(&client, &boxes).await;
+    let load2 = both[1].expect("both columns loaded");
+    assert!(load2 > load, "latest column load wins");
+    assert_eq!(consistent(&client, small).await, Some(load));
+
+    // A block update inside a box advances it to the cut's boundary; one
+    // outside does not, and neither does entity or time traffic.
+    f.block([162, 2, 162], 1).await;
+    let (changed, at_change) = latest(&client, &boxes).await;
+    assert_eq!(changed[0], Some(at_change), "same boundary as the player");
+    assert_eq!(changed[1..4], [Some(load2), Some(load), Some(load)]);
+    f.block([166, 2, 166], 1).await;
+    f.block([165, 41, 165], 1).await;
+    f.block([178, 2, 160], 1).await;
+    f.unrelated().await;
+    let (quiet, at_quiet) = latest(&client, &boxes).await;
+    assert!(at_quiet > at_change);
+    assert_eq!(quiet, changed, "outside touches leave every box unchanged");
+    assert_eq!(consistent(&client, small).await, Some(at_change));
+
+    // Multi-block change with a cell inside the halo and the straddle box.
+    f.section(&[[170, 3, 170], [160, 0, 160]], 1).await;
+    let (multi, at_multi) = latest(&client, &boxes).await;
+    assert_eq!(multi[0], Some(at_multi));
+    assert_eq!(multi[1..4], [Some(load2), Some(load), Some(load)]);
+    assert_eq!(consistent(&client, small).await, Some(at_multi));
+    f.section(&[[176, 4, 162]], 1).await;
+    let (multi2, at_multi2) = latest(&client, &boxes).await;
+    assert_eq!(multi2[1], Some(at_multi2), "touched in the second column");
+    assert_eq!(multi2[0], Some(at_multi));
+
+    // More than 64 touched cells in a section collapse into its floor: every
+    // box overlapping that section reports at least that packet, never earlier.
+    let busy: Vec<[i32; 3]> = (0..65).map(|i| [166 + i % 10, 8, 166 + i / 10]).collect();
+    f.section(&busy, 1).await;
+    let (floor, at_floor) = latest(&client, &boxes).await;
+    assert_eq!(
+        floor[0],
+        Some(at_floor),
+        "conservative: halo shares section 0"
+    );
+    assert_eq!(floor[2], Some(at_floor), "tall box overlaps section 0");
+    assert_eq!(floor[3], Some(load), "section 2 is untouched");
+    assert_eq!(
+        floor[1],
+        Some(at_floor),
+        "straddle overlaps the busy section"
+    );
+    assert_eq!(consistent(&client, small).await, Some(at_floor));
+
+    // Chunk data inside a box supersedes and advances it.
+    f.chunk([10, 10]).await;
+    let (reloaded, at_reload) = latest(&client, &boxes).await;
+    let reload = reloaded[0].unwrap();
+    assert!(reload > at_floor && reload <= at_reload);
+    assert_eq!(reloaded[..4], [Some(reload); 4]);
+    assert_eq!(consistent(&client, small).await, Some(reload));
+
+    // Unloading any part of a box makes the whole box unknown.
+    f.unload([11, 10]).await;
+    let (gone, _) = latest(&client, &boxes).await;
+    assert_eq!(gone, [Some(reload), None, Some(reload), Some(reload), None]);
+
+    // Bounds: rejected before any wait, guard or frame; never truncated.
+    let section = b([0, 0, 0], [15, 15, 15]);
+    let rejected = [
+        vec![halo; MAX_GUARDED_BOXES + 1],
+        vec![b([0, 0, 0], [16, 15, 15])],
+        vec![b([0, 1, 0], [0, 0, 0])],
+        vec![halo, b([i32::MIN; 3], [i32::MAX; 3])],
+    ];
+    for boxes in &rejected {
+        let error = client
+            .survival()
+            .use_item_guarded_with_box_reads(Hand::Main, None, boxes, |_| panic!("over bound"))
+            .await
+            .unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+        let error = client
+            .creative()
+            .use_on_block_guarded_with_box_reads(
+                BlockUseTarget {
+                    position: [1, 0, 0],
+                    face: crate::BlockFace::Up,
+                    cursor: [0.5; 3],
+                },
+                Hand::Main,
+                None,
+                boxes,
+                |_| panic!("over bound"),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+    }
+    f.silent().await;
+    let max = vec![section; MAX_GUARDED_BOXES];
+    assert_eq!(latest(&client, &max).await.0, [None; MAX_GUARDED_BOXES]);
+
+    // Box reads leave cells empty, cell reads and existing APIs leave boxes
+    // empty, and a passing guard sends exactly one use frame.
+    let item = client
+        .survival()
+        .use_item_guarded_with_reads(Hand::Main, None, &[[162, 2, 162]], |cut| {
+            assert_eq!(cut.cells.len(), 1);
+            false
+        })
+        .await
+        .unwrap();
+    assert!(matches!(item, GuardedUseResult::NotSent { cut: Some(c), .. } if c.boxes.is_empty()));
+    let plain = client
+        .survival()
+        .use_item_guarded(Hand::Main, None, |_| false)
+        .await
+        .unwrap();
+    assert!(
+        matches!(plain, GuardedUseResult::NotSent { cut: Some(c), .. } if c.boxes.is_empty() && c.cells.is_empty())
+    );
+    let block = client
+        .survival()
+        .use_on_block_guarded_with_box_reads(
+            BlockUseTarget {
+                position: [1, 0, 0],
+                face: crate::BlockFace::Up,
+                cursor: [0.5; 3],
+            },
+            Hand::Main,
+            None,
+            &[halo],
+            |_| false,
+        )
+        .await
+        .unwrap();
+    assert!(
+        matches!(block, GuardedUseResult::NotSent { cut: Some(c), .. } if c.cells.is_empty() && c.boxes == [(halo, Some(reload))])
+    );
+    f.silent().await;
+    let sent = client
+        .survival()
+        .use_item_guarded_with_box_reads(Hand::Main, None, &[halo], |cut| cut.boxes[0].1.is_some())
+        .await
+        .unwrap();
+    let GuardedUseResult::Sent { cut, .. } = sent else {
+        panic!("box read guard passed but nothing was sent");
+    };
+    assert_eq!(cut.boxes, [(halo, Some(reload))]);
+    f.packet().await;
+    f.silent().await;
+}

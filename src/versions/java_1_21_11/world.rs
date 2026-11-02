@@ -47,21 +47,16 @@ impl World {
         }
         self.cells.stamp(position, sequence);
     }
-    /// Guarded-use read set: last touching receive ordinal, None outside loaded terrain.
-    pub(crate) fn cell_revisions(&self, reads: &[[i32; 3]]) -> Vec<([i32; 3], Option<u64>)> {
-        reads
-            .iter()
-            .map(|&p| {
-                let inside = self.dimension.as_ref().is_some_and(|(_, d)| {
-                    p[1] >= d.min_y
-                        && p[1] < d.min_y + d.height
-                        && self
-                            .chunks
-                            .contains_key(&(p[0].div_euclid(16), p[2].div_euclid(16)))
-                });
-                (p, inside.then(|| self.cells.revision(p)).flatten())
-            })
-            .collect()
+    /// Guarded-use read: latest touching receive ordinal over the inclusive box,
+    /// None if any part is outside loaded terrain or the current dimension.
+    pub(crate) fn guarded_read(&self, min: [i32; 3], max: [i32; 3]) -> Option<u64> {
+        let (_, d) = self.dimension.as_ref()?;
+        let inside = |y: i32| y >= d.min_y && y < d.min_y + d.height;
+        if !inside(min[1]) || !inside(max[1]) {
+            return None;
+        }
+        self.cells
+            .latest(min, max, |c| self.chunks.contains_key(&c))
     }
     pub(crate) fn context(
         &self,

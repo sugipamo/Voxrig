@@ -94,6 +94,12 @@ async fn guarded_use_read_cells() {
     f.stop().await;
 }
 #[tokio::test]
+async fn guarded_use_read_boxes() {
+    let mut f = Fixture::new().await;
+    Box::pin(guarded::tests::read_boxes(&mut f)).await;
+    f.stop().await;
+}
+#[tokio::test]
 async fn guarded_use_fresh_cut_after_gate_and_readiness() {
     for block in [false, true] {
         let mut f = Fixture::new().await;
