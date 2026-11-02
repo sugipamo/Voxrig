@@ -10884,7 +10884,7 @@ mod tests {
                 .unwrap();
             let mut change = target.packed().to_be_bytes().to_vec();
             put_varint(&mut change, wheat);
-            world.apply_block_change(&change).unwrap();
+            world.apply_block_change(&change, 0).unwrap();
         }
         assert!(
             bot.digging_info(target).await.visible,
@@ -10897,7 +10897,7 @@ mod tests {
                 .to_be_bytes()
                 .to_vec();
             put_varint(&mut change, 1);
-            world.apply_block_change(&change).unwrap();
+            world.apply_block_change(&change, 0).unwrap();
         }
         assert!(
             !bot.can_see_block(target).await,
@@ -10923,7 +10923,7 @@ mod tests {
                 .find(|id| crate::block_name_from_state(*id) == Some("oak_log"))
                 .unwrap();
             put_varint(&mut change, log);
-            world.apply_block_change(&change).unwrap();
+            world.apply_block_change(&change, 0).unwrap();
         }
         let worker = bot.clone();
         let digging = tokio::spawn(async move { worker.dig_block(target, BlockFace::Up).await });

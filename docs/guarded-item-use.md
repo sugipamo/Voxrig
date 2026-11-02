@@ -89,6 +89,53 @@ inspect without replay. As with other async Rust APIs, a callback that blocks th
 runtime cannot be preempted by a Tokio deadline; the short sync callback contract
 is required.
 
+## Read cells
+
+`use_item_guarded_with_reads(hand, expected, reads, check)` and
+`use_on_block_guarded_with_reads(target, hand, expected, reads, check)` take the
+same arguments plus `reads: &[[i32; 3]]` and fill `PhysicalCut.cells:
+Vec<([i32; 3], Option<u64>)>` in request order (duplicates kept). Existing guarded
+APIs pass no reads and their `cells` is empty. At most `MAX_GUARDED_READS` (64)
+cells are accepted; a longer list returns `InvalidInput` before any wait, guard or
+frame and is never truncated.
+
+Each ordinal is the receive sequence (the same counter as
+`player.receive_sequence`) of the last applied packet that touched the cell, read
+under the same gate as the player observation, so every ordinal is at most
+`player.receive_sequence`. Touching means:
+
+| Counts | Does not count |
+| --- | --- |
+| block change (also with an unchanged state) | light-only update |
+| multi-block / section change | block-entity data (NBT, not block state) |
+| 1.16.1 digging acknowledgement block state | entity spawn/move/metadata |
+| 1.16.1 explosion affected blocks | time, health, inventory and all other packets |
+| chunk data, full or partial: the whole column | |
+
+Light-only updates are excluded: received light is a separate fact that Voxrig
+already invalidates on block changes, and server relighting would otherwise make
+any read near activity look changed. `None` means unknown: the column is not
+loaded (never received, unloaded, evicted, world reset or dimension change), the
+Y is outside the dimension, or a chunk replacement is not yet bound to its packet.
+Callers must fail closed on `None`.
+
+Ordinals can be later than the actual last change but never earlier: a chunk
+reload sets every cell of the column, and a section with more than 64 touched
+cells since its column loaded collapses them into one section floor. Storage is a
+per-column load ordinal plus those bounded per-section maps, owned by the world
+store and dropped with the column. Entity overlap with a cell is not a cell touch;
+callers that depend on entities must compare entity observations separately.
+
+```rust,ignore
+let reads = [target, footing, halo_a, halo_b];
+let result = client.survival().use_item_guarded_with_reads(
+    Hand::Main, Some(expected), &reads, move |cut| {
+        cut.cells.iter().all(|(_, o)| o.is_some_and(|o| o <= prevalidated_sequence))
+            && policy_accepts(cut)
+    },
+).await?;
+```
+
 ## Native locking proof
 
 * Java 1.16.1 reserves actor queue capacity before taking the owned coherent gate.
@@ -108,6 +155,10 @@ is required.
   including the existing interrupted-write guard and complete flush. The mutable,
   mode, range and pending swap checks are the existing rules. No `send()` helper
   reacquires writer serialization after the guard.
+* Read cells come from the version world store under that same lock: 1.16.1 applies
+  every packet, including all terrain mutation, while holding the coherent gate, and
+  1.21.11 applies packets while holding the state lock. No additional lock is held
+  across the guard.
 
 These locks serialize local receive application, physics and submitted common
 pose/selection changes. Other unrelated protocol traffic may exist; NotSent means

@@ -1476,7 +1476,7 @@ fn apply_play(
                 .update_biomes(payload, chunk_capacity.maximum(), state.sequence)?;
         }
         input::BLOCK_CHANGE => {
-            let changes = state.world.block_change(payload)?;
+            let changes = state.world.block_change(payload, state.sequence)?;
             if let Some(capture) = &mut state.recording {
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
@@ -1486,7 +1486,7 @@ fn apply_play(
             operations::placement_received(state, &changes)?;
         }
         input::MULTI_BLOCK_CHANGE => {
-            let changes = state.world.section_changes(payload)?;
+            let changes = state.world.section_changes(payload, state.sequence)?;
             if let Some(capture) = &mut state.recording {
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
