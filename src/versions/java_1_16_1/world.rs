@@ -311,19 +311,15 @@ impl World {
         }
         self.cells.stamp(position, sequence);
     }
-    /// Guarded-use read set: last touching receive ordinal, None outside received terrain.
-    pub(crate) fn cell_revisions(&self, reads: &[[i32; 3]]) -> Vec<([i32; 3], Option<u64>)> {
-        reads
-            .iter()
-            .map(|&p| {
-                let inside = (0..256).contains(&p[1])
-                    && self
-                        .chunks
-                        .get(&(p[0].div_euclid(16), p[2].div_euclid(16)))
-                        .is_some_and(|c| c.terrain_received);
-                (p, inside.then(|| self.cells.revision(p)).flatten())
-            })
-            .collect()
+    /// Guarded-use read: latest touching receive ordinal over the inclusive box,
+    /// None if any part is outside received terrain or the dimension.
+    pub(crate) fn guarded_read(&self, min: [i32; 3], max: [i32; 3]) -> Option<u64> {
+        if !(0..256).contains(&min[1]) || !(0..256).contains(&max[1]) {
+            return None;
+        }
+        self.cells.latest(min, max, |c| {
+            self.chunks.get(&c).is_some_and(|c| c.terrain_received)
+        })
     }
     pub(crate) fn context(
         &self,

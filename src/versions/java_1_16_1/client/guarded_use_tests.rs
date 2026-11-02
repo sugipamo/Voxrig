@@ -109,6 +109,13 @@ async fn guarded_use_read_cells() {
     server.await.unwrap();
 }
 #[tokio::test]
+async fn guarded_use_read_boxes() {
+    let (mut f, server) = fixture().await;
+    Box::pin(guarded::tests::read_boxes(&mut f)).await;
+    drop(f);
+    server.await.unwrap();
+}
+#[tokio::test]
 async fn guarded_use_fresh_cut_after_gate_and_readiness() {
     for block in [false, true] {
         let (mut f, server) = fixture().await;

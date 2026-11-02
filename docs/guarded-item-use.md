@@ -136,6 +136,51 @@ let result = client.survival().use_item_guarded_with_reads(
 ).await?;
 ```
 
+## Box reads
+
+`use_item_guarded_with_box_reads(hand, expected, boxes, check)` and
+`use_on_block_guarded_with_box_reads(target, hand, expected, boxes, check)` take
+`boxes: &[GuardedReadBox]`, each an inclusive axis-aligned box
+`GuardedReadBox { min, max }` (every cell with `min[a] <= p[a] <= max[a]`), and
+fill `PhysicalCut.boxes: Vec<(GuardedReadBox, Option<u64>)>` in request order.
+Each value is the **latest** receive ordinal over every cell of the box, frozen
+under the same gate as `player` and `cells`; it is exactly the maximum of the
+per-cell reads above. `None` if any part of the box is not loaded, outside the
+dimension's Y range, or lost to a reset or dimension change. Box calls leave
+`cells` empty; cell calls and the existing APIs leave `boxes` empty. A single
+cell is the box `p..=p`.
+
+| Limit | Value | On violation |
+| --- | --- | --- |
+| `MAX_GUARDED_BOXES` | 16 boxes per call | `InvalidInput` |
+| `MAX_GUARDED_BOX_VOLUME` | 4096 cells per box (16³, one section), any shape | `InvalidInput` |
+| `min <= max` | on every axis | `InvalidInput` |
+
+Violations are rejected before any wait, cut, guard or frame and are never
+truncated or clamped. The query costs one visit per overlapping column plus its
+kept touched cells (at most 64 per section) in overlapping sections, so a call is
+bounded independent of world size.
+
+The section floor and the column load ordinal count for every cell they cover,
+so a box that only overlaps a busy section, or any part of a reloaded column,
+reports that ordinal: box results can be later than the real last change inside
+the box but never earlier.
+
+```rust,ignore
+use voxrig::client::guarded_use::GuardedReadBox;
+let boxes = [
+    GuardedReadBox { min: sub(target, 2), max: add(target, 2) }, // 5×5×5 halo
+    ray_box,
+    footing_box,
+];
+let result = client.survival().use_item_guarded_with_box_reads(
+    Hand::Main, Some(expected), &boxes, move |cut| {
+        cut.boxes.iter().all(|(_, o)| o.is_some_and(|o| o <= prevalidated_sequence))
+            && policy_accepts(cut)
+    },
+).await?;
+```
+
 ## Native locking proof
 
 * Java 1.16.1 reserves actor queue capacity before taking the owned coherent gate.
@@ -155,7 +200,7 @@ let result = client.survival().use_item_guarded_with_reads(
   including the existing interrupted-write guard and complete flush. The mutable,
   mode, range and pending swap checks are the existing rules. No `send()` helper
   reacquires writer serialization after the guard.
-* Read cells come from the version world store under that same lock: 1.16.1 applies
+* Read cells and boxes come from the version world store under that same lock: 1.16.1 applies
   every packet, including all terrain mutation, while holding the coherent gate, and
   1.21.11 applies packets while holding the state lock. No additional lock is held
   across the guard.

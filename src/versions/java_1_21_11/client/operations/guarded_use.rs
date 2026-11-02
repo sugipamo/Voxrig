@@ -6,7 +6,7 @@ impl Operations {
         &self,
         mode: Option<GameMode>,
         request: guarded::Request,
-        reads: &[[i32; 3]],
+        reads: guarded::Reads<'_>,
         check: guarded::Check,
         deadline: tokio::time::Instant,
         attempt: guarded::Attempt,
@@ -32,7 +32,7 @@ impl Operations {
         let cut = PhysicalCut::new(
             self.common_player_unlocked(&state)?,
             request.hand,
-            state.world.cell_revisions(reads),
+            reads.capture(|min, max| state.world.guarded_read(min, max)),
         );
         let sequence = self.next_sequence()?;
         let mut payload = Vec::new();
@@ -110,7 +110,7 @@ impl Operations {
                     target: None,
                     expected,
                 },
-                &[],
+                guarded::Reads::default(),
                 Box::new(check),
             )
             .await
@@ -134,7 +134,7 @@ impl Operations {
                     target: Some(target),
                     expected,
                 },
-                &[],
+                guarded::Reads::default(),
                 Box::new(check),
             )
             .await

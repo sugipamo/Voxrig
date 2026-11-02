@@ -16,6 +16,12 @@
 //! reads `None`; callers must fail closed. Ordinals can be later than the actual
 //! last change (a reload or a busy section counts as touching every cell) but
 //! never earlier.
+//!
+//! `*_with_box_reads` variants take at most [`MAX_GUARDED_BOXES`] inclusive
+//! [`GuardedReadBox`]es of at most [`MAX_GUARDED_BOX_VOLUME`] cells each and
+//! freeze, per box, the latest such ordinal over every cell in it: exactly the
+//! maximum of the per-cell reads, read under the same gate. A box reads `None`
+//! if any part of it is unloaded or outside the dimension.
 use super::{
     DispatchReceipt, GameMode, Hand, PlayerObservation, SlotKnowledge, registry::RegistryId,
 };
@@ -31,6 +37,85 @@ pub(crate) mod cells;
 /// Maximum cells in one guarded read set; longer lists are rejected before any
 /// wait or cut, never truncated.
 pub const MAX_GUARDED_READS: usize = 64;
+/// Maximum boxes in one guarded box read set; more are rejected before any wait
+/// or cut, never truncated.
+pub const MAX_GUARDED_BOXES: usize = 16;
+/// Maximum cells in one [`GuardedReadBox`] (one chunk section's worth, 16³); any
+/// shape is accepted. Larger boxes are rejected before any wait or cut.
+pub const MAX_GUARDED_BOX_VOLUME: u64 = 4096;
+
+/// Inclusive axis-aligned box of block positions for box reads: every cell with
+/// `min[a] <= p[a] <= max[a]` on all three axes. `min == max` is one cell.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize)]
+pub struct GuardedReadBox {
+    /// Lowest corner, inclusive.
+    pub min: [i32; 3],
+    /// Highest corner, inclusive; each axis must be at least `min`.
+    pub max: [i32; 3],
+}
+impl GuardedReadBox {
+    /// Cell count, or None if `max < min` on some axis.
+    fn volume(self) -> Option<u128> {
+        (0..3).try_fold(1u128, |v, a| {
+            let extent = i64::from(self.max[a]) - i64::from(self.min[a]) + 1;
+            (extent > 0).then(|| v * extent as u128)
+        })
+    }
+}
+/// Caller read set of one guarded invocation, validated before any wait.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Reads<'a> {
+    pub cells: &'a [[i32; 3]],
+    pub boxes: &'a [GuardedReadBox],
+}
+impl Reads<'_> {
+    fn validate(self) -> Result<()> {
+        if self.cells.len() > MAX_GUARDED_READS {
+            return Err(crate::error::invalid_input(
+                "guarded read set exceeds MAX_GUARDED_READS",
+            ));
+        }
+        if self.boxes.len() > MAX_GUARDED_BOXES {
+            return Err(crate::error::invalid_input(
+                "guarded box read set exceeds MAX_GUARDED_BOXES",
+            ));
+        }
+        for b in self.boxes {
+            match b.volume() {
+                None => {
+                    return Err(crate::error::invalid_input(
+                        "guarded read box max must be at least min on every axis",
+                    ));
+                }
+                Some(v) if v > u128::from(MAX_GUARDED_BOX_VOLUME) => {
+                    return Err(crate::error::invalid_input(
+                        "guarded read box exceeds MAX_GUARDED_BOX_VOLUME",
+                    ));
+                }
+                Some(_) => {}
+            }
+        }
+        Ok(())
+    }
+    /// Freeze the read set with the version world store's inclusive-box query.
+    /// Cells are one-cell boxes, so cell and box reads share one derivation.
+    pub(crate) fn capture(self, latest: impl Fn([i32; 3], [i32; 3]) -> Option<u64>) -> ReadCut {
+        ReadCut {
+            cells: self.cells.iter().map(|&p| (p, latest(p, p))).collect(),
+            boxes: self
+                .boxes
+                .iter()
+                .map(|&b| (b, latest(b.min, b.max)))
+                .collect(),
+        }
+    }
+}
+/// Values of a [`Reads`] set frozen under the native state gate.
+#[derive(Default)]
+pub(crate) struct ReadCut {
+    cells: Vec<([i32; 3], Option<u64>)>,
+    boxes: Vec<(GuardedReadBox, Option<u64>)>,
+}
 
 /// Selection and received held identity. Count and components are not compared.
 #[derive(Clone, Copy, Debug, serde::Serialize)]
@@ -66,13 +151,14 @@ pub struct PhysicalCut {
     /// last touched it under this same gate. None is unknown/unloaded: fail closed.
     /// Empty unless a `*_with_reads` API supplied cells.
     pub cells: Vec<([i32; 3], Option<u64>)>,
+    /// Requested boxes in request order, each with the latest receive ordinal
+    /// over all its cells under this same gate. None if any part is unknown,
+    /// unloaded or outside the dimension: fail closed. Empty unless a
+    /// `*_with_box_reads` API supplied boxes.
+    pub boxes: Vec<(GuardedReadBox, Option<u64>)>,
 }
 impl PhysicalCut {
-    pub(crate) fn new(
-        player: PlayerObservation,
-        hand: Hand,
-        cells: Vec<([i32; 3], Option<u64>)>,
-    ) -> Self {
+    pub(crate) fn new(player: PlayerObservation, hand: Hand, reads: ReadCut) -> Self {
         let slot = match hand {
             Hand::Main => player
                 .selected_hotbar
@@ -90,7 +176,8 @@ impl PhysicalCut {
             hand,
             slot,
             held,
-            cells,
+            cells: reads.cells,
+            boxes: reads.boxes,
         }
     }
     pub(crate) fn matches(&self, expected: HeldItemExpectation) -> bool {
@@ -260,15 +347,11 @@ impl Client {
         &self,
         mode: Option<GameMode>,
         request: Request,
-        reads: &[[i32; 3]],
+        reads: Reads<'_>,
         check: Check,
     ) -> Result<GuardedUseResult> {
         request.validate(self.version())?;
-        if reads.len() > MAX_GUARDED_READS {
-            return Err(crate::error::invalid_input(
-                "guarded read set exceeds MAX_GUARDED_READS",
-            ));
-        }
+        reads.validate()?;
         let deadline = Instant::now() + Duration::from_secs(5);
         let attempt = Attempt::new();
         let _cancel = CancelOnDrop(attempt.clone());
@@ -324,7 +407,7 @@ macro_rules! guarded_api {
                             target: None,
                             expected,
                         },
-                        &[],
+                        Reads::default(),
                         Box::new(check),
                     )
                     .await
@@ -350,7 +433,7 @@ macro_rules! guarded_api {
                             target: Some(target),
                             expected,
                         },
-                        &[],
+                        Reads::default(),
                         Box::new(check),
                     )
                     .await
@@ -376,7 +459,10 @@ macro_rules! guarded_api {
                             target: None,
                             expected,
                         },
-                        reads,
+                        Reads {
+                            cells: reads,
+                            boxes: &[],
+                        },
                         Box::new(check),
                     )
                     .await
@@ -401,7 +487,63 @@ macro_rules! guarded_api {
                             target: Some(target),
                             expected,
                         },
-                        reads,
+                        Reads {
+                            cells: reads,
+                            boxes: &[],
+                        },
+                        Box::new(check),
+                    )
+                    .await
+            }
+            /// `use_item_guarded` whose cut also carries `PhysicalCut::boxes`: per
+            /// box, the latest receive ordinal over all its cells. At most
+            /// `MAX_GUARDED_BOXES` boxes of at most `MAX_GUARDED_BOX_VOLUME` cells,
+            /// each with `min <= max`; otherwise InvalidInput without any wait or
+            /// send. See the `guarded_use` module for what touches a cell.
+            pub async fn use_item_guarded_with_box_reads<F>(
+                &self,
+                hand: Hand,
+                expected: Option<HeldItemExpectation>,
+                boxes: &[GuardedReadBox],
+                check: F,
+            ) -> Result<GuardedUseResult>
+            where
+                F: FnOnce(&PhysicalCut) -> bool + Send + 'static,
+            {
+                self.client
+                    .guarded_use(
+                        Some($mode),
+                        Request {
+                            hand,
+                            target: None,
+                            expected,
+                        },
+                        Reads { cells: &[], boxes },
+                        Box::new(check),
+                    )
+                    .await
+            }
+            /// `use_on_block_guarded` with the boxes of `use_item_guarded_with_box_reads`.
+            pub async fn use_on_block_guarded_with_box_reads<F>(
+                &self,
+                target: BlockUseTarget,
+                hand: Hand,
+                expected: Option<HeldItemExpectation>,
+                boxes: &[GuardedReadBox],
+                check: F,
+            ) -> Result<GuardedUseResult>
+            where
+                F: FnOnce(&PhysicalCut) -> bool + Send + 'static,
+            {
+                self.client
+                    .guarded_use(
+                        Some($mode),
+                        Request {
+                            hand,
+                            target: Some(target),
+                            expected,
+                        },
+                        Reads { cells: &[], boxes },
                         Box::new(check),
                     )
                     .await

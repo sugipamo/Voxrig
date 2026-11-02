@@ -9,7 +9,7 @@ impl Bot {
         &self,
         mode: Option<api::GameMode>,
         request: guarded::Request,
-        reads: &[[i32; 3]],
+        reads: guarded::Reads<'_>,
         check: guarded::Check,
         deadline: tokio::time::Instant,
         attempt: guarded::Attempt,
@@ -36,7 +36,10 @@ impl Bot {
         }
         // Packets apply world changes only while holding this coherent gate, so
         // the cells and the player observation share one applied-packet boundary.
-        let cells = self.world.lock().await.cell_revisions(reads);
+        let reads = {
+            let world = self.world.lock().await;
+            reads.capture(|min, max| world.guarded_read(min, max))
+        };
         let actual = self.inventory.read().await.selected_hotbar;
         if player
             .selected_hotbar
@@ -76,7 +79,7 @@ impl Bot {
                 super::super::lifecycle::GuardedUseCommand {
                     request,
                     check,
-                    cut: PhysicalCut::new(player, request.hand, cells),
+                    cut: PhysicalCut::new(player, request.hand, reads),
                     receipts: self.common_receipts.clone(),
                     id,
                     payload,
@@ -112,7 +115,7 @@ impl Bot {
                 target: None,
                 expected,
             },
-            &[],
+            guarded::Reads::default(),
             Box::new(check),
         )
         .await
@@ -142,7 +145,7 @@ impl Bot {
                 target: Some(target),
                 expected,
             },
-            &[],
+            guarded::Reads::default(),
             Box::new(check),
         )
         .await

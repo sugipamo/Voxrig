@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Add `use_item_guarded_with_box_reads` / `use_on_block_guarded_with_box_reads`
+  on Survival/Creative. `PhysicalCut.boxes` freezes, for at most
+  `guarded_use::MAX_GUARDED_BOXES` (16) inclusive `GuardedReadBox`es of at most
+  `MAX_GUARDED_BOX_VOLUME` (4096) cells each, the latest cell receive ordinal over
+  the box under the same gate as `player`; `None` if any part is unloaded or
+  outside the dimension. Bound violations return `InvalidInput` before any send.
+  Existing guarded APIs are unchanged and carry no boxes.
+
 - Add `use_item_guarded_with_reads` / `use_on_block_guarded_with_reads` on
   Survival/Creative. `PhysicalCut.cells` freezes, for at most
   `guarded_use::MAX_GUARDED_READS` (64) caller cells, the receive ordinal of the
