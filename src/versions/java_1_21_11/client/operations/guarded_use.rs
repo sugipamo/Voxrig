@@ -6,6 +6,7 @@ impl Operations {
         &self,
         mode: Option<GameMode>,
         request: guarded::Request,
+        reads: &[[i32; 3]],
         check: guarded::Check,
         deadline: tokio::time::Instant,
         attempt: guarded::Attempt,
@@ -27,7 +28,12 @@ impl Operations {
         if let Some(target) = request.target {
             self.check_server_block_range(&state, target.position)?;
         }
-        let cut = PhysicalCut::new(self.common_player_unlocked(&state)?, request.hand);
+        // Cells come from the same state lock as the player: one applied-packet boundary.
+        let cut = PhysicalCut::new(
+            self.common_player_unlocked(&state)?,
+            request.hand,
+            state.world.cell_revisions(reads),
+        );
         let sequence = self.next_sequence()?;
         let mut payload = Vec::new();
         put_varint(&mut payload, request.hand as i32);
@@ -104,6 +110,7 @@ impl Operations {
                     target: None,
                     expected,
                 },
+                &[],
                 Box::new(check),
             )
             .await
@@ -127,6 +134,7 @@ impl Operations {
                     target: Some(target),
                     expected,
                 },
+                &[],
                 Box::new(check),
             )
             .await

@@ -5,6 +5,17 @@
 //! Do not call Client/native APIs, block, acquire locks shared with Voxrig callers,
 //! or enter a runtime from a guard. No Client capability is passed to the guard.
 //! Unwinding panics are caught and reported as NotSent; panic=abort still aborts.
+//!
+//! `*_with_reads` variants also freeze, for at most [`MAX_GUARDED_READS`] caller
+//! cells, the receive ordinal of the last applied packet that set each cell's
+//! block state: block change, multi-block change, 1.16.1 digging acknowledgement
+//! and explosion blocks (even when the state is unchanged), and chunk data for
+//! the whole column. Light-only updates, block-entity data, entity, time and all
+//! other packets do not count. A column that is not loaded (never received,
+//! unloaded, evicted, reset or dimension change) or a Y outside the dimension
+//! reads `None`; callers must fail closed. Ordinals can be later than the actual
+//! last change (a reload or a busy section counts as touching every cell) but
+//! never earlier.
 use super::{
     DispatchReceipt, GameMode, Hand, PlayerObservation, SlotKnowledge, registry::RegistryId,
 };
@@ -14,6 +25,12 @@ use std::sync::{
     atomic::{AtomicU8, Ordering},
 };
 use tokio::time::{Duration, Instant};
+
+pub(crate) mod cells;
+
+/// Maximum cells in one guarded read set; longer lists are rejected before any
+/// wait or cut, never truncated.
+pub const MAX_GUARDED_READS: usize = 64;
 
 /// Selection and received held identity. Count and components are not compared.
 #[derive(Clone, Copy, Debug, serde::Serialize)]
@@ -45,9 +62,17 @@ pub struct PhysicalCut {
     pub slot: Option<usize>,
     /// Value and provenance for that slot; None means unknown.
     pub held: Option<super::ObservedValue<SlotKnowledge>>,
+    /// Requested read cells in request order, each with the receive ordinal that
+    /// last touched it under this same gate. None is unknown/unloaded: fail closed.
+    /// Empty unless a `*_with_reads` API supplied cells.
+    pub cells: Vec<([i32; 3], Option<u64>)>,
 }
 impl PhysicalCut {
-    pub(crate) fn new(player: PlayerObservation, hand: Hand) -> Self {
+    pub(crate) fn new(
+        player: PlayerObservation,
+        hand: Hand,
+        cells: Vec<([i32; 3], Option<u64>)>,
+    ) -> Self {
         let slot = match hand {
             Hand::Main => player
                 .selected_hotbar
@@ -65,6 +90,7 @@ impl PhysicalCut {
             hand,
             slot,
             held,
+            cells,
         }
     }
     pub(crate) fn matches(&self, expected: HeldItemExpectation) -> bool {
@@ -234,21 +260,27 @@ impl Client {
         &self,
         mode: Option<GameMode>,
         request: Request,
+        reads: &[[i32; 3]],
         check: Check,
     ) -> Result<GuardedUseResult> {
         request.validate(self.version())?;
+        if reads.len() > MAX_GUARDED_READS {
+            return Err(crate::error::invalid_input(
+                "guarded read set exceeds MAX_GUARDED_READS",
+            ));
+        }
         let deadline = Instant::now() + Duration::from_secs(5);
         let attempt = Attempt::new();
         let _cancel = CancelOnDrop(attempt.clone());
         let execution = async {
             match &self.adapter {
                 crate::connection::Adapter::Java1_16_1(bot) => {
-                    bot.guarded_use(mode, request, check, deadline, attempt.clone())
+                    bot.guarded_use(mode, request, reads, check, deadline, attempt.clone())
                         .await
                 }
                 crate::connection::Adapter::Java1_21_11(bot) => {
                     bot.operations()
-                        .guarded_use(mode, request, check, deadline, attempt.clone())
+                        .guarded_use(mode, request, reads, check, deadline, attempt.clone())
                         .await
                 }
             }
@@ -292,6 +324,7 @@ macro_rules! guarded_api {
                             target: None,
                             expected,
                         },
+                        &[],
                         Box::new(check),
                     )
                     .await
@@ -317,6 +350,58 @@ macro_rules! guarded_api {
                             target: Some(target),
                             expected,
                         },
+                        &[],
+                        Box::new(check),
+                    )
+                    .await
+            }
+            /// `use_item_guarded` whose cut also carries `PhysicalCut::cells` for
+            /// `reads` (at most `MAX_GUARDED_READS`, else InvalidInput without any
+            /// wait or send). See the `guarded_use` module for what touches a cell.
+            pub async fn use_item_guarded_with_reads<F>(
+                &self,
+                hand: Hand,
+                expected: Option<HeldItemExpectation>,
+                reads: &[[i32; 3]],
+                check: F,
+            ) -> Result<GuardedUseResult>
+            where
+                F: FnOnce(&PhysicalCut) -> bool + Send + 'static,
+            {
+                self.client
+                    .guarded_use(
+                        Some($mode),
+                        Request {
+                            hand,
+                            target: None,
+                            expected,
+                        },
+                        reads,
+                        Box::new(check),
+                    )
+                    .await
+            }
+            /// `use_on_block_guarded` with the read cells of `use_item_guarded_with_reads`.
+            pub async fn use_on_block_guarded_with_reads<F>(
+                &self,
+                target: BlockUseTarget,
+                hand: Hand,
+                expected: Option<HeldItemExpectation>,
+                reads: &[[i32; 3]],
+                check: F,
+            ) -> Result<GuardedUseResult>
+            where
+                F: FnOnce(&PhysicalCut) -> bool + Send + 'static,
+            {
+                self.client
+                    .guarded_use(
+                        Some($mode),
+                        Request {
+                            hand,
+                            target: Some(target),
+                            expected,
+                        },
+                        reads,
                         Box::new(check),
                     )
                     .await

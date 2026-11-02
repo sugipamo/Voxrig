@@ -537,7 +537,7 @@ fn standing_body_contacts_match_native_and_support_is_rechecked_after_world_edit
     assert_eq!(context(&mut s, 77, 0).unwrap().support, [[0, 0, 0]]);
     let mut change = pack_position([0, 0, 0]).to_be_bytes().to_vec();
     change.push(0);
-    s.world.block_change(&change).unwrap();
+    s.world.block_change(&change, 0).unwrap();
     let after = context(&mut s, 77, 0).unwrap();
     assert!(!after.on_ground);
     assert!(after.support.is_empty());

@@ -160,14 +160,14 @@ pub(crate) fn replay_packets(
                 });
             }
             0x0b => {
-                world.apply_block_change(p)?;
+                world.apply_block_change(p, sequence)?;
             }
             0x0f => {
-                world.apply_multi_block_change_with_changes(p)?;
+                world.apply_multi_block_change_with_changes(p, sequence)?;
             }
             0x07 => {
                 let ack = parse_digging_ack(p)?;
-                world.apply_acknowledged_block_state(ack.position, ack.block_state_id);
+                world.apply_acknowledged_block_state(ack.position, ack.block_state_id, sequence);
             }
             0x21 => {
                 world.apply_chunk(p, maximum_chunks)?;
@@ -177,7 +177,7 @@ pub(crate) fn replay_packets(
             }
             0x1c => {
                 let explosion = parse_explosion(p)?;
-                world.apply_explosion_blocks(&explosion.affected_blocks);
+                world.apply_explosion_blocks(&explosion.affected_blocks, sequence);
             }
             0x14 => {
                 let (window, slots) = parse_window_items(p)?;

@@ -30,7 +30,7 @@ fn legacy_world_state_id_raycast_parity() {
                     } else {
                         (rng(&mut seed) * 17104.0) as i32
                     };
-                    world.set_block(x, y, z, id);
+                    world.set_block(x, y, z, id, 0);
                 }
             }
         }
@@ -99,7 +99,7 @@ fn legacy_world_raycast_boundaries_and_partial_shapes() {
         for id in block["minStateId"].as_i64().unwrap()..=block["maxStateId"].as_i64().unwrap() {
             let mut world = World::default();
             world.chunks.insert((0, 0), Chunk::default());
-            world.set_block(1, 1, 1, id as i32);
+            world.set_block(1, 1, 1, id as i32, 0);
             for (o, d, distance) in [
                 ([0.0, 1.25, 1.5], [1.0, 0.0, 0.0], 1.0),
                 ([0.0, 1.75, 1.5], [1.0, 0.0, 0.0], 0.9999999995),
@@ -130,9 +130,9 @@ fn legacy_world_raycast_boundaries_and_partial_shapes() {
 fn legacy_world_unknown_state_keeps_the_existing_empty_shape_contract() {
     let mut world = World::default();
     world.chunks.insert((0, 0), Chunk::default());
-    world.set_block(3, 1, 1, 1);
+    world.set_block(3, 1, 1, 1, 0);
     for id in [-1, 17104, i32::MAX] {
-        world.set_block(1, 1, 1, id);
+        world.set_block(1, 1, 1, id, 0);
         let o = Vec3 {
             x: 0.5,
             y: 1.5,

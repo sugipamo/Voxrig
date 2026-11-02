@@ -45,6 +45,45 @@ impl guarded::tests::Fixture for Fixture {
                 .is_err()
         );
     }
+    async fn chunk(&mut self, column: [i32; 2]) {
+        let mut payload = [column[0].to_be_bytes(), column[1].to_be_bytes()].concat();
+        payload.extend([0; 6]);
+        self.bot.apply_packet(0x21, payload).await.unwrap();
+    }
+    async fn unload(&mut self, column: [i32; 2]) {
+        let payload = [column[0].to_be_bytes(), column[1].to_be_bytes()].concat();
+        self.bot.apply_packet(0x1d, payload).await.unwrap();
+    }
+    async fn block(&mut self, p: [i32; 3], state: i32) {
+        let mut payload = BlockPos {
+            x: p[0],
+            y: p[1],
+            z: p[2],
+        }
+        .packed()
+        .to_be_bytes()
+        .to_vec();
+        put_varint(&mut payload, state);
+        self.bot.apply_packet(0x0b, payload).await.unwrap();
+    }
+    async fn section(&mut self, cells: &[[i32; 3]], state: i32) {
+        let [x, _, z] = cells[0].map(|v| v.div_euclid(16));
+        let mut payload = [x.to_be_bytes(), z.to_be_bytes()].concat();
+        put_varint(&mut payload, cells.len() as i32);
+        for p in cells {
+            payload.push((p[0].rem_euclid(16) << 4 | p[2].rem_euclid(16)) as u8);
+            payload.push(p[1] as u8);
+            put_varint(&mut payload, state);
+        }
+        self.bot.apply_packet(0x0f, payload).await.unwrap();
+    }
+    async fn unrelated(&mut self) {
+        self.bot
+            .apply_packet(0x28, vec![5, 0, 1, 0, 0, 0, 0, 1])
+            .await
+            .unwrap();
+        self.bot.apply_packet(0x4e, vec![0; 16]).await.unwrap();
+    }
 }
 async fn fixture() -> (Fixture, tokio::task::JoinHandle<()>) {
     let (bot, packets, release, server) = super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
@@ -59,6 +98,13 @@ async fn fixture() -> (Fixture, tokio::task::JoinHandle<()>) {
 async fn guarded_use_contract() {
     let (mut f, server) = fixture().await;
     Box::pin(guarded::tests::contract(&mut f)).await;
+    drop(f);
+    server.await.unwrap();
+}
+#[tokio::test]
+async fn guarded_use_read_cells() {
+    let (mut f, server) = fixture().await;
+    Box::pin(guarded::tests::read_cells(&mut f)).await;
     drop(f);
     server.await.unwrap();
 }

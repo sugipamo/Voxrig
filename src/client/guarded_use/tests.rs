@@ -7,6 +7,14 @@ pub(crate) trait Fixture {
     async fn slot(&mut self, slot: i16, item: Option<RegistryId>);
     async fn packet(&mut self) -> (i32, Vec<u8>);
     async fn silent(&mut self);
+    /// Received column with all-air terrain.
+    async fn chunk(&mut self, column: [i32; 2]);
+    async fn unload(&mut self, column: [i32; 2]);
+    async fn block(&mut self, p: [i32; 3], state: i32);
+    /// One multi-block packet; all cells share one section.
+    async fn section(&mut self, cells: &[[i32; 3]], state: i32);
+    /// Entity movement and world time, the dominant non-terrain traffic.
+    async fn unrelated(&mut self);
 }
 pub(crate) async fn dispatch(
     client: &Client,
@@ -221,4 +229,138 @@ pub(crate) async fn contract(f: &mut impl Fixture) {
             assert_eq!(f.packet().await.0, ids[1]);
         }
     }
+}
+
+/// Reads the cut's cells and player receive ordinal; the guard refuses, so no frame.
+async fn cells(client: &Client, reads: &[[i32; 3]]) -> (Vec<([i32; 3], Option<u64>)>, u64) {
+    let seen = Arc::new(std::sync::Mutex::new(None));
+    let sink = seen.clone();
+    let result = client
+        .survival()
+        .use_item_guarded_with_reads(Hand::Main, None, reads, move |cut| {
+            *sink.lock().unwrap() = Some((cut.cells.clone(), cut.player.receive_sequence));
+            false
+        })
+        .await
+        .unwrap();
+    let GuardedUseResult::NotSent {
+        reason: UseNotSentReason::GuardRejected,
+        cut: Some(cut),
+    } = result
+    else {
+        panic!("guard did not run");
+    };
+    let (cells, sequence) = seen.lock().unwrap().take().unwrap();
+    assert_eq!(cut.cells, cells);
+    assert_eq!(cut.player.receive_sequence, sequence);
+    for (_, ordinal) in &cells {
+        // Frozen with the player observation: never ahead of its boundary.
+        assert!(ordinal.is_none_or(|o| o <= sequence));
+    }
+    (cells, sequence)
+}
+pub(crate) async fn read_cells(f: &mut impl Fixture) {
+    let client = f.client();
+    f.mode(GameMode::Survival).await;
+    let (target, halo, upper, far) = ([161, 2, 163], [162, 3, 163], [161, 40, 163], [200, 2, 50]);
+    let outside = [161, 400, 163];
+    let reads = [target, halo, upper, far, outside, target];
+    let (before, _) = cells(&client, &reads).await;
+    assert!(
+        before.iter().all(|(_, o)| o.is_none()),
+        "unloaded: {before:?}"
+    );
+    assert_eq!(
+        before.iter().map(|(p, _)| *p).collect::<Vec<_>>(),
+        reads,
+        "request order and duplicates are kept"
+    );
+    f.chunk([10, 10]).await;
+    f.chunk([12, 3]).await;
+    let (loaded, at_load) = cells(&client, &reads).await;
+    let load = loaded[0].1.expect("loaded cell");
+    assert!(load > 0 && load <= at_load);
+    assert_eq!(loaded[1].1, Some(load));
+    assert_eq!(loaded[2].1, Some(load));
+    assert_eq!(loaded[3].1.map(|o| o > load), Some(true), "own column load");
+    assert_eq!(loaded[4].1, None, "outside the dimension");
+    assert_eq!(loaded[5].1, Some(load));
+
+    // A block update on a read cell advances exactly that cell.
+    f.block(target, 1).await;
+    let (changed, at_change) = cells(&client, &reads).await;
+    assert_eq!(changed[0].1, Some(at_change), "same boundary as the player");
+    assert_eq!(changed[5].1, Some(at_change));
+    assert_eq!(changed[1].1, Some(load));
+    assert_eq!(changed[2].1, Some(load));
+    let far_load = changed[3].1;
+
+    // Far block, entity and time traffic advance the global ordinal only.
+    f.block([195, 2, 52], 1).await;
+    f.block([161, 60, 163], 1).await;
+    f.unrelated().await;
+    let (quiet, at_quiet) = cells(&client, &reads).await;
+    assert!(at_quiet > at_change);
+    assert_eq!(quiet[0].1, Some(at_change));
+    assert_eq!(quiet[1].1, Some(load));
+    assert_eq!(quiet[2].1, Some(load));
+    assert_eq!(quiet[3].1, far_load);
+
+    // A multi-block change touching a read cell advances it, even unchanged.
+    f.section(&[[160, 0, 160], halo, target], 1).await;
+    let (multi, at_multi) = cells(&client, &reads).await;
+    assert_eq!(multi[0].1, Some(at_multi));
+    assert_eq!(multi[1].1, Some(at_multi));
+    assert_eq!(multi[2].1, Some(load));
+
+    // Unload forgets the column; a reload supersedes its earlier cells.
+    f.unload([10, 10]).await;
+    let (gone, _) = cells(&client, &reads).await;
+    assert_eq!(gone[..3].iter().map(|c| c.1).collect::<Vec<_>>(), [None; 3]);
+    assert_eq!(gone[3].1, far_load);
+    f.chunk([10, 10]).await;
+    let (reloaded, at_reload) = cells(&client, &reads).await;
+    let reload = reloaded[0].1.unwrap();
+    assert!(reload > at_multi && reload <= at_reload);
+    assert_eq!(reloaded[1].1, Some(reload));
+
+    // The read set is bounded: rejected before any wait, guard or frame.
+    let many = vec![target; MAX_GUARDED_READS + 1];
+    let error = client
+        .survival()
+        .use_item_guarded_with_reads(Hand::Main, None, &many, |_| panic!("over bound"))
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+    let max = vec![target; MAX_GUARDED_READS];
+    assert_eq!(cells(&client, &max).await.0.len(), MAX_GUARDED_READS);
+    // Existing APIs carry no cells, and the block variant takes the same reads.
+    let plain = client
+        .survival()
+        .use_item_guarded(Hand::Main, None, |cut| {
+            assert!(cut.cells.is_empty());
+            false
+        })
+        .await
+        .unwrap();
+    assert!(matches!(plain, GuardedUseResult::NotSent { cut: Some(c), .. } if c.cells.is_empty()));
+    let block = client
+        .survival()
+        .use_on_block_guarded_with_reads(
+            BlockUseTarget {
+                position: [1, 0, 0],
+                face: crate::BlockFace::Up,
+                cursor: [0.5; 3],
+            },
+            Hand::Main,
+            None,
+            &[target],
+            |_| false,
+        )
+        .await
+        .unwrap();
+    assert!(
+        matches!(block, GuardedUseResult::NotSent { cut: Some(c), .. } if c.cells == [(target, Some(reload))])
+    );
+    f.silent().await;
 }

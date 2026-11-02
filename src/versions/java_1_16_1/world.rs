@@ -25,6 +25,7 @@ pub(crate) struct World {
     resource_index_entries: usize,
     resource_index_incomplete_chunks: BTreeSet<(i32, i32)>,
     storage: Arc<SharedChunkStorage>,
+    cells: crate::client::guarded_use::cells::CellRevisions,
 }
 
 impl Default for World {
@@ -308,6 +309,21 @@ impl World {
         if let Some(context) = self.contexts.get_mut(&(position[0], position[1])) {
             context.stamp(sequence);
         }
+        self.cells.stamp(position, sequence);
+    }
+    /// Guarded-use read set: last touching receive ordinal, None outside received terrain.
+    pub(crate) fn cell_revisions(&self, reads: &[[i32; 3]]) -> Vec<([i32; 3], Option<u64>)> {
+        reads
+            .iter()
+            .map(|&p| {
+                let inside = (0..256).contains(&p[1])
+                    && self
+                        .chunks
+                        .get(&(p[0].div_euclid(16), p[2].div_euclid(16)))
+                        .is_some_and(|c| c.terrain_received);
+                (p, inside.then(|| self.cells.revision(p)).flatten())
+            })
+            .collect()
     }
     pub(crate) fn context(
         &self,
@@ -328,6 +344,7 @@ impl World {
             resource_index_entries: 0,
             resource_index_incomplete_chunks: BTreeSet::new(),
             storage,
+            cells: Default::default(),
         }
     }
 
@@ -338,11 +355,12 @@ impl World {
         self.resource_index.clear();
         self.resource_index_entries = 0;
         self.resource_index_incomplete_chunks.clear();
+        self.cells.clear();
     }
 
-    pub(crate) fn apply_explosion_blocks(&mut self, positions: &[BlockPos]) {
+    pub(crate) fn apply_explosion_blocks(&mut self, positions: &[BlockPos], sequence: u64) {
         for position in positions {
-            self.set_block(position.x, position.y, position.z, 0);
+            self.set_block(position.x, position.y, position.z, 0, sequence);
         }
     }
     pub(crate) fn environment_state(&self, player: Aabb) -> EnvironmentState {
@@ -1240,6 +1258,7 @@ impl World {
         self.chunks.remove(&(p[0], p[1]));
         self.contexts.remove(&(p[0], p[1]));
         self.remove_resource_index_chunk((p[0], p[1]));
+        self.cells.forget(p);
     }
     pub(crate) fn cache_observation(
         &self,
@@ -1404,6 +1423,8 @@ impl World {
         }
         self.rebuild_resource_index_chunk(x, z);
         self.contexts.insert((x, z), context);
+        // Full or partial data: the whole column is touched, unknown until stamp_context.
+        self.cells.replaced([x, z]);
         Ok((x, z))
     }
 
@@ -1486,29 +1507,39 @@ impl World {
         Ok((x, z))
     }
 
-    pub(crate) fn apply_block_change(&mut self, payload: &[u8]) -> Result<(i32, i32, i32, i32)> {
+    pub(crate) fn apply_block_change(
+        &mut self,
+        payload: &[u8],
+        sequence: u64,
+    ) -> Result<(i32, i32, i32, i32)> {
         let mut c = Cursor::new(payload);
         let (x, y, z) = unpack_position(c.read_u64::<BigEndian>()?);
         let state_id = read_vi(&mut c)?;
         if c.position() as usize != payload.len() {
             bail!("trailing block change data");
         }
-        self.set_block(x, y, z, state_id);
+        self.set_block(x, y, z, state_id, sequence);
         Ok((x, y, z, state_id))
     }
 
-    pub(crate) fn apply_acknowledged_block_state(&mut self, position: BlockPos, state_id: i32) {
-        self.set_block(position.x, position.y, position.z, state_id);
+    pub(crate) fn apply_acknowledged_block_state(
+        &mut self,
+        position: BlockPos,
+        state_id: i32,
+        sequence: u64,
+    ) {
+        self.set_block(position.x, position.y, position.z, state_id, sequence);
     }
 
     #[cfg(test)]
     pub(crate) fn apply_multi_block_change(&mut self, payload: &[u8]) -> Result<usize> {
-        self.apply_multi_block_change_with_changes(payload)
+        self.apply_multi_block_change_with_changes(payload, 0)
             .map(|changes| changes.len())
     }
     pub(crate) fn apply_multi_block_change_with_changes(
         &mut self,
         payload: &[u8],
+        sequence: u64,
     ) -> Result<Vec<(BlockPos, i32)>> {
         let mut c = Cursor::new(payload);
         let chunk_x = c.read_i32::<BigEndian>()?;
@@ -1541,12 +1572,12 @@ impl World {
             bail!("trailing multi-block change data");
         }
         for (p, state_id) in &changes {
-            self.set_block(p.x, p.y, p.z, *state_id);
+            self.set_block(p.x, p.y, p.z, *state_id, sequence);
         }
         Ok(changes)
     }
 
-    fn set_block(&mut self, x: i32, y: i32, z: i32, state_id: i32) {
+    fn set_block(&mut self, x: i32, y: i32, z: i32, state_id: i32, sequence: u64) {
         let position = BlockPos { x, y, z };
         let Some(chunk) = self.chunks.get_mut(&(x.div_euclid(16), z.div_euclid(16))) else {
             return;
@@ -1567,6 +1598,7 @@ impl World {
             self.invalidate_light_neighborhood(x.div_euclid(16), z.div_euclid(16));
         }
         self.update_resource_index_block(position, old_state_id, state_id);
+        self.cells.touch([x, y, z], sequence);
     }
 
     fn invalidate_light_neighborhood(&mut self, x: i32, z: i32) {
@@ -1584,7 +1616,7 @@ impl World {
 
     #[cfg(test)]
     pub(crate) fn set_block_for_test(&mut self, position: BlockPos, state_id: i32) {
-        self.set_block(position.x, position.y, position.z, state_id);
+        self.set_block(position.x, position.y, position.z, state_id, 0);
     }
 }
 
@@ -2016,7 +2048,7 @@ mod tests {
             saved.biomes.as_ref().unwrap().source
         );
         assert!(!partial.block_entities_complete);
-        world.set_block(-15, 1, -15, 2);
+        world.set_block(-15, 1, -15, 2, 0);
         assert!(
             world
                 .context([-1, -1], session, 12)
@@ -2101,7 +2133,7 @@ mod tests {
             p.extend(0i32.to_be_bytes());
             p.extend([0; 6]);
             world.apply_chunk(&p, 98).unwrap();
-            world.set_block(x * 16, 64, 0, 1);
+            world.set_block(x * 16, 64, 0, 1, 0);
             world
                 .chunks
                 .get_mut(&(x, 0))
@@ -2207,7 +2239,10 @@ mod tests {
         world.chunks.insert((6, -13), Chunk::default());
         let mut packet = pack_position(99, 4, -198).to_be_bytes().to_vec();
         crate::versions::java_1_16_1::protocol::put_varint(&mut packet, 1);
-        assert_eq!(world.apply_block_change(&packet).unwrap(), (99, 4, -198, 1));
+        assert_eq!(
+            world.apply_block_change(&packet, 0).unwrap(),
+            (99, 4, -198, 1)
+        );
         assert_eq!(world.block(99, 4, -198), Some(1));
     }
 
@@ -2287,7 +2322,7 @@ mod tests {
         let first = BlockPos { x: 1, y: 4, z: 2 };
         let second = BlockPos { x: 3, y: 4, z: 2 };
         let third = BlockPos { x: 5, y: 4, z: 2 };
-        world.set_block(first.x, first.y, first.z, iron);
+        world.set_block(first.x, first.y, first.z, iron, 0);
         assert_eq!(
             world.query_resource_index(query_region(first, first), "iron_ore", 4),
             ResourceIndexQuery::Complete {
@@ -2297,7 +2332,7 @@ mod tests {
         );
 
         world
-            .apply_block_change(&block_change_packet(first, stone))
+            .apply_block_change(&block_change_packet(first, stone), 0)
             .unwrap();
         assert_eq!(
             world.query_resource_index(query_region(first, first), "iron_ore", 4),
@@ -2307,9 +2342,9 @@ mod tests {
             }
         );
         world
-            .apply_block_change(&block_change_packet(first, iron))
+            .apply_block_change(&block_change_packet(first, iron), 0)
             .unwrap();
-        world.set_block(second.x, second.y, second.z, stone);
+        world.set_block(second.x, second.y, second.z, stone, 0);
         world
             .apply_multi_block_change(&multi_block_change_packet(
                 0,
@@ -2325,7 +2360,7 @@ mod tests {
             }
         );
 
-        world.apply_explosion_blocks(&[first]);
+        world.apply_explosion_blocks(&[first], 0);
         assert_eq!(
             world.query_resource_index(query_region(first, second), "iron_ore", 4),
             ResourceIndexQuery::Complete {
@@ -2333,7 +2368,7 @@ mod tests {
                 omitted: 0
             }
         );
-        world.apply_acknowledged_block_state(third, iron);
+        world.apply_acknowledged_block_state(third, iron, 0);
         assert_eq!(
             world.query_resource_index(query_region(first, third), "iron_ore", 4),
             ResourceIndexQuery::Complete {
@@ -2348,7 +2383,7 @@ mod tests {
         let iron = indexed_state("iron_ore");
         let mut world = World::default();
         world.chunks.insert((2, -3), Chunk::default());
-        world.set_block(32, 2, -48, iron);
+        world.set_block(32, 2, -48, iron, 0);
         assert!(matches!(world.query_resource_index(
             query_region(BlockPos { x: 32, y: 2, z: -48 }, BlockPos { x: 32, y: 2, z: -48 }),
             "iron_ore", 4), ResourceIndexQuery::Complete { candidates, omitted: 0 }
@@ -2380,7 +2415,7 @@ mod tests {
             }
         );
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 0, 0, iron);
+        world.set_block(0, 0, 0, iron, 0);
         world.clear();
         assert!(world.chunks.is_empty());
         assert!(world.resource_index.is_empty());
@@ -2394,9 +2429,9 @@ mod tests {
         let mut world = World::default();
         world.chunks.insert((-1, -1), Chunk::default());
         let negative = BlockPos { x: -1, y: 0, z: -1 };
-        world.set_block(negative.x, negative.y, negative.z, iron);
-        world.set_block(-1, -1, -1, iron);
-        world.set_block(-1, 256, -1, iron);
+        world.set_block(negative.x, negative.y, negative.z, iron, 0);
+        world.set_block(-1, -1, -1, iron, 0);
+        world.set_block(-1, 256, -1, iron, 0);
         assert_eq!(
             world.query_resource_index(
                 query_region(
@@ -2472,9 +2507,9 @@ mod tests {
     fn block_query_filters_state_ids_and_honors_limit() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(1, 2, 3, 1);
-        world.set_block(2, 2, 3, 1);
-        world.set_block(3, 2, 3, 2);
+        world.set_block(1, 2, 3, 1, 0);
+        world.set_block(2, 2, 3, 1, 0);
+        world.set_block(3, 2, 3, 2, 0);
         let found = world
             .query_blocks(
                 BlockRegion::new(
@@ -2510,7 +2545,7 @@ mod tests {
         let wheat = (0..18000)
             .find(|id| crate::block_name_from_state(*id) == Some("wheat"))
             .unwrap();
-        world.set_block(target.x, target.y, target.z, wheat);
+        world.set_block(target.x, target.y, target.z, wheat, 0);
         let origin = Vec3 {
             x: 15.5,
             y: 1.5,
@@ -2539,7 +2574,7 @@ mod tests {
     fn raycast_uses_collision_shapes_and_reports_entering_face() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 1, 3, 1);
+        world.set_block(0, 1, 3, 1, 0);
         let hit = world
             .raycast_blocks(
                 Vec3 {
@@ -2564,7 +2599,7 @@ mod tests {
     fn raycast_ignores_air_and_respects_max_distance() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 1, 3, 1);
+        world.set_block(0, 1, 3, 1, 0);
         let origin = Vec3 {
             x: 0.5,
             y: 1.5,
@@ -2583,8 +2618,8 @@ mod tests {
     fn full_block_collision_stops_floor_and_wall_motion() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 0, 0, 1);
-        world.set_block(1, 1, 0, 1);
+        world.set_block(0, 0, 0, 1, 0);
+        world.set_block(1, 1, 0, 1, 0);
         let player = Aabb::player(0.5, 1.0, 0.5);
         let (_, actual) = world
             .collide(
@@ -2764,7 +2799,7 @@ mod tests {
             );
         }
         let old = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
-        world.set_block(-1, 0, -1, 1);
+        world.set_block(-1, 0, -1, 1, 0);
         for x in -2..=0 {
             assert_eq!(world.light_at(x * 16, 0, -16), None);
         }
@@ -2775,7 +2810,7 @@ mod tests {
         let restored = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
         assert_eq!(restored.block_light(0, 0, 0), Some(14));
         assert_eq!(restored.sky_light(0, 0, 0), None);
-        world.set_block(-1, 0, -1, 1);
+        world.set_block(-1, 0, -1, 1, 0);
         assert_eq!(
             world
                 .chunk_snapshot(ChunkPos { x: -1, z: -1 })
@@ -2889,7 +2924,7 @@ mod tests {
         let position = BlockPos { x: -1, y: 0, z: -1 };
         let old = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
         world
-            .apply_block_change(&block_change_packet(position, 14))
+            .apply_block_change(&block_change_packet(position, 14), 0)
             .unwrap();
         assert_eq!(world.block(-1, 0, -1), Some(14));
         assert_neighborhood_lit(&world);
@@ -2902,7 +2937,7 @@ mod tests {
             .unwrap();
         assert_eq!(world.block(-1, 0, -1), Some(10));
         assert_neighborhood_lit(&world);
-        world.apply_acknowledged_block_state(position, 1);
+        world.apply_acknowledged_block_state(position, 1, 0);
         assert_neighborhood_lit(&world);
         assert_eq!(old.block(15, 0, 15), Some(1));
         assert_eq!(old.block_light(15, 0, 15), Some(14));
@@ -2929,10 +2964,10 @@ mod tests {
     #[test]
     fn opaque_equivalence_never_restores_invalidated_arrays() {
         let mut world = lit_opaque_neighborhood();
-        world.set_block(-1, 0, -1, 0);
+        world.set_block(-1, 0, -1, 0, 0);
         assert_eq!(world.light_at(-16, 0, -16), None);
-        world.set_block(-1, 0, -1, 1);
-        world.set_block(-1, 0, -1, 14);
+        world.set_block(-1, 0, -1, 1, 0);
+        world.set_block(-1, 0, -1, 14, 0);
         assert_eq!(world.light_at(-16, 0, -16), None);
         world
             .apply_light(&framed_light_packet([0, 2, 0, 0], &[[0xaa; 2048]]), 256)
@@ -2941,7 +2976,7 @@ mod tests {
         assert_eq!(c.block_light(0, 0, 0), Some(10));
         assert_eq!(c.sky_light(0, 0, 0), None);
         assert_eq!(world.light_at(-32, 0, -16), None);
-        world.set_block(-1, 0, -1, 10);
+        world.set_block(-1, 0, -1, 10, 0);
         assert_eq!(
             world
                 .chunk_snapshot(ChunkPos { x: -1, z: -1 })
@@ -2987,7 +3022,7 @@ mod tests {
     fn real_light_changes_still_invalidate_both_channels_and_neighbors() {
         for state in [0, 1435, 4013, 231, 8300, -1, i32::MAX] {
             let mut world = lit_opaque_neighborhood();
-            world.set_block(-1, 0, -1, state);
+            world.set_block(-1, 0, -1, state, 0);
             for x in -2..=0 {
                 for z in -2..=0 {
                     assert_eq!(world.light_at(x * 16, 0, z * 16), None);
@@ -3044,7 +3079,7 @@ mod tests {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
         let player = Aabb::player(0.5, 4.0, 4.0);
-        world.set_block(0, 4, 5, 3580);
+        world.set_block(0, 4, 5, 3580, 0);
         let (_, closed) = world
             .collide(
                 player,
@@ -3056,7 +3091,7 @@ mod tests {
             )
             .unwrap();
         assert!(closed.z < 2.0);
-        world.set_block(0, 4, 5, 3582);
+        world.set_block(0, 4, 5, 3582, 0);
         let (_, open) = world
             .collide(
                 player,
@@ -3075,9 +3110,9 @@ mod tests {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
         for x in 0..3 {
-            world.set_block(x, 0, 0, 1);
+            world.set_block(x, 0, 0, 1, 0);
         }
-        world.set_block(1, 1, 0, 8302);
+        world.set_block(1, 1, 0, 8302, 0);
         let (moved, actual) = world
             .collide_with_step(
                 Aabb::player(0.5, 1.0, 0.5),
@@ -3098,7 +3133,7 @@ mod tests {
     fn sneak_limits_motion_past_platform_edge() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 0, 0, 1);
+        world.set_block(0, 0, 0, 1, 0);
         let player = Aabb::player(0.5, 1.0, 0.5);
         let (dx, _) = world.limit_sneak_movement(player, 1.0, 0.0).unwrap();
         assert!(dx < 1.0);
@@ -3109,17 +3144,17 @@ mod tests {
     fn fluid_detection_observes_surface_height_and_kind() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 1, 0, 34);
+        world.set_block(0, 1, 0, 34, 0);
         assert_eq!(
             world.fluid_intersecting(Aabb::player(0.5, 1.2, 0.5)),
             Some(Fluid::Water)
         );
-        world.set_block(0, 1, 0, 50);
+        world.set_block(0, 1, 0, 50, 0);
         assert_eq!(
             world.fluid_intersecting(Aabb::player(0.5, 1.2, 0.5)),
             Some(Fluid::Lava)
         );
-        world.set_block(0, 1, 0, 41);
+        world.set_block(0, 1, 0, 41, 0);
         assert_eq!(world.fluid_intersecting(Aabb::player(0.5, 1.3, 0.5)), None);
     }
 
@@ -3128,14 +3163,14 @@ mod tests {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
         let player = Aabb::player(0.5, 1.0, 0.5);
-        world.set_block(0, 1, 0, 40); // level 6, historical trapped stance
+        world.set_block(0, 1, 0, 40, 0); // level 6, historical trapped stance
         assert!(!world.swimming_jump(player, Fluid::Water, true));
         assert!(world.swimming_jump(player, Fluid::Water, false));
-        world.set_block(0, 1, 0, 34);
+        world.set_block(0, 1, 0, 34, 0);
         assert!(world.swimming_jump(player, Fluid::Water, true));
-        world.set_block(0, 1, 0, 39); // level 5 is still shallower than 0.4
+        world.set_block(0, 1, 0, 39, 0); // level 5 is still shallower than 0.4
         assert!(!world.swimming_jump(player, Fluid::Water, true));
-        world.set_block(0, 2, 0, 34);
+        world.set_block(0, 2, 0, 34, 0);
         assert!(world.swimming_jump(player, Fluid::Water, true));
         let unknown = Aabb::player(16.5, 1.0, 0.5);
         assert!(world.swimming_jump(unknown, Fluid::Water, true));
@@ -3145,8 +3180,8 @@ mod tests {
     fn fluid_wall_exit_requires_known_dry_collision_free_headroom() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 1, 0, 39); // shallow flowing water
-        world.set_block(1, 1, 0, 1); // lip
+        world.set_block(0, 1, 0, 39, 0); // shallow flowing water
+        world.set_block(1, 1, 0, 1, 0); // lip
         let pose = Aabb::player(0.7, 1.5, 0.5);
         let velocity = Vec3 {
             x: 0.0,
@@ -3166,18 +3201,18 @@ mod tests {
             None
         );
         // A low ceiling and deep water must not create an upward impulse.
-        world.set_block(0, 3, 0, 1);
+        world.set_block(0, 3, 0, 1, 0);
         assert_eq!(
             world.fluid_exit_boost(pose, velocity, 0.04, Some(Fluid::Water), true),
             None
         );
-        world.set_block(0, 3, 0, 0);
-        world.set_block(0, 2, 0, 34);
+        world.set_block(0, 3, 0, 0, 0);
+        world.set_block(0, 2, 0, 34, 0);
         assert_eq!(
             world.fluid_exit_boost(pose, velocity, 0.04, Some(Fluid::Water), true),
             None
         );
-        world.set_block(0, 2, 0, 0);
+        world.set_block(0, 2, 0, 0, 0);
         assert_eq!(
             world.fluid_exit_boost(
                 Aabb::player(0.7, 1.4, 0.5),
@@ -3199,11 +3234,11 @@ mod tests {
     fn fluid_flow_points_from_source_toward_lower_level() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(0, 1, 0, 34);
-        world.set_block(1, 1, 0, 39);
-        world.set_block(-1, 1, 0, 1);
-        world.set_block(0, 1, -1, 1);
-        world.set_block(0, 1, 1, 1);
+        world.set_block(0, 1, 0, 34, 0);
+        world.set_block(1, 1, 0, 39, 0);
+        world.set_block(-1, 1, 0, 1, 0);
+        world.set_block(0, 1, -1, 1, 0);
+        world.set_block(0, 1, 1, 1, 0);
         let flow = world.fluid_flow(Aabb::player(0.5, 1.0, 0.5), Fluid::Water);
         assert!(flow.x > 0.99);
         assert!(flow.z.abs() < 1.0e-9);
@@ -3215,12 +3250,12 @@ mod tests {
         world.chunks.insert((0, 0), Chunk::default());
         let player = Aabb::player(0.5, 1.0, 0.5);
         for state in [3637, 4788, 14755] {
-            world.set_block(0, 1, 0, state);
+            world.set_block(0, 1, 0, state, 0);
             assert!(
                 world.is_climbable(player),
                 "state {state} was not climbable"
             );
-            world.set_block(0, 1, 0, 0);
+            world.set_block(0, 1, 0, 0, 0);
         }
         assert!(!world.is_climbable(player));
     }
@@ -3229,8 +3264,8 @@ mod tests {
     fn scaffolding_allows_horizontal_entry_and_upward_climb() {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
-        world.set_block(1, 1, 0, 14755);
-        world.set_block(1, 2, 0, 14755);
+        world.set_block(1, 1, 0, 14755, 0);
+        world.set_block(1, 2, 0, 14755, 0);
         let (entered, horizontal) = world
             .collide(
                 Aabb::player(0.5, 1.0, 0.5),
@@ -3261,15 +3296,15 @@ mod tests {
         let mut world = World::default();
         world.chunks.insert((0, 0), Chunk::default());
         let player = Aabb::player(0.5, 1.0, 0.5);
-        world.set_block(0, 0, 0, 9648);
+        world.set_block(0, 0, 0, 9648, 0);
         assert_eq!(world.block_below_name(player), Some("blue_ice"));
-        world.set_block(0, 1, 0, 1341);
+        world.set_block(0, 1, 0, 1341, 0);
         assert!(world.contact_effects(player).cobweb);
-        world.set_block(0, 1, 0, 14954);
+        world.set_block(0, 1, 0, 14954, 0);
         assert!(world.contact_effects(player).berry_bush);
-        world.set_block(0, 1, 0, 9668);
+        world.set_block(0, 1, 0, 9668, 0);
         assert_eq!(world.contact_effects(player).bubble_push, 1);
-        world.set_block(0, 1, 0, 9667);
+        world.set_block(0, 1, 0, 9667, 0);
         assert_eq!(world.contact_effects(player).bubble_push, -1);
 
         let environment = world.environment_state(player);
@@ -3295,12 +3330,12 @@ mod tests {
             let mut world = World::default();
             world.chunks.insert((0, 0), Chunk::default());
             for z in 0..12 {
-                world.set_block(0, 0, z, 1);
+                world.set_block(0, 0, z, 1, 0);
             }
             match fixture.name.as_str() {
-                "wall" => world.set_block(0, 1, 4, 1),
-                "slab" => world.set_block(0, 1, 2, 8303),
-                "stairs" => world.set_block(0, 1, 2, 1965),
+                "wall" => world.set_block(0, 1, 4, 1, 0),
+                "slab" => world.set_block(0, 1, 2, 8303, 0),
+                "stairs" => world.set_block(0, 1, 2, 1965, 0),
                 _ => unreachable!(),
             }
             let mut position = Vec3 {

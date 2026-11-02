@@ -9,6 +9,14 @@
 
 ## Unreleased
 
+- Add `use_item_guarded_with_reads` / `use_on_block_guarded_with_reads` on
+  Survival/Creative. `PhysicalCut.cells` freezes, for at most
+  `guarded_use::MAX_GUARDED_READS` (64) caller cells, the receive ordinal of the
+  last block/multi-block change, digging acknowledgement, explosion or chunk data
+  that touched each cell, under the same gate as `player`. Unloaded cells read
+  `None`; light-only, block-entity, entity and time packets do not count. Existing
+  guarded APIs are unchanged and carry no cells.
+
 - Add `Client::recover_inspected_operational_crafting` and the bounded receipt
   reader `Client::inspected_crafting_recovery`. A fresh immutable received
   full-contents/cursor basis can release a terminal inspection owner after all

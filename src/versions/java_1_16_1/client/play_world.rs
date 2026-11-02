@@ -13,6 +13,7 @@ impl Bot {
         self.world.lock().await.apply_acknowledged_block_state(
             acknowledgement.position,
             acknowledgement.block_state_id,
+            packet_sequence,
         );
         self.body_evidence.lock().await.push(
             packet_sequence,
@@ -80,7 +81,11 @@ impl Bot {
     }
 
     pub(super) async fn receive_block_change(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
-        let (x, y, z, state_id) = self.world.lock().await.apply_block_change(p)?;
+        let (x, y, z, state_id) = self
+            .world
+            .lock()
+            .await
+            .apply_block_change(p, packet_sequence)?;
         self.advance_block_geometry_revision();
         self.world_updated.notify_waiters();
         self.common_mining_target_received([x, y, z], state_id, packet_sequence, None)
@@ -104,7 +109,7 @@ impl Bot {
             .world
             .lock()
             .await
-            .apply_multi_block_change_with_changes(p)?;
+            .apply_multi_block_change_with_changes(p, packet_sequence)?;
         let count = changes.len();
         if let Some(kind) =
             crate::client::events::bounds(changes.iter().map(|(p, _)| [p.x, p.y, p.z]))
@@ -160,7 +165,7 @@ impl Bot {
         self.world
             .lock()
             .await
-            .apply_explosion_blocks(&explosion.affected_blocks);
+            .apply_explosion_blocks(&explosion.affected_blocks, sequence);
         self.advance_block_geometry_revision();
         self.world_updated.notify_waiters();
         let mut motion = self.motion.lock().await;

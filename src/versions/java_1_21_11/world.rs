@@ -36,6 +36,7 @@ pub(crate) struct World {
     chunks: HashMap<(i32, i32), Vec<Arc<[i32; 4096]>>>,
     contexts: HashMap<(i32, i32), crate::client::chunk_context::ChunkData>,
     light: HashMap<(i32, i32), ColumnLight>,
+    cells: crate::client::guarded_use::cells::CellRevisions,
     pub revision: u64,
 }
 
@@ -44,6 +45,23 @@ impl World {
         if let Some(context) = self.contexts.get_mut(&(position[0], position[1])) {
             context.stamp(sequence);
         }
+        self.cells.stamp(position, sequence);
+    }
+    /// Guarded-use read set: last touching receive ordinal, None outside loaded terrain.
+    pub(crate) fn cell_revisions(&self, reads: &[[i32; 3]]) -> Vec<([i32; 3], Option<u64>)> {
+        reads
+            .iter()
+            .map(|&p| {
+                let inside = self.dimension.as_ref().is_some_and(|(_, d)| {
+                    p[1] >= d.min_y
+                        && p[1] < d.min_y + d.height
+                        && self
+                            .chunks
+                            .contains_key(&(p[0].div_euclid(16), p[2].div_euclid(16)))
+                });
+                (p, inside.then(|| self.cells.revision(p)).flatten())
+            })
+            .collect()
     }
     pub(crate) fn context(
         &self,
@@ -137,7 +155,7 @@ impl World {
                 let empty = Arc::new([0; 4096]);
                 vec![empty; (dimension.height / 16) as usize]
             });
-        self.set_block(p, id).unwrap();
+        self.set_block(p, id, 0).unwrap();
     }
     pub fn select_dimension(&mut self, name: String, dimension: Dimension) {
         self.dimension = Some((name, dimension));
@@ -145,6 +163,7 @@ impl World {
         self.chunks.clear();
         self.contexts.clear();
         self.light.clear();
+        self.cells.clear();
         self.revision += 1;
     }
     pub fn reset(&mut self) {
@@ -153,6 +172,7 @@ impl World {
         self.chunks.clear();
         self.contexts.clear();
         self.light.clear();
+        self.cells.clear();
         self.revision += 1;
     }
     /// A loaded column's sections (shared) and its received light.
@@ -216,7 +236,7 @@ impl World {
                 as usize],
         )
     }
-    fn set_block(&mut self, p: [i32; 3], id: i32) -> Result<()> {
+    fn set_block(&mut self, p: [i32; 3], id: i32, sequence: u64) -> Result<()> {
         super::validate_state_id(id)?;
         let dimension = self
             .dimension
@@ -243,19 +263,24 @@ impl World {
                 }
                 self.invalidate_light(p[0].div_euclid(16), p[2].div_euclid(16));
             }
+            self.cells.touch(p, sequence);
             self.revision += 1;
         }
         Ok(())
     }
-    pub fn block_change(&mut self, payload: &[u8]) -> Result<Vec<([i32; 3], i32)>> {
+    pub fn block_change(&mut self, payload: &[u8], sequence: u64) -> Result<Vec<([i32; 3], i32)>> {
         let mut r = Reader::new(payload);
         let p = unpack_position(r.u64()?);
         let id = r.varint()?;
         r.end()?;
-        self.set_block(p, id)?;
+        self.set_block(p, id, sequence)?;
         Ok(vec![(p, id)])
     }
-    pub fn section_changes(&mut self, payload: &[u8]) -> Result<Vec<([i32; 3], i32)>> {
+    pub fn section_changes(
+        &mut self,
+        payload: &[u8],
+        sequence: u64,
+    ) -> Result<Vec<([i32; 3], i32)>> {
         let mut r = Reader::new(payload);
         let p = r.u64()?;
         let x = (p as i64 >> 42) as i32;
@@ -292,7 +317,7 @@ impl World {
             bail!("section update outside dimension");
         }
         for (p, id) in &changes {
-            self.set_block(*p, *id)?;
+            self.set_block(*p, *id, sequence)?;
         }
         Ok(changes)
     }
@@ -328,6 +353,7 @@ impl World {
             self.chunks.remove(&(p[0], p[1]));
             self.contexts.remove(&(p[0], p[1]));
             self.light.remove(&(p[0], p[1]));
+            self.cells.forget(*p);
             self.cache.evicted(*p);
             self.revision += 1;
         }
@@ -341,6 +367,7 @@ impl World {
         self.chunks.remove(&(x, z));
         self.contexts.remove(&(x, z));
         self.light.remove(&(x, z));
+        self.cells.forget([x, z]);
         self.cache.lost();
         self.revision += 1;
         Ok(())
@@ -475,6 +502,8 @@ impl World {
         self.chunks.insert((x, z), sections);
         self.contexts.insert((x, z), context);
         self.light.insert((x, z), light);
+        // Unknown until stamp_context binds the replacement to its packet.
+        self.cells.replaced([x, z]);
         self.revision += 1;
         Ok(pistons)
     }
@@ -716,7 +745,7 @@ mod tests {
         let mut trailing = entity.clone();
         trailing.push(0);
         assert!(world.update_entity(&trailing, 13).is_err());
-        world.set_block([1, 65, 2], 1).unwrap();
+        world.set_block([1, 65, 2], 1, 0).unwrap();
         let next = world.context([0, 0], session, 13).unwrap();
         assert!(
             next.heightmaps.is_none()
@@ -842,9 +871,9 @@ mod tests {
         assert_eq!(light.block[2].as_deref().map(|a| a[0]), Some(0));
         assert!(light.sky[0].is_none());
         // Repeating the same state keeps light; a real change clears it around.
-        world.set_block([0, -64, 0], 0).unwrap();
+        world.set_block([0, -64, 0], 0, 0).unwrap();
         assert!(world.column(1, 0).unwrap().1.sky[1].is_some());
-        world.set_block([0, -64, 0], 1).unwrap();
+        world.set_block([0, -64, 0], 1, 0).unwrap();
         assert!(world.column(0, 0).unwrap().1.sky[1].is_none());
         assert!(world.column(1, 0).unwrap().1.sky[1].is_none());
         // Masks outside the dimension or with overlapping bits are rejected.
@@ -867,11 +896,11 @@ mod tests {
         assert_eq!(world.block([0, -64, 0]), None);
         let empty = Arc::new([0; 4096]);
         world.chunks.insert((0, 0), vec![empty; 24]);
-        world.set_block([0, -64, 0], 1).unwrap();
+        world.set_block([0, -64, 0], 1, 0).unwrap();
         assert_eq!(world.block([0, -64, 0]), Some(1));
         assert_eq!(world.block([0, 319, 0]), Some(0));
         assert_eq!(world.block([0, 320, 0]), None);
-        assert!(world.set_block([0, -65, 0], 1).is_err());
+        assert!(world.set_block([0, -65, 0], 1, 0).is_err());
         world.unload(&[0; 8]).unwrap();
         assert_eq!(world.block([0, -64, 0]), None);
         world.reset();
